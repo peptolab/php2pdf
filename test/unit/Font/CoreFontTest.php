@@ -127,6 +127,14 @@ final class CoreFontTest extends TestCase
     }
 
     #[Test]
+    public function repeatedTextReusesItsShapedRun(): void
+    {
+        $font = $this->doc->fonts()->standard(StandardFont::Helvetica);
+
+        self::assertSame($font->shape('Wave'), $font->shape('Wave'));
+    }
+
+    #[Test]
     public function symbolicFontsCarryAToUnicodeMap(): void
     {
         $font = $this->doc->fonts()->find('ZapfDingbats');
@@ -184,6 +192,18 @@ final class CoreFontTest extends TestCase
         $run  = $font->shape('é’€', new TextOptions(kerning: false));
 
         self::assertSame([0xE9, 0x92, 0x80], [$run->glyphs[0]->id, $run->glyphs[1]->id, $run->glyphs[2]->id]);
+    }
+
+    #[Test]
+    public function theShapeCacheEmptiesWhenFull(): void
+    {
+        $font  = $this->doc->fonts()->standard(StandardFont::Helvetica);
+        $first = $font->shape('first');
+        for ($i = 0; $i < 10_000; ++$i) {
+            $font->shape("w{$i}");
+        }
+
+        self::assertNotSame($first, $font->shape('first'));
     }
 
     #[Test]

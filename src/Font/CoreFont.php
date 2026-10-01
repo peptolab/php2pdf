@@ -36,7 +36,16 @@ final class CoreFont implements FontInterface, DeferredInterface
     private const int STRIKEOUT_POSITION = 250;
     private const int STRIKEOUT_SIZE     = 50;
 
+    /** Shaped runs kept for reuse; cleared when full so free text cannot grow it without bound. */
+    private const int SHAPE_CACHE_SIZE = 10_000;
+
     private readonly Reference $reference;
+
+    /** @var array<string, GlyphRun> kerning flag and text => shaped run */
+    private array $shapes = [];
+
+    /** @var array<int, string> glyph id => content stream code, memoised */
+    private array $codes = [];
 
     private readonly AfmMetrics $metrics;
 
@@ -88,7 +97,7 @@ final class CoreFont implements FontInterface, DeferredInterface
     #[Override]
     public function code(int $glyphId): string
     {
-        return sprintf('%02X', $glyphId);
+        return $this->codes[$glyphId] ??= sprintf('%02X', $glyphId);
     }
 
     #[Override]
@@ -159,8 +168,13 @@ final class CoreFont implements FontInterface, DeferredInterface
     {
         $metrics = $this->metrics;
         $kerning = ($options ?? TextOptions::default())->kerning;
-        $glyphs  = [];
-        $prev    = null;
+        $key     = ($kerning ? 'k' : '-') . $text;
+        $cached  = $this->shapes[$key] ?? null;
+        if (null !== $cached) {
+            return $cached;
+        }
+        $glyphs = [];
+        $prev   = null;
         foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
             $codePoint = mb_ord($char, encoding: 'UTF-8');
             if (false === $codePoint) {
@@ -181,7 +195,11 @@ final class CoreFont implements FontInterface, DeferredInterface
             $glyphs[] = $prev;
         }
 
-        return new GlyphRun($glyphs);
+        if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
+            $this->shapes = [];
+        }
+
+        return $this->shapes[$key] = new GlyphRun($glyphs);
     }
 
     #[Override]

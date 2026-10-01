@@ -43,7 +43,16 @@ use function strlen;
  */
 final class Font implements FontInterface, DeferredInterface
 {
+    /** Shaped runs kept for reuse; cleared when full so free text cannot grow it without bound. */
+    private const int SHAPE_CACHE_SIZE = 10_000;
+
     private readonly Reference $reference;
+
+    /** @var array<string, GlyphRun> kerning flag and text => shaped run */
+    private array $shapes = [];
+
+    /** @var array<int, string> glyph id => content stream code, memoised */
+    private array $codes = [];
 
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
@@ -89,7 +98,7 @@ final class Font implements FontInterface, DeferredInterface
     #[Override]
     public function code(int $glyphId): string
     {
-        return sprintf('%04X', $glyphId);
+        return $this->codes[$glyphId] ??= sprintf('%04X', $glyphId);
     }
 
     /** Negative: distance below the baseline. */
@@ -194,8 +203,13 @@ final class Font implements FontInterface, DeferredInterface
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
         $kerning = ($options ?? TextOptions::default())->kerning && $this->program->hasKerning();
-        $glyphs  = [];
-        $prev    = null;
+        $key     = ($kerning ? 'k' : '-') . $text;
+        $cached  = $this->shapes[$key] ?? null;
+        if (null !== $cached) {
+            return $cached;
+        }
+        $glyphs = [];
+        $prev   = null;
         foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
             $codePoint = mb_ord($char, encoding: 'UTF-8');
             if (false === $codePoint) {
@@ -217,7 +231,11 @@ final class Font implements FontInterface, DeferredInterface
             $glyphs[] = $prev;
         }
 
-        return new GlyphRun(array_values($glyphs));
+        if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
+            $this->shapes = [];
+        }
+
+        return $this->shapes[$key] = new GlyphRun(array_values($glyphs));
     }
 
     #[Override]

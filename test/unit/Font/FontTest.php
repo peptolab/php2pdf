@@ -40,6 +40,15 @@ final class FontTest extends TestCase
     }
 
     #[Test]
+    public function kernedAndUnkernedRunsAreCachedApart(): void
+    {
+        $kerned   = $this->font->shape('AV');
+        $unkerned = $this->font->shape('AV', new TextOptions(kerning: false));
+
+        self::assertNotEquals($kerned->width(), $unkerned->width());
+    }
+
+    #[Test]
     public function measuresWidthInPoints(): void
     {
         $plain = $this->font->width('AV', 10, new TextOptions(kerning: false));
@@ -62,6 +71,12 @@ final class FontTest extends TestCase
             )),
             0.001,
         );
+    }
+
+    #[Test]
+    public function repeatedTextReusesItsShapedRun(): void
+    {
+        self::assertSame($this->font->shape('Wave'), $this->font->shape('Wave'));
     }
 
     #[Test]
@@ -105,6 +120,17 @@ final class FontTest extends TestCase
         };
 
         self::assertSame($build(), $build());
+    }
+
+    #[Test]
+    public function theShapeCacheEmptiesWhenFull(): void
+    {
+        $first = $this->font->shape('first');
+        for ($i = 0; $i < 10_000; ++$i) {
+            $this->font->shape("w{$i}");
+        }
+
+        self::assertNotSame($first, $this->font->shape('first'));
     }
 
     #[Test]
