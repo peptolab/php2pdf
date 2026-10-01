@@ -30,6 +30,11 @@ Each imported page is bounded by one of its boxes (`PageBox::Crop` by default) a
 `/Rotate`. Everything the page references is copied into the output; objects shared between
 pages of the same file (fonts, images, colour spaces) are written once.
 
+Layers (optional content groups) the placed pages use are merged into the document with the
+source's default state, so guide or dieline layers switched off in Illustrator stay off, and
+appear in a viewer's layers panel in the source's order. Acrobat, poppler and Ghostscript honour
+them; macOS Preview ignores layers inside placed artwork and draws hidden ones.
+
 The reader handles classic cross-reference tables, cross-reference streams and object streams,
 chains of incremental updates, and rebuilds the cross-reference by scanning the file when
 offsets are wrong. Flate (with PNG and TIFF predictors), LZW, ASCIIHex, ASCII85 and RunLength

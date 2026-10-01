@@ -27,6 +27,16 @@ final class ImportedDocument
         $this->copier = new ObjectCopier($file->reader(), $document->writer());
     }
 
+    /**
+     * Adds the layers the copied pages use to the document's optional content.
+     *
+     * @internal
+     */
+    public function addOptionalContent(OptionalContent $layers): void
+    {
+        $layers->add($this->file->reader(), $this->copier);
+    }
+
     /** A page by 1-based number, bounded by the given box (the crop box by default). */
     public function page(int $number, PageBox $box = PageBox::Crop): ImportedPage
     {

@@ -27,6 +27,7 @@ use PhpPdf\Geometry\Origin;
 use PhpPdf\Image\Image;
 use PhpPdf\Image\ImageReader;
 use PhpPdf\Import\ImportedDocument;
+use PhpPdf\Import\OptionalContent;
 use PhpPdf\Import\PdfFile;
 use PhpPdf\Svg\NativeConverter;
 use PhpPdf\Svg\SvgConverterInterface;
@@ -304,6 +305,11 @@ final class Document
 
         $catalog = Dictionary::of(['Type' => new Name('Catalog'), 'Pages' => $this->pagesRef]);
         $this->navigation?->write($catalog, $this->pageRefs);
+        $layers = new OptionalContent();
+        foreach ($this->imports as $import) {
+            $import->addOptionalContent($layers);
+        }
+        $layers->write($catalog, $this->options->pdfx);
         if ($this->options->xmp) {
             $xmp = new Xmp($this->info, $this->options->producer, $this->createdAt);
             foreach ($this->xmpDescriptions as $description) {

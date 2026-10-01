@@ -6,6 +6,7 @@ namespace PhpPdfTest\Integration;
 
 use PhpPdf\Color\Gray;
 use PhpPdf\Core\FixedClock;
+use PhpPdf\Document\Dimensions;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
@@ -13,6 +14,8 @@ use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\Position;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Import\PageBox;
+use PhpPdf\Import\PdfFile;
+use PhpPdfTest\Support\LayeredPdf;
 use PhpPdfTest\Support\PdfTools;
 use PhpPdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
@@ -24,6 +27,31 @@ use function substr_count;
 
 final class ImportTest extends TestCase
 {
+    /**
+     * A layer switched off in the source stays off. CoreGraphics (Preview) is not checked: it
+     * ignores optional content inside form XObjects, and imported pages are forms.
+     */
+    #[Test]
+    public function keepsHiddenLayersHidden(): void
+    {
+        $path = PdfTools::outputDir() . '/import-layers.pdf';
+        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc->addPage(new Dimensions(100.0, 100.0))->place(
+            $doc->import(PdfFile::fromData(LayeredPdf::make()))->page(1),
+            new Box(0.0, 0.0, 100.0, 100.0),
+        );
+        $doc->close();
+
+        PdfTools::assertValid($path);
+        self::assertSame(
+            ['poppler' => 0, 'Ghostscript' => 0],
+            [
+                'poppler'     => PdfTools::ink(PdfTools::render($path)),
+                'Ghostscript' => PdfTools::ink(PdfTools::ghostscriptRender($path)),
+            ],
+        );
+    }
+
     #[Test]
     public function placesImportedPagesAsTemplates(): void
     {

@@ -15,7 +15,9 @@ Known gaps, in rough order of how often they matter.
 - **SVG**: masks, filters, patterns, markers, text on paths and stroked text are skipped (see
   [svg.md](svg.md)); use `RsvgConverter` for those.
 - **PDF import**: encrypted files are rejected; JPX, JBIG2 and CCITT images pass through
-  untouched; pages are copied as artwork and cannot be edited.
+  untouched; pages are copied as artwork and cannot be edited. Layers (optional content) keep
+  their default visibility, but macOS Preview ignores layers inside placed artwork and shows
+  hidden ones.
 - **PDF/X-4** output follows ISO 15930-7 structurally; no validator ships with the library, so
   check files with Acrobat Preflight or callas pdfToolbox. Imported pages are checked for device
   colour spaces but not converted.

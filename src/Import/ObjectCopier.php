@@ -27,6 +27,12 @@ final class ObjectCopier
         private readonly Writer $target,
     ) {}
 
+    /** The target reference of a source object already copied, or null. */
+    public function copied(Reference $ref): ?Reference
+    {
+        return $this->map[$ref->id] ?? null;
+    }
+
     public function copy(mixed $value): mixed
     {
         if ($value instanceof Reference) {

@@ -63,22 +63,34 @@ final class PdfTools
         $png = self::outputDir() . '/' . pathinfo($path, PATHINFO_FILENAME) . '-coregraphics.png';
         [$code, $output] = self::run(['sips', '-s', 'format', 'png', $path, '--out', $png]);
         Assert::assertSame(0, $code, "sips failed for {$path}:\n{$output}");
-        $image = imagecreatefrompng($png);
-        Assert::assertNotFalse($image);
-        $ink    = 0;
-        $width  = imagesx($image);
-        $height = imagesy($image);
-        for ($y = 0; $y < $height; $y += 2) {
-            for ($x = 0; $x < $width; $x += 2) {
-                $pixel = imagecolorat($image, $x, $y);
-                if (false === $pixel || (($pixel >> 24) & 0x7F) >= 64 || (($pixel >> 16) & 0xFF) >= 128) {
-                    continue;
-                }
-                ++$ink;
-            }
-        }
+        return self::ink($png);
+    }
 
-        return $ink;
+    /**
+     * Renders page 1 with Ghostscript and returns the PNG path. Skips without Ghostscript.
+     */
+    public static function ghostscriptRender(string $path, int $dpi = 72): string
+    {
+        if (null === self::which('gs')) {
+            Assert::markTestSkipped('Ghostscript is not installed.');
+        }
+        $png = self::outputDir() . '/' . pathinfo($path, PATHINFO_FILENAME) . '-gs.png';
+        [$code, $output] = self::run([
+            'gs',
+            '-q',
+            '-dBATCH',
+            '-dNOPAUSE',
+            '-dSAFER',
+            '-sDEVICE=png16m',
+            "-r{$dpi}",
+            '-dFirstPage=1',
+            '-dLastPage=1',
+            "-sOutputFile={$png}",
+            $path,
+        ]);
+        Assert::assertSame(0, $code, "Ghostscript failed for {$path}:\n{$output}");
+
+        return $png;
     }
 
     public static function hasPoppler(): bool
@@ -108,6 +120,32 @@ final class PdfTools
         }
 
         return $info;
+    }
+
+    /**
+     * Counts the dark, opaque pixels of a PNG, sampling every other pixel. Skips without ext-gd.
+     */
+    public static function ink(string $png): int
+    {
+        if (! function_exists('imagecreatefrompng')) {
+            Assert::markTestSkipped('Counting pixels needs ext-gd.');
+        }
+        $image = imagecreatefrompng($png);
+        Assert::assertNotFalse($image);
+        $ink    = 0;
+        $width  = imagesx($image);
+        $height = imagesy($image);
+        for ($y = 0; $y < $height; $y += 2) {
+            for ($x = 0; $x < $width; $x += 2) {
+                $pixel = imagecolorat($image, $x, $y);
+                if (false === $pixel || (($pixel >> 24) & 0x7F) >= 64 || (($pixel >> 16) & 0xFF) >= 128) {
+                    continue;
+                }
+                ++$ink;
+            }
+        }
+
+        return $ink;
     }
 
     public static function outputDir(): string
