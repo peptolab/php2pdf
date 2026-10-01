@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
+use PhpPdf\Flow\FlowResult;
 use PhpPdf\Text\FirstBaseline;
 use PhpPdf\Text\FlowOptions;
-use PhpPdf\Text\FlowResult;
 
 use function array_slice;
 use function count;

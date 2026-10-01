@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
-use PhpPdf\Text\FlowResult;
+use PhpPdf\Flow\FlowResult;
 
 /**
  * Lines broken from one paragraph in one box.

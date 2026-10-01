@@ -8,8 +8,8 @@ use PhpPdf\Canvas\Canvas;
 use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\Position;
+use PhpPdf\Flow\FlowResult;
 use PhpPdf\Geometry\Box;
-use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\VerticalAlignment;
 

@@ -7,12 +7,12 @@ namespace PhpPdf\Table;
 use Closure;
 use Override;
 use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\FlowableInterface;
 use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Document\Document;
 use PhpPdf\Exception\InvalidArgumentException;
+use PhpPdf\Flow\FlowableInterface;
+use PhpPdf\Flow\FlowResult;
 use PhpPdf\Geometry\Box;
-use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\Textflow;
 

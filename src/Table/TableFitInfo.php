@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Table;
 
-use PhpPdf\Text\FlowResult;
+use PhpPdf\Flow\FlowResult;
 
 use function count;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Table;
 
-use PhpPdf\Text\FlowResult;
+use PhpPdf\Flow\FlowResult;
 
 /**
  * The rows a fit will draw, top to bottom, with their heights.

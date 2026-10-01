@@ -6,8 +6,9 @@ namespace PhpPdf\Text;
 
 use Override;
 use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\FlowableInterface;
 use PhpPdf\Document\Document;
+use PhpPdf\Flow\FlowableInterface;
+use PhpPdf\Flow\FlowResult;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Text\Flow\Item;
 use PhpPdf\Text\Flow\Itemiser;

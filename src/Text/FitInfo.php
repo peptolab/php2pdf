@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text;
 
+use PhpPdf\Flow\FlowResult;
+
 /**
  * What the most recent Textflow fit did.
  *
