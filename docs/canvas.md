@@ -35,7 +35,7 @@ $c->raw('0 0 m 10 10 l S');              // raw content-stream syntax when you n
 ## Colour
 
 ```php
-use Php2Pdf\Color\{Gray, Rgb, Cmyk, Spot, IccProfile, IccColor};
+use Php2Pdf\Color\{Gray, Rgb, Cmyk, Spot, DeviceN, IccProfile, IccColor};
 
 $c->setFillColor(Gray::black());         // or new Gray(0.5)
 $c->setStrokeColor(Rgb::fromHex('#c2185b'));         // Rgb::from255(194, 24, 91), new Rgb(0.76, 0.09, 0.36)
@@ -46,6 +46,18 @@ $c->setFillColor(new IccColor(IccProfile::fromFile('sRGB.icc'), 0.2, 0.4, 0.6));
 
 Spot colours become Separation colour spaces with a tint transform to the alternate; ICC
 colours become ICCBased spaces. Both are written once per document.
+
+A DeviceN colour mixes several inks in one fill: a duotone, or a spot ink over process inks.
+Each colorant is a `Spot` whose tint is its share; `DeviceN::cyan()`, `magenta()`, `yellow()`
+and `black()` give the process inks. A press prints the inks as they are; elsewhere they are
+mixed in the alternate space (all colorants' alternates must share one) as overprinted inks
+are, each darkening what is under it by its tint. Spot colorants are listed with their
+Separation spaces, so they match the same ink used alone.
+
+```php
+$duotone = new DeviceN([DeviceN::black(), new Spot('PANTONE 281 U', Cmyk::fromPercent(100, 72, 0, 32))]);
+$c->setFillColor($duotone->withTints(0.4, 0.8));
+```
 
 ## Gradients
 

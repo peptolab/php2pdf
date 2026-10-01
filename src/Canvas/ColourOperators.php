@@ -7,6 +7,7 @@ namespace Php2Pdf\Canvas;
 use Php2Pdf\Color\AbstractGradient;
 use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Color\DeviceN;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\IccColor;
 use Php2Pdf\Color\Rgb;
@@ -22,7 +23,13 @@ use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Template\Template;
 
+use function array_fill;
+use function array_map;
+use function array_merge;
+use function count;
+use function in_array;
 use function sprintf;
+use function str_repeat;
 
 /**
  * The operators that select a colour, and the colour spaces and shadings they need, written once
@@ -48,6 +55,39 @@ final readonly class ColourOperators
         };
     }
 
+    /**
+     * The tint transform of a DeviceN space, as a PostScript calculator function. Subtractive
+     * alternates (CMYK) give 1 - prod(1 - t * c) per component, additive ones (Gray, RGB)
+     * prod(1 - t * (1 - a)), so a single colorant matches its Separation space.
+     */
+    private static function mixFunction(DeviceN $color): Stream
+    {
+        $inputs      = count($color->colorants);
+        $subtractive = $color->alternate() instanceof Cmyk;
+        $outputs     = count($color->alternate()->components());
+        $code        = '';
+        for ($j = 0; $j < $outputs; ++$j) {
+            $code .= '1';
+            foreach ($color->colorants as $i => $colorant) {
+                $value  = $colorant->alternate->components()[$j] ?? 0.0;
+                $factor = $subtractive ? $value : 1.0 - $value;
+                if (0.0 === $factor) {
+                    continue;
+                }
+                $depth = $inputs - $i + $j;
+                $code  .= " {$depth} index " . Num::format($factor, decimals: 6) . ' mul 1 exch sub mul';
+            }
+            $code .= $subtractive ? " 1 exch sub\n" : "\n";
+        }
+        $code .= ($inputs + $outputs) . " {$outputs} roll" . str_repeat(' pop', $inputs);
+
+        return new Stream(Dictionary::of([
+            'FunctionType' => 4,
+            'Domain'       => array_merge(...array_fill(0, $inputs, [0, 1])),
+            'Range'        => array_merge(...array_fill(0, $outputs, [0, 1])),
+        ]), "{\n{$code}\n}");
+    }
+
     /** @param array{string, string, string, string, string} $ops gray, rgb, cmyk, colour-space and component operators */
     public function ops(ColorInterface $color, array $ops): string
     {
@@ -55,16 +95,21 @@ final readonly class ColourOperators
         $this->document->pdfx()->assertOutputIntent();
         $this->document
             ->pdfx()
-            ->assertDeviceColour(self::deviceSpace($color instanceof Spot ? $color->alternate : $color));
+            ->assertDeviceColour(self::deviceSpace(match (true) {
+                $color instanceof Spot => $color->alternate,
+                $color instanceof DeviceN => $color->alternate(),
+                default => $color,
+            }));
 
         return match (true) {
             $color instanceof Gray => "{$components} {$ops[0]}",
             $color instanceof Rgb => "{$components} {$ops[1]}",
             $color instanceof Cmyk => "{$components} {$ops[2]}",
             $color instanceof Spot => $this->colorSpaceOps($this->spotColorSpace($color), $components, $ops),
+            $color instanceof DeviceN => $this->colorSpaceOps($this->deviceNColorSpace($color), $components, $ops),
             $color instanceof IccColor => $this->colorSpaceOps($this->iccColorSpace($color), $components, $ops),
             default => throw new InvalidArgumentException(sprintf(
-                'Colours must be Gray, Rgb, Cmyk, Spot or IccColor; %s is not one of them.',
+                'Colours must be Gray, Rgb, Cmyk, Spot, DeviceN or IccColor; %s is not one of them.',
                 $color::class,
             )),
         };
@@ -114,6 +159,42 @@ final readonly class ColourOperators
         $name = $this->resources->colorSpace($colorSpace);
 
         return "/{$name} {$ops[3]} {$components} {$ops[4]}";
+    }
+
+    /**
+     * A DeviceN colour space: the colorants' names, their shared alternate space, and a tint
+     * transform that mixes them there as overprinted inks (each darkens what is under it by its
+     * tint). Spot colorants are listed with their Separation spaces, so they match the same inks
+     * used alone.
+     */
+    private function deviceNColorSpace(DeviceN $color): Reference
+    {
+        $alternate = $color->alternate();
+        $key       = 'devn';
+        foreach ($color->colorants as $colorant) {
+            $key .= ':' . $colorant->name . '=' . Num::list($colorant->alternate->components());
+        }
+        $spots = [];
+        foreach ($color->colorants as $colorant) {
+            if (in_array($colorant->name, DeviceN::PROCESS, strict: true)) {
+                continue;
+            }
+            $spots[$colorant->name] = $this->spotColorSpace($colorant);
+        }
+
+        return $this->document->objects()->shared($key, function () use ($color, $alternate, $spots): array {
+            $space = [
+                new Name('DeviceN'),
+                array_map(static fn(Spot $colorant): Name => new Name($colorant->name), $color->colorants),
+                new Name(self::deviceSpace($alternate)),
+                $this->document->objects()->add(self::mixFunction($color)),
+            ];
+            if ([] !== $spots) {
+                $space[] = Dictionary::of(['Colorants' => Dictionary::of($spots)]);
+            }
+
+            return $space;
+        });
     }
 
     private function iccColorSpace(IccColor $color): Reference

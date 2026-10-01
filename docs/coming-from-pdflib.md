@@ -88,6 +88,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 |---|---|
 | `setcolor('fill', 'cmyk', c, m, y, k)` | `$canvas->setFillColor(Cmyk::fromPercent(...))` |
 | `makespotcolor('Brand')` | `new Spot('Brand', Cmyk::fromPercent(...))` |
+| DeviceN colour spaces (`create_devicen`) | `new DeviceN([DeviceN::black(), $spot])->withTints(0.4, 0.8)` |
 | `load_iccprofile` + `iccbased` colour | `IccProfile::fromFile()`, `new IccColor($profile, 0.2, 0.4, 0.6)` |
 | `shading('axial', ...)` + `shfill` | `new LinearGradient(...)` with `GradientStop`s, `$canvas->setFillGradient($gradient)` |
 | `rect`, `moveto`, `lineto`, `curveto`, `fill`, `stroke`, `clip` | Same names on `Canvas`, chained |

@@ -49,6 +49,7 @@ The first release.
 - Baseline TIFF natively, keeping CMYK, palettes and ICC profiles, on any page.
 - Photoshop clipping paths in JPEG and TIFF files.
 - Other formats through ext-imagick or ext-gd.
+- DeviceN colours: several inks in one fill, mixed like overprinted inks where they are not printed.
 - Soft masks (luminosity and alpha) on the canvas, and SVG `<mask>`.
 - Tiling patterns on the canvas (`setFillPattern()`, `setStrokePattern()`), and SVG `<pattern>`.
 - SVG markers at path vertices, oriented along the path.

@@ -35,7 +35,7 @@ final class ForeignColorTest extends TestCase
             ->canvas();
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Colours must be Gray, Rgb, Cmyk, Spot or IccColor;');
+        $this->expectExceptionMessage('Colours must be Gray, Rgb, Cmyk, Spot, DeviceN or IccColor;');
         $canvas->setFillColor($colour);
     }
 }
