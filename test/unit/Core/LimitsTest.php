@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core;
+namespace Php2PdfTest\Unit\Core;
 
-use PhpPdf\Core\Filter\FilterChain;
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Core\Filter\Lzw;
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Image\ImageReader;
-use PhpPdf\Import\PdfFile;
-use PhpPdf\Svg\NativeConverter;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\HostileFiles;
+use Php2Pdf\Core\Filter\FilterChain;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Filter\Lzw;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Image\ImageReader;
+use Php2Pdf\Import\PdfFile;
+use Php2Pdf\Svg\NativeConverter;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\HostileFiles;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -58,7 +58,7 @@ final class LimitsTest extends TestCase
     /** @return array<string, array{0: string}> */
     public static function flateProvider(): array
     {
-        $data = str_repeat('phppdf ', times: 1000);
+        $data = str_repeat('php2pdf ', times: 1000);
 
         return [
             'zlib'                   => [(string) gzcompress($data)],
@@ -184,7 +184,7 @@ final class LimitsTest extends TestCase
     #[DataProvider('flateProvider')]
     public function flateStillInflatesEveryVariantProducersWrite(string $compressed): void
     {
-        self::assertSame(str_repeat('phppdf ', times: 1000), Flate::decode($compressed));
+        self::assertSame(str_repeat('php2pdf ', times: 1000), Flate::decode($compressed));
     }
 
     #[Test]

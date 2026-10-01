@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Fit\Position;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\TextlineOptions;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\Visual;
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\TextlineOptions;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

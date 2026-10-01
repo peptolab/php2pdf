@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Style;
+namespace Php2Pdf\Text\Style;
 
 /**
  * Line spacing, either in points or as a percentage of the font size.

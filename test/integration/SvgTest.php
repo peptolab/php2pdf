@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Svg\NativeConverter;
-use PhpPdf\Svg\RsvgConverter;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\Visual;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Svg\NativeConverter;
+use Php2Pdf\Svg\RsvgConverter;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

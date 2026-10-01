@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Flow;
+namespace Php2Pdf\Flow;
 
 /**
  * What happened when a Textflow was fitted into a box.

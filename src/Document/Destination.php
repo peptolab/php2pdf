@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * Where a link or bookmark goes: a page shown whole, a page scrolled to a vertical position, a

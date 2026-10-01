@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
-use PhpPdf\Core\Silencer;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Exception\IoException;
+use Php2Pdf\Core\Silencer;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\IoException;
 
 use function file_get_contents;
 use function md5;

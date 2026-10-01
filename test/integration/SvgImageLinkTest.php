@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Svg\NativeConverter;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Svg\NativeConverter;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

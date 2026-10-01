@@ -16,7 +16,7 @@
 
 declare(strict_types=1);
 
-use PhpPdf\Font\Standard\WinAnsi;
+use Php2Pdf\Font\Standard\WinAnsi;
 
 require __DIR__ . '/../vendor/autoload.php';
 

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Filter;
+namespace Php2Pdf\Core\Filter;
 
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Exception\ParseException;
 
 use function ord;
 use function pack;

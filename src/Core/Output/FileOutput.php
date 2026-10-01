@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Output;
+namespace Php2Pdf\Core\Output;
 
 use Override;
-use PhpPdf\Core\Silencer;
-use PhpPdf\Exception\IoException;
+use Php2Pdf\Core\Silencer;
+use Php2Pdf\Exception\IoException;
 
 use function fclose;
 use function fopen;

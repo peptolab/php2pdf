@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Image;
+namespace Php2PdfTest\Unit\Image;
 
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Image\ImageData;
-use PhpPdf\Image\ImageReader;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Image\ImageData;
+use Php2Pdf\Image\ImageReader;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

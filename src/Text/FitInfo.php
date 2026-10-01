@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
-use PhpPdf\Flow\FlowResult;
+use Php2Pdf\Flow\FlowResult;
 
 /**
  * What the most recent Textflow fit did.

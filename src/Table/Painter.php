@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\Position;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\VerticalAlignment;
 
 use function max;
 

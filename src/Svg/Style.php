@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\FillRule;
-use PhpPdf\Canvas\LineCap;
-use PhpPdf\Canvas\LineJoin;
-use PhpPdf\Color\Rgb;
+use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Canvas\LineCap;
+use Php2Pdf\Canvas\LineJoin;
+use Php2Pdf\Color\Rgb;
 
 use function array_key_exists;
 use function count;

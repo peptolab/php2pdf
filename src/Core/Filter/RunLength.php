@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Filter;
+namespace Php2Pdf\Core\Filter;
 
 use function ord;
 use function str_repeat;

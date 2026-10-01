@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType\Cff;
+namespace Php2Pdf\Font\OpenType\Cff;
 
 /**
  * One operator of a CFF DICT: its operands as written, so they can be copied unchanged, and

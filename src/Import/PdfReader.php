@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Core\Filter\FilterChain;
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Exception\IoException;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Filter\FilterChain;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_keys;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Fit\Position;
-use PhpPdf\Font\TextOptions;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Font\TextOptions;
 
 /**
  * How a single line of text is fitted into a box.

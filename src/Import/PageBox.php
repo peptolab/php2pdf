@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
 /**
  * Which page box bounds an imported page.

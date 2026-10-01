@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\OpenType\Cff;
+namespace Php2PdfTest\Unit\Font\OpenType\Cff;
 
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\OpenType\Cff\CffTable;
-use PhpPdf\Font\OpenType\Cff\Dict;
-use PhpPdfTest\Support\CffBuilder;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\OpenType\Cff\CffTable;
+use Php2Pdf\Font\OpenType\Cff\Dict;
+use Php2PdfTest\Support\CffBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

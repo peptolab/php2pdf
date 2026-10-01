@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Core\Writer;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Core\Writer;
 
 use function is_array;
 

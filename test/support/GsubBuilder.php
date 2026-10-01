@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Support;
+namespace Php2PdfTest\Support;
 
 use function array_key_exists;
 use function array_keys;

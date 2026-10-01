@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Color\Rgb;
+use Php2Pdf\Color\Rgb;
 
 use function array_key_exists;
 use function count;

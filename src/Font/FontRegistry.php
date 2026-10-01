@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
-use PhpPdf\Core\Lru;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\IoException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\OpenType\OpenTypeFont;
+use Php2Pdf\Core\Lru;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function filemtime;
 use function glob;

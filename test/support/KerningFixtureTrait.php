@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Support;
+namespace Php2PdfTest\Support;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Text\Flow\StyleResolver;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\TextStyle;
 
 /**
  * Source Serif 4 at 10 pt, whose kerning pairs the Itemiser and LineBreaker tests rely on:

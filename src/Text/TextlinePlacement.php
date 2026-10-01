@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Geometry\Box;
 
 /**
  * Where a fitted text line ended up.

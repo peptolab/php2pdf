@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core;
+namespace Php2PdfTest\Unit\Core;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Core\Writer;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Core\Writer;
+use Php2Pdf\Exception\PdfException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +25,7 @@ final class WriterTest extends TestCase
         $out    = new MemoryOutput();
         $writer = new Writer($out);
         $writer->writeHeader('1.7');
-        $data = str_repeat('phppdf ', times: 100);
+        $data = str_repeat('php2pdf ', times: 100);
         $writer->add(Stream::of($data));
         $writer->finish(new Dictionary());
 

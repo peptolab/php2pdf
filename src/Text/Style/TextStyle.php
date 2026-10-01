@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Style;
+namespace Php2Pdf\Text\Style;
 
-use PhpPdf\Color\ColorInterface;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Font\TextRenderMode;
+use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Font\TextRenderMode;
 
 use function get_object_vars;
 

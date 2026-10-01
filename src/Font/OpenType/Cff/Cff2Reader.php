@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType\Cff;
+namespace Php2Pdf\Font\OpenType\Cff;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Font\OpenType\BinaryReader;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\OpenType\BinaryReader;
 
 use function array_fill;
 use function array_key_exists;

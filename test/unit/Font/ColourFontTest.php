@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font;
+namespace Php2PdfTest\Unit\Font;
 
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Font\Font;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Font\TextRenderMode;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\Font;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Font\TextRenderMode;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

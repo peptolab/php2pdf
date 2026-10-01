@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

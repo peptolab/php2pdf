@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
 /**
  * How text given to a Textflow is read.

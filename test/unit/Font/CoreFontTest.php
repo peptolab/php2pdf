@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font;
+namespace Php2PdfTest\Unit\Font;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Document\PdfX;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Font\CoreFont;
-use PhpPdf\Font\StandardFont;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\Column;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Document\PdfX;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Font\CoreFont;
+use Php2Pdf\Font\StandardFont;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

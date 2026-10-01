@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\OpenType;
+namespace Php2PdfTest\Unit\Font\OpenType;
 
-use PhpPdf\Font\OpenType\BinaryReader;
-use PhpPdf\Font\OpenType\Gsub;
-use PhpPdfTest\Support\GsubBuilder;
+use Php2Pdf\Font\OpenType\BinaryReader;
+use Php2Pdf\Font\OpenType\Gsub;
+use Php2PdfTest\Support\GsubBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

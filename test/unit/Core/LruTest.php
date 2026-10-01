@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core;
+namespace Php2PdfTest\Unit\Core;
 
-use PhpPdf\Core\Lru;
+use Php2Pdf\Core\Lru;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

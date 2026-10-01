@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Color;
+namespace Php2PdfTest\Unit\Color;
 
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Color\GradientStop;
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\IccColor;
-use PhpPdf\Color\IccProfile;
-use PhpPdf\Color\LinearGradient;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Color\GradientStop;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\IccColor;
+use Php2Pdf\Color\IccProfile;
+use Php2Pdf\Color\LinearGradient;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

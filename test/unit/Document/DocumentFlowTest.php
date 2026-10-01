@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Document;
+namespace Php2PdfTest\Unit\Document;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\Page;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextFormat;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\Page;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextFormat;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Style;
+namespace Php2Pdf\Text\Style;
 
 /**
  * A tab stop at a position measured from the paragraph's left indent.

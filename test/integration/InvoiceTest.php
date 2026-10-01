@@ -2,32 +2,32 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Color\Gray;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\Page;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\Position;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\Border;
-use PhpPdf\Table\Cell;
-use PhpPdf\Table\CellStyle;
-use PhpPdf\Table\Column;
-use PhpPdf\Table\Padding;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextlineOptions;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\Visual;
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\Page;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\Border;
+use Php2Pdf\Table\Cell;
+use Php2Pdf\Table\CellStyle;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\Padding;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextlineOptions;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

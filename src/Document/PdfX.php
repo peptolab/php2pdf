@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
 /**
  * Print production conformance levels a document can be written to.

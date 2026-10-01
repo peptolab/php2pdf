@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core;
+namespace Php2PdfTest\Unit\Core;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\HexString;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Raw;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Serializer;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\HexString;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Raw;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Serializer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

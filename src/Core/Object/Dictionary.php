@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Object;
+namespace Php2Pdf\Core\Object;
 
 use function array_key_exists;
 use function count;

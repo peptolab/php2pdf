@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * A colour at an offset from 0.0 to 1.0 along a gradient.

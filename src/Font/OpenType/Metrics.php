@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType;
+namespace Php2Pdf\Font\OpenType;
 
 /**
  * Vertical metrics and style facts of a font program, in font units.

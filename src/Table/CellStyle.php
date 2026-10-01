@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Color\ColorInterface;
-use PhpPdf\Text\FirstBaseline;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Text\FirstBaseline;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Style\VerticalAlignment;
 
 /**
  * How cells look: padding, background, borders, alignment, where the first baseline of text

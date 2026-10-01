@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Core\Filter\Lzw;
-use PhpPdf\Core\Filter\Predictor;
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Filter\Lzw;
+use Php2Pdf\Core\Filter\Predictor;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Exception\ParseException;
 
 use function array_unique;
 use function chr;

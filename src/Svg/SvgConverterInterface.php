@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Document\Document;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Document\Document;
 
 /**
  * Turns an SVG into artwork that can be placed through the fit engine.

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Image;
+namespace Php2PdfTest\Unit\Image;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Image\ImageOptions;
-use PhpPdfTest\Support\JpegFixtures;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Image\ImageOptions;
+use Php2PdfTest\Support\JpegFixtures;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

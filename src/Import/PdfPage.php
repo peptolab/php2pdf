@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Geometry\Box;
 
 use function array_slice;
 use function array_values;

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\Glyph;
-use PhpPdf\Font\GlyphRun;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\TextStyle;
 
 use function array_key_exists;
 use function array_slice;

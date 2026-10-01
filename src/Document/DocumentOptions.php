@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Color\IccProfile;
-use PhpPdf\Core\ClockInterface;
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\SystemClock;
-use PhpPdf\Font\GlyphCheck;
+use Php2Pdf\Color\IccProfile;
+use Php2Pdf\Core\ClockInterface;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\SystemClock;
+use Php2Pdf\Font\GlyphCheck;
 
 /**
  * Options fixed for the lifetime of a document.
@@ -36,7 +36,7 @@ final readonly class DocumentOptions
         public bool $compress = true,
         public int $compressionLevel = 6,
         ?ClockInterface $clock = null,
-        public string $producer = 'PhpPdf',
+        public string $producer = 'Php2Pdf',
         public bool $xmp = true,
         /** Use a top-left origin with y growing downwards on every page unless a page says otherwise. */
         public bool $topDown = false,

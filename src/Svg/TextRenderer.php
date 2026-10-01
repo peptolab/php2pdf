@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 
 use function count;
 use function is_string;

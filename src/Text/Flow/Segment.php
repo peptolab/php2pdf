@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Font\GlyphRun;
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Text\Style\TextStyle;
 
 /**
  * A positioned run of one style on a line, x measured from the line's left edge.

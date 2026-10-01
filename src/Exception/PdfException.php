@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Exception;
+namespace Php2Pdf\Exception;
 
 use RuntimeException;
 

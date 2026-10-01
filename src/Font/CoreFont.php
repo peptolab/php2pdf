@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
 use Override;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Document\DeferredInterface;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\ConformanceException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\Standard\AfmMetrics;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Document\DeferredInterface;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\ConformanceException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\Standard\AfmMetrics;
 
 use function array_key_exists;
 use function count;

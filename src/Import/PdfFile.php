@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Core\Limits;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function count;
 use function is_string;

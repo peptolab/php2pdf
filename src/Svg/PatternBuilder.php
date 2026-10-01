@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
 use Closure;
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
-use PhpPdf\Geometry\Origin;
-use PhpPdf\Template\Template;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Origin;
+use Php2Pdf\Template\Template;
 
 use function array_key_exists;
 use function implode;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
 /**
  * Where a measured line ends.

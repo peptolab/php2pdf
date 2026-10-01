@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
 use Override;
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * A spot (Separation) colour such as "PANTONE 300 C", with an alternate colour for display and a

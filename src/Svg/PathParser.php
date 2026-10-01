@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Matrix;
 
 use function abs;
 use function atan2;

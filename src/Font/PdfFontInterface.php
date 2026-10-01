@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Document\Document;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Document\Document;
 
 /**
  * A font a document embeds and draws with: what writing text needs on top of the metrics and

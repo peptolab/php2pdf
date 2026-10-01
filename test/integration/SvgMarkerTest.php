@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

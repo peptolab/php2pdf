@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font;
+namespace Php2PdfTest\Unit\Font;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\Glyph;
-use PhpPdf\Font\StandardFont;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Text\Flow\Item;
-use PhpPdf\Text\Flow\Itemiser;
-use PhpPdf\Text\Flow\ItemKind;
-use PhpPdf\Text\Flow\StyleResolver;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\StandardFont;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\ItemKind;
+use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

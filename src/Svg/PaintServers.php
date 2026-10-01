@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Color\AbstractGradient;
-use PhpPdf\Color\GradientSpread;
-use PhpPdf\Color\GradientStop;
-use PhpPdf\Color\LinearGradient;
-use PhpPdf\Color\RadialGradient;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Color\AbstractGradient;
+use Php2Pdf\Color\GradientSpread;
+use Php2Pdf\Color\GradientStop;
+use Php2Pdf\Color\LinearGradient;
+use Php2Pdf\Color\RadialGradient;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 
 use function array_key_exists;
 use function count;

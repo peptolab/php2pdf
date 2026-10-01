@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Text\Textflow;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Text\Textflow;
 
 /**
  * A table row: its cells in column order (a cell may be given as a string, a Textflow, a

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Filter;
+namespace Php2Pdf\Core\Filter;
 
 use InflateContext;
-use PhpPdf\Core\Silencer;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Silencer;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function gzcompress;
 use function inflate_add;

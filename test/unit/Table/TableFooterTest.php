@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Table;
+namespace Php2PdfTest\Unit\Table;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\Page;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\CellStyle;
-use PhpPdf\Table\Column;
-use PhpPdf\Table\FooterContext;
-use PhpPdf\Table\Padding;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\Page;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\CellStyle;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\FooterContext;
+use Php2Pdf\Table\Padding;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

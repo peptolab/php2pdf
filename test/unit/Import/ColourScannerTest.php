@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Import;
+namespace Php2PdfTest\Unit\Import;
 
-use PhpPdf\Import\PdfFile;
-use PhpPdfTest\Support\HostileFiles;
+use Php2Pdf\Import\PdfFile;
+use Php2PdfTest\Support\HostileFiles;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

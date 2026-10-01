@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Dictionary;
 
 /**
  * The output intent a document declares: its dictionary and the colour components (1, 3 or 4)

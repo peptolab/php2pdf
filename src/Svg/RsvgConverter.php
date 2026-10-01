@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
 use Override;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Import\ImportedPage;
-use PhpPdf\Import\PdfFile;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Import\ImportedPage;
+use Php2Pdf\Import\PdfFile;
 
 use function escapeshellarg;
 use function fclose;

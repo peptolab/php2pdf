@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Exception\ParseException;
 
 use function max;
 use function preg_replace;

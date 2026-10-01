@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
 
 /**
  * A cell placed on the grid with its resolved style and, for text, the Textflow that carries

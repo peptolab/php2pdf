@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
 use Override;
-use PhpPdf\Document\Document;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Template\Template;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Template\Template;
 
 /**
  * Converts SVG to vector artwork in pure PHP: paths and basic shapes, transforms, viewBox and

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Color\Gray;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\LayoutException;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\LayoutException;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TextStyle;
 
 use function is_string;
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_pop;
 use function count;

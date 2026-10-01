@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\Standard;
+namespace Php2Pdf\Font\Standard;
 
-use PhpPdf\Font\StandardFont;
+use Php2Pdf\Font\StandardFont;
 
 /**
  * A standard font's metrics, in thousandths of an em, from the data files generated from Adobe's

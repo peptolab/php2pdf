@@ -20,7 +20,7 @@ kan-defect = { threshold = 6.0 }
 
 [analyzer]
 # Library errors are runtime failures callers handle at the boundary, not checked exceptions.
-unchecked-exceptions = ["PhpPdf\\Exception\\PdfException"]
+unchecked-exceptions = ["Php2Pdf\\Exception\\PdfException"]
 # The object model and the import layer handle arbitrary PDF objects, which are `mixed` by nature.
 ignore = [
     { code = "mixed-assignment", in = ["src/Import/", "src/Core/Object/", "src/Core/Serializer.php", "src/Core/Filter/FilterChain.php"] },

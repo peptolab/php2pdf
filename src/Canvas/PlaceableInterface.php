@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Geometry\Matrix;
 
 /**
  * Something the fit engine can place: an image, a template, an imported page, SVG artwork, or

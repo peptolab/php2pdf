@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType\Cff;
+namespace Php2Pdf\Font\OpenType\Cff;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_pop;

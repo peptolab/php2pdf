@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Support;
+namespace Php2PdfTest\Support;
 
 use PHPUnit\Framework\Assert;
 
@@ -15,7 +15,7 @@ use function is_file;
 use function mkdir;
 
 /**
- * Byte-level comparison against golden files in test/asset/golden. Set PHPPDF_UPDATE_BASELINES=1
+ * Byte-level comparison against golden files in test/asset/golden. Set PHP2PDF_UPDATE_BASELINES=1
  * to rewrite them.
  */
 final class Golden
@@ -23,7 +23,7 @@ final class Golden
     public static function assertMatches(string $actual, string $name): void
     {
         $path = PdfTools::assetPath("golden/{$name}");
-        if ('1' === getenv('PHPPDF_UPDATE_BASELINES') || ! is_file($path)) {
+        if ('1' === getenv('PHP2PDF_UPDATE_BASELINES') || ! is_file($path)) {
             if (! is_dir(dirname($path))) {
                 mkdir(dirname($path), permissions: 0o777, recursive: true);
             }

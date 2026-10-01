@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text\Flow;
+namespace Php2PdfTest\Unit\Text\Flow;
 
-use PhpPdf\Font\Glyph;
-use PhpPdf\Text\Flow\Itemiser;
-use PhpPdf\Text\Flow\Line;
-use PhpPdf\Text\Flow\LineBreaker;
-use PhpPdf\Text\Flow\Paragraph;
-use PhpPdfTest\Support\KerningFixtureTrait;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\Line;
+use Php2Pdf\Text\Flow\LineBreaker;
+use Php2Pdf\Text\Flow\Paragraph;
+use Php2PdfTest\Support\KerningFixtureTrait;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Fit\Position;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Geometry\Box;
 
 use function base64_decode;
 use function count;

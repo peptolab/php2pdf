@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Silencer;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Exception\IoException;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Silencer;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function dirname;

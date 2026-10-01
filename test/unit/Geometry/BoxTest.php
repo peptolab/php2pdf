@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Geometry;
+namespace Php2PdfTest\Unit\Geometry;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Box;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Template;
+namespace Php2Pdf\Template;
 
 use Override;
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Document\DeferredInterface;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\Resources;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
-use PhpPdf\Geometry\Origin;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Document\DeferredInterface;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\Resources;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Origin;
 
 /**
  * Reusable artwork: a form XObject with its own canvas, drawn once and placed any number of times

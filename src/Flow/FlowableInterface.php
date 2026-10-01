@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Flow;
+namespace Php2Pdf\Flow;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Geometry\Box;
 
 /**
  * Content that flows through boxes across pages: a Textflow or a Table. Each fit places as much

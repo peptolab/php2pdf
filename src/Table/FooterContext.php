@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
 /**
  * The body rows a box holds, given to a table's footer callback so it can fill footer cells such

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
 /** @api */
 enum LineJoin: int

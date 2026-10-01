@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Geometry\Unit;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Unit;
 
 /**
  * Space between a cell's edges and its content, in points.

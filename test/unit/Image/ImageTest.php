@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Image;
+namespace Php2PdfTest\Unit\Image;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\Position;
-use PhpPdf\Geometry\Box;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Geometry\Box;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

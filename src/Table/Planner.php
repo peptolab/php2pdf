@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Flow\FlowResult;
+use Php2Pdf\Flow\FlowResult;
 
 use function array_sum;
 use function max;

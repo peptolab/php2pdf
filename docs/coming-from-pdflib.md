@@ -1,10 +1,10 @@
 # Coming from PDFlib
 
-PhpPdf keeps the parts of PDFlib that design-led documents use: fit methods, Textflow, tables,
+Php2Pdf keeps the parts of PDFlib that design-led documents use: fit methods, Textflow, tables,
 PDF import, embedded fonts and PDF/X. The model is objects instead of a handle and option lists:
 a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
-| | PDFlib | PhpPdf |
+| | PDFlib | Php2Pdf |
 |---|---|---|
 | State | One `PDFlib` object, handles as integers | Objects: `Document`, `Page`, `Canvas`, `Font`, `Image`, `Textflow`, `Table` |
 | Options | Option list strings | Named arguments and small option classes |
@@ -14,7 +14,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Documents and pages
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `begin_document($file, '')` | `new Document($file)` or `new Document($file, new DocumentOptions(...))` |
 | `begin_document('', '')` + `get_buffer()` | `new Document($out = new MemoryOutput())`, then `$out->contents()` |
@@ -27,7 +27,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Fonts and text
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `load_font('Inter', 'unicode', 'embedding')` | `$doc->fonts()->load('Inter.ttf')` or `->find('Inter')` with a search path |
 | `load_font('Helvetica', ...)` (core font) | `$doc->fonts()->standard(StandardFont::Helvetica)` or `->find('Helvetica')` |
@@ -42,7 +42,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Textflow
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `create_textflow($text, 'fontname=... fontsize=10 leading=120%')` | `$doc->textflow($text, new TextStyle(font: $font, size: 10, leading: Leading::percent(120)))` |
 | Inline options `<fontname=... >` | Markup: `<p style="name">`, `<span style="name">`, `<b>`, `<i>`, `<sup>`; named styles with `$doc->styles()->define()` |
@@ -58,7 +58,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Tables
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `add_table_cell($tbl, $col, $row, $text, 'colwidth=..')` | `new Table([Column::mm(55), Column::auto()], ...)`, `$table->addRow([...])` |
 | `header=1` | `$table->addHeaderRow([...])` |
@@ -69,7 +69,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Images, templates and imported pages
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `load_image('auto', $file, '')` | `$doc->image($file)` (JPEG, JPEG 2000, PNG, TIFF natively) |
 | `load_image` options `dpi`, `page`, `ignoreorientation`, `clippingpathname` | `new ImageOptions(dpi: 300, page: 2, orientation: false, clippingPath: 'Outline')` |
@@ -84,7 +84,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Graphics and colour
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `setcolor('fill', 'cmyk', c, m, y, k)` | `$canvas->setFillColor(Cmyk::fromPercent(...))` |
 | `makespotcolor('Brand')` | `new Spot('Brand', Cmyk::fromPercent(...))` |
@@ -95,7 +95,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Navigation and PDF/X
 
-| PDFlib | PhpPdf |
+| PDFlib | Php2Pdf |
 |---|---|
 | `create_bookmark` | `$doc->outline()->add('Chapter', 5)` (a page number or a `Destination`) |
 | `create_annotation(..., 'Link', 'action {activate ...}')` | `$page->addLink($box, 'https://...', tooltip: '...')` or `Destination::page(3)` |

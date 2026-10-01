@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
-use PhpPdf\Text\TextFormat;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
+use Php2Pdf\Text\TextFormat;
 
 /**
  * A table cell: text (plain or marked up), a prepared Textflow, or anything placeable (an

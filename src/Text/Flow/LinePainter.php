@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 
 use function max;
 

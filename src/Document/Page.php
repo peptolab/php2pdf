@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Exception\ConformanceException;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\Placement;
-use PhpPdf\Flow\FlowableInterface;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\FlowOptions;
-use PhpPdf\Text\Textflow;
-use PhpPdf\Text\TextlineOptions;
-use PhpPdf\Text\TextlinePlacement;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\ConformanceException;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\Placement;
+use Php2Pdf\Flow\FlowableInterface;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Textflow;
+use Php2Pdf\Text\TextlineOptions;
+use Php2Pdf\Text\TextlinePlacement;
 
 use function implode;
 use function sprintf;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Style\TextStyle;
 
 use function array_splice;
 use function array_values;

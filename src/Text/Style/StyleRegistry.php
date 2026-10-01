@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Style;
+namespace Php2Pdf\Text\Style;
 
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_keys;

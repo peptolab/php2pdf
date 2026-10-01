@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Document;
+namespace Php2PdfTest\Unit\Document;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Destination;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Destination;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Geometry\Box;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

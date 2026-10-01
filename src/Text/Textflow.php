@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
 use Override;
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Document\Document;
-use PhpPdf\Flow\FlowableInterface;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\Flow\Item;
-use PhpPdf\Text\Flow\Itemiser;
-use PhpPdf\Text\Flow\ItemKind;
-use PhpPdf\Text\Flow\Layout;
-use PhpPdf\Text\Flow\LinePainter;
-use PhpPdf\Text\Flow\MarkupParser;
-use PhpPdf\Text\Flow\Paragraph;
-use PhpPdf\Text\Flow\StyleResolver;
-use PhpPdf\Text\Flow\TextflowBuilder;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Flow\FlowableInterface;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\ItemKind;
+use Php2Pdf\Text\Flow\Layout;
+use Php2Pdf\Text\Flow\LinePainter;
+use Php2Pdf\Text\Flow\MarkupParser;
+use Php2Pdf\Text\Flow\Paragraph;
+use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Flow\TextflowBuilder;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Style\VerticalAlignment;
 
 use function array_slice;
 use function count;

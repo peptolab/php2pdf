@@ -3,24 +3,24 @@
 ## Installation
 
 ```bash
-composer require peptolab/phppdf
+composer require peptolab/php2pdf
 ```
 
-PhpPdf needs PHP 8.3 or later with `ext-zlib` (stream compression) and `ext-mbstring` (text).
+Php2Pdf needs PHP 8.3 or later with `ext-zlib` (stream compression) and `ext-mbstring` (text).
 `ext-imagick` or `ext-gd` are optional: they let images in formats other than JPEG and PNG be
 placed by transcoding them.
 
 ## A first document
 
 ```php
-use PhpPdf\Color\Rgb;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextFormat;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextFormat;
 
 $doc = new Document('hello.pdf');
 $doc->info()->setTitle('Hello');
@@ -53,8 +53,8 @@ Fonts are subset and written when `close()` is called.
 Everything inside the library is in PDF points (1/72 inch). Convert at the API boundary:
 
 ```php
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Unit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Unit;
 
 Unit::mm(25.4);              // 72.0
 Unit::in(1.0);               // 72.0

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextFormat;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextFormat;
 
 use function array_splice;
 use function count;

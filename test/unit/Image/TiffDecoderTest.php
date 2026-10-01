@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Image;
+namespace Php2PdfTest\Unit\Image;
 
-use PhpPdf\Core\Limits;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Image\ImageData;
-use PhpPdf\Image\TiffDecoder;
-use PhpPdfTest\Support\TiffFixture;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Image\ImageData;
+use Php2Pdf\Image\TiffDecoder;
+use Php2PdfTest\Support\TiffFixture;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

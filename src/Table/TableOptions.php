@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Text\FirstBaseline;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Text\FirstBaseline;
 
 /**
  * How a table flows through boxes.

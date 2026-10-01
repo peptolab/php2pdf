@@ -1,13 +1,13 @@
-# PhpPdf documentation
+# Php2Pdf documentation
 
-PhpPdf is a pure-PHP library for precision PDF layout: embedded fonts, templates from PDF, AI
+Php2Pdf is a pure-PHP library for precision PDF layout: embedded fonts, templates from PDF, AI
 and SVG, images, and text and tables that flow through chained boxes across pages. It needs
 PHP 8.3 or later with `ext-zlib` and `ext-mbstring`, and nothing else at runtime.
 
 | Guide | What it covers |
 |-------|----------------|
 | [Getting started](getting-started.md) | Installation, a first document, units, coordinate origins, validating output |
-| [Coming from PDFlib](coming-from-pdflib.md) | PDFlib functions and options and their PhpPdf equivalents |
+| [Coming from PDFlib](coming-from-pdflib.md) | PDFlib functions and options and their Php2Pdf equivalents |
 | [Documents and pages](document.md) | `Document`, `DocumentOptions`, pages, page boxes, metadata, output targets, determinism, streaming |
 | [Canvas and colour](canvas.md) | Paths, transforms, graphics state, clipping, colour spaces, spot colours, gradients, opacity, blend modes |
 | [Fonts and text](fonts-and-text.md) | The font registry, families and metrics, drawing text, `fitTextline()` |

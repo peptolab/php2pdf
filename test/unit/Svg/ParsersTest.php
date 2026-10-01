@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Svg;
+namespace Php2PdfTest\Unit\Svg;
 
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Svg\ColorParser;
-use PhpPdf\Svg\Length;
-use PhpPdf\Svg\PathParser;
-use PhpPdf\Svg\StyleSheet;
-use PhpPdf\Svg\TransformParser;
-use PhpPdf\Svg\XmlParser;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Svg\ColorParser;
+use Php2Pdf\Svg\Length;
+use Php2Pdf\Svg\PathParser;
+use Php2Pdf\Svg\StyleSheet;
+use Php2Pdf\Svg\TransformParser;
+use Php2Pdf\Svg\XmlParser;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core;
+namespace Php2Pdf\Core;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\HexString;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Raw;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\HexString;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Raw;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\PdfException;
 
 use function bin2hex;
 use function get_debug_type;

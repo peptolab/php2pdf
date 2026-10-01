@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\OpenType\Cff;
+namespace Php2PdfTest\Unit\Font\OpenType\Cff;
 
-use PhpPdf\Font\OpenType\Cff\CffSubsetter;
-use PhpPdf\Font\OpenType\Cff\CffTable;
-use PhpPdf\Font\OpenType\Cff\Dict;
-use PhpPdf\Font\OpenType\OpenTypeFont;
-use PhpPdfTest\Support\CffBuilder;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Font\OpenType\Cff\CffSubsetter;
+use Php2Pdf\Font\OpenType\Cff\CffTable;
+use Php2Pdf\Font\OpenType\Cff\Dict;
+use Php2Pdf\Font\OpenType\OpenTypeFont;
+use Php2PdfTest\Support\CffBuilder;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

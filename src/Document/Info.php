@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
 /**
  * Document information: title, author and friends. Written to the Info dictionary and XMP.

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core;
+namespace Php2Pdf\Core;
 
 use DateTimeImmutable;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Exception\PdfException;
 
 use function is_string;
 use function mb_convert_encoding;

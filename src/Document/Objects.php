@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
 use Closure;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Writer;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Writer;
 
 /**
  * The document's PDF objects, for artwork of your own that writes its own resources: add an

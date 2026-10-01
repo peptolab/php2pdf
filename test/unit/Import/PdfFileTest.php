@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Import;
+namespace Php2PdfTest\Unit\Import;
 
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Import\PageBox;
-use PhpPdf\Import\PdfFile;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Import\PageBox;
+use Php2Pdf\Import\PdfFile;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

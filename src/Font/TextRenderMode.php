@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
 /** @api */
 enum TextRenderMode: int

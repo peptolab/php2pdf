@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Core\Limits;
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Exception\ParseException;
 
 use function ord;
 use function sprintf;

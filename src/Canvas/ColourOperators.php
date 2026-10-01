@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
-use PhpPdf\Color\AbstractGradient;
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Color\ColorInterface;
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\IccColor;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Color\Spot;
-use PhpPdf\Core\Num;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\Resources;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Geometry\Matrix;
-use PhpPdf\Template\Template;
+use Php2Pdf\Color\AbstractGradient;
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\IccColor;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Color\Spot;
+use Php2Pdf\Core\Num;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\Resources;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Template\Template;
 
 use function sprintf;
 

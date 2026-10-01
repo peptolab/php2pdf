@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\Standard;
+namespace Php2PdfTest\Unit\Font\Standard;
 
-use PhpPdf\Font\Standard\WinAnsi;
+use Php2Pdf\Font\Standard\WinAnsi;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

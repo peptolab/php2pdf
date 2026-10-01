@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Geometry;
+namespace Php2PdfTest\Unit\Geometry;
 
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Image\ImageOptions;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\PhotoshopPaths;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Image\ImageOptions;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\PhotoshopPaths;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

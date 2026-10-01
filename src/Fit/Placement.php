@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Fit;
+namespace Php2Pdf\Fit;
 
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 
 use function abs;
 

@@ -35,7 +35,7 @@ $c->raw('0 0 m 10 10 l S');              // raw content-stream syntax when you n
 ## Colour
 
 ```php
-use PhpPdf\Color\{Gray, Rgb, Cmyk, Spot, IccProfile, IccColor};
+use Php2Pdf\Color\{Gray, Rgb, Cmyk, Spot, IccProfile, IccColor};
 
 $c->setFillColor(Gray::black());         // or new Gray(0.5)
 $c->setStrokeColor(Rgb::fromHex('#c2185b'));         // Rgb::from255(194, 24, 91), new Rgb(0.76, 0.09, 0.36)
@@ -50,7 +50,7 @@ colours become ICCBased spaces. Both are written once per document.
 ## Gradients
 
 ```php
-use PhpPdf\Color\{LinearGradient, RadialGradient, GradientStop};
+use Php2Pdf\Color\{LinearGradient, RadialGradient, GradientStop};
 
 $g = new LinearGradient(0, 0, 200, 0, [new GradientStop(0, Rgb::fromHex('#ff7043')), new GradientStop(1, Rgb::fromHex('#66bb6a'))]);
 $r = RadialGradient::circle(100, 100, 80, $stops);   // or new RadialGradient(x0, y0, r0, x1, y1, r1, $stops)

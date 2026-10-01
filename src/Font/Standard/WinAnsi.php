@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\Standard;
+namespace Php2Pdf\Font\Standard;
 
 /**
  * WinAnsiEncoding (Windows code page 1252 as PDF defines it): the single-byte encoding the

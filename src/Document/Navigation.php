@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\TextString;
-use PhpPdf\Core\Writer;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\TextString;
+use Php2Pdf\Core\Writer;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Geometry\Box;
 
 use function array_key_exists;
 use function count;

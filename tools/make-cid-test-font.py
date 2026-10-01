@@ -76,9 +76,9 @@ cff.fontNames = ["PhpPdfCidTest-Regular"]
 names = font["name"]
 for record in list(names.names):
     if record.nameID in (1, 16):
-        names.setName("PhpPdf CID Test", record.nameID, record.platformID, record.platEncID, record.langID)
+        names.setName("Php2Pdf CID Test", record.nameID, record.platformID, record.platEncID, record.langID)
     elif record.nameID in (3, 4):
-        names.setName("PhpPdf CID Test Regular", record.nameID, record.platformID, record.platEncID, record.langID)
+        names.setName("Php2Pdf CID Test Regular", record.nameID, record.platformID, record.platEncID, record.langID)
     elif record.nameID == 6:
         names.setName("PhpPdfCidTest-Regular", record.nameID, record.platformID, record.platEncID, record.langID)
 

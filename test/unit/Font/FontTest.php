@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font;
+namespace Php2PdfTest\Unit\Font;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PdfX;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\Font;
-use PhpPdf\Font\GlyphCheck;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Font\TextRenderMode;
-use PhpPdf\Font\ToUnicode;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PdfX;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\Font;
+use Php2Pdf\Font\GlyphCheck;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Font\TextRenderMode;
+use Php2Pdf\Font\ToUnicode;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

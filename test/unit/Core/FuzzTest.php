@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core;
+namespace Php2PdfTest\Unit\Core;
 
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Image\ImageReader;
-use PhpPdf\Import\PdfFile;
-use PhpPdf\Svg\NativeConverter;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Image\ImageReader;
+use Php2Pdf\Import\PdfFile;
+use Php2Pdf\Svg\NativeConverter;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

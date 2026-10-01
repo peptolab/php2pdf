@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\Standard;
+namespace Php2PdfTest\Unit\Font\Standard;
 
-use PhpPdf\Font\Standard\AfmMetrics;
-use PhpPdf\Font\StandardFont;
+use Php2Pdf\Font\Standard\AfmMetrics;
+use Php2Pdf\Font\StandardFont;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

@@ -1,5 +1,5 @@
 {
-    "name": "peptolab/phppdf",
+    "name": "peptolab/php2pdf",
     "description": "Pure-PHP library for precision PDF layout: embedded fonts, templates, images and text that flows through chained boxes.",
     "type": "library",
     "license": "MIT",
@@ -25,14 +25,14 @@
     },
     "autoload": {
         "psr-4": {
-            "PhpPdf\\": "src/"
+            "Php2Pdf\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "PhpPdfTest\\Unit\\": "test/unit/",
-            "PhpPdfTest\\Integration\\": "test/integration/",
-            "PhpPdfTest\\Support\\": "test/support/"
+            "Php2PdfTest\\Unit\\": "test/unit/",
+            "Php2PdfTest\\Integration\\": "test/integration/",
+            "Php2PdfTest\\Support\\": "test/support/"
         }
     },
     "scripts": {

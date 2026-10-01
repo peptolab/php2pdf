@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Exception\PdfException;
 
 use function sprintf;
 

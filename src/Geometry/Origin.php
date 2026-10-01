@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Geometry;
+namespace Php2Pdf\Geometry;
 
 /**
  * Where a page's coordinate origin sits and which way y grows.

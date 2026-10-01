@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
 use Override;
-use PhpPdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Dictionary;
 
 use function max;
 use function min;

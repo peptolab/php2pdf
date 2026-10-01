@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
-use PhpPdf\Exception\ConformanceException;
+use Php2Pdf\Exception\ConformanceException;
 
 use function sprintf;
 

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
-use PhpPdf\Core\Num;
-use PhpPdf\Font\GlyphRun;
-use PhpPdf\Font\PdfFontInterface;
-use PhpPdf\Font\TextOptions;
+use Php2Pdf\Core\Num;
+use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Font\PdfFontInterface;
+use Php2Pdf\Font\TextOptions;
 
 use function count;
 use function implode;

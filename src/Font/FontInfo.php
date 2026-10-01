@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Font\OpenType\BinaryReader;
-use PhpPdf\Font\OpenType\NameTable;
-use PhpPdf\Font\OpenType\TableDirectory;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\OpenType\BinaryReader;
+use Php2Pdf\Font\OpenType\NameTable;
+use Php2Pdf\Font\OpenType\TableDirectory;
 
 use function fclose;
 use function fopen;

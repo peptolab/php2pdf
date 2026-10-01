@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Output;
+namespace Php2Pdf\Core\Output;
 
 /**
  * A byte sink the writer streams into.

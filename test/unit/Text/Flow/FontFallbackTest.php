@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text\Flow;
+namespace Php2PdfTest\Unit\Text\Flow;
 
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\StandardFont;
-use PhpPdf\Text\Flow\Item;
-use PhpPdf\Text\Flow\Itemiser;
-use PhpPdf\Text\Flow\ItemKind;
-use PhpPdf\Text\Flow\StyleResolver;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\StandardFont;
+use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\ItemKind;
+use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

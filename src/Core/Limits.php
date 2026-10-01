@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core;
+namespace Php2Pdf\Core;
 
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * Resource limits for parsing files that might be hostile: PDFs to import, images and SVG. A

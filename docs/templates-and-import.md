@@ -7,7 +7,7 @@ A template is reusable artwork: a form XObject drawn once and placed any number 
 ```php
 $header = $doc->template(Dimensions::mm(210, 30));            // its own canvas and origin
 $header->canvas()->setFillColor(Cmyk::fromPercent(100, 44, 0, 0))->fillRect(0, 0, $header->width(), $header->height());
-$header->canvas()->fitTextline('PhpPdf', $bold, 24, new Box(80, 0, 300, $header->height()), TextlineOptions::at(Position::centerLeft()));
+$header->canvas()->fitTextline('Php2Pdf', $bold, 24, new Box(80, 0, 300, $header->height()), TextlineOptions::at(Position::centerLeft()));
 
 $page->place($header, Box::fromMm(0, 267, 210, 30), Fit::entire());
 ```

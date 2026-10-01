@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Text\Style\VerticalAlignment;
 
 /**
  * Options for fitting a Textflow into a box.

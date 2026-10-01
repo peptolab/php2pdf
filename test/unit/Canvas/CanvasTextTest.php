@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Canvas;
+namespace Php2PdfTest\Unit\Canvas;
 
-use PhpPdf\Color\GradientStop;
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\LinearGradient;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\Page;
-use PhpPdf\Font\CoreFont;
-use PhpPdf\Font\Glyph;
-use PhpPdf\Font\GlyphRun;
-use PhpPdf\Font\StandardFont;
-use PhpPdf\Font\TextOptions;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Color\GradientStop;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\LinearGradient;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\Page;
+use Php2Pdf\Font\CoreFont;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Font\StandardFont;
+use Php2Pdf\Font\TextOptions;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

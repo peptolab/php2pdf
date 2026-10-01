@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Core\Limits;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_slice;
 use function array_values;

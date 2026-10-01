@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Object;
+namespace Php2Pdf\Core\Object;
 
 /**
  * A PDF stream: a dictionary plus binary data.

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Geometry;
+namespace Php2Pdf\Geometry;
 
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 use function abs;
 use function max;

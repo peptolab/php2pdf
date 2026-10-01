@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Color\ColorInterface;
-use PhpPdf\Color\Gray;
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * A cell edge: line width in points, colour and dash pattern. A width of zero draws nothing.

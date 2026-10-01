@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType;
+namespace Php2Pdf\Font\OpenType;
 
-use PhpPdf\Core\Lru;
-use PhpPdf\Exception\IoException;
+use Php2Pdf\Core\Lru;
+use Php2Pdf\Exception\IoException;
 
 use function array_key_exists;
 use function count;

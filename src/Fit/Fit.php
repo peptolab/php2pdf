@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Fit;
+namespace Php2Pdf\Fit;
 
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * Options for placing an object in a box: fit method, position, rotation and natural-size

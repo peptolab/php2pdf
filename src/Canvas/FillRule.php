@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
 /**
  * How a path's interior is decided when it self-intersects or nests.

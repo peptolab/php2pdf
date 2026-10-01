@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font;
+namespace Php2PdfTest\Unit\Font;
 
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\OpenType\OpenTypeFont;
-use PhpPdf\Font\OpenType\TrueTypeSubsetter;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\OpenType\OpenTypeFont;
+use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Document\Document;
+use Php2Pdf\Document\Document;
 
 /**
  * An existing PDF bound to a document being written: each page can be placed as artwork, and

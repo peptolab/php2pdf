@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text\Flow;
+namespace Php2PdfTest\Unit\Text\Flow;
 
-use PhpPdf\Text\Flow\Item;
-use PhpPdf\Text\Flow\Itemiser;
-use PhpPdf\Text\Flow\ItemKind;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdfTest\Support\KerningFixtureTrait;
+use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\ItemKind;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2PdfTest\Support\KerningFixtureTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

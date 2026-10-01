@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Text\Flow\StyleResolver;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
-use PhpPdf\Text\TextFormat;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
+use Php2Pdf\Text\TextFormat;
 
 use function array_key_exists;
 use function count;

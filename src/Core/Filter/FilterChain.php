@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Filter;
+namespace Php2Pdf\Core\Filter;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
 use function array_pad;

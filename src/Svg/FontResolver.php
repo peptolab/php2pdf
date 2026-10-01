@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\FontStyle;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\FontStyle;
 
 use function array_key_exists;
 use function implode;

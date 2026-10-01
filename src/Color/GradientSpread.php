@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
 /**
  * What a gradient does beyond its end points: keeps the end colours (pad), starts again (repeat),

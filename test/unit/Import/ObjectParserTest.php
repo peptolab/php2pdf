@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Import;
+namespace Php2PdfTest\Unit\Import;
 
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Import\Lexer;
-use PhpPdf\Import\ObjectParser;
-use PhpPdf\Import\Token;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Import\Lexer;
+use Php2Pdf\Import\ObjectParser;
+use Php2Pdf\Import\Token;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

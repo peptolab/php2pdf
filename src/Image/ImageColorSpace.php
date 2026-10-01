@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Core\Object\HexString;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\HexString;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
 
 use function intdiv;
 use function strlen;

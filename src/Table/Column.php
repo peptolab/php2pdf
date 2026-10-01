@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Geometry\Unit;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Unit;
 
 /**
  * A table column: a fixed width in points, a percentage of the table width, or sized from its

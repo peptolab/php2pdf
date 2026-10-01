@@ -29,7 +29,7 @@
     </testsuites>
     <php>
         <ini name="date.timezone" value="UTC"/>
-        <env name="PHPPDF_UPDATE_BASELINES" value="0"/>
+        <env name="PHP2PDF_UPDATE_BASELINES" value="0"/>
     </php>
     <source>
         <include>

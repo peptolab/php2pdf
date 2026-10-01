@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Fit;
+namespace Php2Pdf\Fit;
 
 /**
  * How an object is sized to its box.

@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Document;
+namespace Php2PdfTest\Unit\Document;
 
 use Closure;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Font\FontInterface;
-use PhpPdf\Font\StandardFont;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Svg\SvgFile;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\StandardFont;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Svg\SvgFile;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

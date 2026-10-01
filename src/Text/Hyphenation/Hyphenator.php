@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Hyphenation;
+namespace Php2Pdf\Text\Hyphenation;
 
-use PhpPdf\Exception\IoException;
+use Php2Pdf\Exception\IoException;
 
 use function array_fill;
 use function array_key_exists;

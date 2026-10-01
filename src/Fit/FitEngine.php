@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Fit;
+namespace Php2Pdf\Fit;
 
-use PhpPdf\Core\Num;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
-use PhpPdf\Geometry\Origin;
+use Php2Pdf\Core\Num;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Origin;
 
 use function max;
 use function min;

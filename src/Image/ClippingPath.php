@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Image;
+namespace Php2Pdf\Image;
 
-use PhpPdf\Canvas\Canvas;
+use Php2Pdf\Canvas\Canvas;
 
 /**
  * A path from a Photoshop image's resources, in the image's unit square (origin bottom-left, y

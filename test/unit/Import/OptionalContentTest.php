@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Import;
+namespace Php2PdfTest\Unit\Import;
 
-use PhpPdf\Color\IccProfile;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Document\PdfX;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Import\PdfFile;
-use PhpPdf\Import\PdfReader;
-use PhpPdfTest\Support\LayeredPdf;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Color\IccProfile;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Document\PdfX;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Import\PdfFile;
+use Php2Pdf\Import\PdfReader;
+use Php2PdfTest\Support\LayeredPdf;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

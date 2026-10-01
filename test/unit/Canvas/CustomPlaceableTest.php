@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Canvas;
+namespace Php2PdfTest\Unit\Canvas;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Dimensions;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

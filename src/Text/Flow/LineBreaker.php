@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Font\Glyph;
-use PhpPdf\Font\GlyphRun;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\TabAlignment;
-use PhpPdf\Text\Style\TabStop;
-use PhpPdf\Text\Style\TextStyle;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\TabAlignment;
+use Php2Pdf\Text\Style\TabStop;
+use Php2Pdf\Text\Style\TextStyle;
 
 use function array_pop;
 use function array_slice;

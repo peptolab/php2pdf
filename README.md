@@ -1,4 +1,4 @@
-# PhpPdf
+# Php2Pdf
 
 A pure-PHP library for precision PDF layout: embedded fonts, PDF/AI/SVG templates, images, and
 text that flows through chained boxes across pages. It keeps the parts of PDFlib that matter for
@@ -34,10 +34,10 @@ and PDF/X-4, a cookbook, limitations and development. Moving from PDFlib? See
 ## Quick look
 
 ```php
-use PhpPdf\Color\Rgb;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Geometry\Box;
 
 $doc = new Document('out.pdf');
 $doc->info()->setTitle('Hello');

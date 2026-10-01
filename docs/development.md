@@ -21,7 +21,7 @@ suite on Ubuntu with the PDF tooling installed.
   `test/asset/baseline/*.png`.
 
 A missing baseline is written on the first run and the test is marked incomplete; run the suite
-again to compare. Set `PHPPDF_UPDATE_BASELINES=1` to regenerate baselines after an intentional
+again to compare. Set `PHP2PDF_UPDATE_BASELINES=1` to regenerate baselines after an intentional
 change. Comparison tolerates a small share of differing pixels so anti-aliasing differences
 between poppler versions do not fail the build.
 

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Color\Rgb;
+use Php2Pdf\Color\Rgb;
 
 /**
  * A resolved fill or stroke: nothing, a flat colour, or a paint server (gradient) by id with

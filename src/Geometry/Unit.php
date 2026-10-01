@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Geometry;
+namespace Php2Pdf\Geometry;
 
 /**
  * Converts common units to points (1/72 inch). The library works in points internally.

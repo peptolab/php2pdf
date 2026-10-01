@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType;
+namespace Php2Pdf\Font\OpenType;
 
 use function array_column;
 use function array_key_exists;

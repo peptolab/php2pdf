@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Svg;
+namespace Php2PdfTest\Unit\Svg;
 
-use PhpPdf\Svg\MarkerVertices;
-use PhpPdf\Svg\PathParser;
+use Php2Pdf\Svg\MarkerVertices;
+use Php2Pdf\Svg\PathParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

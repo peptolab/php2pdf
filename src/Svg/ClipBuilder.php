@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Matrix;
 
 use function array_key_exists;
 use function ltrim;

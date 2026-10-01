@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Text\FirstBaseline;
-use PhpPdf\Text\FlowOptions;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Text\FirstBaseline;
+use Php2Pdf\Text\FlowOptions;
 
 use function array_slice;
 use function count;

@@ -3,11 +3,11 @@
 ## Creating a document
 
 ```php
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Core\Output\StreamOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Core\Output\StreamOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
 
 $doc = new Document('out.pdf');                       // a file path
 $doc = new Document(new StreamOutput($resource));     // any writable stream, e.g. php://output
@@ -21,7 +21,7 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `version` | `'1.7'` | The PDF version in the header |
 | `compress`, `compressionLevel` | `true`, `6` | Flate-compress content streams |
 | `clock` | `SystemClock` | Supplies creation dates; inject `FixedClock` for reproducible output |
-| `producer` | `'PhpPdf'` | Written to the Info dictionary and XMP |
+| `producer` | `'Php2Pdf'` | Written to the Info dictionary and XMP |
 | `xmp` | `true` | Write an XMP metadata packet |
 | `topDown` | `false` | Default coordinate origin of pages |
 | `pdfx` | `null` | Write to a PDF/X level (see [navigation-and-pdfx.md](navigation-and-pdfx.md)) |
@@ -137,7 +137,7 @@ for the same key, as the library does for ICC streams, shadings and extended gra
 Images are deduplicated by content hash, imported PDFs by path, SVG files by path and converter.
 
 Artwork of your own (see [fit-engine.md](fit-engine.md)) can write its own resources there with
-`Dictionary`, `Stream`, `Name` and `Reference` from `PhpPdf\Core\Object`, and draw a form or image
+`Dictionary`, `Stream`, `Name` and `Reference` from `Php2Pdf\Core\Object`, and draw a form or image
 XObject with `Canvas::drawXObject($reference, $matrix)`:
 
 ```php

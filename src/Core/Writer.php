@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core;
+namespace Php2Pdf\Core;
 
 use HashContext;
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\HexString;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Core\Output\OutputInterface;
-use PhpPdf\Exception\PdfException;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\HexString;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Core\Output\OutputInterface;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function hash_final;

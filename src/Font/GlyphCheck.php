@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
 /**
  * What happens when text uses a character the font has no glyph for. The character is drawn as

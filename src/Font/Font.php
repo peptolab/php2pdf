@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
 use Override;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
-use PhpPdf\Core\Object\Reference;
-use PhpPdf\Core\Object\Stream;
-use PhpPdf\Document\DeferredInterface;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\OpenType\Cff\CffSubsetter;
-use PhpPdf\Font\OpenType\Cff\CffTable;
-use PhpPdf\Font\OpenType\OpenTypeFont;
-use PhpPdf\Font\OpenType\TrueTypeSubsetter;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
+use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Document\DeferredInterface;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\OpenType\Cff\CffSubsetter;
+use Php2Pdf\Font\OpenType\Cff\CffTable;
+use Php2Pdf\Font\OpenType\OpenTypeFont;
+use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
 
 use function array_filter;
 use function array_key_exists;

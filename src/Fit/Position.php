@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Fit;
+namespace Php2Pdf\Fit;
 
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * Where an object sits inside its box, as fractions: 0 is left or bottom, 1 is right or top.

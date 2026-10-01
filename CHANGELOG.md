@@ -57,4 +57,4 @@ The first release.
 - Templates; pages of PDF and AI files imported as artwork, with their layers kept or removed.
 - SVG converted natively (paths, gradients, clip paths, text, images) or through rsvg-convert.
 
-[0.1.0]: https://github.com/peptolab/phppdf/releases/tag/0.1.0
+[0.1.0]: https://github.com/peptolab/php2pdf/releases/tag/0.1.0

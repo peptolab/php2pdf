@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Flow\FlowResult;
+use Php2Pdf\Flow\FlowResult;
 
 /**
  * The rows a fit will draw, top to bottom, with their heights.

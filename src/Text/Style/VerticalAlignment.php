@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Style;
+namespace Php2Pdf\Text\Style;
 
 /** @api */
 enum VerticalAlignment

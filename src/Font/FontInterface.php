@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font;
+namespace Php2Pdf\Font;
 
 /**
  * A font text can be shaped, measured and shown with: an embedded font program (Font) or one of

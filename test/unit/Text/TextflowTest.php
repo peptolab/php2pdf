@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text;
+namespace Php2PdfTest\Unit\Text;
 
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Num;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\FlowOptions;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Markup;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TabStop;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
-use PhpPdf\Text\TextFormat;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Num;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Markup;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TabStop;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
+use Php2Pdf\Text\TextFormat;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

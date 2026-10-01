@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Font\OpenType\Cff;
+namespace Php2PdfTest\Unit\Font\OpenType\Cff;
 
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Font\OpenType\Cff\Cff2CharStrings;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\OpenType\Cff\Cff2CharStrings;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

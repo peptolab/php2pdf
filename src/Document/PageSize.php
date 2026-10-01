@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Document;
+namespace Php2Pdf\Document;
 
 /**
  * Standard page sizes. ISO sizes are defined in millimetres, US sizes in inches.

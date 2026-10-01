@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text;
+namespace Php2Pdf\Text;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Exception\InvalidArgumentException;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 use function array_key_exists;
 use function sprintf;

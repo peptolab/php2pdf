@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Color\Gray;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\Column;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextFormat;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextFormat;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Core\Output;
+namespace Php2Pdf\Core\Output;
 
 use Override;
 

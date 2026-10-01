@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\FillRule;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Geometry\Box;
 
 /**
  * Fills and strokes path data with a computed style, resolving gradients and patterns against

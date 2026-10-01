@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text;
+namespace Php2PdfTest\Unit\Text;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Num;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Fit\Position;
-use PhpPdf\Font\Font;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\TextlineOptions;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Num;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Font\Font;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\TextlineOptions;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

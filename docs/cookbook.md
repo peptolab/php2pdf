@@ -2,16 +2,16 @@
 
 ## An invoice, ported from PDFlib
 
-The original script built the table cell by cell with option lists. The same invoice on PhpPdf
+The original script built the table cell by cell with option lists. The same invoice on Php2Pdf
 defines styles once, declares the table, and lets `Document::flow()` paginate:
 
 ```php
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Document\{Document, Page, PageSize};
-use PhpPdf\Fit\Fit;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Table\{Border, Cell, CellStyle, Column, Padding, Table};
-use PhpPdf\Text\Style\{Alignment, Leading, TextStyle};
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Document\{Document, Page, PageSize};
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\{Border, Cell, CellStyle, Column, Padding, Table};
+use Php2Pdf\Text\Style\{Alignment, Leading, TextStyle};
 
 $doc  = new Document($path);
 $doc->info()->setTitle("Invoice #{$invoice->number}");

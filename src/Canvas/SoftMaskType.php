@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Canvas;
+namespace Php2Pdf\Canvas;
 
 /**
  * How a soft mask's artwork sets the opacity of what is drawn under it: by its luminosity (white

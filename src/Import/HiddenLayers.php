@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
 /**
  * What happens to the layers (optional content groups) of imported pages that the source file

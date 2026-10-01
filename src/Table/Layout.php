@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Exception\LayoutException;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Text\FlowOptions;
-use PhpPdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\LayoutException;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Style\VerticalAlignment;
 
 use function array_fill;
 use function array_key_exists;

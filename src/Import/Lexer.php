@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Import;
+namespace Php2Pdf\Import;
 
-use PhpPdf\Exception\ParseException;
+use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
 use function chr;

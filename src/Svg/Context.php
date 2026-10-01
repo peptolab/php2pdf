@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Svg;
+namespace Php2Pdf\Svg;
 
-use PhpPdf\Document\Document;
+use Php2Pdf\Document\Document;
 
 use function array_key_exists;
 use function array_keys;

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Document;
+namespace Php2PdfTest\Unit\Document;
 
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Geometry\Box;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Geometry\Box;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -23,7 +23,7 @@ final class DocumentTest extends TestCase
     {
         $out = new MemoryOutput();
         $doc = new Document($out, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $doc->info()->setTitle('Test document')->setAuthor('PhpPdf tests');
+        $doc->info()->setTitle('Test document')->setAuthor('Php2Pdf tests');
 
         $page = $doc->addPage(PageSize::A4);
         $page->setTrimBox(Box::fromMm(10, 10, 190, 277));
@@ -109,7 +109,7 @@ final class DocumentTest extends TestCase
         self::assertStringContainsString('/TrimBox[28.3465 28.3465 566.9291 813.5433]', $pdf);
         self::assertStringContainsString('/Rotate 90', $pdf);
         self::assertStringContainsString('/Title(Test document)', $pdf);
-        self::assertStringContainsString('/Producer(PhpPdf)', $pdf);
+        self::assertStringContainsString('/Producer(Php2Pdf)', $pdf);
         self::assertStringContainsString('/CreationDate(D:20260101120000Z)', $pdf);
         self::assertStringContainsString('<dc:title>', $pdf);
         self::assertStringContainsString('/Type/Metadata/Subtype/XML', $pdf);

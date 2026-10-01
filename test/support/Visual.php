@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Support;
+namespace Php2PdfTest\Support;
 
 use GdImage;
 use PHPUnit\Framework\Assert;
@@ -28,7 +28,7 @@ use function sprintf;
  * word) fails even when it is a tiny share of the whole page. Within a tile, a small share of
  * differing pixels is allowed so anti-aliasing differences between poppler versions pass.
  *
- * Run with PHPPDF_UPDATE_BASELINES=1 to write every baseline the run reaches; a missing baseline
+ * Run with PHP2PDF_UPDATE_BASELINES=1 to write every baseline the run reaches; a missing baseline
  * fails otherwise.
  */
 final class Visual
@@ -53,14 +53,14 @@ final class Visual
         $png      = PdfTools::render($pdfPath, $page, self::DPI);
         $baseline = PdfTools::assetPath("baseline/{$name}.png");
 
-        if ('1' === getenv('PHPPDF_UPDATE_BASELINES')) {
+        if ('1' === getenv('PHP2PDF_UPDATE_BASELINES')) {
             copy($png, $baseline);
             Assert::assertFileExists($baseline);
 
             return;
         }
         if (! is_file($baseline)) {
-            Assert::fail("Baseline {$name}.png is missing; run with PHPPDF_UPDATE_BASELINES=1 to write it.");
+            Assert::fail("Baseline {$name}.png is missing; run with PHP2PDF_UPDATE_BASELINES=1 to write it.");
         }
 
         $actual   = imagecreatefrompng($png);

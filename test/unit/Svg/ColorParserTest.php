@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Svg;
+namespace Php2PdfTest\Unit\Svg;
 
-use PhpPdf\Svg\ColorParser;
+use Php2Pdf\Svg\ColorParser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

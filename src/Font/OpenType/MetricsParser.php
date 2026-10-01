@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType;
+namespace Php2Pdf\Font\OpenType;
 
 use function round;
 use function strlen;

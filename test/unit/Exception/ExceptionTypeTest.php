@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Exception;
+namespace Php2PdfTest\Unit\Exception;
 
 use Closure;
-use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Document\PdfX;
-use PhpPdf\Exception\ConformanceException;
-use PhpPdf\Exception\LayoutException;
-use PhpPdf\Exception\ParseException;
-use PhpPdf\Exception\PdfException;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Image\ImageReader;
-use PhpPdf\Import\PdfFile;
-use PhpPdf\Svg\SvgFile;
-use PhpPdf\Table\Column;
-use PhpPdf\Table\Table;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\TextFormat;
-use PhpPdfTest\Support\PdfTools;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Document\PdfX;
+use Php2Pdf\Exception\ConformanceException;
+use Php2Pdf\Exception\LayoutException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Image\ImageReader;
+use Php2Pdf\Import\PdfFile;
+use Php2Pdf\Svg\SvgFile;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextFormat;
+use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

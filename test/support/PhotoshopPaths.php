@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Support;
+namespace Php2PdfTest\Support;
 
 use function chr;
 use function count;

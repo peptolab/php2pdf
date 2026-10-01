@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Exception;
+namespace Php2Pdf\Exception;
 
 /**
  * The document would break the rules of the PDF standard it declares, such as PDF/X-4.

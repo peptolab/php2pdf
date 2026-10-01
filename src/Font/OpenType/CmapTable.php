@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Font\OpenType;
+namespace Php2Pdf\Font\OpenType;
 
 /**
  * Parses the Unicode subtables of cmap (formats 4 and 12) into a code point to glyph map.

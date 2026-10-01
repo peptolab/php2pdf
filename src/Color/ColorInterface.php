@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
 /**
  * A colour value usable for fills and strokes: Gray, Rgb, Cmyk, Spot or IccColor. The interface

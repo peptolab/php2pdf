@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Fit;
+namespace Php2PdfTest\Unit\Fit;
 
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\FitEngine;
-use PhpPdf\Fit\FitMethod;
-use PhpPdf\Fit\Position;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Origin;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\FitEngine;
+use Php2Pdf\Fit\FitMethod;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Origin;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

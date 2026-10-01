@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Table;
+namespace Php2Pdf\Table;
 
 use Closure;
 use Override;
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Document\Document;
-use PhpPdf\Exception\InvalidArgumentException;
-use PhpPdf\Flow\FlowableInterface;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Textflow;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Flow\FlowableInterface;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Textflow;
 
 use function array_sum;
 use function count;

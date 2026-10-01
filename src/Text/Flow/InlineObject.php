@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Text\Flow;
+namespace Php2Pdf\Text\Flow;
 
-use PhpPdf\Canvas\PlaceableInterface;
+use Php2Pdf\Canvas\PlaceableInterface;
 
 /**
  * Artwork set in a line of text: drawn at a size with its bottom edge on the baseline, raised

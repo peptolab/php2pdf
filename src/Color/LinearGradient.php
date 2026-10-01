@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace PhpPdf\Color;
+namespace Php2Pdf\Color;
 
 use Override;
-use PhpPdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Dictionary;
 
 /**
  * An axial gradient from (x0, y0) to (x1, y1) in user space at the time the fill is set.

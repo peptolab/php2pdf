@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Text;
+namespace Php2PdfTest\Unit\Text;
 
-use PhpPdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

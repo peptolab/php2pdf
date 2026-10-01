@@ -2,26 +2,26 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Canvas\BlendMode;
-use PhpPdf\Canvas\Canvas;
-use PhpPdf\Canvas\FillRule;
-use PhpPdf\Canvas\LineCap;
-use PhpPdf\Canvas\LineJoin;
-use PhpPdf\Color\Cmyk;
-use PhpPdf\Color\GradientStop;
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\LinearGradient;
-use PhpPdf\Color\RadialGradient;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Color\Spot;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\Visual;
+use Php2Pdf\Canvas\BlendMode;
+use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Canvas\LineCap;
+use Php2Pdf\Canvas\LineJoin;
+use Php2Pdf\Color\Cmyk;
+use Php2Pdf\Color\GradientStop;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\LinearGradient;
+use Php2Pdf\Color\RadialGradient;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Color\Spot;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

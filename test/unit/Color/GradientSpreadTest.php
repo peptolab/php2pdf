@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Color;
+namespace Php2PdfTest\Unit\Color;
 
-use PhpPdf\Color\GradientSpread;
-use PhpPdf\Color\GradientStop;
-use PhpPdf\Color\LinearGradient;
-use PhpPdf\Color\RadialGradient;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\Object\Dictionary;
+use Php2Pdf\Color\GradientSpread;
+use Php2Pdf\Color\GradientStop;
+use Php2Pdf\Color\LinearGradient;
+use Php2Pdf\Color\RadialGradient;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\Object\Dictionary;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

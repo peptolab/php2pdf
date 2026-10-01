@@ -2,30 +2,30 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Integration;
+namespace Php2PdfTest\Integration;
 
-use PhpPdf\Color\Gray;
-use PhpPdf\Color\Rgb;
-use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Document;
-use PhpPdf\Document\DocumentOptions;
-use PhpPdf\Document\PageSize;
-use PhpPdf\Fit\Fit;
-use PhpPdf\Fit\Position;
-use PhpPdf\Flow\FlowResult;
-use PhpPdf\Geometry\Box;
-use PhpPdf\Import\PageBox;
-use PhpPdf\Text\FlowOptions;
-use PhpPdf\Text\Hyphenation\Hyphenator;
-use PhpPdf\Text\Style\Alignment;
-use PhpPdf\Text\Style\Leading;
-use PhpPdf\Text\Style\TabStop;
-use PhpPdf\Text\Style\TextStyle;
-use PhpPdf\Text\Style\VerticalAlignment;
-use PhpPdf\Text\TextFormat;
-use PhpPdf\Text\TextlineOptions;
-use PhpPdfTest\Support\PdfTools;
-use PhpPdfTest\Support\Visual;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\PageSize;
+use Php2Pdf\Fit\Fit;
+use Php2Pdf\Fit\Position;
+use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Geometry\Box;
+use Php2Pdf\Import\PageBox;
+use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Leading;
+use Php2Pdf\Text\Style\TabStop;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\Style\VerticalAlignment;
+use Php2Pdf\Text\TextFormat;
+use Php2Pdf\Text\TextlineOptions;
+use Php2PdfTest\Support\PdfTools;
+use Php2PdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 

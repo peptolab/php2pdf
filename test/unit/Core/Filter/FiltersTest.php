@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-namespace PhpPdfTest\Unit\Core\Filter;
+namespace Php2PdfTest\Unit\Core\Filter;
 
-use PhpPdf\Core\Filter\Ascii85;
-use PhpPdf\Core\Filter\AsciiHex;
-use PhpPdf\Core\Filter\FilterChain;
-use PhpPdf\Core\Filter\Flate;
-use PhpPdf\Core\Filter\Lzw;
-use PhpPdf\Core\Filter\Predictor;
-use PhpPdf\Core\Filter\RunLength;
-use PhpPdf\Core\Object\Dictionary;
-use PhpPdf\Core\Object\Name;
+use Php2Pdf\Core\Filter\Ascii85;
+use Php2Pdf\Core\Filter\AsciiHex;
+use Php2Pdf\Core\Filter\FilterChain;
+use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Filter\Lzw;
+use Php2Pdf\Core\Filter\Predictor;
+use Php2Pdf\Core\Filter\RunLength;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
