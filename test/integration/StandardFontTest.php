@@ -50,7 +50,7 @@ final class StandardFontTest extends TestCase
             new Box(50.0, 380.0, 400.0, 40.0),
         );
         $table = new Table([Column::auto(), Column::pt(80.0)], null, $style);
-        $table->addRow(['Entry fee', '€ 120.00']);
+        $table->addRow(['Consultation', '€ 120.00']);
         $page->fitTable($table, new Box(50.0, 300.0, 400.0, 60.0));
         $doc->close();
 

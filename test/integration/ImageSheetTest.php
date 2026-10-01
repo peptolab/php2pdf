@@ -50,7 +50,7 @@ final class ImageSheetTest extends TestCase
     {
         $path = PdfTools::outputDir() . '/image-sheet.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $font = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $font = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
 
         $c = $doc->addPage(PageSize::A4)->canvas();
         $c->setFillColor(Rgb::fromHex('#ffe082'))->fillRect(0.0, 0.0, 595.0, 842.0);

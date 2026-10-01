@@ -44,8 +44,8 @@ final class TableSheetTest extends TestCase
             clock: new FixedClock('2026-01-01T12:00:00Z'),
             topDown: true,
         ));
-        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans-Bold.ttf'));
+        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
+        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Bold.otf'));
         $doc->styles()->define('body', new TextStyle(
             font: $sans,
             size: 9.0,

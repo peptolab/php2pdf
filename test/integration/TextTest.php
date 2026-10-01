@@ -23,8 +23,8 @@ final class TextTest extends TestCase
     {
         $path = PdfTools::outputDir() . '/text.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans-Bold.ttf'));
+        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
+        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Bold.otf'));
 
         $c = $doc->addPage(PageSize::A4)->canvas();
         $c->drawText('AVATAR To Wave — kerned', $sans, 24, 50, 760);

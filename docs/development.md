@@ -25,6 +25,6 @@ again to compare. Set `PHPPDF_UPDATE_BASELINES=1` to regenerate baselines after 
 change. Comparison tolerates a small share of differing pixels so anti-aliasing differences
 between poppler versions do not fail the build.
 
-Fixtures live in `test/asset`: DejaVu fonts, image variants, a PDF corpus (classic, object
+Fixtures live in `test/asset`: DejaVu, Source Serif 4 and Source Sans 3 fonts (see its README), image variants, a PDF corpus (classic, object
 streams, linearized, incremental updates, broken xref, inherited attributes, ImageMagick and
 cairo output, an encrypted file), SVG sheets and brochure copy.

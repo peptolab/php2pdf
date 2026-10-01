@@ -43,8 +43,8 @@ final class BrochureTest extends TestCase
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
         $doc->fonts()->addSearchPath(PdfTools::assetPath('fonts'));
         $doc->styles()->define('body', new TextStyle(
-            font: 'DejaVuSans',
-            bold: 'DejaVuSans-Bold',
+            font: 'SourceSerif4-Regular',
+            bold: 'SourceSerif4-Bold',
             size: 9.5,
             leading: Leading::pt(13.5),
             alignment: Alignment::Justify,
@@ -55,7 +55,7 @@ final class BrochureTest extends TestCase
         $doc->styles()->define(
             'h2',
             new TextStyle(
-                font: 'DejaVuSans-Bold',
+                font: 'SourceSans3-Bold',
                 size: 14.0,
                 leading: Leading::pt(17.0),
                 spaceBefore: 10.0,
@@ -131,7 +131,7 @@ final class BrochureTest extends TestCase
                 ->setFillColor(new Gray(0.4))
                 ->fitTextline(
                     "Page {$pages}",
-                    $doc->fonts()->find('DejaVuSans'),
+                    $doc->fonts()->find('SourceSans3-Regular'),
                     8.0,
                     Box::fromMm(15.0, 8.0, 180.0, 6.0),
                     TextlineOptions::at(Position::bottomCenter()),
@@ -139,7 +139,7 @@ final class BrochureTest extends TestCase
         } while (FlowResult::Done !== $result && $pages < 6);
 
         $footer = $doc->textflow('<p>Copy fitted into a fixed box, vertically centred.</p>', new TextStyle(
-            font: 'DejaVuSans',
+            font: 'SourceSans3-Regular',
             size: 20.0,
             alignment: Alignment::Center,
             color: Rgb::fromHex('#c2185b'),

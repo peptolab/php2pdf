@@ -29,7 +29,7 @@ final class ImportTest extends TestCase
     {
         $path = PdfTools::outputDir() . '/import.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $font = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $font = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
 
         $classic   = $doc->import(PdfTools::assetPath('pdf/classic.pdf'));
         $objstm    = $doc->import(PdfTools::assetPath('pdf/objstm.pdf'));
@@ -66,9 +66,12 @@ final class ImportTest extends TestCase
 
         PdfTools::assertValid($path);
         $pdf = (string) file_get_contents($path);
-        // One font program each from classic.pdf, objstm.pdf and cairo.pdf, plus the label font: the
-        // classic file's font is written once although its pages are placed four times.
-        self::assertSame(4, substr_count($pdf, needle: '/FontFile2'));
+        // One TrueType program each from classic.pdf, objstm.pdf and cairo.pdf (the classic file's
+        // font is written once although its pages are placed four times), and the CFF label font.
+        self::assertSame(
+            [3, 1],
+            [substr_count($pdf, needle: '/FontFile2'), substr_count($pdf, needle: '/FontFile3')],
+        );
         self::assertStringContainsString('Page 1 of the import corpus', PdfTools::text($path, 2));
         Visual::assertMatchesBaseline($path, 'import-p1', 1);
         Visual::assertMatchesBaseline($path, 'import-p2', 2);

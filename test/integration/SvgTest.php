@@ -64,7 +64,7 @@ final class SvgTest extends TestCase
         $path = PdfTools::outputDir() . '/svg-native.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
         $doc->fonts()->addSearchPath(PdfTools::assetPath('fonts'));
-        $fallback  = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $fallback  = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
         $converter = new NativeConverter($fallback);
 
         $shapes = $doc->svg(PdfTools::assetPath('svg/shapes.svg'), $converter);

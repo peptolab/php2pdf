@@ -35,8 +35,8 @@ final class StaticLayoutTest extends TestCase
         $path = PdfTools::outputDir() . '/static-layout.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
         $doc->info()->setTitle('Static layout');
-        $sans  = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $bold  = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans-Bold.ttf'));
+        $sans  = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
+        $bold  = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Bold.otf'));
         $photo = $doc->image(PdfTools::assetPath('images/rgb.jpg'));
 
         // A reusable header: band, logo mark, title set once and placed on every page.

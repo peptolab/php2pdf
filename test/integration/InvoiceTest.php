@@ -34,33 +34,33 @@ use PHPUnit\Framework\TestCase;
 use function sprintf;
 
 /**
- * Phase 9 acceptance: the entry invoice that was previously generated with PDFlib's table
- * engine (textflow cells, fixed column widths with column spans, per-cell margins, bottom-only
- * rules, three repeated header rows, top-left placement, and a box-full loop that re-places the
- * page template), rewritten on PhpPdf.
+ * An invoice of the kind usually built with PDFlib's table engine: textflow cells, fixed column
+ * widths with column spans, per-cell margins, bottom-only rules, three repeated header rows,
+ * top-left placement, and a box-full loop that re-places the page template. All names are
+ * fictional.
  */
 final class InvoiceTest extends TestCase
 {
     private static function projectName(int $i): string
     {
         $names = [
-            'Harbourside Residence',
+            'Riverside House',
             'Civic Library Extension and Public Reading Room with a name long enough to wrap onto a second line',
-            'Laneway Studio',
-            'Coastal Retreat',
+            'Courtyard Studio',
+            'Hillside Pavilion',
         ];
 
         return $names[$i % 4] ?? 'Project';
     }
 
     #[Test]
-    public function entryInvoiceFlowsOverTwoPages(): void
+    public function invoiceFlowsOverTwoPages(): void
     {
         $path = PdfTools::outputDir() . '/invoice.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $doc->info()->setTitle('Invoice #AR-2026-0042');
-        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans-Bold.ttf'));
+        $doc->info()->setTitle('Invoice #EX-2026-0042');
+        $sans = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
+        $bold = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Bold.otf'));
         $ink  = Cmyk::fromPercent(0.0, 0.0, 0.0, 100.0);
 
         // Styles are defined once by name; cells refer to them.
@@ -104,7 +104,7 @@ final class InvoiceTest extends TestCase
             60.0,
         );
         $tc->setFillColor(Gray::white())->fitTextline(
-            'ARCHMEDIA AWARDS',
+            'EXAMPLE DESIGN AWARDS',
             $bold,
             16.0,
             Box::fromMm(15.0, 277.0, 100.0, 15.0),
@@ -129,7 +129,7 @@ final class InvoiceTest extends TestCase
 
         $entries = [];
         for ($i = 1; $i <= 20; ++$i) {
-            $entries[] = [sprintf('ARC-%04d', 1000 + $i), self::projectName($i), 495.0];
+            $entries[] = [sprintf('EX-%04d', 1000 + $i), self::projectName($i), 495.0];
         }
         $total = 495.0 * 20;
 
@@ -144,14 +144,14 @@ final class InvoiceTest extends TestCase
         $table->addHeaderRow([
             Cell::text('COMPANY', 'cell-title'),
             Cell::text(
-                "Example Architects Pty Ltd\n12 Harbour Street\nSydney NSW Australia 2000",
+                "Example Architects Ltd\n1 Sample Street\nSpringfield 0000",
                 'cell-text',
             )->spanning(3),
         ]);
         $table->addHeaderRow(
             [
-                Cell::text('ENTRY REFERENCE', 'cell-title'),
-                Cell::text('ENTRY PROJECT NAME', 'cell-title')->spanning(2),
+                Cell::text('REFERENCE', 'cell-title'),
+                Cell::text('SUBMISSION', 'cell-title')->spanning(2),
                 Cell::text('PRICE', 'amount-title'),
             ],
             $margin(
@@ -173,7 +173,7 @@ final class InvoiceTest extends TestCase
             );
         }
         $table->addRow(
-            [null, null, Cell::text('GST 10%', 'cell-title'), Cell::text(sprintf('$%0.2f', $total / 11), 'amount')],
+            [null, null, Cell::text('TAX 10%', 'cell-title'), Cell::text(sprintf('$%0.2f', $total / 11), 'amount')],
             $margin(
                 top: 6.0,
                 bottom: 3.0,
@@ -195,7 +195,7 @@ final class InvoiceTest extends TestCase
             static function (Document $doc, int $number) use ($template, $sans, $styles): Page {
                 $page = $doc->addPage(PageSize::A4);
                 $page->place($template, $page->mediaBox(), Fit::entire());
-                $page->fitTextflow($doc->textflow('#AR-2026-0042', 'cell-text'), Box::fromMm(70.0, 234.0, 65.0, 5.0));
+                $page->fitTextflow($doc->textflow('#EX-2026-0042', 'cell-text'), Box::fromMm(70.0, 234.0, 65.0, 5.0));
                 $page->fitTextflow($doc->textflow('DATE', 'cell-title'), Box::fromMm(150.0, 234.0, 15.0, 5.0));
                 $page->fitTextflow($doc->textflow('1 January 2026', 'cell-text'), Box::fromMm(165.0, 234.0, 35.0, 5.0));
                 $page->fitTextline(
@@ -217,7 +217,7 @@ final class InvoiceTest extends TestCase
         self::assertSame('2', PdfTools::info($path)['Pages'] ?? null);
         self::assertSame(FlowResult::Done, $table->lastFit()?->result);
         $text = PdfTools::text($path, 1) . PdfTools::text($path, 2);
-        self::assertStringContainsString('ENTRY REFERENCE', PdfTools::text($path, 2), 'Header rows repeat on page 2.');
+        self::assertStringContainsString('SUBMISSION', PdfTools::text($path, 2), 'Header rows repeat on page 2.');
         self::assertStringContainsString('$9900.00', $text);
         self::assertStringContainsString('$900.00', $text);
         Visual::assertMatchesBaseline($path, 'invoice-p1', 1);
