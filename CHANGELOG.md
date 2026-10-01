@@ -26,6 +26,8 @@ The first release.
 - TrueType and CFF OpenType fonts subset on embedding; the standard 14 fonts by name.
 - Kerning across word spaces and hyphenation points; left side bearings kept in subsets.
 - Standard ligatures (`liga`) by default, matching HarfBuzz glyph for glyph; copied text expands them.
+- OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others) through
+  single, alternate, ligature and chained context substitution.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`).
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and

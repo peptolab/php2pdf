@@ -27,6 +27,8 @@ final readonly class TextStyle
      * @param int|null           $widows  minimum lines carried to the next box
      * @param list<FontInterface|string>|null $fallback fonts tried in order for characters the
      *                                                  font lacks
+     * @param list<string>|null               $features OpenType features besides the standard
+     *                                                  ligatures: tnum, onum, smcp and so on
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -65,6 +67,7 @@ final readonly class TextStyle
         public ?int $widows = null,
         public ?array $fallback = null,
         public ?bool $ligatures = null,
+        public ?array $features = null,
     ) {}
 
     public function fontSize(): float
@@ -122,6 +125,7 @@ final readonly class TextStyle
             renderMode: $this->renderMode ?? TextRenderMode::Fill,
             kerning: $this->kerning ?? true,
             ligatures: $this->ligatures ?? true,
+            features: $this->features ?? [],
         );
     }
 }

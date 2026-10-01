@@ -46,6 +46,23 @@ them off, and tracking or character spacing turns them off too. In a Textflow a 
 point never falls inside a ligature: the letters are set separately when a break may come between
 them. The standard 14 fonts have no ligatures.
 
+### OpenType features
+
+Other features of the font are asked for by tag, on `TextStyle` or `TextOptions`:
+
+```php
+$figures = new TextStyle(font: 'Source Serif 4', features: ['tnum', 'onum']);   // tabular old-style figures
+$caps    = new TextStyle(font: 'Source Serif 4', features: ['smcp', 'c2sc']);   // all small caps
+$canvas->drawText('1/2', $font, 12, 72, 700, new TextOptions(features: ['frac']));
+```
+
+`tnum` and `pnum` (tabular and proportional figures), `onum` and `lnum` (old-style and lining),
+`smcp` and `c2sc` (small caps from lower and upper case), `case` (case-sensitive forms), `frac`,
+`sups`, `subs`, contextual `calt` and discretionary `dlig` ligatures all work when the font has
+them. Single, alternate (the first alternate), ligature and chained context substitutions are
+applied, in the font's lookup order, matching HarfBuzz. A small-cap or other substituted glyph
+copies as the character it stands for. Tracking and character spacing turn off ligatures only.
+
 ### Missing glyphs
 
 A character the font has no glyph for is drawn as the font's `.notdef` glyph, usually a box or

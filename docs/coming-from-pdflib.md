@@ -37,6 +37,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `stringwidth` | `$font->width($text, $size)` |
 | `kerning=true` | On by default; `TextStyle(kerning: false)` or `TextOptions(kerning: false)` turns it off |
 | `features={liga}` | Standard ligatures on by default; `ligatures: false` on `TextStyle` or `TextOptions` turns them off |
+| `features={tnum onum smcp}` | `features: ['tnum', 'onum', 'smcp']` on `TextStyle` or `TextOptions` |
 | `charspacing`, `wordspacing`, `horizscaling`, `textrise` | `TextStyle(charSpacing:, wordSpacing:, horizontalScale:, rise:)` |
 
 ## Textflow
@@ -104,6 +105,6 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Not there yet
 
-OpenType features beyond standard ligatures, right-to-left and complex scripts, tagged PDF,
+Mark positioning, right-to-left and complex scripts, tagged PDF,
 PDF/A, forms and annotations other than links, and encryption: see
 [limitations.md](limitations.md) and the issue tracker.

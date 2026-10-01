@@ -47,7 +47,8 @@ faces `<b>` and `<i>` switch to), `alignment` (Left, Right, Center, Justify),
 `spaceAfter`, `hyphenate`, `language`, `minHyphenatedWordLength`, `hyphenLeftMin`,
 `hyphenRightMin`, `tabs` (a list of `TabStop::left/right/center/decimal($position)`),
 `defaultTabWidth`, `keepWithNext`, `keepTogether`, `orphans`, `widows`, `fallback` (fonts for
-characters the font lacks; see [fonts-and-text.md](fonts-and-text.md)).
+characters the font lacks), `ligatures` and `features` (OpenType features by tag; see
+[fonts-and-text.md](fonts-and-text.md)).
 
 ## Markup
 

@@ -4,37 +4,229 @@ declare(strict_types=1);
 
 namespace PhpPdfTest\Support;
 
+use function array_key_exists;
 use function array_keys;
+use function array_map;
+use function array_slice;
+use function array_values;
 use function count;
+use function implode;
+use function ksort;
+use function max;
 use function pack;
 use function range;
 use function sort;
 use function strlen;
 
 /**
- * A minimal GSUB table: one script with a default language system whose features are "liga"
- * (and optionally others), each pointing at ligature substitution lookups, plain (type 4) or
- * wrapped in an extension lookup (type 7).
+ * A minimal GSUB table: one script with a default language system whose features point at
+ * lookups, each a type and its subtables, optionally wrapped in extension lookups (type 7). The
+ * subtable writers cover single, alternate, ligature and chained context substitution.
  */
 final class GsubBuilder
 {
     /**
-     * @param string                                         $script   the script tag, e.g. "latn" or "DFLT"
-     * @param array<string, list<int>>                       $features feature tag => lookup indices
-     * @param list<array{0: bool, 1: array<int, list<array{0: list<int>, 1: int}>>}> $lookups
-     *        per lookup: whether it is wrapped in an extension, and first glyph => (other components, ligature)
+     * Alternate substitution: glyph => its alternates.
+     *
+     * @param array<int, list<int>> $alternates
+     */
+    public static function alternate(array $alternates): string
+    {
+        ksort($alternates);
+        $sets = array_map(
+            static fn(array $list): string => pack('n', count($list)) . pack('n*', ...$list),
+            $alternates,
+        );
+
+        return self::withSets(1, array_keys($alternates), $sets);
+    }
+
+    /**
+     * @param array<string, list<int>>                              $features feature tag => lookup indices
+     * @param list<array{0: int, 1: list<string>, 2?: bool}>        $lookups  type, subtables, wrapped in extensions
      */
     public static function build(string $script, array $features, array $lookups): string
     {
-        $header      = 10;
         $scriptList  = self::scriptList($script, count($features));
         $featureList = self::featureList($features);
-        $lookupList  = self::lookupList($lookups);
-        $scriptAt    = $header;
+        $scriptAt    = 10;
         $featureAt   = $scriptAt + strlen($scriptList);
         $lookupAt    = $featureAt + strlen($featureList);
 
-        return pack('nnnnn', 1, 0, $scriptAt, $featureAt, $lookupAt) . $scriptList . $featureList . $lookupList;
+        return (
+            pack('nnnnn', 1, 0, $scriptAt, $featureAt, $lookupAt)
+                . $scriptList
+                . $featureList
+                . self::lookupList($lookups)
+        );
+    }
+
+    /**
+     * Chained context, format 1: first glyph => rules of (backtrack, rest of input, lookahead,
+     * substitution records).
+     *
+     * @param array<int, list<array{0: list<int>, 1: list<int>, 2: list<int>, 3: list<array{0: int, 1: int}>}>> $rules
+     */
+    public static function chain1(array $rules): string
+    {
+        ksort($rules);
+        $sets = array_map(self::ruleSet(...), $rules);
+
+        return self::withSets(1, array_keys($rules), $sets);
+    }
+
+    /**
+     * Chained context, format 2: glyph classes for backtrack, input and lookahead, the glyphs the
+     * input may start with, and rules by input class (classes instead of glyphs).
+     *
+     * @param list<int>                                                                                          $coverage
+     * @param array<int, int>                                                                                    $backtrackClasses
+     * @param array<int, int>                                                                                    $inputClasses
+     * @param array<int, int>                                                                                    $lookaheadClasses
+     * @param array<int, list<array{0: list<int>, 1: list<int>, 2: list<int>, 3: list<array{0: int, 1: int}>}>> $rules
+     */
+    public static function chain2(
+        array $coverage,
+        array $backtrackClasses,
+        array $inputClasses,
+        array $lookaheadClasses,
+        array $rules,
+    ): string {
+        $classCount = max([0, ...array_keys($rules)]) + 1;
+        $tables     = [
+            self::coverage($coverage),
+            self::classDef($backtrackClasses),
+            self::classDef($inputClasses),
+            self::classDef($lookaheadClasses),
+        ];
+        $sets = [];
+        for ($class = 0; $class < $classCount; ++$class) {
+            $sets[] = array_key_exists($class, $rules) ? self::ruleSet($rules[$class]) : null;
+        }
+        $headerSize = 12 + (2 * $classCount);
+        $offsets    = [];
+        $body       = '';
+        foreach ($tables as $table) {
+            $offsets[] = $headerSize + strlen($body);
+            $body      .= $table;
+        }
+        $setOffsets = [];
+        foreach ($sets as $set) {
+            $setOffsets[] = null === $set ? 0 : $headerSize + strlen($body);
+            $body         .= $set ?? '';
+        }
+
+        return pack('n', 2) . pack('n*', ...$offsets) . pack('n', $classCount) . pack('n*', ...$setOffsets) . $body;
+    }
+
+    /**
+     * Chained context, format 3: one coverage per position.
+     *
+     * @param list<list<int>>               $backtrack
+     * @param list<list<int>>               $input
+     * @param list<list<int>>               $lookahead
+     * @param list<array{0: int, 1: int}>   $records
+     */
+    public static function chain3(array $backtrack, array $input, array $lookahead, array $records): string
+    {
+        $all        = [...$backtrack, ...$input, ...$lookahead];
+        $headerSize = 2
+        + 2
+        + (2 * count($backtrack))
+        + 2
+        + (2 * count($input))
+        + 2
+        + (2 * count($lookahead))
+        + 2
+        + (4 * count($records));
+        $offsets   = [];
+        $coverages = '';
+        foreach ($all as $glyphs) {
+            $offsets[] = $headerSize + strlen($coverages);
+            $coverages .= self::coverage($glyphs);
+        }
+        $b = count($backtrack);
+        $n = count($input);
+
+        return (
+            pack('nn', 3, $b)
+                . self::shorts(array_slice($offsets, offset: 0, length: $b))
+                . pack('n', $n)
+                . self::shorts(array_slice($offsets, $b, $n))
+                . pack('n', count($lookahead))
+                . self::shorts(array_slice($offsets, $b + $n))
+                . self::records($records)
+                . $coverages
+        );
+    }
+
+    /**
+     * Ligature substitution: first glyph => (other components, ligature).
+     *
+     * @param array<int, list<array{0: list<int>, 1: int}>> $ligatures
+     */
+    public static function ligature(array $ligatures): string
+    {
+        ksort($ligatures);
+        $sets = [];
+        foreach ($ligatures as $entries) {
+            $tables  = '';
+            $offsets = [];
+            $base    = 2 + (2 * count($entries));
+            foreach ($entries as [$components, $ligature]) {
+                $offsets[] = $base + strlen($tables);
+                $tables    .= pack('nn', $ligature, count($components) + 1) . self::shorts($components);
+            }
+            $sets[] = pack('n', count($entries)) . self::shorts($offsets) . $tables;
+        }
+
+        return self::withSets(1, array_keys($ligatures), $sets);
+    }
+
+    /**
+     * Single substitution, format 1: every covered glyph plus a delta.
+     *
+     * @param list<int> $glyphs
+     */
+    public static function single1(array $glyphs, int $delta): string
+    {
+        return pack('nnn', 1, 6, $delta & 0xFFFF) . self::coverage($glyphs);
+    }
+
+    /**
+     * Single substitution, format 2: glyph => substitute.
+     *
+     * @param array<int, int> $map
+     */
+    public static function single2(array $map): string
+    {
+        ksort($map);
+
+        return (
+            pack('nnn', 2, 6 + (2 * count($map)), count($map))
+                . self::shorts(array_values($map))
+                . self::coverage(array_keys($map))
+        );
+    }
+
+    /** @param array<int, int> $classes glyph => class */
+    private static function classDef(array $classes): string
+    {
+        ksort($classes);
+        $records = '';
+        foreach ($classes as $glyph => $class) {
+            $records .= pack('nnn', $glyph, $glyph, $class);
+        }
+
+        return pack('nn', 2, count($classes)) . $records;
+    }
+
+    /** @param list<int> $glyphs */
+    private static function coverage(array $glyphs): string
+    {
+        sort($glyphs);
+
+        return pack('nn', 1, count($glyphs)) . self::shorts($glyphs);
     }
 
     /** @param array<string, list<int>> $features */
@@ -45,63 +237,98 @@ final class GsubBuilder
         $base    = 2 + (6 * count($features));
         foreach ($features as $tag => $indices) {
             $records .= $tag . pack('n', $base + strlen($tables));
-            $tables  .= pack('nn', 0, count($indices)) . pack('n*', ...$indices);
+            $tables  .= pack('nn', 0, count($indices)) . self::shorts($indices);
         }
 
         return pack('n', count($features)) . $records . $tables;
     }
 
-    /** @param array<int, list<array{0: list<int>, 1: int}>> $ligatures */
-    private static function ligatureSubst(array $ligatures): string
-    {
-        $firsts = array_keys($ligatures);
-        sort($firsts);
-        $setCount   = count($firsts);
-        $coverageAt = 6 + (2 * $setCount);
-        $coverage   = pack('nn', 1, $setCount) . pack('n*', ...$firsts);
-        $sets       = '';
-        $setOffsets = [];
-        $setsAt     = $coverageAt + strlen($coverage);
-        foreach ($firsts as $first) {
-            $setOffsets[] = $setsAt + strlen($sets);
-            $entries      = $ligatures[$first];
-            $ligTables    = '';
-            $ligOffsets   = [];
-            $base         = 2 + (2 * count($entries));
-            foreach ($entries as [$components, $ligature]) {
-                $ligOffsets[] = $base + strlen($ligTables);
-                $ligTables    .= pack('nn', $ligature, count($components) + 1) . pack('n*', ...$components);
-            }
-            $sets .= pack('n', count($entries)) . pack('n*', ...$ligOffsets) . $ligTables;
-        }
-
-        return pack('nnn', 1, $coverageAt, $setCount) . pack('n*', ...$setOffsets) . $coverage . $sets;
-    }
-
-    /** @param list<array{0: bool, 1: array<int, list<array{0: list<int>, 1: int}>>}> $lookups */
+    /** @param list<array{0: int, 1: list<string>, 2?: bool}> $lookups */
     private static function lookupList(array $lookups): string
     {
         $tables  = '';
         $offsets = [];
         $base    = 2 + (2 * count($lookups));
-        foreach ($lookups as [$extension, $ligatures]) {
-            $offsets[] = $base + strlen($tables);
-            $subtable  = self::ligatureSubst($ligatures);
-            $tables    .= $extension
-                ? pack('nnnn', 7, 0, 1, 8) . pack('nnN', 1, 4, 8) . $subtable
-                : pack('nnnn', 4, 0, 1, 8) . $subtable;
+        foreach ($lookups as $lookup) {
+            [$type, $subtables] = $lookup;
+            $extension  = $lookup[2] ?? false;
+            $offsets[]  = $base + strlen($tables);
+            $count      = count($subtables);
+            $header     = 6 + (2 * $count);
+            $body       = '';
+            $subOffsets = [];
+            foreach ($subtables as $subtable) {
+                $subOffsets[] = $header + strlen($body);
+                $body         .= $extension ? pack('nnN', 1, $type, 8) . $subtable : $subtable;
+            }
+            $tables .= pack('nnn', $extension ? 7 : $type, 0, $count) . self::shorts($subOffsets) . $body;
         }
 
-        return pack('n', count($lookups)) . pack('n*', ...$offsets) . $tables;
+        return pack('n', count($lookups)) . self::shorts($offsets) . $tables;
+    }
+
+    /** @param list<array{0: int, 1: int}> $records */
+    private static function records(array $records): string
+    {
+        return (
+            pack('n', count($records))
+                . implode('', array_map(static fn(array $r): string => pack('nn', $r[0], $r[1]), $records))
+        );
+    }
+
+    /** @param list<array{0: list<int>, 1: list<int>, 2: list<int>, 3: list<array{0: int, 1: int}>}> $rules */
+    private static function ruleSet(array $rules): string
+    {
+        $tables  = '';
+        $offsets = [];
+        $base    = 2 + (2 * count($rules));
+        foreach ($rules as [$backtrack, $input, $lookahead, $records]) {
+            $offsets[] = $base + strlen($tables);
+            $tables    .= pack('n', count($backtrack))
+            . self::shorts($backtrack)
+            . pack('n', count($input) + 1)
+            . self::shorts($input)
+            . pack('n', count($lookahead))
+            . self::shorts($lookahead)
+            . self::records($records);
+        }
+
+        return pack('n', count($rules)) . self::shorts($offsets) . $tables;
     }
 
     private static function scriptList(string $script, int $featureCount): string
     {
-        $langSys =
-            pack('nnn', 0, 0xFFFF, $featureCount)
-            . ($featureCount > 0 ? pack('n*', ...range(0, $featureCount - 1)) : '');
-        $scriptTable = pack('nn', 4, 0) . $langSys;
+        $indices = $featureCount > 0 ? self::shorts(range(0, $featureCount - 1)) : '';
 
-        return pack('n', 1) . $script . pack('n', 8) . $scriptTable;
+        return (
+            pack('n', 1) . $script . pack('n', 8) . pack('nn', 4, 0) . pack('nnn', 0, 0xFFFF, $featureCount) . $indices
+        );
+    }
+
+    /** @param list<int> $values */
+    private static function shorts(array $values): string
+    {
+        return [] === $values ? '' : pack('n*', ...$values);
+    }
+
+    /**
+     * A format-1 subtable that lists a coverage and one set per covered glyph, in glyph order.
+     *
+     * @param list<int>    $glyphs
+     * @param list<string> $sets
+     */
+    private static function withSets(int $format, array $glyphs, array $sets): string
+    {
+        $count      = count($sets);
+        $coverageAt = 6 + (2 * $count);
+        $coverage   = self::coverage($glyphs);
+        $offsets    = [];
+        $body       = '';
+        foreach ($sets as $set) {
+            $offsets[] = $coverageAt + strlen($coverage) + strlen($body);
+            $body      .= $set;
+        }
+
+        return pack('nnn', $format, $coverageAt, $count) . self::shorts($offsets) . $coverage . $body;
     }
 }

@@ -225,17 +225,18 @@ final class Font implements PdfFontInterface, DeferredInterface
     }
 
     /**
-     * Maps UTF-8 text to glyphs, substitutes the font's standard ligatures, then kerns. Characters
-     * the font lacks become .notdef.
+     * Maps UTF-8 text to glyphs, applies the font's substitutions for the active features (the
+     * standard ligatures by default), then kerns. Characters the font lacks become .notdef.
      */
     #[Override]
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
-        $options   ??= TextOptions::default();
-        $kerning   = $options->kerning && $this->program->hasKerning();
-        $ligatures = $options->useLigatures() ? $this->program->ligatures() : null;
-        $key       = ($kerning ? 'k' : '-') . (null === $ligatures ? '-' : 'l') . $text;
-        $cached    = $this->shapes[$key] ?? null;
+        $options  ??= TextOptions::default();
+        $kerning  = $options->kerning && $this->program->hasKerning();
+        $features = $options->activeFeatures();
+        $gsub     = [] === $features ? null : $this->program->gsub();
+        $key      = ($kerning ? 'k' : '-') . implode(',', $features) . '|' . $text;
+        $cached   = $this->shapes[$key] ?? null;
         if (null !== $cached) {
             return $cached;
         }
@@ -251,8 +252,8 @@ final class Font implements PdfFontInterface, DeferredInterface
             }
             $sequence[] = [$id, [$codePoint]];
         }
-        if (null !== $ligatures) {
-            $sequence = $ligatures->apply($sequence);
+        if (null !== $gsub) {
+            $sequence = $gsub->apply($sequence, $features);
         }
         $glyphs = [];
         $prev   = null;

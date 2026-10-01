@@ -60,8 +60,8 @@ final class OpenTypeFont
     private ?GposKerning $gpos        = null;
     private bool         $gposChecked = false;
 
-    private ?GsubLigatures $ligatures        = null;
-    private bool           $ligaturesChecked = false;
+    private ?Gsub $gsub        = null;
+    private bool  $gsubChecked = false;
 
     /** @var list<int>|null glyph offsets into glyf (numGlyphs + 1 entries) */
     private ?array $loca = null;
@@ -215,6 +215,18 @@ final class OpenTypeFont
         return $this->cmap[$codePoint] ?? 0;
     }
 
+    /** The font's glyph substitutions (GSUB), or null when it has none. */
+    public function gsub(): ?Gsub
+    {
+        if (! $this->gsubChecked) {
+            $this->gsubChecked = true;
+            $reader            = $this->tableReader('GSUB');
+            $this->gsub        = null === $reader ? null : new Gsub($reader);
+        }
+
+        return $this->gsub;
+    }
+
     public function hasGlyph(int $codePoint): bool
     {
         return array_key_exists($codePoint, $this->cmap);
@@ -251,25 +263,6 @@ final class OpenTypeFont
         $offset  = $glyphId < $metrics ? (4 * $glyphId) + 2 : (4 * $metrics) + (2 * ($glyphId - $metrics));
 
         return ($offset + 2) <= $hmtx->length ? $hmtx->i16($offset) : 0;
-    }
-
-    /**
-     * The font's standard ligatures (the GSUB "liga" feature), or null when it has none.
-     */
-    public function ligatures(): ?GsubLigatures
-    {
-        if (! $this->ligaturesChecked) {
-            $this->ligaturesChecked = true;
-            $reader                 = $this->tableReader('GSUB');
-            if (null !== $reader) {
-                $ligatures = new GsubLigatures($reader);
-                if ($ligatures->hasLigatures()) {
-                    $this->ligatures = $ligatures;
-                }
-            }
-        }
-
-        return $this->ligatures;
     }
 
     public function postScriptName(): string
