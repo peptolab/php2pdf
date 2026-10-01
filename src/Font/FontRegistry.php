@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font;
 
+use PhpPdf\Core\Lru;
 use PhpPdf\Document\Document;
 use PhpPdf\Exception\IoException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 
+use function filemtime;
 use function glob;
 use function in_array;
 use function is_dir;
@@ -34,8 +36,11 @@ use const PATHINFO_FILENAME;
  */
 final class FontRegistry
 {
-    /** @var array<string, list<FontInfo>> directory => faces, shared across documents */
-    private static array $index = [];
+    /** Directories whose faces are kept between documents. */
+    private const int INDEX_ENTRIES = 64;
+
+    /** @var Lru<array{0: int, 1: list<FontInfo>}>|null directory => modification time and faces */
+    private static ?Lru $index = null;
 
     /** @var list<string> */
     private array $searchPaths = [];
@@ -54,6 +59,15 @@ final class FontRegistry
         private readonly Document $document,
     ) {}
 
+    /**
+     * Empties the index of search-path directories shared between documents; a directory is also
+     * re-read when its modification time changes, as it does when fonts are added or removed.
+     */
+    public static function clearCache(): void
+    {
+        self::$index?->clear();
+    }
+
     private static function canonical(string $path): string
     {
         $real = realpath($path);
@@ -61,12 +75,20 @@ final class FontRegistry
         return false === $real ? $path : $real;
     }
 
+    /** @return Lru<array{0: int, 1: list<FontInfo>}> */
+    private static function index(): Lru
+    {
+        return self::$index ??= new Lru(self::INDEX_ENTRIES);
+    }
+
     /** @return list<FontInfo> */
     private static function indexDirectory(string $directory): array
     {
-        $cached = self::$index[$directory] ?? null;
-        if (null !== $cached) {
-            return $cached;
+        $index    = self::index();
+        $modified = (int) filemtime($directory);
+        $cached   = $index->get($directory);
+        if (null !== $cached && $cached[0] === $modified) {
+            return $cached[1];
         }
         $faces = [];
         $files = glob("{$directory}/*.{ttf,otf,ttc,TTF,OTF,TTC}", flags: GLOB_BRACE);
@@ -83,7 +105,9 @@ final class FontRegistry
             }
         }
 
-        return self::$index[$directory] = $faces;
+        $index->set($directory, [$modified, $faces]);
+
+        return $faces;
     }
 
     private static function normalise(string $name): string

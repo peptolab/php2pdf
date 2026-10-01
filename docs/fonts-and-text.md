@@ -30,6 +30,12 @@ $fonts->warnings();   // ['Font "X" is embedded whole because its CFF outlines c
 The same file loaded twice yields the same `Font`; fonts belong to the document they were
 loaded into.
 
+Parsed font files and search-path indexes are shared between documents in the same process,
+so a long-running worker parses each font once. Both caches are bounded: the 32 most recently
+used font files, up to 64 MiB of font data, and 64 search-path directories. A file or directory
+that changes on disk is read again. `OpenTypeFont::clearCache()` and `FontRegistry::clearCache()`
+empty them.
+
 ### Missing glyphs
 
 A character the font has no glyph for is drawn as the font's `.notdef` glyph, usually a box or

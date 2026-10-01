@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font\OpenType;
 
+use PhpPdf\Core\Lru;
 use PhpPdf\Exception\IoException;
 
 use function array_key_exists;
@@ -29,8 +30,14 @@ use function trim;
  */
 final class OpenTypeFont
 {
-    /** @var array<string, self> */
-    private static array $cache = [];
+    /** Font programs kept between documents: at most this many... */
+    private const int CACHE_ENTRIES = 32;
+
+    /** ...holding at most this many bytes of font data. */
+    private const int CACHE_BYTES = 64 * 1024 * 1024;
+
+    /** @var Lru<array{0: int, 1: self}>|null path#face => modification time and program */
+    private static ?Lru $cache = null;
 
     public readonly TableDirectory $tables;
     public readonly Metrics $metrics;
@@ -80,13 +87,23 @@ final class OpenTypeFont
         $this->metrics = $parser->parse($head);
     }
 
+    /**
+     * Empties the cache of parsed font files that {@see fromFile()} shares between documents.
+     */
+    public static function clearCache(): void
+    {
+        self::$cache?->clear();
+    }
+
     public static function fromData(string $data, int $faceIndex = 0): self
     {
         return new self($data, $faceIndex);
     }
 
     /**
-     * Loads and parses a font file, caching the result per path for the life of the process.
+     * Loads and parses a font file. Parsed files are shared between documents in the same
+     * process: the 32 most recently used, up to 64 MiB of font data, and reloaded when the file
+     * changes.
      */
     public static function fromFile(string $path, int $faceIndex = 0): self
     {
@@ -94,17 +111,27 @@ final class OpenTypeFont
         if (false === $real || ! is_file($real)) {
             throw new IoException(sprintf('Font file "%s" not found.', $path));
         }
-        $key    = "{$real}#{$faceIndex}#" . (string) filemtime($real);
-        $cached = self::$cache[$key] ?? null;
-        if (null !== $cached) {
-            return $cached;
+        $cache    = self::cache();
+        $key      = "{$real}#{$faceIndex}";
+        $modified = (int) filemtime($real);
+        $cached   = $cache->get($key);
+        if (null !== $cached && $cached[0] === $modified) {
+            return $cached[1];
         }
         $data = file_get_contents($real);
         if (false === $data) {
             throw new IoException(sprintf('Cannot read font file "%s".', $path));
         }
+        $font = new self($data, $faceIndex);
+        $cache->set($key, [$modified, $font], strlen($data));
 
-        return self::$cache[$key] = new self($data, $faceIndex);
+        return $font;
+    }
+
+    /** @return Lru<array{0: int, 1: self}> */
+    private static function cache(): Lru
+    {
+        return self::$cache ??= new Lru(self::CACHE_ENTRIES, self::CACHE_BYTES);
     }
 
     /** Advance width of a glyph in font units. */
