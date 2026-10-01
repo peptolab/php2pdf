@@ -35,13 +35,13 @@ final class Unit
         return $value;
     }
 
-    public static function toMm(float $points): float
-    {
-        return $points / self::POINTS_PER_MM;
-    }
-
     public static function toIn(float $points): float
     {
         return $points / self::POINTS_PER_INCH;
+    }
+
+    public static function toMm(float $points): float
+    {
+        return $points / self::POINTS_PER_MM;
     }
 }

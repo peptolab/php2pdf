@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace PhpPdf\Color;
 
+use Override;
+
 /**
  * DeviceGray, 0.0 (black) to 1.0 (white).
  *
  * @api
  */
-final readonly class Gray implements Color
+final readonly class Gray implements ColorInterface
 {
-    public function __construct(public float $gray)
-    {
-    }
+    public function __construct(
+        public float $gray,
+    ) {}
 
     public static function black(): self
     {
@@ -25,13 +27,13 @@ final readonly class Gray implements Color
         return new self(1.0);
     }
 
-    #[\Override]
+    #[Override]
     public function componentCount(): int
     {
         return 1;
     }
 
-    #[\Override]
+    #[Override]
     public function components(): array
     {
         return [$this->gray];

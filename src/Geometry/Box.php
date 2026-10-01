@@ -6,6 +6,10 @@ namespace PhpPdf\Geometry;
 
 use PhpPdf\Exception\InvalidArgumentException;
 
+use function abs;
+use function max;
+use function min;
+
 /**
  * An axis-aligned rectangle in points, given by its origin corner and size.
  *
@@ -47,10 +51,24 @@ final readonly class Box
         return new self($x, $y, $width, $height);
     }
 
-    /** The far x edge (x + width). */
-    public function right(): float
+    public function area(): float
     {
-        return $this->x + $this->width;
+        return $this->width * $this->height;
+    }
+
+    public function centerX(): float
+    {
+        return $this->x + ($this->width / 2.0);
+    }
+
+    public function centerY(): float
+    {
+        return $this->y + ($this->height / 2.0);
+    }
+
+    public function contains(float $x, float $y): bool
+    {
+        return $x >= $this->x && $x <= $this->right() && $y >= $this->y && $y <= $this->far();
     }
 
     /** The far y edge (y + height). */
@@ -59,30 +77,10 @@ final readonly class Box
         return $this->y + $this->height;
     }
 
-    public function centerX(): float
-    {
-        return $this->x + $this->width / 2.0;
-    }
-
-    public function centerY(): float
-    {
-        return $this->y + $this->height / 2.0;
-    }
-
-    public function area(): float
-    {
-        return $this->width * $this->height;
-    }
-
-    public function isEmpty(): bool
-    {
-        return 0.0 === $this->width || 0.0 === $this->height;
-    }
-
     /**
      * Shrinks the box by the given amounts. Pass one value for all sides, or left/far/right/near.
      */
-    public function inset(float $left, float|null $far = null, float|null $right = null, float|null $near = null): self
+    public function inset(float $left, ?float $far = null, ?float $right = null, ?float $near = null): self
     {
         $far   ??= $left;
         $right ??= $left;
@@ -94,16 +92,6 @@ final readonly class Box
             max(0.0, $this->width - $left - $right),
             max(0.0, $this->height - $near - $far),
         );
-    }
-
-    public function translate(float $dx, float $dy): self
-    {
-        return new self($this->x + $dx, $this->y + $dy, $this->width, $this->height);
-    }
-
-    public function withSize(float $width, float $height): self
-    {
-        return new self($this->x, $this->y, $width, $height);
     }
 
     public function intersect(self $other): self
@@ -119,19 +107,15 @@ final readonly class Box
         return new self($x1, $y1, $x2 - $x1, $y2 - $y1);
     }
 
-    public function union(self $other): self
+    public function isEmpty(): bool
     {
-        return self::fromCorners(
-            min($this->x, $other->x),
-            min($this->y, $other->y),
-            max($this->right(), $other->right()),
-            max($this->far(), $other->far()),
-        );
+        return 0.0 === $this->width || 0.0 === $this->height;
     }
 
-    public function contains(float $x, float $y): bool
+    /** The far x edge (x + width). */
+    public function right(): float
     {
-        return $x >= $this->x && $x <= $this->right() && $y >= $this->y && $y <= $this->far();
+        return $this->x + $this->width;
     }
 
     /**
@@ -142,5 +126,25 @@ final readonly class Box
     public function toRect(): array
     {
         return [$this->x, $this->y, $this->right(), $this->far()];
+    }
+
+    public function translate(float $dx, float $dy): self
+    {
+        return new self($this->x + $dx, $this->y + $dy, $this->width, $this->height);
+    }
+
+    public function union(self $other): self
+    {
+        return self::fromCorners(
+            min($this->x, $other->x),
+            min($this->y, $other->y),
+            max($this->right(), $other->right()),
+            max($this->far(), $other->far()),
+        );
+    }
+
+    public function withSize(float $width, float $height): self
+    {
+        return new self($this->x, $this->y, $width, $height);
     }
 }

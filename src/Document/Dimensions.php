@@ -14,21 +14,23 @@ use PhpPdf\Geometry\Unit;
  */
 final readonly class Dimensions
 {
-    public function __construct(public float $width, public float $height)
-    {
+    public function __construct(
+        public float $width,
+        public float $height,
+    ) {
         if ($width <= 0.0 || $height <= 0.0) {
             throw new InvalidArgumentException('Page dimensions must be positive.');
         }
     }
 
-    public static function mm(float $width, float $height): self
-    {
-        return new self(Unit::mm($width), Unit::mm($height));
-    }
-
     public static function in(float $width, float $height): self
     {
         return new self(Unit::in($width), Unit::in($height));
+    }
+
+    public static function mm(float $width, float $height): self
+    {
+        return new self(Unit::mm($width), Unit::mm($height));
     }
 
     public static function pt(float $width, float $height): self

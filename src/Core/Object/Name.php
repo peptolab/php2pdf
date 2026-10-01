@@ -9,9 +9,9 @@ namespace PhpPdf\Core\Object;
  */
 final readonly class Name
 {
-    public function __construct(public string $value)
-    {
-    }
+    public function __construct(
+        public string $value,
+    ) {}
 
     public static function of(string $value): self
     {

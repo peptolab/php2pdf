@@ -13,8 +13,10 @@ use PhpPdf\Exception\InvalidArgumentException;
  */
 final readonly class GradientStop
 {
-    public function __construct(public float $offset, public Gray|Rgb|Cmyk $color)
-    {
+    public function __construct(
+        public float $offset,
+        public Gray|Rgb|Cmyk $color,
+    ) {
         if ($offset < 0.0 || $offset > 1.0) {
             throw new InvalidArgumentException('Gradient stop offset must be between 0 and 1.');
         }

@@ -24,14 +24,6 @@ final class BoxTest extends TestCase
     }
 
     #[Test]
-    public function normalisesCorners(): void
-    {
-        $box = Box::fromCorners(100, 200, 10, 20);
-
-        self::assertSame([10.0, 20.0, 100.0, 200.0], $box->toRect());
-    }
-
-    #[Test]
     public function insetsAndIntersects(): void
     {
         $box = new Box(0, 0, 100, 50);
@@ -41,6 +33,14 @@ final class BoxTest extends TestCase
         self::assertSame([50.0, 25.0, 100.0, 50.0], $box->intersect(new Box(50, 25, 100, 100))->toRect());
         self::assertTrue($box->intersect(new Box(200, 200, 10, 10))->isEmpty());
         self::assertSame([0.0, 0.0, 200.0, 210.0], $box->union(new Box(200, 200, 0, 10))->toRect());
+    }
+
+    #[Test]
+    public function normalisesCorners(): void
+    {
+        $box = Box::fromCorners(100, 200, 10, 20);
+
+        self::assertSame([10.0, 20.0, 100.0, 200.0], $box->toRect());
     }
 
     #[Test]

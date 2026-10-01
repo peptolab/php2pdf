@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core;
 
+use function abs;
+use function floor;
+use function implode;
+use function is_int;
+use function number_format;
+use function rtrim;
+
 /**
  * Number formatting for PDF syntax: no exponents, no trailing zeros, no negative zero.
+ *
+ * @internal
  */
 final class Num
 {
@@ -14,12 +23,13 @@ final class Num
         if (is_int($n)) {
             return (string) $n;
         }
-        if ($n === floor($n) && abs($n) < 1.0e15) {
+        if (floor($n) === $n && abs($n) < 1.0e15) {
             return (string) (int) $n;
         }
-        $s = rtrim(rtrim(number_format($n, $decimals, '.', ''), '0'), '.');
+        $s = number_format($n, $decimals, decimal_separator: '.', thousands_separator: '');
+        $s = rtrim(rtrim($s, characters: '0'), characters: '.');
 
-        return $s === '-0' || $s === '' ? '0' : $s;
+        return '-0' === $s || '' === $s ? '0' : $s;
     }
 
     /**

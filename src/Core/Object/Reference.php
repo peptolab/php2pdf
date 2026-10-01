@@ -9,7 +9,8 @@ namespace PhpPdf\Core\Object;
  */
 final readonly class Reference
 {
-    public function __construct(public int $id, public int $generation = 0)
-    {
-    }
+    public function __construct(
+        public int $id,
+        public int $generation = 0,
+    ) {}
 }

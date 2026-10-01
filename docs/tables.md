@@ -1,0 +1,80 @@
+# Tables
+
+A `Table` flows through boxes exactly like a Textflow: each `fitTable()` places as many rows as
+fit and returns `Done`, `BoxFull` or `BoxEmpty`.
+
+```php
+$table = new Table(
+    [Column::mm(55), Column::auto(), Column::mm(30), Column::mm(20, new CellStyle(alignment: Alignment::Right))],
+    new CellStyle(padding: Padding::mm(1, 0, 3, 0)),   // every cell's base style
+    'body',                                           // every text cell's base text style
+);
+$table->addHeaderRow(['Reference', 'Project', '', 'Price'], new CellStyle(borderBottom: new Border(0.25)));
+$table->addRow([$ref, Cell::text($name)->spanning(2), sprintf('$%0.2f', $price)]);
+$table->addRow([null, null, Cell::text('TOTAL', 'cell-title'), Cell::text($total, 'amount')], group: 1);
+
+$result = $page->fitTable($table, Box::fromMm(15, 48, 180, 176));
+```
+
+## Columns
+
+`Column::pt(72)` or `Column::mm(55)` are fixed; `Column::percent(30)` is a share of the box
+width; `Column::auto()` is sized from its content, at least its widest word and at most its
+longest line, with the remaining width shared in proportion. A column can carry a `CellStyle`
+its cells inherit. Columns wider than the box throw.
+
+## Rows and cells
+
+Cells are given as strings (plain text), `Textflow`s, anything placeable (images, templates,
+SVG) or `null` for empty, or as `Cell` objects for control:
+
+```php
+Cell::text('Plain', 'style-name', $cellStyle);
+Cell::markup('With <b>markup</b>');
+Cell::of($image, Fit::meet());
+Cell::text('Wide')->spanning(columns: 3, rows: 2);
+Cell::text('Right')->styled(new CellStyle(alignment: Alignment::Right));
+```
+
+`addRow($cells, $style, $group, $minHeight)` and `addHeaderRow($cells, $style, $minHeight)`
+accept a prepared `Row` as well. Header rows are drawn again at the top of every box the table
+continues in (`TableOptions(repeatHeaders: false)` turns that off). Consecutive rows sharing a
+group id are kept together across boxes when they can be.
+
+## Styles
+
+`CellStyle` layers table < column < row < cell, later non-null values winning: `padding`
+(`Padding::all()`, `symmetric()`, `mm()`), `background`, `border` for all sides or
+`borderTop`/`Right`/`Bottom`/`Left` (`new Border($width, $color, $dash)`), `verticalAlignment`,
+`alignment` (horizontal, applied to text and placeables) and `text` (a `TextStyle` or name
+layered under the cell's own `text`).
+
+## Splitting and results
+
+A row that does not fit the space left at the top of a box continues its text in the next box
+(`TableOptions(splitRows: false)` disables this; such a row then reports `BoxEmpty`). Row and
+column spans are honoured; a spanning cell grows the last row it covers when it needs more
+height.
+
+`$table->lastFit()` returns a `TableFitInfo`: result, height used, rows placed, and the canvas
+coordinates of every row edge (`rowEdges`, `bottom()`) and column edge (`columnEdges`), so you
+can draw your own rules or continue below the table. `measure($doc, $width)` gives the height
+the remaining rows need.
+
+## Flowing across pages
+
+`Document::flow()` drains any flowable (a Textflow or a Table) across as many pages as needed,
+calling a closure to make each page:
+
+```php
+$pages = $doc->flow($table, [Box::fromMm(15, 48, 180, 176), Box::fromMm(15, 20, 180, 250)], function (Document $doc, int $n) use ($template): Page {
+    $page = $doc->addPage(PageSize::A4);
+    $page->place($template, $page->mediaBox(), Fit::entire());
+
+    return $page;
+});
+```
+
+With a list of boxes the first page uses the first box, later pages the following ones, and the
+last box repeats. To share the first page with other content, fit the table on that page
+yourself and call `flow()` for the rest when `isDone()` is false.

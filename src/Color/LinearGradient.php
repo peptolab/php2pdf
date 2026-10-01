@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Color;
 
+use Override;
 use PhpPdf\Core\Object\Dictionary;
 
 /**
@@ -11,7 +12,7 @@ use PhpPdf\Core\Object\Dictionary;
  *
  * @api
  */
-final readonly class LinearGradient extends Gradient
+final readonly class LinearGradient extends AbstractGradient
 {
     /** @param list<GradientStop> $stops */
     public function __construct(
@@ -25,7 +26,7 @@ final readonly class LinearGradient extends Gradient
         parent::__construct($stops, $extend);
     }
 
-    #[\Override]
+    #[Override]
     public function toShading(): Dictionary
     {
         return $this->baseShading(2)->set('Coords', [$this->x0, $this->y0, $this->x1, $this->y1]);

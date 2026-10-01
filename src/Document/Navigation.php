@@ -1,0 +1,114 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdf\Document;
+
+use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Core\Object\Name;
+use PhpPdf\Core\Object\Reference;
+use PhpPdf\Core\Writer;
+use PhpPdf\Exception\PdfException;
+use PhpPdf\Geometry\Box;
+
+use function array_key_exists;
+use function is_string;
+use function sprintf;
+
+/**
+ * A document's links, named destinations and outline, written when the document closes and
+ * every page they may point at exists.
+ *
+ * @internal
+ */
+final class Navigation
+{
+    public readonly Outline $outline;
+
+    /** @var array<string, Destination> */
+    private array $destinations = [];
+
+    /** @var list<array{0: Reference, 1: Box, 2: Destination|string}> */
+    private array $links = [];
+
+    public function __construct(
+        private readonly Writer $writer,
+    ) {
+        $this->outline = new Outline();
+    }
+
+    public function addDestination(string $name, Destination $destination): void
+    {
+        $this->destinations[$name] = $destination;
+    }
+
+    /** Allocates a link annotation; it is written at close. */
+    public function addLink(Box $area, Destination|string $target): Reference
+    {
+        $ref           = $this->writer->allocate();
+        $this->links[] = [$ref, $area, $target];
+
+        return $ref;
+    }
+
+    /**
+     * Writes link annotations, named destinations and the outline, and adds them to the catalog.
+     *
+     * @param list<Reference> $pageRefs
+     */
+    public function write(Dictionary $catalog, array $pageRefs): void
+    {
+        $resolve =
+            /** @return list<mixed>|string */
+            fn(Destination $destination): array|string => $this->resolve($destination, $pageRefs);
+        foreach ($this->links as [$ref, $area, $target]) {
+            $annotation = Dictionary::of([
+                'Type'    => new Name('Annot'),
+                'Subtype' => new Name('Link'),
+                'Rect'    => $area->toRect(),
+                'Border'  => [0, 0, 0],
+            ]);
+            if ($target instanceof Destination) {
+                $annotation->set('Dest', $resolve($target));
+            }
+            if (is_string($target)) {
+                $annotation->set('A', Dictionary::of(['S' => new Name('URI'), 'URI' => $target]));
+            }
+            $this->writer->write($ref, $annotation);
+        }
+        if ([] !== $this->destinations) {
+            $dests = new Dictionary();
+            foreach ($this->destinations as $name => $destination) {
+                $dests->set($name, $resolve($destination));
+            }
+            $catalog->set('Dests', $this->writer->add($dests));
+        }
+        if (! $this->outline->isEmpty()) {
+            $catalog->set('Outlines', $this->outline->write($this->writer, $resolve));
+            $catalog->set('PageMode', new Name('UseOutlines'));
+        }
+    }
+
+    /**
+     * The PDF form of a destination, with page numbers resolved to page references.
+     *
+     * @param list<Reference> $pageRefs
+     *
+     * @return list<mixed>|string
+     */
+    private function resolve(Destination $destination, array $pageRefs): array|string
+    {
+        if (null !== $destination->name && ! array_key_exists($destination->name, $this->destinations)) {
+            throw new PdfException(sprintf('Named destination "%s" is not defined.', $destination->name));
+        }
+        $pageRef = null;
+        if (null !== $destination->page) {
+            $pageRef = $pageRefs[$destination->page - 1] ?? throw new PdfException(sprintf(
+                'Destination page %d does not exist.',
+                $destination->page,
+            ));
+        }
+
+        return $destination->toPdf($pageRef);
+    }
+}

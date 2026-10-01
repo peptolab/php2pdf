@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace PhpPdfTest\Integration;
 
 use PhpPdf\Core\FixedClock;
-use PhpPdf\Document\Document;
 use PhpPdf\Document\Dimensions;
+use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
 use PhpPdf\Geometry\Box;
 use PhpPdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+
+use function preg_split;
+use function trim;
 
 final class DocumentStructureTest extends TestCase
 {

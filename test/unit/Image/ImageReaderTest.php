@@ -1,0 +1,172 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdfTest\Unit\Image;
+
+use PhpPdf\Core\Filter\Flate;
+use PhpPdf\Exception\PdfException;
+use PhpPdf\Image\ImageData;
+use PhpPdf\Image\ImageReader;
+use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
+use function abs;
+use function chr;
+use function intdiv;
+use function ord;
+use function str_repeat;
+use function strlen;
+use function substr;
+
+final class ImageReaderTest extends TestCase
+{
+    /** @return iterable<string, array{0: string, 1: string, 2: int, 3: int, 4: string, 5: string}> */
+    public static function pngs(): iterable
+    {
+        // file, device, bits, components, transparency, encoding
+        yield 'rgb8' => ['rgb8.png', 'DeviceRGB', 8, 3, 'opaque', 'passthrough'];
+        yield 'rgb16' => ['rgb16.png', 'DeviceRGB', 16, 3, 'opaque', 'passthrough'];
+        yield 'gray8' => ['gray8.png', 'DeviceGray', 8, 1, 'opaque', 'passthrough'];
+        yield 'gray4' => ['gray4.png', 'DeviceGray', 4, 1, 'opaque', 'passthrough'];
+        yield 'gray1' => ['gray1.png', 'DeviceGray', 1, 1, 'opaque', 'passthrough'];
+        yield 'indexed' => ['indexed.png', 'DeviceRGB', 4, 1, 'opaque', 'passthrough'];
+        yield 'rgba8' => ['rgba8.png', 'DeviceRGB', 8, 3, 'smask', 'decoded'];
+        yield 'gray-alpha' => ['gray-alpha.png', 'DeviceGray', 8, 1, 'smask', 'decoded'];
+        yield 'indexed-trns' => ['indexed-trns.png', 'DeviceRGB', 8, 1, 'smask', 'decoded'];
+        yield 'interlaced-rgb' => ['interlaced-rgb.png', 'DeviceRGB', 8, 3, 'opaque', 'decoded'];
+        yield 'interlaced-rgba' => ['interlaced-rgba.png', 'DeviceRGB', 8, 3, 'smask', 'decoded'];
+        yield 'interlaced-gray1' => ['interlaced-gray1.png', 'DeviceGray', 8, 1, 'opaque', 'decoded'];
+    }
+
+    private static function read(string $name): ImageData
+    {
+        return ImageReader::readFile(PdfTools::assetPath("images/{$name}"));
+    }
+
+    /** Reverses PNG filters with a tiny independent implementation, for cross-checking. */
+    private static function unfilterReference(string $raw, int $width, int $height, int $bpp): string
+    {
+        $rowBytes = $width * $bpp;
+        $out      = '';
+        $prev     = str_repeat("\0", $rowBytes);
+        for ($y = 0; $y < $height; ++$y) {
+            $filter = ord($raw[$y * ($rowBytes + 1)]);
+            $row    = substr($raw, ($y * ($rowBytes + 1)) + 1, $rowBytes);
+            $line   = '';
+            for ($i = 0; $i < $rowBytes; ++$i) {
+                $x = ord($row[$i]);
+                $a = $i >= $bpp ? ord($line[$i - $bpp]) : 0;
+                $b = ord($prev[$i]);
+                $c = $i >= $bpp ? ord($prev[$i - $bpp]) : 0;
+                $p = $a + $b - $c;
+                [$pa, $pb, $pc] = [abs($p - $a), abs($p - $b), abs($p - $c)];
+                $paeth = $pb <= $pc ? $b : $c;
+                if ($pa <= $pb && $pa <= $pc) {
+                    $paeth = $a;
+                }
+                $predictor = match ($filter) {
+                    0       => 0,
+                    1       => $a,
+                    2       => $b,
+                    3       => ($a + $b) >> 1,
+                    default => $paeth,
+                };
+                $line .= chr(($x + $predictor) & 0xFF);
+            }
+            $out  .= $line;
+            $prev = $line;
+        }
+
+        return $out;
+    }
+
+    #[Test]
+    public function decodedPixelsMatchPassthroughPixels(): void
+    {
+        // interlaced-rgb.png holds the same pixels as rgb8.png; decoding must reproduce them.
+        $plain      = self::read('rgb8.png');
+        $interlaced = self::read('interlaced-rgb.png');
+        $decoded    = Flate::decode($interlaced->data);
+        $reference  = self::unfilterReference(Flate::decode($plain->data), 64, 48, 3);
+
+        self::assertSame($reference, $decoded);
+    }
+
+    #[Test]
+    public function readsColorKeyAndResolution(): void
+    {
+        $key = self::read('colorkey.png');
+        self::assertNotNull($key->colorKeyMask);
+        self::assertCount(6, $key->colorKeyMask);
+        self::assertTrue($key->hasTransparency());
+
+        $dpi = self::read('rgb-150dpi.png');
+        self::assertEqualsWithDelta(150.0, $dpi->dpiX, 0.1);
+    }
+
+    #[Test]
+    public function readsJpegHeaders(): void
+    {
+        $rgb = self::read('rgb.jpg');
+        self::assertSame([64, 48, 8, 'DeviceRGB', 'DCTDecode'], [
+            $rgb->width,
+            $rgb->height,
+            $rgb->bitsPerComponent,
+            $rgb->colorSpace->device,
+            $rgb->filter,
+        ]);
+        self::assertNull($rgb->decode);
+        self::assertSame(72.0, $rgb->dpiX);
+
+        $gray = self::read('gray.jpg');
+        self::assertSame(1, $gray->colorSpace->components);
+
+        $cmyk = self::read('cmyk.jpg');
+        self::assertSame('DeviceCMYK', $cmyk->colorSpace->device);
+        self::assertSame([1, 0, 1, 0, 1, 0, 1, 0], $cmyk->decode, 'Adobe CMYK JPEGs are inverted.');
+
+        self::assertSame(64, self::read('progressive.jpg')->width);
+        self::assertSame(150.0, self::read('rgb-150dpi.jpg')->dpiX);
+    }
+
+    #[Test]
+    #[DataProvider('pngs')]
+    public function readsPngVariants(
+        string $file,
+        string $device,
+        int $bits,
+        int $components,
+        string $transparency,
+        string $encoding,
+    ): void {
+        $image       = self::read($file);
+        $softMask    = 'smask' === $transparency;
+        $passthrough = 'passthrough' === $encoding;
+
+        self::assertSame([64, 48], [$image->width, $image->height]);
+        self::assertSame($device, $image->colorSpace->device);
+        self::assertSame($bits, $image->bitsPerComponent);
+        self::assertSame($components, $image->colorSpace->components);
+        self::assertSame('FlateDecode', $image->filter);
+        self::assertSame($softMask, null !== $image->softMask);
+        self::assertSame($passthrough, null !== $image->decodeParms);
+        if ($softMask) {
+            self::assertSame(64 * 48, strlen((string) $image->softMask));
+        }
+        // Decoded data has exactly the expected number of samples.
+        $expectedBytes = 64 * 48 * $components * intdiv($bits, num2: 8);
+        if (! $passthrough) {
+            self::assertSame($expectedBytes, strlen(Flate::decode($image->data)));
+        }
+    }
+
+    #[Test]
+    public function rejectsGarbage(): void
+    {
+        $this->expectException(PdfException::class);
+        ImageReader::read("\xFF\xD8\xFF\xE0garbage");
+    }
+}

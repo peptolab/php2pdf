@@ -4,6 +4,6 @@ declare(strict_types=1);
 
 namespace PhpPdf\Exception;
 
-class PdfException extends \RuntimeException
-{
-}
+use RuntimeException;
+
+class PdfException extends RuntimeException {}

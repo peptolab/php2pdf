@@ -8,6 +8,8 @@ use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
 
+use function count;
+
 /**
  * The resource dictionary of a page or form XObject. Hands out resource names and remembers which
  * indirect objects they map to.
@@ -21,6 +23,11 @@ final class Resources
 
     /** @var array<string, array<int, string>> category => object id => name */
     private array $names = [];
+
+    /** @param Reference|null $defaultRgb an ICCBased colour space DeviceRGB is interpreted in */
+    public function __construct(
+        private readonly ?Reference $defaultRgb = null,
+    ) {}
 
     public function colorSpace(Reference $ref): string
     {
@@ -50,9 +57,20 @@ final class Resources
     public function toDictionary(): Dictionary
     {
         $dict = new Dictionary();
-        $dict->set('ProcSet', [new Name('PDF'), new Name('Text'), new Name('ImageB'), new Name('ImageC'), new Name('ImageI')]);
+        $dict->set('ProcSet', [
+            new Name('PDF'),
+            new Name('Text'),
+            new Name('ImageB'),
+            new Name('ImageC'),
+            new Name('ImageI'),
+        ]);
         foreach ($this->entries as $category => $names) {
             $dict->set($category, new Dictionary($names));
+        }
+        if (null !== $this->defaultRgb) {
+            $spaces = new Dictionary($this->entries['ColorSpace'] ?? []);
+            $spaces->set('DefaultRGB', $this->defaultRgb);
+            $dict->set('ColorSpace', $spaces);
         }
 
         return $dict;
@@ -65,8 +83,9 @@ final class Resources
 
     private function register(string $category, string $prefix, Reference $ref): string
     {
-        if (isset($this->names[$category][$ref->id])) {
-            return $this->names[$category][$ref->id];
+        $existing = $this->names[$category][$ref->id] ?? null;
+        if (null !== $existing) {
+            return $existing;
         }
         $name = $prefix . (count($this->entries[$category] ?? []) + 1);
 

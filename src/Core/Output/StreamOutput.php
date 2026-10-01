@@ -4,40 +4,55 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Output;
 
+use Override;
 use PhpPdf\Exception\IoException;
+
+use function fflush;
+use function fwrite;
+use function is_resource;
+use function strlen;
 
 /**
  * Writes to an existing PHP stream resource (php://output, a socket, a temp stream). The resource
  * is not closed by close().
+ *
+ * @api
  */
-final class StreamOutput implements Output
+final class StreamOutput implements OutputInterface
 {
+    /** @var resource */
+    private mixed $resource;
+
     private int $position = 0;
 
     /** @param resource $resource */
-    public function __construct(private $resource)
+    public function __construct(mixed $resource)
     {
-        if (!is_resource($resource)) {
+        if (! is_resource($resource)) {
             throw new IoException('StreamOutput expects an open stream resource.');
         }
+        $this->resource = $resource;
     }
 
-    public function write(string $bytes): void
+    #[Override]
+    public function close(): void
     {
-        $written = fwrite($this->resource, $bytes);
-        if ($written !== strlen($bytes)) {
-            throw new IoException('Short write to stream.');
-        }
-        $this->position += $written;
+        fflush($this->resource);
     }
 
+    #[Override]
     public function position(): int
     {
         return $this->position;
     }
 
-    public function close(): void
+    #[Override]
+    public function write(string $bytes): void
     {
-        fflush($this->resource);
+        $written = fwrite($this->resource, $bytes);
+        if (strlen($bytes) !== $written) {
+            throw new IoException('Short write to stream.');
+        }
+        $this->position += $written;
     }
 }

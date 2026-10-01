@@ -9,6 +9,8 @@ use PhpPdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function abs;
+
 final class MatrixTest extends TestCase
 {
     #[Test]
@@ -26,16 +28,6 @@ final class MatrixTest extends TestCase
     }
 
     #[Test]
-    public function rotatesCounterClockwise(): void
-    {
-        [$x, $y] = Matrix::rotation(90.0)->apply(1.0, 0.0);
-
-        self::assertEqualsWithDelta(0.0, $x, 1e-9);
-        self::assertEqualsWithDelta(1.0, $y, 1e-9);
-        self::assertSame('0 1 -1 0 0 0', Matrix::rotation(90.0)->toPdf());
-    }
-
-    #[Test]
     public function invertsRoundTrip(): void
     {
         $m   = Matrix::translation(3.0, 4.0)->then(Matrix::rotation(30.0))->then(Matrix::scaling(2.0, 0.5));
@@ -45,6 +37,16 @@ final class MatrixTest extends TestCase
         self::assertEqualsWithDelta(7.0, $x, 1e-9);
         self::assertEqualsWithDelta(-2.0, $y, 1e-9);
         self::assertTrue($m->then($inv)->isIdentity() || abs($m->then($inv)->a - 1.0) < 1e-9);
+    }
+
+    #[Test]
+    public function rotatesCounterClockwise(): void
+    {
+        [$x, $y] = Matrix::rotation(90.0)->apply(1.0, 0.0);
+
+        self::assertEqualsWithDelta(0.0, $x, 1e-9);
+        self::assertEqualsWithDelta(1.0, $y, 1e-9);
+        self::assertSame('0 1 -1 0 0 0', Matrix::rotation(90.0)->toPdf());
     }
 
     #[Test]

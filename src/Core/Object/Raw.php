@@ -9,7 +9,7 @@ namespace PhpPdf\Core\Object;
  */
 final readonly class Raw
 {
-    public function __construct(public string $syntax)
-    {
-    }
+    public function __construct(
+        public string $syntax,
+    ) {}
 }

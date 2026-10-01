@@ -4,20 +4,27 @@ declare(strict_types=1);
 
 namespace PhpPdf\Color;
 
+use Override;
 use PhpPdf\Exception\InvalidArgumentException;
+
+use function array_values;
+use function count;
+use function sprintf;
 
 /**
  * A colour in an ICCBased colour space.
  *
  * @api
  */
-final readonly class IccColor implements Color
+final readonly class IccColor implements ColorInterface
 {
     /** @var list<float> */
     public array $values;
 
-    public function __construct(public IccProfile $profile, float ...$values)
-    {
+    public function __construct(
+        public IccProfile $profile,
+        float ...$values,
+    ) {
         if (count($values) !== $profile->componentCount) {
             throw new InvalidArgumentException(sprintf(
                 'Profile has %d components, %d given.',
@@ -28,13 +35,13 @@ final readonly class IccColor implements Color
         $this->values = array_values($values);
     }
 
-    #[\Override]
+    #[Override]
     public function componentCount(): int
     {
         return $this->profile->componentCount;
     }
 
-    #[\Override]
+    #[Override]
     public function components(): array
     {
         return $this->values;

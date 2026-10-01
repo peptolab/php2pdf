@@ -1,0 +1,156 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdfTest\Unit\Font;
+
+use PhpPdf\Core\FixedClock;
+use PhpPdf\Core\Output\MemoryOutput;
+use PhpPdf\Document\Document;
+use PhpPdf\Document\DocumentOptions;
+use PhpPdf\Font\Font;
+use PhpPdf\Font\TextOptions;
+use PhpPdf\Font\TextRenderMode;
+use PhpPdf\Font\ToUnicode;
+use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
+final class FontTest extends TestCase
+{
+    private MemoryOutput $out;
+    private Document $doc;
+    private Font $font;
+
+    #[Test]
+    public function buildsSurrogatePairsInToUnicode(): void
+    {
+        $cmap = ToUnicode::build([3 => 0x41, 5 => 0x1_F600]);
+
+        self::assertStringContainsString("2 beginbfchar\n<0003> <0041>\n<0005> <D83DDE00>\nendbfchar", $cmap);
+    }
+
+    #[Test]
+    public function flipsTextOnTopDownPages(): void
+    {
+        $this->doc->addPage(topDown: true)->canvas()->drawText('A', $this->font, 12, 10, 20);
+        $this->doc->close();
+
+        self::assertStringContainsString('1 0 0 -1 10 20 Tm', $this->out->contents());
+    }
+
+    #[Test]
+    public function measuresWidthInPoints(): void
+    {
+        $plain = $this->font->width('AV', 10, new TextOptions(kerning: false));
+        self::assertEqualsWithDelta(13.68, $plain, 0.001);
+        self::assertEqualsWithDelta(13.68 - 0.6396, $this->font->width('AV', 10), 0.001);
+        self::assertEqualsWithDelta(
+            13.68 + (2 * 0.5) + (2 * 0.5),
+            $this->font->width('AV', 10, new TextOptions(
+                kerning: false,
+                charSpacing: 0.5,
+                tracking: 50,
+            )),
+            0.001,
+        );
+        self::assertEqualsWithDelta(
+            ($this->font->width('A B', 10) + 3.0) * 0.5,
+            $this->font->width('A B', 10, new TextOptions(
+                wordSpacing: 3.0,
+                horizontalScale: 50,
+            )),
+            0.001,
+        );
+    }
+
+    #[Test]
+    public function scalesVerticalMetrics(): void
+    {
+        self::assertEqualsWithDelta(9.282, $this->font->ascender(10), 0.001);
+        self::assertEqualsWithDelta(-2.358, $this->font->descender(10), 0.001);
+        self::assertEqualsWithDelta(7.290, $this->font->capHeight(10), 0.001);
+        self::assertEqualsWithDelta(5.469, $this->font->xHeight(10), 0.001);
+        self::assertEqualsWithDelta(-0.195, $this->font->underlinePosition(10), 0.001);
+        self::assertEqualsWithDelta(0.439, $this->font->underlineThickness(10), 0.001);
+    }
+
+    #[Test]
+    public function shapesTextWithKerning(): void
+    {
+        $run = $this->font->shape('AV');
+
+        self::assertSame(2, $run->count());
+        self::assertSame(36, $run->glyphs[0]->id);
+        self::assertSame(684, $run->glyphs[0]->advance);
+        self::assertEqualsWithDelta(-63.96, $run->glyphs[0]->kerning, 0.01);
+        self::assertSame(0.0, $run->glyphs[1]->kerning);
+        self::assertSame(0.0, $this->font->shape('AV', new TextOptions(kerning: false))->glyphs[0]->kerning);
+    }
+
+    #[Test]
+    public function subsetTagIsDeterministic(): void
+    {
+        $build = static function (): string {
+            $out = new MemoryOutput();
+            $doc = new Document($out, new DocumentOptions(
+                clock: new FixedClock('2026-01-01'),
+                xmp: false,
+            ));
+            $font = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+            $doc->addPage()->canvas()->drawText('Hello', $font, 12, 10, 10);
+            $doc->close();
+
+            return $out->contents();
+        };
+
+        self::assertSame($build(), $build());
+    }
+
+    #[Test]
+    public function writesType0FontWithSubsetWidthsAndToUnicode(): void
+    {
+        $canvas = $this->doc->addPage()->canvas();
+        $canvas->drawText('AV', $this->font, 12, 10, 20, new TextOptions(
+            wordSpacing: 2,
+            tracking: 10,
+            charSpacing: 1,
+        ));
+        $canvas->drawText('B C', $this->font, 12, 10, 40, new TextOptions(
+            renderMode: TextRenderMode::Stroke,
+            wordSpacing: 6,
+        ));
+        $this->doc->close();
+        $pdf = $this->out->contents();
+
+        self::assertStringContainsString('BT /F1 12 Tf 1 Tc 1 0 0 1 10 20 Tm [<0024> 53.96 <0039> -10] TJ ET', $pdf);
+        self::assertStringContainsString('BT /F1 12 Tf 1 Tr 1 0 0 1 10 40 Tm [<00250003> -500 <0026>] TJ ET', $pdf);
+        self::assertMatchesRegularExpression(
+            '/\/Subtype\/Type0\/BaseFont\/[A-Z]{6}\+DejaVuSans\/Encoding\/Identity-H/',
+            $pdf,
+        );
+        self::assertStringContainsString('/Subtype/CIDFontType2', $pdf);
+        self::assertStringContainsString('/CIDToGIDMap/Identity', $pdf);
+        self::assertStringContainsString('/DW 1000/W[0 [600] 3 [318] 36 [684 686 698] 57 [684]]', $pdf);
+        self::assertStringContainsString(
+            '/Flags 32/FontBBox[-1021 -463 1793 1232]/ItalicAngle 0/Ascent 928/Descent -236/CapHeight 729',
+            $pdf,
+        );
+        self::assertStringContainsString('/Length1 ', $pdf);
+        self::assertStringContainsString(
+            "5 beginbfchar\n<0003> <0020>\n<0024> <0041>\n<0025> <0042>\n<0026> <0043>\n<0039> <0056>\nendbfchar",
+            $pdf,
+        );
+    }
+
+    protected function setUp(): void
+    {
+        $this->out = new MemoryOutput();
+        $this->doc = new Document($this->out, new DocumentOptions(
+            clock: new FixedClock('2026-01-01'),
+            compress: false,
+            xmp: false,
+        ));
+        $this->font = $this->doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+    }
+}

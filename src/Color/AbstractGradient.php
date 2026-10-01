@@ -1,0 +1,120 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdf\Color;
+
+use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Core\Object\Name;
+use PhpPdf\Exception\InvalidArgumentException;
+
+use function array_push;
+use function array_values;
+use function count;
+use function md5;
+use function serialize;
+use function usort;
+
+/**
+ * Shared behaviour of linear and radial gradients: validated stops in one colour space and the
+ * PDF function that interpolates between them.
+ *
+ * @api
+ */
+abstract readonly class AbstractGradient
+{
+    /** @var list<GradientStop> */
+    public array $stops;
+
+    /** @param list<GradientStop> $stops */
+    public function __construct(
+        array $stops,
+        public bool $extend = true,
+    ) {
+        if (count($stops) < 2) {
+            throw new InvalidArgumentException('A gradient needs at least two stops.');
+        }
+        usort($stops, static fn(GradientStop $a, GradientStop $b): int => $a->offset <=> $b->offset);
+        $space = null;
+        foreach ($stops as $stop) {
+            $space ??= $stop->color::class;
+            if ($stop->color::class !== $space) {
+                throw new InvalidArgumentException('All gradient stops must use the same colour space.');
+            }
+        }
+        $this->stops = array_values($stops);
+    }
+
+    /** The shading dictionary (without the /ShadingType-specific coordinates). */
+    abstract public function toShading(): Dictionary;
+
+    public function colorSpaceName(): Name
+    {
+        $first = $this->stops[0] ?? throw new InvalidArgumentException('A gradient needs at least two stops.');
+
+        return new Name(match ($first->color::class) {
+            Gray::class => 'DeviceGray',
+            Rgb::class  => 'DeviceRGB',
+            default     => 'DeviceCMYK',
+        });
+    }
+
+    /** A stable key for deduplicating the shading object within a document. */
+    public function key(): string
+    {
+        return md5(static::class . serialize($this));
+    }
+
+    protected function baseShading(int $type): Dictionary
+    {
+        return Dictionary::of([
+            'ShadingType' => $type,
+            'ColorSpace'  => $this->colorSpaceName(),
+            'Function'    => $this->function(),
+            'Extend'      => [$this->extend, $this->extend],
+        ]);
+    }
+
+    /** A Type 2 (exponential) function for two stops, or a Type 3 stitching function otherwise. */
+    private function function(): Dictionary
+    {
+        $first = $this->stops[0] ?? throw new InvalidArgumentException('A gradient needs at least two stops.');
+        $last  = $this->stops[count($this->stops) - 1] ?? $first;
+        $range = $last->offset - $first->offset;
+        if ($range <= 0.0) {
+            throw new InvalidArgumentException('Gradient stops must span a positive range.');
+        }
+
+        $functions = [];
+        $bounds    = [];
+        $encode    = [];
+        $previous  = null;
+        foreach ($this->stops as $stop) {
+            if (null !== $previous) {
+                $functions[] = Dictionary::of([
+                    'FunctionType' => 2,
+                    'Domain'       => [0, 1],
+                    'C0'           => $previous->color->components(),
+                    'C1'           => $stop->color->components(),
+                    'N'            => 1,
+                ]);
+                if ($stop !== $last) {
+                    $bounds[] = ($stop->offset - $first->offset) / $range;
+                }
+                array_push($encode, 0, 1);
+            }
+            $previous = $stop;
+        }
+        if (1 === count($functions)) {
+            return $functions[0];
+        }
+
+        return Dictionary::of([
+            'FunctionType' => 3,
+            'Domain'       => [0, 1],
+            'Functions'    => $functions,
+            'Bounds'       => $bounds,
+            'Encode'       => $encode,
+        ]);
+    }
+}

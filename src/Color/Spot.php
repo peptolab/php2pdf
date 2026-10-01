@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Color;
 
+use Override;
 use PhpPdf\Exception\InvalidArgumentException;
 
 /**
@@ -12,7 +13,7 @@ use PhpPdf\Exception\InvalidArgumentException;
  *
  * @api
  */
-final readonly class Spot implements Color
+final readonly class Spot implements ColorInterface
 {
     public function __construct(
         public string $name,
@@ -24,20 +25,20 @@ final readonly class Spot implements Color
         }
     }
 
-    public function withTint(float $tint): self
-    {
-        return new self($this->name, $this->alternate, $tint);
-    }
-
-    #[\Override]
+    #[Override]
     public function componentCount(): int
     {
         return 1;
     }
 
-    #[\Override]
+    #[Override]
     public function components(): array
     {
         return [$this->tint];
+    }
+
+    public function withTint(float $tint): self
+    {
+        return new self($this->name, $this->alternate, $tint);
     }
 }

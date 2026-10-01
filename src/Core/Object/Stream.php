@@ -17,10 +17,9 @@ final class Stream
         public readonly Dictionary $dictionary,
         public string $data,
         public bool $compress = true,
-    ) {
-    }
+    ) {}
 
-    public static function of(string $data, Dictionary|null $dictionary = null, bool $compress = true): self
+    public static function of(string $data, ?Dictionary $dictionary = null, bool $compress = true): self
     {
         return new self($dictionary ?? new Dictionary(), $data, $compress);
     }

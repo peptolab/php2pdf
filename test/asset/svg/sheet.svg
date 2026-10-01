@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">
+  <style>
+    .label { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; fill: #37474f; }
+    .label.big { font-size: 20px; font-weight: bold; }
+    #accent { fill: #d84315; }
+    rect.panel { fill: #eceff1; stroke: #90a4ae; stroke-width: 1; }
+    @media print { .label { fill: black; } }
+  </style>
+  <rect class="panel" x="5" y="5" width="290" height="190" rx="8"/>
+  <text x="20" y="40" class="label big">PhpPdf <tspan id="accent">SVG</tspan></text>
+  <text x="20" y="65" class="label">Text through the font engine: <tspan font-style="italic">italic</tspan> and <tspan font-weight="bold">bold</tspan>.</text>
+  <text x="150" y="95" class="label" text-anchor="middle">centred</text>
+  <text x="280" y="95" class="label" text-anchor="end" style="fill: #1b5e20; letter-spacing: 2px">end anchored</text>
+  <text x="20" y="130" class="label">
+    <tspan x="20" dy="0">line one, tspan positioned</tspan>
+    <tspan x="20" dy="16" fill="#6a1b9a">line two via dy</tspan>
+  </text>
+  <text x="20" y="180" font-family="serif" font-size="14">generic serif falls back</text>
+  <text x="200" y="150" class="label" style="fill: url(#g); font-size: 22px; font-weight: bold">Grad</text>
+  <defs>
+    <linearGradient id="g"><stop offset="0" stop-color="#e91e63"/><stop offset="1" stop-color="#3f51b5"/></linearGradient>
+  </defs>
+  <svg x="220" y="155" width="60" height="30" viewBox="0 0 10 5">
+    <rect width="10" height="5" fill="#ffecb3"/>
+    <circle cx="5" cy="2.5" r="2" fill="#ff8f00"/>
+  </svg>
+  <switch>
+    <rect requiredExtensions="http://example.com/never" width="50" height="50" fill="red"/>
+    <circle cx="260" cy="40" r="15" fill="#43a047"/>
+  </switch>
+  <g display="none"><rect width="300" height="200" fill="black"/></g>
+  <rect visibility="hidden" width="300" height="200" fill="black"/>
+  <rect x="100" y="110" width="20" height="20" fill="currentColor" color="#00acc1" filter="url(#blur)"/>
+</svg>

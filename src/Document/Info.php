@@ -11,28 +11,28 @@ namespace PhpPdf\Document;
  */
 final class Info
 {
-    private string|null $title = null;
-    private string|null $author = null;
-    private string|null $subject = null;
-    private string|null $keywords = null;
-    private string|null $creator = null;
+    private ?string $title    = null;
+    private ?string $author   = null;
+    private ?string $subject  = null;
+    private ?string $keywords = null;
+    private ?string $creator  = null;
 
-    public function author(): string|null
+    public function author(): ?string
     {
         return $this->author;
     }
 
-    public function creator(): string|null
+    public function creator(): ?string
     {
         return $this->creator;
     }
 
-    public function keywords(): string|null
+    public function keywords(): ?string
     {
         return $this->keywords;
     }
 
-    public function setAuthor(string|null $author): self
+    public function setAuthor(?string $author): self
     {
         $this->author = $author;
 
@@ -40,40 +40,40 @@ final class Info
     }
 
     /** The application that created the original content (not the PDF producer). */
-    public function setCreator(string|null $creator): self
+    public function setCreator(?string $creator): self
     {
         $this->creator = $creator;
 
         return $this;
     }
 
-    public function setKeywords(string|null $keywords): self
+    public function setKeywords(?string $keywords): self
     {
         $this->keywords = $keywords;
 
         return $this;
     }
 
-    public function setSubject(string|null $subject): self
+    public function setSubject(?string $subject): self
     {
         $this->subject = $subject;
 
         return $this;
     }
 
-    public function setTitle(string|null $title): self
+    public function setTitle(?string $title): self
     {
         $this->title = $title;
 
         return $this;
     }
 
-    public function subject(): string|null
+    public function subject(): ?string
     {
         return $this->subject;
     }
 
-    public function title(): string|null
+    public function title(): ?string
     {
         return $this->title;
     }

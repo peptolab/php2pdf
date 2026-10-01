@@ -26,9 +26,9 @@ final class SerializerTest extends TestCase
         yield 'negative int' => [-7, '-7'];
         yield 'float' => [1.5, '1.5'];
         yield 'integral float' => [3.0, '3'];
-        yield 'tiny float' => [0.00001, '0'];
+        yield 'tiny float' => [0.000_01, '0'];
         yield 'negative zero' => [-0.0, '0'];
-        yield 'rounded float' => [1.23456789, '1.2346'];
+        yield 'rounded float' => [1.234_567_89, '1.2346'];
         yield 'string' => ['Hello', '(Hello)'];
         yield 'escaped string' => ["a(b)c\\d\r\n", '(a\\(b\\)c\\\\d\\r\\n)'];
         yield 'name' => [new Name('Type'), '/Type'];
@@ -48,18 +48,18 @@ final class SerializerTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('values')]
-    public function serialisesValues(mixed $value, string $expected): void
-    {
-        self::assertSame($expected, Serializer::serialize($value));
-    }
-
-    #[Test]
     public function nullDictionaryEntriesAreDropped(): void
     {
         $dict = Dictionary::of(['A' => 1, 'B' => null]);
 
         self::assertFalse($dict->has('B'));
         self::assertSame('<</A 1>>', Serializer::serialize($dict));
+    }
+
+    #[Test]
+    #[DataProvider('values')]
+    public function serialisesValues(mixed $value, string $expected): void
+    {
+        self::assertSame($expected, Serializer::serialize($value));
     }
 }

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core;
 
-final class SystemClock implements Clock
+use DateTimeImmutable;
+use Override;
+
+final class SystemClock implements ClockInterface
 {
-    public function now(): \DateTimeImmutable
+    #[Override]
+    public function now(): DateTimeImmutable
     {
-        return new \DateTimeImmutable('now');
+        return new DateTimeImmutable('now');
     }
 }

@@ -6,36 +6,29 @@ namespace PhpPdfTest\Support;
 
 use PHPUnit\Framework\Assert;
 
+use function dirname;
+use function explode;
+use function fclose;
+use function getenv;
+use function is_dir;
+use function is_executable;
+use function mkdir;
+use function pathinfo;
+use function proc_close;
+use function proc_open;
+use function stream_get_contents;
+use function strpos;
+use function substr;
+use function trim;
+
+use const PATH_SEPARATOR;
+use const PATHINFO_FILENAME;
+
 /**
  * Wraps the external validators (qpdf, poppler) used by integration tests.
  */
 final class PdfTools
 {
-    public static function outputDir(): string
-    {
-        $dir = dirname(__DIR__) . '/output';
-        if (! is_dir($dir)) {
-            mkdir($dir, 0o777, true);
-        }
-
-        return $dir;
-    }
-
-    public static function assetPath(string $relative): string
-    {
-        return dirname(__DIR__) . '/asset/' . $relative;
-    }
-
-    public static function hasQpdf(): bool
-    {
-        return null !== self::which('qpdf');
-    }
-
-    public static function hasPoppler(): bool
-    {
-        return null !== self::which('pdftoppm') && null !== self::which('pdfinfo');
-    }
-
     /** Fails the test if qpdf reports structural problems. Skips when qpdf is absent. */
     public static function assertValid(string $path): void
     {
@@ -44,6 +37,21 @@ final class PdfTools
         }
         [$code, $output] = self::run(['qpdf', '--check', $path]);
         Assert::assertSame(0, $code, "qpdf --check failed for {$path}:\n{$output}");
+    }
+
+    public static function assetPath(string $relative): string
+    {
+        return dirname(__DIR__) . '/asset/' . $relative;
+    }
+
+    public static function hasPoppler(): bool
+    {
+        return null !== self::which('pdftoppm') && null !== self::which('pdfinfo');
+    }
+
+    public static function hasQpdf(): bool
+    {
+        return null !== self::which('qpdf');
     }
 
     /** @return array<string, string> key => value pairs from pdfinfo */
@@ -56,25 +64,23 @@ final class PdfTools
         Assert::assertSame(0, $code, "pdfinfo failed for {$path}:\n{$output}");
         $info = [];
         foreach (explode("\n", trim($output)) as $line) {
-            $pos = strpos($line, ':');
+            $pos = strpos($line, needle: ':');
             if (false !== $pos) {
-                $info[substr($line, 0, $pos)] = trim(substr($line, $pos + 1));
+                $info[substr($line, offset: 0, length: $pos)] = trim(substr($line, $pos + 1));
             }
         }
 
         return $info;
     }
 
-    /** Extracts text from a page with pdftotext. */
-    public static function text(string $path, int $page = 1): string
+    public static function outputDir(): string
     {
-        if (null === self::which('pdftotext')) {
-            Assert::markTestSkipped('pdftotext is not installed.');
+        $dir = dirname(__DIR__) . '/output';
+        if (! is_dir($dir)) {
+            mkdir($dir, permissions: 0o777, recursive: true);
         }
-        [$code, $output] = self::run(['pdftotext', '-f', (string) $page, '-l', (string) $page, '-layout', $path, '-']);
-        Assert::assertSame(0, $code, "pdftotext failed for {$path}:\n{$output}");
 
-        return $output;
+        return $dir;
     }
 
     /**
@@ -87,11 +93,21 @@ final class PdfTools
         }
         $prefix = self::outputDir() . '/' . pathinfo($path, PATHINFO_FILENAME) . '-p' . $page;
         [$code, $output] = self::run([
-            'pdftoppm', '-png', '-r', (string) $dpi, '-f', (string) $page, '-l', (string) $page, '-singlefile', $path, $prefix,
+            'pdftoppm',
+            '-png',
+            '-r',
+            (string) $dpi,
+            '-f',
+            (string) $page,
+            '-l',
+            (string) $page,
+            '-singlefile',
+            $path,
+            $prefix,
         ]);
         Assert::assertSame(0, $code, "pdftoppm failed for {$path}:\n{$output}");
 
-        return $prefix . '.png';
+        return "{$prefix}.png";
     }
 
     /**
@@ -112,10 +128,22 @@ final class PdfTools
         return [$code, (string) $stdout . (string) $stderr];
     }
 
-    private static function which(string $binary): string|null
+    /** Extracts text from a page with pdftotext. */
+    public static function text(string $path, int $page = 1): string
+    {
+        if (null === self::which('pdftotext')) {
+            Assert::markTestSkipped('pdftotext is not installed.');
+        }
+        [$code, $output] = self::run(['pdftotext', '-f', (string) $page, '-l', (string) $page, '-layout', $path, '-']);
+        Assert::assertSame(0, $code, "pdftotext failed for {$path}:\n{$output}");
+
+        return $output;
+    }
+
+    private static function which(string $binary): ?string
     {
         foreach (explode(PATH_SEPARATOR, (string) getenv('PATH')) as $dir) {
-            $candidate = $dir . '/' . $binary;
+            $candidate = "{$dir}/{$binary}";
             if (is_executable($candidate)) {
                 return $candidate;
             }

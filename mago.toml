@@ -5,6 +5,23 @@ php-version = "8.3.0"
 paths = ["src", "test"]
 includes = ["vendor"]
 
+[linter.rules]
+# Geometry, canvas and document façades carry many small methods and numeric parameters by
+# nature (a 2D matrix has six components, a radial gradient two circles). The base thresholds
+# are tuned for service classes; these fit a drawing library without hiding real complexity.
+too-many-methods = { threshold = 60 }
+too-many-properties = { threshold = 20 }
+cyclomatic-complexity = { threshold = 120, method-threshold = 20 }
+# A text style is a sheet of a few dozen optional, named properties; its constructor is the sheet.
+excessive-parameter-list = { threshold = 8, constructor-threshold = 40 }
+halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 20000 }
+# Kan defect counts branches per class; binary parsers and the canvas are branch-heavy by nature.
+kan-defect = { threshold = 6.0 }
+
 [analyzer]
 # Library errors are runtime failures callers handle at the boundary, not checked exceptions.
 unchecked-exceptions = ["PhpPdf\\Exception\\PdfException"]
+# The object model and the import layer handle arbitrary PDF objects, which are `mixed` by nature.
+ignore = [
+    { code = "mixed-assignment", in = ["src/Import/", "src/Core/Object/", "src/Core/Serializer.php", "src/Core/Filter/FilterChain.php"] },
+]

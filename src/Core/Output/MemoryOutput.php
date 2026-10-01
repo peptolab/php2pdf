@@ -4,29 +4,34 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Output;
 
+use Override;
+
+use function strlen;
+
 /**
  * Buffers the document in memory. Handy for tests and HTTP responses of modest size.
  */
-final class MemoryOutput implements Output
+final class MemoryOutput implements OutputInterface
 {
     private string $buffer = '';
 
-    public function write(string $bytes): void
+    #[Override]
+    public function close(): void {}
+
+    public function contents(): string
     {
-        $this->buffer .= $bytes;
+        return $this->buffer;
     }
 
+    #[Override]
     public function position(): int
     {
         return strlen($this->buffer);
     }
 
-    public function close(): void
+    #[Override]
+    public function write(string $bytes): void
     {
-    }
-
-    public function contents(): string
-    {
-        return $this->buffer;
+        $this->buffer .= $bytes;
     }
 }

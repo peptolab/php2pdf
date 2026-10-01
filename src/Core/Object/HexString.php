@@ -9,7 +9,7 @@ namespace PhpPdf\Core\Object;
  */
 final readonly class HexString
 {
-    public function __construct(public string $bytes)
-    {
-    }
+    public function __construct(
+        public string $bytes,
+    ) {}
 }

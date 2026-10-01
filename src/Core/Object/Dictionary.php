@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Object;
 
+use function array_key_exists;
+use function count;
+
 /**
  * A PDF dictionary. Keys are stored without the leading slash; insertion order is preserved
  * so output is deterministic.
@@ -16,6 +19,7 @@ final class Dictionary
     /** @param array<string, mixed> $entries */
     public function __construct(array $entries = [])
     {
+        // @mago-expect analysis:mixed-assignment
         foreach ($entries as $key => $value) {
             $this->set($key, $value);
         }
@@ -27,18 +31,15 @@ final class Dictionary
         return new self($entries);
     }
 
-    /**
-     * Sets an entry. Passing null removes the key, which keeps optional entries terse.
-     */
-    public function set(string $key, mixed $value): self
+    /** @return array<string, mixed> */
+    public function all(): array
     {
-        if ($value === null) {
-            unset($this->entries[$key]);
-        } else {
-            $this->entries[$key] = $value;
-        }
+        return $this->entries;
+    }
 
-        return $this;
+    public function count(): int
+    {
+        return count($this->entries);
     }
 
     public function get(string $key): mixed
@@ -58,14 +59,18 @@ final class Dictionary
         return $this;
     }
 
-    /** @return array<string, mixed> */
-    public function all(): array
+    /**
+     * Sets an entry. Passing null removes the key, which keeps optional entries terse.
+     */
+    public function set(string $key, mixed $value): self
     {
-        return $this->entries;
-    }
+        if (null === $value) {
+            unset($this->entries[$key]);
 
-    public function count(): int
-    {
-        return count($this->entries);
+            return $this;
+        }
+        $this->entries[$key] = $value;
+
+        return $this;
     }
 }
