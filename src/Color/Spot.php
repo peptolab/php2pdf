@@ -9,7 +9,8 @@ use Php2Pdf\Exception\InvalidArgumentException;
 
 /**
  * A spot (Separation) colour such as "PANTONE 300 C", with an alternate colour for display and a
- * tint from 0.0 to 1.0.
+ * tint from 0.0 to 1.0. Colour books give the alternate in Lab, which renders through the output
+ * intent; a device colour renders as given.
  *
  * @api
  */
@@ -17,7 +18,7 @@ final readonly class Spot implements ColorInterface
 {
     public function __construct(
         public string $name,
-        public Gray|Rgb|Cmyk $alternate,
+        public Gray|Rgb|Cmyk|Lab $alternate,
         public float $tint = 1.0,
     ) {
         if ('' === $name) {

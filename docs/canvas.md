@@ -35,17 +35,30 @@ $c->raw('0 0 m 10 10 l S');              // raw content-stream syntax when you n
 ## Colour
 
 ```php
-use Php2Pdf\Color\{Gray, Rgb, Cmyk, Spot, DeviceN, IccProfile, IccColor};
+use Php2Pdf\Color\{Gray, Rgb, Cmyk, Lab, Spot, SpotLibrary, DeviceN, IccProfile, IccColor};
 
 $c->setFillColor(Gray::black());         // or new Gray(0.5)
 $c->setStrokeColor(Rgb::fromHex('#c2185b'));         // Rgb::from255(194, 24, 91), new Rgb(0.76, 0.09, 0.36)
 $c->setColor(Cmyk::fromPercent(100, 44, 0, 0));      // sets fill and stroke
 $c->setFillColor(new Spot('PANTONE 281 U', Cmyk::fromPercent(100, 72, 0, 32), tint: 0.6));
 $c->setFillColor(new IccColor(IccProfile::fromFile('sRGB.icc'), 0.2, 0.4, 0.6));
+$c->setFillColor(new Lab(60, -35, -5));                // CIE L*a*b*, D50
 ```
 
 Spot colours become Separation colour spaces with a tint transform to the alternate; ICC
-colours become ICCBased spaces. Both are written once per document.
+colours become ICCBased spaces. Both are written once per document. A spot's alternate can be
+Lab, as colour books define their inks; it renders through the output intent, and its tints mix
+with Lab white.
+
+Colour books are licensed, so none is bundled. Load your own swatches instead: an Adobe Swatch
+Exchange file exported from InDesign or Illustrator (its spot swatches, in Lab, CMYK, RGB or
+Gray), or a CSV table with a `name` column and `c,m,y,k` (percent), `l,a,b` or `r,g,b` (0–255)
+columns. Names match ignoring case and runs of spaces.
+
+```php
+$inks = SpotLibrary::openAse('house-inks.ase');      // or SpotLibrary::openCsv('inks.csv')
+$c->setFillColor($inks->get('Harbour Blue', tint: 0.6));
+```
 
 A DeviceN colour mixes several inks in one fill: a duotone, or a spot ink over process inks.
 Each colorant is a `Spot` whose tint is its share; `DeviceN::cyan()`, `magenta()`, `yellow()`

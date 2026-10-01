@@ -27,6 +27,9 @@ final readonly class DeviceN implements ColorInterface
     /** The process ink names DeviceN gives meaning to. */
     public const array PROCESS = ['Cyan', 'Magenta', 'Yellow', 'Black'];
 
+    /** The device space the inks mix in where they are not printed. */
+    private Gray|Rgb|Cmyk $space;
+
     /** @param non-empty-list<Spot> $colorants */
     public function __construct(
         public array $colorants,
@@ -38,26 +41,35 @@ final readonly class DeviceN implements ColorInterface
             ));
         }
         $names = [];
-        $space = $colorants[0]->alternate::class;
+        $space = null;
         foreach ($colorants as $colorant) {
+            $alternate = $colorant->alternate;
+            if ($alternate instanceof Lab) {
+                throw new InvalidArgumentException(sprintf(
+                    'Colorant "%s" has a Lab alternate; DeviceN mixes inks in Gray, Rgb or Cmyk.',
+                    $colorant->name,
+                ));
+            }
             if (in_array($colorant->name, $names, strict: true)) {
                 throw new InvalidArgumentException(sprintf('Colorant "%s" appears twice.', $colorant->name));
             }
-            if ($colorant->alternate::class !== $space) {
+            $space ??= $alternate;
+            if ($alternate::class !== $space::class) {
                 throw new InvalidArgumentException(
                     'The colorants of a DeviceN colour must all have alternates in one colour space (Gray, Rgb or Cmyk).',
                 );
             }
             $names[] = $colorant->name;
         }
+        $this->space = $space;
     }
 
+    /** The process inks as colorants, each with its CMYK alternate: black, cyan, magenta, yellow. */
     public static function black(float $tint = 1.0): Spot
     {
         return new Spot('Black', new Cmyk(0.0, 0.0, 0.0, 1.0), $tint);
     }
 
-    /** The process inks as colorants, each with its CMYK alternate. */
     public static function cyan(float $tint = 1.0): Spot
     {
         return new Spot('Cyan', new Cmyk(1.0, 0.0, 0.0, 0.0), $tint);
@@ -73,10 +85,10 @@ final readonly class DeviceN implements ColorInterface
         return new Spot('Yellow', new Cmyk(0.0, 0.0, 1.0, 0.0), $tint);
     }
 
-    /** The device space the colorants' alternates share. */
+    /** A colour in the device space the colorants' alternates share (the first one's). */
     public function alternate(): Gray|Rgb|Cmyk
     {
-        return $this->colorants[0]->alternate;
+        return $this->space;
     }
 
     #[Override]

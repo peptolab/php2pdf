@@ -10,6 +10,7 @@ use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Color\DeviceN;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\IccColor;
+use Php2Pdf\Color\Lab;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Color\Spot;
 use Php2Pdf\Core\Num;
@@ -44,13 +45,14 @@ final readonly class ColourOperators
         private Resources $resources,
     ) {}
 
-    /** The device colour space a colour is drawn in, or ICCBased when it carries its own profile. */
+    /** The device colour space a colour is drawn in; Lab, or ICCBased when it carries its own profile. */
     private static function deviceSpace(ColorInterface $color): string
     {
         return match (true) {
             $color instanceof Gray => 'DeviceGray',
             $color instanceof Rgb => 'DeviceRGB',
             $color instanceof Cmyk => 'DeviceCMYK',
+            $color instanceof Lab => 'Lab',
             default => 'ICCBased',
         };
     }
@@ -105,11 +107,12 @@ final readonly class ColourOperators
             $color instanceof Gray => "{$components} {$ops[0]}",
             $color instanceof Rgb => "{$components} {$ops[1]}",
             $color instanceof Cmyk => "{$components} {$ops[2]}",
+            $color instanceof Lab => $this->colorSpaceOps($this->labColorSpace(), $components, $ops),
             $color instanceof Spot => $this->colorSpaceOps($this->spotColorSpace($color), $components, $ops),
             $color instanceof DeviceN => $this->colorSpaceOps($this->deviceNColorSpace($color), $components, $ops),
             $color instanceof IccColor => $this->colorSpaceOps($this->iccColorSpace($color), $components, $ops),
             default => throw new InvalidArgumentException(sprintf(
-                'Colours must be Gray, Rgb, Cmyk, Spot, DeviceN or IccColor; %s is not one of them.',
+                'Colours must be Gray, Rgb, Cmyk, Lab, Spot, DeviceN or IccColor; %s is not one of them.',
                 $color::class,
             )),
         };
@@ -212,27 +215,38 @@ final readonly class ColourOperators
         );
     }
 
+    /** CIE L*a*b* under D50, the white point of colour books and ICC profiles. */
+    private function labColorSpace(): Reference
+    {
+        return $this->document->objects()->shared(
+            'lab:d50',
+            /** @return array{Name, Dictionary} */
+            static fn(): array => [
+                new Name('Lab'),
+                Dictionary::of(['WhitePoint' => [0.9642, 1, 0.8249], 'Range' => [-128, 127, -128, 127]]),
+            ],
+        );
+    }
+
     private function spotColorSpace(Spot $spot): Reference
     {
         $alternate = $spot->alternate;
         $key       = 'sep:' . $spot->name . ':' . $alternate::class . ':' . Num::list($alternate->components());
 
-        return $this->document->objects()->shared($key, static function () use ($spot, $alternate): array {
+        $lab = $alternate instanceof Lab ? $this->labColorSpace() : null;
+
+        return $this->document->objects()->shared($key, static function () use ($spot, $alternate, $lab): array {
             $white = match (true) {
                 $alternate instanceof Gray => [1.0],
                 $alternate instanceof Rgb => [1.0, 1.0, 1.0],
+                $alternate instanceof Lab => [100.0, 0.0, 0.0],
                 default => [0.0, 0.0, 0.0, 0.0],
-            };
-            $space = match (true) {
-                $alternate instanceof Gray => 'DeviceGray',
-                $alternate instanceof Rgb => 'DeviceRGB',
-                default => 'DeviceCMYK',
             };
 
             return [
                 new Name('Separation'),
                 new Name($spot->name),
-                new Name($space),
+                $alternate instanceof Lab ? $lab : new Name(self::deviceSpace($alternate)),
                 Dictionary::of([
                     'FunctionType' => 2,
                     'Domain'       => [0, 1],
