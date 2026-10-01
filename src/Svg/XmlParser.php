@@ -24,6 +24,7 @@ use function substr;
 
 use const ENT_HTML5;
 use const ENT_QUOTES;
+use const PHP_INT_MAX;
 
 /**
  * A small, dependency-free XML parser sufficient for SVG: elements, attributes, text, CDATA,
@@ -42,6 +43,7 @@ final class XmlParser
 
     private function __construct(
         private readonly string $xml,
+        private readonly int $maxNesting,
     ) {
         $this->length = strlen($xml);
     }
@@ -68,9 +70,10 @@ final class XmlParser
         return html_entity_decode($text, ENT_QUOTES | ENT_HTML5, encoding: 'UTF-8');
     }
 
-    public static function parse(string $xml): Element
+    /** @throws PdfException for malformed XML or elements nested deeper than $maxNesting */
+    public static function parse(string $xml, int $maxNesting = PHP_INT_MAX): Element
     {
-        $parser = new self($xml);
+        $parser = new self($xml, $maxNesting);
 
         return $parser->document();
     }
@@ -233,6 +236,9 @@ final class XmlParser
             return [] === $stack ? $element : null;
         }
         $stack[] = $element;
+        if (count($stack) > $this->maxNesting) {
+            throw new PdfException(sprintf('SVG elements are nested more than %d deep.', $this->maxNesting));
+        }
 
         return null;
     }

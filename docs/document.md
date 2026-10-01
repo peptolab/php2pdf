@@ -26,6 +26,15 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `topDown` | `false` | Default coordinate origin of pages |
 | `pdfx` | `null` | Write to a PDF/X level (see [navigation-and-pdfx.md](navigation-and-pdfx.md)) |
 | `rgbProfile` | `null` | An ICC profile RGB colours are interpreted in |
+| `glyphCheck` | `Warn` (`Error` under PDF/X) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
+| `limits` | `Limits::default()` | Resource limits for the PDFs, images and SVG the document reads |
+
+`Limits` caps what reading a hostile or broken file can cost: `maxDecodedBytes` (256 MiB per
+decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per imported PDF),
+`maxXrefEntries` (10 million), `maxNesting` (256 levels of SVG elements) and `maxSvgUses`
+(10,000 `<use>` expansions). A file over a limit fails with a `PdfException`. The static
+constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a
+`Limits` too; lower the limits for files from untrusted sources.
 
 ## Deterministic output
 

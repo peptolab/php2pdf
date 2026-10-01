@@ -6,6 +6,7 @@ namespace PhpPdf\Svg;
 
 use PhpPdf\Canvas\Canvas;
 use PhpPdf\Document\Dimensions;
+use PhpPdf\Exception\PdfException;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
 use PhpPdf\Geometry\Origin;
@@ -13,6 +14,7 @@ use PhpPdf\Template\Template;
 
 use function array_key_exists;
 use function ltrim;
+use function sprintf;
 use function str_starts_with;
 use function trim;
 
@@ -55,6 +57,9 @@ final class Renderer
 
     /** @var array<string, true> ids currently being expanded by <use>, to break cycles */
     private array $expanding = [];
+
+    /** <use> references expanded so far, against the file's limit */
+    private int $uses = 0;
 
     public function __construct(
         private readonly Context $context,
@@ -211,6 +216,10 @@ final class Renderer
         $target = $this->context->file->byId($id);
         if (null === $target) {
             return;
+        }
+        $limit = $this->context->file->limits->maxSvgUses;
+        if (++$this->uses > $limit) {
+            throw new PdfException(sprintf('The SVG expands more than %d <use> references.', $limit));
         }
         $this->expanding[$id] = true;
         $canvas->save();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Import;
 
+use PhpPdf\Core\Limits;
 use PhpPdf\Exception\PdfException;
 
 use function count;
@@ -29,14 +30,16 @@ final class PdfFile
         public readonly ?string $path,
     ) {}
 
-    public static function fromData(string $data): self
+    /** @throws PdfException when the data is not a readable PDF or breaks a limit */
+    public static function fromData(string $data, ?Limits $limits = null): self
     {
-        return new self(PdfReader::fromData($data), null);
+        return new self(PdfReader::fromData($data, $limits), null);
     }
 
-    public static function open(string $path): self
+    /** @throws PdfException when the file is not a readable PDF or breaks a limit */
+    public static function open(string $path, ?Limits $limits = null): self
     {
-        return new self(PdfReader::fromFile($path), $path);
+        return new self(PdfReader::fromFile($path, $limits), $path);
     }
 
     private static function textToUtf8(string $text): string

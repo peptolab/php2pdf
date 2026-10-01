@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PhpPdf\Svg;
 
+use PhpPdf\Core\Limits;
+use PhpPdf\Core\Silencer;
 use PhpPdf\Document\Dimensions;
 use PhpPdf\Exception\IoException;
 use PhpPdf\Exception\PdfException;
@@ -37,36 +39,42 @@ final class SvgFile
         public readonly string $data,
         public readonly ?string $path,
         public readonly ?string $baseDirectory,
+        public readonly Limits $limits,
     ) {}
 
-    public static function fromData(string $data, ?string $baseDirectory = null): self
+    /** @throws PdfException when the data is not SVG, or SVGZ that decompresses past the limit */
+    public static function fromData(string $data, ?string $baseDirectory = null, ?Limits $limits = null): self
     {
+        $limits ??= Limits::default();
         if (strlen($data) > 2 && "\x1F\x8B" === substr($data, offset: 0, length: 2)) {
-            $data = self::gunzip($data);
+            $data = self::gunzip($data, $limits);
         }
         if (! str_contains($data, '<svg') && ! str_contains($data, '<SVG')) {
             throw new PdfException('Not an SVG document.');
         }
 
-        return new self($data, null, $baseDirectory);
+        return new self($data, null, $baseDirectory, $limits);
     }
 
-    public static function open(string $path): self
+    public static function open(string $path, ?Limits $limits = null): self
     {
         $data = is_file($path) ? file_get_contents($path) : false;
         if (false === $data) {
             throw new IoException(sprintf('Cannot read SVG file "%s".', $path));
         }
-        $file = self::fromData($data, dirname($path));
+        $file = self::fromData($data, dirname($path), $limits);
 
-        return new self($file->data, $path, $file->baseDirectory);
+        return new self($file->data, $path, $file->baseDirectory, $file->limits);
     }
 
-    private static function gunzip(string $data): string
+    private static function gunzip(string $data, Limits $limits): string
     {
-        $decoded = zlib_decode($data);
+        $decoded = Silencer::run(static fn(): string|false => zlib_decode($data, $limits->maxDecodedBytes));
         if (false === $decoded) {
-            throw new PdfException('Cannot decompress the SVGZ data.');
+            throw new PdfException(sprintf(
+                'Cannot decompress the SVGZ data, or it decompresses to more than %d bytes.',
+                $limits->maxDecodedBytes,
+            ));
         }
 
         return $decoded;
@@ -86,7 +94,7 @@ final class SvgFile
     public function root(): Element
     {
         if (null === $this->root) {
-            $root = XmlParser::parse($this->data);
+            $root = XmlParser::parse($this->data, $this->limits->maxNesting);
             if ('svg' !== $root->name) {
                 throw new PdfException(sprintf('Expected an <svg> root element, found <%s>.', $root->name));
             }

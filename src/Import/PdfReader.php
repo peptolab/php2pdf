@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Import;
 
 use PhpPdf\Core\Filter\FilterChain;
+use PhpPdf\Core\Limits;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
@@ -49,11 +50,13 @@ final class PdfReader
 
     private bool $repaired = false;
 
-    private function __construct(string $data)
-    {
+    private function __construct(
+        string $data,
+        private readonly Limits $limits,
+    ) {
         $this->lexer      = new Lexer($data);
         $this->parser     = new ObjectParser($this->lexer, $this->resolve(...));
-        $this->xrefParser = new XrefParser($this->lexer, $this->parser, $this->decode(...));
+        $this->xrefParser = new XrefParser($this->lexer, $this->parser, $this->decode(...), $limits->maxXrefEntries);
         $m                = [];
         $this->version    = preg_match('/%PDF-(\d\.\d)/', substr($data, offset: 0, length: 1024), $m) === 1
             ? $m[1] ?? '1.4'
@@ -73,23 +76,23 @@ final class PdfReader
         }
     }
 
-    public static function fromData(string $data): self
+    public static function fromData(string $data, ?Limits $limits = null): self
     {
         if (! str_contains(substr($data, offset: 0, length: 1024), '%PDF-')) {
             throw new PdfException('Not a PDF file.');
         }
 
-        return new self($data);
+        return new self($data, $limits ?? Limits::default());
     }
 
-    public static function fromFile(string $path): self
+    public static function fromFile(string $path, ?Limits $limits = null): self
     {
         $data = is_file($path) ? file_get_contents($path) : false;
         if (false === $data) {
             throw new IoException(sprintf('Cannot read PDF file "%s".', $path));
         }
 
-        return self::fromData($data);
+        return self::fromData($data, $limits);
     }
 
     public function catalog(): Dictionary
@@ -114,7 +117,7 @@ final class PdfReader
             $parms[] = null === $p ? null : $this->resolveDictionary($p);
         }
 
-        return FilterChain::decode($stream->data, $filters, $parms);
+        return FilterChain::decode($stream->data, $filters, $parms, $this->limits->maxDecodedBytes);
     }
 
     /** A dictionary entry that must be a dictionary (streams count), or null. */
@@ -168,8 +171,9 @@ final class PdfReader
         if (null === $root) {
             throw new PdfException('PDF has no page tree.');
         }
-        $pages = [];
-        $this->walkPages($root, new Dictionary(), $pages, [], 0);
+        $pages   = [];
+        $visited = [];
+        $this->walkPages($root, new Dictionary(), $pages, $visited, 0);
 
         return $pages;
     }
@@ -346,11 +350,21 @@ final class PdfReader
     }
 
     /**
+     * Collects the page dictionaries under $node. Every tree node is visited once, however many
+     * parents refer to it, so a page tree that shares nodes cannot multiply into millions of pages.
+     *
      * @param list<Dictionary> $pages
-     * @param array<int, true> $visited
+     * @param array<int, true> $visited object numbers of the nodes already walked
+     *
+     * @throws PdfException when the document has more pages than the limit allows
      */
-    private function walkPages(Dictionary $node, Dictionary $inherited, array &$pages, array $visited, int $depth): void
-    {
+    private function walkPages(
+        Dictionary $node,
+        Dictionary $inherited,
+        array &$pages,
+        array &$visited,
+        int $depth,
+    ): void {
         if ($depth > 64) {
             return;
         }
@@ -365,6 +379,9 @@ final class PdfReader
         $type   = $node->get('Type');
         $isPage = ($type instanceof Name && 'Page' === $type->value) || (! is_array($kids) && $node->has('Contents'));
         if ($isPage) {
+            if (count($pages) >= $this->limits->maxPages) {
+                throw new PdfException(sprintf('The PDF has more than %d pages.', $this->limits->maxPages));
+            }
             $page = new Dictionary($node->all());
             foreach ($merged->all() as $key => $value) {
                 if ($page->has($key)) {
@@ -388,11 +405,10 @@ final class PdfReader
             if (! $child instanceof Dictionary) {
                 continue;
             }
-            $childVisited = $visited;
             if (null !== $id) {
-                $childVisited[$id] = true;
+                $visited[$id] = true;
             }
-            $this->walkPages($child, $merged, $pages, $childVisited, $depth + 1);
+            $this->walkPages($child, $merged, $pages, $visited, $depth + 1);
         }
     }
 }

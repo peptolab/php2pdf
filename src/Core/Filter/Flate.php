@@ -4,32 +4,47 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Filter;
 
+use InflateContext;
 use PhpPdf\Core\Silencer;
 use PhpPdf\Exception\PdfException;
 
 use function gzcompress;
-use function gzinflate;
-use function gzuncompress;
+use function inflate_add;
+use function inflate_init;
+use function sprintf;
+use function strlen;
 use function substr;
+
+use const PHP_INT_MAX;
+use const ZLIB_ENCODING_DEFLATE;
+use const ZLIB_ENCODING_RAW;
+use const ZLIB_SYNC_FLUSH;
 
 /** @internal */
 final class Flate
 {
-    public static function decode(string $data): string
-    {
-        $out = Silencer::run(static fn(): string|false => gzuncompress($data));
-        if (false === $out) {
-            // Some producers write raw deflate without the zlib header, or trailing garbage.
-            $out = Silencer::run(static fn(): string|false => gzinflate($data));
-        }
-        if (false === $out) {
-            $out = Silencer::run(static fn(): string|false => gzinflate(substr($data, offset: 2)));
-        }
-        if (false === $out) {
-            throw new PdfException('Flate decompression failed.');
-        }
+    /** Input is inflated in pieces this large, so the output can be checked against the limit as it grows. */
+    private const int CHUNK = 8192;
 
-        return $out;
+    /**
+     * Inflates zlib data, falling back to raw deflate for producers that leave out the zlib
+     * header or add trailing garbage.
+     *
+     * @throws PdfException when the data cannot be inflated or would grow past $maxBytes
+     */
+    public static function decode(string $data, int $maxBytes = PHP_INT_MAX): string
+    {
+        foreach ([
+            [ZLIB_ENCODING_DEFLATE, 0],
+            [ZLIB_ENCODING_RAW,     0],
+            [ZLIB_ENCODING_RAW,     2],
+        ] as [$encoding, $skip]) {
+            $out = self::inflate(substr($data, $skip), $encoding, $maxBytes);
+            if (null !== $out) {
+                return $out;
+            }
+        }
+        throw new PdfException('Flate decompression failed.');
     }
 
     public static function encode(string $data, int $level = 6): string
@@ -40,5 +55,32 @@ final class Flate
         }
 
         return $out;
+    }
+
+    /** The inflated data, or null when it is not valid data of this encoding. */
+    private static function inflate(string $data, int $encoding, int $maxBytes): ?string
+    {
+        $context = Silencer::run(static fn(): InflateContext|false => inflate_init($encoding));
+        if (false === $context) {
+            return null;
+        }
+        $out    = '';
+        $length = strlen($data);
+        for ($offset = 0; $offset < $length; $offset += self::CHUNK) {
+            $piece = Silencer::run(static fn(): string|false => inflate_add(
+                $context,
+                substr($data, $offset, self::CHUNK),
+                ZLIB_SYNC_FLUSH,
+            ));
+            if (false === $piece) {
+                return '' === $out ? null : $out;
+            }
+            $out .= $piece;
+            if (strlen($out) > $maxBytes) {
+                throw new PdfException(sprintf('A compressed stream decodes to more than %d bytes.', $maxBytes));
+            }
+        }
+
+        return '' === $out && '' !== $data ? null : $out;
     }
 }

@@ -24,6 +24,7 @@ use function strlen;
 use function strrpos;
 use function substr;
 
+use const PHP_INT_MAX;
 use const PREG_OFFSET_CAPTURE;
 
 /**
@@ -39,6 +40,7 @@ final readonly class XrefParser
         private Lexer $lexer,
         private ObjectParser $parser,
         private Closure $decode,
+        private int $maxEntries = PHP_INT_MAX,
     ) {}
 
     /** @param list<int> $fields */
@@ -83,12 +85,21 @@ final readonly class XrefParser
             throw new PdfException('Cross-reference stream has no /W array.');
         }
         $values = array_values($w);
-
-        return [
-            is_int($values[0] ?? null) ? $values[0] : 0,
-            is_int($values[1] ?? null) ? $values[1] : 0,
-            is_int($values[2] ?? null) ? $values[2] : 0,
+        $widths = [
+            is_int($values[0] ?? null) ? $values[0] : -1,
+            is_int($values[1] ?? null) ? $values[1] : -1,
+            is_int($values[2] ?? null) ? $values[2] : -1,
         ];
+        foreach ($widths as $width) {
+            if ($width < 0 || $width > 8) {
+                throw new PdfException('Cross-reference stream /W widths must be whole numbers from 0 to 8.');
+            }
+        }
+        if (0 === $widths[1]) {
+            throw new PdfException('Cross-reference stream /W gives the offset field no bytes.');
+        }
+
+        return $widths;
     }
 
     /** Reads the chain of sections starting at $offset into $table. */
@@ -181,9 +192,17 @@ final readonly class XrefParser
         $data   = ($this->decode)($stream);
         $row    = (int) array_sum($widths);
         $pos    = 0;
+        $total  = 0;
         for ($r = 0; ($r + 1) < count($ranges); $r += 2) {
             $start = (int) ($ranges[$r] ?? 0);
             $count = (int) ($ranges[$r + 1] ?? 0);
+            $total += $count;
+            if ($count < 0 || $total > $this->maxEntries) {
+                throw new PdfException(sprintf(
+                    'The PDF declares more than %d cross-reference entries.',
+                    $this->maxEntries,
+                ));
+            }
             for ($i = 0; $i < $count && ($pos + $row) <= strlen($data); ++$i, $pos += $row) {
                 self::addStreamEntry($table, $start + $i, self::fields($data, $pos, $widths), $widths[0]);
             }
@@ -208,7 +227,13 @@ final readonly class XrefParser
             }
             $start = (int) $token->value;
             $n     = (int) $count->value;
-            $pos   = $this->lexer->position();
+            if ($n < 0 || $n > $this->maxEntries) {
+                throw new PdfException(sprintf(
+                    'The PDF declares more than %d cross-reference entries.',
+                    $this->maxEntries,
+                ));
+            }
+            $pos = $this->lexer->position();
             for ($i = 0; $i < $n; ++$i) {
                 $m = [];
                 if (preg_match('/\G\s*(\d{1,10})\s+(\d{1,5})\s+([nf])/', $data, $m, flags: 0, offset: $pos) !== 1) {

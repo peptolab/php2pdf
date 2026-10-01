@@ -6,6 +6,7 @@ namespace PhpPdf\Document;
 
 use PhpPdf\Color\IccProfile;
 use PhpPdf\Core\ClockInterface;
+use PhpPdf\Core\Limits;
 use PhpPdf\Core\SystemClock;
 use PhpPdf\Font\GlyphCheck;
 
@@ -19,6 +20,7 @@ final readonly class DocumentOptions
     public ClockInterface $clock;
     public string $version;
     public GlyphCheck $glyphCheck;
+    public Limits $limits;
 
     /**
      * @param PdfX|null       $pdfx       write to a PDF/X conformance level: sets the PDF version and
@@ -27,6 +29,7 @@ final readonly class DocumentOptions
      *                                    PDF/X needs before any RGB colour or image is used
      * @param GlyphCheck|null $glyphCheck what to do with characters a font has no glyph for: Error under
      *                                    PDF/X and Warn otherwise, unless set
+     * @param Limits|null     $limits     resource limits for the PDFs, images and SVG the document reads
      */
     public function __construct(
         string $version = '1.7',
@@ -40,7 +43,9 @@ final readonly class DocumentOptions
         public ?PdfX $pdfx = null,
         public ?IccProfile $rgbProfile = null,
         ?GlyphCheck $glyphCheck = null,
+        ?Limits $limits = null,
     ) {
+        $this->limits     = $limits ?? Limits::default();
         $this->clock      = $clock ?? new SystemClock();
         $this->version    = null === $pdfx ? $version : $pdfx->version();
         $this->glyphCheck = $glyphCheck ?? (null === $pdfx ? GlyphCheck::Warn : GlyphCheck::Error);

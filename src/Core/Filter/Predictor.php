@@ -7,6 +7,7 @@ namespace PhpPdf\Core\Filter;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Image\PngScanlines;
 
+use function in_array;
 use function intdiv;
 use function pack;
 use function sprintf;
@@ -30,6 +31,19 @@ final class Predictor
     ): string {
         if ($predictor <= 1) {
             return $data;
+        }
+        if (
+            $columns < 1
+            || $colors < 1
+            || $colors > 32
+            || ! in_array($bitsPerComponent, [1, 2, 4, 8, 16], strict: true)
+        ) {
+            throw new PdfException(sprintf(
+                'Invalid predictor parameters: %d columns, %d colours, %d bits per component.',
+                $columns,
+                $colors,
+                $bitsPerComponent,
+            ));
         }
         if ($predictor >= 10) {
             $rowBytes = intdiv(($columns * $colors * $bitsPerComponent) + 7, num2: 8);

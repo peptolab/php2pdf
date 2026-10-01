@@ -16,6 +16,8 @@ use function is_float;
 use function is_int;
 use function sprintf;
 
+use const PHP_INT_MAX;
+
 /**
  * Applies a stream's /Filter chain with its /DecodeParms. Image codecs (DCT, JPX, CCITT, JBIG2)
  * are not decoded; decode() reports them so callers can pass such streams through untouched.
@@ -33,15 +35,16 @@ final class FilterChain
 
     /**
      * @param list<string>          $filters
-     * @param list<Dictionary|null> $parms   one entry per filter
+     * @param list<Dictionary|null> $parms    one entry per filter
+     * @param int                   $maxBytes the most any stage may decode to
      */
-    public static function decode(string $data, array $filters, array $parms): string
+    public static function decode(string $data, array $filters, array $parms, int $maxBytes = PHP_INT_MAX): string
     {
         foreach ($filters as $i => $filter) {
             $p    = $parms[$i] ?? null;
             $data = match ($filter) {
-                'FlateDecode', 'Fl'     => self::predict(Flate::decode($data), $p),
-                'LZWDecode', 'LZW'      => self::predict(Lzw::decode($data, self::int($p, 'EarlyChange', 1)), $p),
+                'FlateDecode', 'Fl'     => self::predict(Flate::decode($data, $maxBytes), $p),
+                'LZWDecode', 'LZW' => self::predict(Lzw::decode($data, self::int($p, 'EarlyChange', 1), $maxBytes), $p),
                 'ASCII85Decode', 'A85'  => Ascii85::decode($data),
                 'ASCIIHexDecode', 'AHx' => AsciiHex::decode($data),
                 'RunLengthDecode', 'RL' => RunLength::decode($data),

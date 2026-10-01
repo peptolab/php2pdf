@@ -12,6 +12,8 @@ use function ord;
 use function sprintf;
 use function strlen;
 
+use const PHP_INT_MAX;
+
 /**
  * LZWDecode as PDF specifies it: 9 to 12-bit codes, MSB first, clear code 256, EOD 257, with
  * the EarlyChange parameter.
@@ -20,7 +22,8 @@ use function strlen;
  */
 final class Lzw
 {
-    public static function decode(string $data, int $earlyChange = 1): string
+    /** @throws PdfException for invalid codes or output growing past $maxBytes */
+    public static function decode(string $data, int $earlyChange = 1, int $maxBytes = PHP_INT_MAX): string
     {
         $out        = '';
         $dictionary = [];
@@ -57,6 +60,9 @@ final class Lzw
 
             $entry = self::entry($code, $dictionary, $previous, $next);
             $out   .= $entry;
+            if (strlen($out) > $maxBytes) {
+                throw new PdfException(sprintf('An LZW stream decodes to more than %d bytes.', $maxBytes));
+            }
 
             if (null !== $previous && count($dictionary) < 3838) {
                 $dictionary[$next] = $previous . $entry[0];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Image;
 
 use PhpPdf\Core\Filter\Flate;
+use PhpPdf\Core\Limits;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Exception\PdfException;
 
@@ -12,6 +13,7 @@ use function array_slice;
 use function array_values;
 use function count;
 use function implode;
+use function in_array;
 use function intdiv;
 use function max;
 use function ord;
@@ -35,14 +37,26 @@ final class PngDecoder
 {
     private const string SIGNATURE = "\x89PNG\r\n\x1A\n";
 
-    public static function decode(string $data): ImageData
+    /** The bit depths each colour type allows. */
+    private const array DEPTHS = [
+        0 => [1, 2, 4, 8, 16],
+        2 => [8, 16],
+        3 => [1, 2, 4, 8],
+        4 => [8, 16],
+        6 => [8, 16],
+    ];
+
+    /** @throws PdfException for malformed data or an image over the limits */
+    public static function decode(string $data, ?Limits $limits = null): ImageData
     {
+        $limits ??= Limits::default();
         if (! str_starts_with($data, self::SIGNATURE)) {
             throw new PdfException('Not a PNG file.');
         }
         $chunks = self::chunks($data);
         [$width, $height, $depth, $type, $interlace] = self::header(
             $chunks['IHDR'][0] ?? throw new PdfException('PNG has no IHDR chunk.'),
+            $limits,
         );
         $channels = match ($type) {
             0, 3    => 1,
@@ -58,7 +72,7 @@ final class PngDecoder
             default => ImageColorSpace::rgb(),
         };
         $meta = [
-            'icc' => self::iccProfile($chunks['iCCP'][0] ?? null),
+            'icc' => self::iccProfile($chunks['iCCP'][0] ?? null, $limits),
             'dpi' => self::resolution($chunks['pHYs'][0] ?? null),
         ];
 
@@ -85,7 +99,15 @@ final class PngDecoder
         }
 
         $factor  = 3 === $type || $depth >= 8 ? 1 : intdiv(255, (1 << $depth) - 1);
-        $samples = PngScanlines::decode(Flate::decode($idat), $width, $height, $depth, $channels, $interlace, $factor);
+        $samples = PngScanlines::decode(
+            Flate::decode($idat, $limits->maxDecodedBytes),
+            $width,
+            $height,
+            $depth,
+            $channels,
+            $interlace,
+            $factor,
+        );
         [$color, $alpha] = self::split($samples, $channels, $depth > 8 ? 2 : 1, $type, $trns);
 
         return new ImageData(
@@ -146,22 +168,39 @@ final class PngDecoder
     }
 
     /** @return array{0: int, 1: int, 2: int, 3: int, 4: int} width, height, depth, colour type, interlace */
-    private static function header(string $ihdr): array
+    private static function header(string $ihdr, Limits $limits): array
     {
         if (strlen($ihdr) < 13) {
             throw new PdfException('PNG IHDR chunk is truncated.');
         }
-        $v      = unpack('Nwidth/Nheight/Cdepth/Ctype/Ccompression/Cfilter/Cinterlace', $ihdr);
-        $width  = (int) ($v['width'] ?? 0);
-        $height = (int) ($v['height'] ?? 0);
+        $v         = unpack('Nwidth/Nheight/Cdepth/Ctype/Ccompression/Cfilter/Cinterlace', $ihdr);
+        $width     = (int) ($v['width'] ?? 0);
+        $height    = (int) ($v['height'] ?? 0);
+        $depth     = (int) ($v['depth'] ?? 0);
+        $type      = (int) ($v['type'] ?? 0);
+        $interlace = (int) ($v['interlace'] ?? 0);
         if ($width < 1 || $height < 1) {
             throw new PdfException('PNG has no pixels.');
         }
+        if (! in_array($depth, self::DEPTHS[$type] ?? [], strict: true)) {
+            throw new PdfException(sprintf('PNG colour type %d cannot have a bit depth of %d.', $type, $depth));
+        }
+        if (0 !== (int) ($v['compression'] ?? 0) || 0 !== (int) ($v['filter'] ?? 0) || $interlace > 1) {
+            throw new PdfException('PNG uses an unknown compression, filter or interlace method.');
+        }
+        if (($width * $height) > $limits->maxImagePixels) {
+            throw new PdfException(sprintf(
+                'The image is %d by %d pixels, more than the %d allowed.',
+                $width,
+                $height,
+                $limits->maxImagePixels,
+            ));
+        }
 
-        return [$width, $height, (int) ($v['depth'] ?? 8), (int) ($v['type'] ?? 0), (int) ($v['interlace'] ?? 0)];
+        return [$width, $height, $depth, $type, $interlace];
     }
 
-    private static function iccProfile(?string $iccp): ?string
+    private static function iccProfile(?string $iccp, Limits $limits): ?string
     {
         if (null === $iccp) {
             return null;
@@ -171,7 +210,7 @@ final class PngDecoder
             return null;
         }
         try {
-            return Flate::decode(substr($iccp, offset: $null + 2));
+            return Flate::decode(substr($iccp, offset: $null + 2), $limits->maxDecodedBytes);
         } catch (PdfException) {
             return null;
         }

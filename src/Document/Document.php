@@ -339,7 +339,7 @@ final class Document
     {
         $this->assertOpen();
 
-        return $this->images[md5($data)] ??= new Image($this, ImageReader::read($data));
+        return $this->images[md5($data)] ??= new Image($this, ImageReader::read($data, $this->options->limits));
     }
 
     /**
@@ -349,7 +349,7 @@ final class Document
     public function import(PdfFile|string $source): ImportedDocument
     {
         $this->assertOpen();
-        $file = $source instanceof PdfFile ? $source : PdfFile::open($source);
+        $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
         $key  = $file->path ?? 'object#' . spl_object_id($file);
 
         return $this->imports[$key] ??= new ImportedDocument($this, $file);
@@ -427,7 +427,7 @@ final class Document
     public function svg(SvgFile|string $source, ?SvgConverterInterface $converter = null): PlaceableInterface
     {
         $this->assertOpen();
-        $file      = $source instanceof SvgFile ? $source : SvgFile::open($source);
+        $file      = $source instanceof SvgFile ? $source : SvgFile::open($source, $this->options->limits);
         $converter ??= new NativeConverter();
         $key       = ($file->path ?? 'object#' . spl_object_id($file))
         . '|'
