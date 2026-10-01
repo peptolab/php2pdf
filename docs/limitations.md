@@ -4,8 +4,10 @@ Known gaps, in rough order of how often they matter.
 
 - **Scripts.** Text is shaped character by character with pair kerning. Ligatures, contextual
   forms, Arabic, Indic and CJK vertical text are not supported.
-- **CFF fonts** (`.otf` with PostScript outlines) are embedded whole, not subset. TrueType fonts
-  are subset.
+- **CFF fonts** whose charstrings use `seac` accent composition or the arithmetic and storage
+  operators are embedded whole, with a warning in `$doc->fonts()->warnings()`; others are subset.
+- **Standard 14 fonts** cover WinAnsiEncoding only (Symbol and ZapfDingbats have their own
+  sets), and are not allowed under PDF/X.
 - **Line breaking** is greedy (first fit). A Knuth–Plass option for justified text is planned.
 - **Text wrap around shapes** is not supported; use several boxes instead.
 - **Hyphenation patterns** are not bundled. Load TeX or hunspell pattern files whose licence

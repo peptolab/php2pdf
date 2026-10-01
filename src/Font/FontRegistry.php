@@ -46,6 +46,9 @@ final class FontRegistry
     /** @var array<string, CoreFont> */
     private array $standard = [];
 
+    /** @var list<string> */
+    private array $warnings = [];
+
     /** @internal */
     public function __construct(
         private readonly Document $document,
@@ -192,6 +195,27 @@ final class FontRegistry
     public function standard(StandardFont $font): CoreFont
     {
         return $this->standard[$font->value] ??= new CoreFont($this->document, $font);
+    }
+
+    /**
+     * Records a font the document could only embed in a degraded way.
+     *
+     * @internal
+     */
+    public function warn(string $message): void
+    {
+        $this->warnings[] = $message;
+    }
+
+    /**
+     * Fonts the document could only embed in a degraded way, such as a CFF font embedded whole
+     * because it could not be subset. Complete once the document is closed.
+     *
+     * @return list<string>
+     */
+    public function warnings(): array
+    {
+        return $this->warnings;
     }
 
     private function lookup(string $name): ?FontInfo

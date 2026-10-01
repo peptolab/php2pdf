@@ -13,9 +13,19 @@ $fonts->find('Inter Bold');                              // PostScript name, ful
 $fonts->faces();                                         // FontInfo for every face in the search paths
 ```
 
-TrueType and CFF-flavoured OpenType fonts are supported. TrueType fonts are subset to the
-glyphs used when the document closes; CFF fonts are embedded whole. Every font is written as a
-Type0 font with Identity-H encoding and a ToUnicode map, so text copies and searches correctly.
+TrueType and CFF-flavoured OpenType fonts are supported. Both are subset to the glyphs used
+when the document closes. A CFF font is cut down to the charstrings and subroutines those glyphs
+need, name-keyed and CID-keyed alike, and written as a bare CID-keyed CFF program. Every font is
+written as a Type0 font with Identity-H encoding and a ToUnicode map, so text copies and searches
+correctly.
+
+If a CFF font cannot be subset (for example, it builds accented glyphs with the deprecated
+`seac` form of `endchar`), it is embedded whole instead and a warning is recorded:
+
+```php
+$doc->close();
+$fonts->warnings();   // ['Font "X" is embedded whole because its CFF outlines could not be subset: ...']
+```
 
 The same file loaded twice yields the same `Font`; fonts belong to the document they were
 loaded into.

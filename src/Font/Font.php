@@ -11,6 +11,8 @@ use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
 use PhpPdf\Document\DeferredInterface;
 use PhpPdf\Document\Document;
+use PhpPdf\Exception\PdfException;
+use PhpPdf\Font\OpenType\Cff\CffSubsetter;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 use PhpPdf\Font\OpenType\TrueTypeSubsetter;
 
@@ -106,9 +108,7 @@ final class Font implements FontInterface, DeferredInterface
         $baseFont = "{$this->subsetTag()}+{$program->postScriptName()}";
         $cff      = $program->isCff;
 
-        $fontFile = $cff
-            ? $writer->add(new Stream(Dictionary::of(['Subtype' => new Name('OpenType')]), $program->data()))
-            : $this->subsetStream($document);
+        $fontFile = $cff ? $this->cffStream($document) : $this->subsetStream($document);
 
         $descriptor = $writer->add(Dictionary::of([
             'Type'                           => new Name('FontDescriptor'),
@@ -258,6 +258,30 @@ final class Font implements FontInterface, DeferredInterface
     public function xHeight(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->xHeight, $size);
+    }
+
+    /**
+     * The CFF outlines subset to the glyphs used, or the whole font program when they cannot be
+     * subset; the font registry then records a warning.
+     */
+    private function cffStream(Document $document): Reference
+    {
+        try {
+            $cff     = $this->program->table('CFF ') ?? throw new PdfException('The font has no CFF table.');
+            $data    = CffSubsetter::subset($cff, $this->used);
+            $subtype = 'CIDFontType0C';
+        } catch (PdfException $e) {
+            $document->fonts()
+                ->warn(sprintf(
+                    'Font "%s" is embedded whole because its CFF outlines could not be subset: %s',
+                    $this->program->postScriptName(),
+                    $e->getMessage(),
+                ));
+            $data    = $this->program->data();
+            $subtype = 'OpenType';
+        }
+
+        return $document->writer()->add(new Stream(Dictionary::of(['Subtype' => new Name($subtype)]), $data));
     }
 
     private function flags(): int
