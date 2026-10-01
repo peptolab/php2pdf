@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
+use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\Textflow;
 
@@ -16,13 +17,13 @@ use function count;
  */
 final class TextflowBuilder
 {
-    /** @var list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind}>}> */
+    /** @var list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}> */
     private array $paragraphs = [];
 
     /** @var list<array{0: string, 1: TextStyle}> */
     private array $spans = [];
 
-    /** @var list<array{0: int, 1: ItemKind}> */
+    /** @var list<array{0: int, 1: ItemKind|Item}> */
     private array $breaks = [];
 
     private ?TextStyle $paragraphStyle = null;
@@ -52,6 +53,27 @@ final class TextflowBuilder
     public function columnBreak(): self
     {
         $this->breaks[] = [count($this->spans), ItemKind::ColumnBreak];
+
+        return $this;
+    }
+
+    /**
+     * Sets artwork in the text, its bottom on the baseline: sized by width or height in points
+     * keeping its proportions, by both, or one em high when neither is given.
+     */
+    public function inline(
+        PlaceableInterface $object,
+        ?float $width = null,
+        ?float $height = null,
+        float $raise = 0.0,
+    ): self {
+        $this->breaks[] = [
+            count($this->spans),
+            Item::inline(
+                InlineObject::sized($object, $width, $height, $raise, $this->current->fontSize()),
+                $this->current,
+            ),
+        ];
 
         return $this;
     }

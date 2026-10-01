@@ -36,6 +36,7 @@ use PhpPdf\Svg\SvgFile;
 use PhpPdf\Template\Template;
 use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Hyphenation\Hyphenator;
+use PhpPdf\Text\InlineRegistry;
 use PhpPdf\Text\Style\StyleRegistry;
 use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\Textflow;
@@ -86,14 +87,15 @@ final class Document
     /** @var array<string, Image> content hash => image */
     private array $images = [];
 
-    private ?FontRegistry  $fonts                  = null;
-    private ?StyleRegistry $styles                 = null;
-    private ?Dictionary    $outputIntent           = null;
-    private ?Page          $current                = null;
-    private bool           $closed                 = false;
-    private ?Reference     $defaultRgb             = null;
-    private ?Navigation    $navigation             = null;
-    private ?int           $outputIntentComponents = null;
+    private ?FontRegistry  $fonts  = null;
+    private ?StyleRegistry $styles = null;
+
+    private ?InlineRegistry $inlines                = null;
+    private ?Dictionary     $outputIntent           = null;
+    private ?Page           $current                = null;
+    private bool            $closed                 = false;
+    private ?Navigation     $navigation             = null;
+    private ?int            $outputIntentComponents = null;
 
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
@@ -354,7 +356,7 @@ final class Document
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
 
-        return $this->defaultRgb ??= $this->shared(
+        return $this->shared(
             "icc:{$profile->key()}",
             /** @return array{Name, Reference} */
             static fn(): array => [new Name('ICCBased'), $stream],
@@ -451,6 +453,12 @@ final class Document
     public function info(): Info
     {
         return $this->info;
+    }
+
+    /** Named artwork that Textflow markup sets in the text with <img src="name">. */
+    public function inlines(): InlineRegistry
+    {
+        return $this->inlines ??= new InlineRegistry();
     }
 
     public function options(): DocumentOptions

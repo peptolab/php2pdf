@@ -125,7 +125,7 @@ final class LineBreaker
                 default           => 0.0,
             };
 
-        [$segments, $width] = self::segments($items, $style, $extraPerGlue);
+        [$segments, $width, $inlines] = self::segments($items, $style, $extraPerGlue);
         $metrics = self::metrics($items, $style);
 
         return new Line(
@@ -140,6 +140,7 @@ final class LineBreaker
             $style,
             $consumed,
             $last,
+            $inlines,
         );
     }
 
@@ -189,6 +190,10 @@ final class LineBreaker
                 continue;
             }
             $breakItem = $lastBreak >= 0 ? $items[$lastBreak] ?? null : null;
+            if (null === $breakItem && ItemKind::Inline === $item->kind) {
+                // Artwork wider than the line goes on a line of its own, overhanging.
+                return new LineEnd($i > $start ? $i : $i + 1, null, false);
+            }
             if (null !== $breakItem) {
                 return new LineEnd($lastBreak, ItemKind::Penalty === $breakItem->kind ? $breakItem : null, false);
             }
@@ -203,6 +208,9 @@ final class LineBreaker
     }
 
     /**
+     * The line's vertical metrics from every font and artwork on it. Artwork rising above the text
+     * pushes the line down by the difference, as auto leading does.
+     *
      * @param list<Item> $items
      *
      * @return array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}
@@ -218,8 +226,15 @@ final class LineBreaker
             'xHeight'    => $font->xHeight($size),
             'lineHeight' => $style->lineHeight(),
         ];
-        $measured = null;
+        $measured  = null;
+        $artTop    = 0.0;
+        $artBottom = 0.0;
         foreach ($items as $item) {
+            if (null !== $item->inline) {
+                $artTop    = max($artTop, $item->inline->height + $item->inline->raise);
+                $artBottom = max($artBottom, -$item->inline->raise);
+                continue;
+            }
             if (ItemKind::Box !== $item->kind || $item->style === $measured) {
                 continue;
             }
@@ -231,6 +246,11 @@ final class LineBreaker
             $metrics['descent']    = max($metrics['descent'], -$f->descender($s) - $rise);
             $metrics['lineHeight'] = max($metrics['lineHeight'], $item->style->lineHeight());
         }
+
+        $above                 = max(0.0, $artTop - $metrics['ascent']);
+        $metrics['ascent']     += $above;
+        $metrics['lineHeight'] += $above;
+        $metrics['descent']    = max($metrics['descent'], $artBottom);
 
         return $metrics;
     }
@@ -286,17 +306,24 @@ final class LineBreaker
      *
      * @param list<Item> $items
      *
-     * @return array{0: list<Segment>, 1: float}
+     * @return array{0: list<Segment>, 1: float, 2: list<array{0: float, 1: InlineObject}>}
      */
     private static function segments(array $items, TextStyle $style, float $extraPerGlue): array
     {
         $segments = [];
+        $inlines  = [];
         $tabs     = self::tabPositions($style);
         $x        = 0.0;
         $i        = 0;
         while (null !== ($item = $items[$i] ?? null)) {
             if (ItemKind::Tab === $item->kind) {
                 $x = self::tabTarget($x, $items, $i + 1, $tabs, $style);
+                ++$i;
+                continue;
+            }
+            if (null !== $item->inline) {
+                $inlines[] = [$x, $item->inline];
+                $x         += $item->width;
                 ++$i;
                 continue;
             }
@@ -339,7 +366,7 @@ final class LineBreaker
             $x += $width;
         }
 
-        return [$segments, $x];
+        return [$segments, $x, $inlines];
     }
 
     /**

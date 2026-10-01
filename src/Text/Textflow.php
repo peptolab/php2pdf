@@ -9,11 +9,11 @@ use PhpPdf\Canvas\Canvas;
 use PhpPdf\Canvas\FlowableInterface;
 use PhpPdf\Document\Document;
 use PhpPdf\Geometry\Box;
-use PhpPdf\Geometry\Matrix;
 use PhpPdf\Text\Flow\Item;
 use PhpPdf\Text\Flow\Itemiser;
 use PhpPdf\Text\Flow\ItemKind;
 use PhpPdf\Text\Flow\Layout;
+use PhpPdf\Text\Flow\LinePainter;
 use PhpPdf\Text\Flow\MarkupParser;
 use PhpPdf\Text\Flow\Paragraph;
 use PhpPdf\Text\Flow\StyleResolver;
@@ -90,7 +90,7 @@ final class Textflow implements FlowableInterface
     /**
      * @internal
      *
-     * @param list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind}>}> $parsed
+     * @param list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}> $parsed
      */
     public static function fromParagraphs(
         StyleResolver $resolver,
@@ -108,14 +108,14 @@ final class Textflow implements FlowableInterface
             }
             foreach ($spans as $i => $span) {
                 foreach ($breakAt[$i] ?? [] as $kind) {
-                    $items[] = new Item($kind, $style);
+                    $items[] = $kind instanceof Item ? $kind : new Item($kind, $style);
                 }
                 foreach ($itemiser->itemise([$span]) as $item) {
                     $items[] = $item;
                 }
             }
             foreach ($breakAt[count($spans)] ?? [] as $kind) {
-                $items[] = new Item($kind, $style);
+                $items[] = $kind instanceof Item ? $kind : new Item($kind, $style);
             }
             $paragraphs[] = new Paragraph($style, $items);
         }
@@ -164,6 +164,10 @@ final class Textflow implements FlowableInterface
                 $item->run,
                 $font->width($item->run, $size, $options),
             ),
+            null !== $item->inline => Item::inline(
+                $item->inline->scaled($style->fontSize() / $item->style->fontSize()),
+                $style,
+            ),
             null !== $hyphen => new Item(
                 $item->kind,
                 $style,
@@ -176,17 +180,6 @@ final class Textflow implements FlowableInterface
             ),
             default => new Item($item->kind, $style),
         };
-    }
-
-    /** How far a line's text reaches from its start, as drawn (justified lines included). */
-    private static function textWidth(Flow\Line $line): float
-    {
-        $width = 0.0;
-        foreach ($line->segments as $segment) {
-            $width = max($width, $segment->x + $segment->width);
-        }
-
-        return $width;
     }
 
     /**
@@ -220,16 +213,16 @@ final class Textflow implements FlowableInterface
                 VerticalAlignment::Bottom => max(0.0, $box->height - $layout->height),
             };
         }
-        $this->draw($canvas, $box, $layout, $shift);
+        LinePainter::draw($canvas, $box, $layout, $shift);
 
         $firstBaseline = null;
         $lastBaseline  = null;
         $textEnd       = null;
         foreach ($layout->lines as [$line, $baseline]) {
-            $point         = $this->baselinePoint($canvas, $box, $line, $baseline + $shift);
+            $point         = LinePainter::baselinePoint($canvas, $box, $line, $baseline + $shift);
             $firstBaseline ??= $point;
             $lastBaseline  = $point;
-            $textEnd       = [$point[0] + self::textWidth($line), $point[1]];
+            $textEnd       = [$point[0] + LinePainter::textWidth($line), $point[1]];
         }
         $this->last = new FitInfo(
             $layout->result,
@@ -306,7 +299,7 @@ final class Textflow implements FlowableInterface
             $indent = ($paragraph->style->leftIndent ?? 0.0) + ($paragraph->style->rightIndent ?? 0.0);
             $word   = 0.0;
             foreach ($paragraph->items as $item) {
-                if (ItemKind::Box === $item->kind) {
+                if (ItemKind::Box === $item->kind || ItemKind::Inline === $item->kind) {
                     $word += $item->width;
                     continue;
                 }
@@ -344,58 +337,6 @@ final class Textflow implements FlowableInterface
         $this->paragraphIndex = 0;
         $this->itemIndex      = 0;
         $this->last           = null;
-    }
-
-    /** @return array{0: float, 1: float} */
-    private function baselinePoint(Canvas $canvas, Box $box, Flow\Line $line, float $offset): array
-    {
-        $x = $box->x + $line->x;
-        $y = $canvas->isTopDown() ? $box->y + $offset : $box->far() - $offset;
-
-        return [$x, $y];
-    }
-
-    private function draw(Canvas $canvas, Box $box, Layout $layout, float $shift): void
-    {
-        if ([] === $layout->lines) {
-            return;
-        }
-        $canvas->save();
-        $topDown = $canvas->isTopDown();
-        foreach ($layout->lines as [$line, $baseline]) {
-            [$x0, $y] = $this->baselinePoint($canvas, $box, $line, $baseline + $shift);
-            foreach ($line->segments as $segment) {
-                $style = $segment->style;
-                $font  = StyleResolver::fontOf($style);
-                $size  = $style->fontSize();
-                $x     = $x0 + $segment->x;
-                if (null !== $style->color) {
-                    $canvas->setFillColor($style->color);
-                }
-                $matrix = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
-                $canvas->showRun($segment->run, $font, $size, $matrix, $style->textOptions());
-                $sign = $topDown ? -1.0 : 1.0;
-                if (true === $style->underline) {
-                    $t = $font->underlineThickness($size);
-                    $canvas->fillRect(
-                        $x,
-                        $y - ($sign * ($font->underlinePosition($size) - ($t / 2.0)) * -1.0),
-                        $segment->width,
-                        $sign * $t,
-                    );
-                }
-                if (true === $style->strikeout) {
-                    $t = $font->strikeoutSize($size);
-                    $canvas->fillRect(
-                        $x,
-                        $y - ($sign * ($font->strikeoutPosition($size) - ($t / 2.0)) * -1.0),
-                        $segment->width,
-                        $sign * $t,
-                    );
-                }
-            }
-        }
-        $canvas->restore();
     }
 
     private function layoutScaled(float $scale, Box $box, FlowOptions $options): Layout

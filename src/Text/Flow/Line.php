@@ -14,8 +14,9 @@ use PhpPdf\Text\Style\TextStyle;
 final readonly class Line
 {
     /**
-     * @param list<Segment> $segments
-     * @param float         $x        the line's left edge from the box's left edge
+     * @param list<Segment>                           $segments
+     * @param float                                   $x        the line's left edge from the box's left edge
+     * @param list<array{0: float, 1: InlineObject}> $inlines  artwork in the line, x from the line's left edge
      */
     public function __construct(
         public array $segments,
@@ -29,5 +30,6 @@ final readonly class Line
         public TextStyle $style,
         public int $itemsConsumed,
         public bool $last,
+        public array $inlines = [],
     ) {}
 }

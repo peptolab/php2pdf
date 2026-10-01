@@ -16,6 +16,9 @@ enum ItemKind
     /** A break opportunity without width, carrying a hyphen when the line breaks here. */
     case Penalty;
 
+    /** Artwork set in the line like a word of its width. */
+    case Inline;
+
     case Tab;
     case LineBreak;
     case ColumnBreak;

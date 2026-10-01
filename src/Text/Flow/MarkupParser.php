@@ -12,6 +12,7 @@ use function array_splice;
 use function count;
 use function html_entity_decode;
 use function in_array;
+use function is_numeric;
 use function preg_match;
 use function preg_split;
 use function sprintf;
@@ -29,22 +30,36 @@ use const PREG_SPLIT_DELIM_CAPTURE;
 
 /**
  * A small inline markup: <p style="name">, <span style="name">, <b>, <i>, <u>, <s>, <sup>,
- * <sub>, <br>, <tab>, <columnbreak>, <pagebreak>, and the entities &lt; &gt; &amp; &quot;
+ * <sub>, <br>, <tab>, <columnbreak>, <pagebreak>, <img src="name" width height raise>, and the entities &lt; &gt; &amp; &quot;
  * &nbsp; &shy; &#NNN; &#xHH;. Outside <p> elements, blank lines separate paragraphs.
  *
  * @internal
  */
 final class MarkupParser
 {
-    private const array TAGS = ['p', 'br', 'tab', 'columnbreak', 'pagebreak', 'span', 'b', 'i', 'u', 's', 'sup', 'sub'];
+    private const array TAGS = [
+        'p',
+        'br',
+        'tab',
+        'columnbreak',
+        'pagebreak',
+        'span',
+        'b',
+        'i',
+        'u',
+        's',
+        'sup',
+        'sub',
+        'img',
+    ];
 
-    /** @var list<array{style: ?TextStyle, spans: list<array{0: string, 1: TextStyle}>, breaks: list<array{0: int, 1: ItemKind}>}> */
+    /** @var list<array{style: ?TextStyle, spans: list<array{0: string, 1: TextStyle}>, breaks: list<array{0: int, 1: ItemKind|Item}>}> */
     private array $paragraphs = [];
 
     /** @var list<array{0: string, 1: TextStyle}> */
     private array $spans = [];
 
-    /** @var list<array{0: int, 1: ItemKind}> break items at span index */
+    /** @var list<array{0: int, 1: ItemKind|Item}> break items at span index */
     private array $breaks = [];
 
     private ?TextStyle $paragraphStyle = null;
@@ -77,7 +92,7 @@ final class MarkupParser
     }
 
     /**
-     * @return list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind}>}>
+     * @return list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}>
      *         per paragraph: paragraph style override, spans, and breaks positioned before the span at that index
      */
     public function parse(string $markup): array
@@ -142,6 +157,37 @@ final class MarkupParser
         $this->paragraphStyle = null;
         $this->stack          = [];
         $this->current        = $this->resolver->resolve($this->base);
+    }
+
+    /** An inline image: <img src="name"> with optional width, height and raise in points. */
+    private function image(string $inner): void
+    {
+        $attribute = static function (string $key) use ($inner): ?string {
+            $m = [];
+
+            return preg_match("/\\b{$key}\\s*=\\s*[\"']([^\"']*)[\"']/i", $inner, $m) === 1 ? $m[1] ?? null : null;
+        };
+        $src = $attribute('src') ?? throw new PdfException(
+            'An <img> in text markup needs a src naming an inline object.',
+        );
+        $number = static function (string $key) use ($attribute): ?float {
+            $value = $attribute($key);
+
+            return is_numeric($value) ? (float) $value : null;
+        };
+        $this->breaks[] = [
+            count($this->spans),
+            Item::inline(
+                InlineObject::sized(
+                    $this->resolver->inline($src),
+                    $number('width'),
+                    $number('height'),
+                    $number('raise') ?? 0.0,
+                    $this->current->fontSize(),
+                ),
+                $this->current,
+            ),
+        ];
     }
 
     private function isOpen(string $name): bool
@@ -220,6 +266,7 @@ final class MarkupParser
             'tab'         => $this->break(ItemKind::Tab),
             'columnbreak' => $this->break(ItemKind::ColumnBreak),
             'pagebreak'   => $this->break(ItemKind::PageBreak),
+            'img'         => $this->image($inner),
             default       => $this->open($name, $style),
         };
     }

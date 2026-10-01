@@ -29,7 +29,15 @@ final readonly class Item
          * the break when the hyphen follows it instead of the next piece.
          */
         public float $hyphenKerning = 0.0,
+        /** For inline items: the artwork and its size. */
+        public ?InlineObject $inline = null,
     ) {}
+
+    /** An item that sets artwork in the line. */
+    public static function inline(InlineObject $inline, TextStyle $style): self
+    {
+        return new self(ItemKind::Inline, $style, width: $inline->width, inline: $inline);
+    }
 
     public function isBreakOpportunity(): bool
     {

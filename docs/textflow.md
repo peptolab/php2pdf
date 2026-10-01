@@ -61,6 +61,7 @@ A small tag set, with `style="name"` on `<p>` and `<span>` referring to named st
 | `<tab>` | Tab to the next tab stop |
 | `<columnbreak>` | Stop filling this box: the fit returns `BoxFull` |
 | `<pagebreak>` | Stop and ask for a new page: the fit returns `NextPage` |
+| `<img src="name" width height raise>` | Artwork defined with `$doc->inlines()->define()`, set in the text (see below) |
 
 `&amp;`, `&lt;`, `&gt;` and numeric entities are decoded. Soft hyphens (U+00AD) mark allowed
 breaks; non-breaking spaces (U+00A0, U+202F narrow and U+2007 figure) never break or stretch.
@@ -114,6 +115,24 @@ $info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseli
 [$x, $y] = $flow->lastFit()->textEnd;
 $page->place($arrow, new Box($x + 2, $y, 8, 8), Fit::meet());
 ```
+
+## Artwork in the text
+
+Images, templates and SVG artwork can sit in a line like a word, their bottom edge on the
+baseline:
+
+```php
+$doc->inlines()->define('phone', $doc->image('phone.png'));
+$flow = $doc->textflow('Call us <img src="phone" height="9"> any day', 'body', TextFormat::Markup);
+
+Textflow::build($doc, 'body')->text('Call us ')->inline($phone, height: 9.0)->text(' any day');
+```
+
+`width` and `height` are in points; give one and the other keeps the artwork's proportions, give
+both to set each, or neither for one em high. `raise` moves it up (or down, negative) from the
+baseline. Artwork attaches to the words around it unless spaces separate them, never splits, and
+goes on a line of its own when wider than the line. Artwork rising above the text pushes its line
+down by the difference, as auto leading does, and copy fitting scales it with the text.
 
 ## Hyphenation
 

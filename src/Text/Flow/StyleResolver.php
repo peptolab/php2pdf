@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
+use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Color\Gray;
 use PhpPdf\Document\Document;
 use PhpPdf\Exception\PdfException;
@@ -68,6 +69,12 @@ final class StyleResolver
         }
 
         return $font;
+    }
+
+    /** Artwork defined for markup by name. */
+    public function inline(string $name): PlaceableInterface
+    {
+        return $this->document->inlines()->get($name);
     }
 
     /** A style by name from the registry, or the style itself. */
