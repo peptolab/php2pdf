@@ -6,11 +6,26 @@ namespace PhpPdfTest\Unit\Geometry;
 
 use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Geometry\Box;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 final class BoxTest extends TestCase
 {
+    /** @return array<string, array{0: Box, 1: float, 2: bool}> */
+    public static function enclosureProvider(): array
+    {
+        return [
+            'inside'              => [new Box(10.0, 10.0, 50.0, 50.0), 0.0, true],
+            'the same box'        => [new Box(0.0, 0.0, 100.0, 100.0), 0.0, true],
+            'past the left edge'  => [new Box(-1.0, 10.0, 50.0, 50.0), 0.0, false],
+            'past the bottom'     => [new Box(10.0, -1.0, 50.0, 50.0), 0.0, false],
+            'past the right edge' => [new Box(60.0, 10.0, 50.0, 50.0), 0.0, false],
+            'past the top'        => [new Box(10.0, 60.0, 50.0, 50.0), 0.0, false],
+            'within tolerance'    => [new Box(-0.005, 0.0, 100.01, 100.0), 0.01, true],
+        ];
+    }
+
     #[Test]
     public function convertsUnits(): void
     {
@@ -21,6 +36,13 @@ final class BoxTest extends TestCase
         self::assertEqualsWithDelta(85.0394, $box->width, 0.001);
         self::assertEqualsWithDelta(113.3858, $box->height, 0.001);
         self::assertSame([72.0, 144.0, 216.0, 360.0], Box::fromIn(1, 2, 2, 3)->toRect());
+    }
+
+    #[Test]
+    #[DataProvider('enclosureProvider')]
+    public function enclosesBoxesWithinItsEdges(Box $other, float $tolerance, bool $expected): void
+    {
+        self::assertSame($expected, (new Box(0.0, 0.0, 100.0, 100.0))->encloses($other, $tolerance));
     }
 
     #[Test]

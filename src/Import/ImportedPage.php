@@ -54,6 +54,11 @@ final class ImportedPage implements PlaceableInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
+        if (null === $this->reference && null !== $this->document->options()->pdfx) {
+            foreach ($this->page->deviceColourSpaces() as $space) {
+                $this->document->assertImportedColour($space, $this->page->number);
+            }
+        }
         $this->reference ??= $this->write();
         $canvas->drawXObject($this->reference, $matrix);
     }

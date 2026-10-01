@@ -35,6 +35,9 @@ use function sprintf;
  */
 final class Page
 {
+    /** Rounding slack, in points, when checking that page boxes nest. */
+    private const float BOX_TOLERANCE = 0.01;
+
     private readonly Canvas $canvas;
     private readonly Resources $resources;
     private readonly Box $mediaBox;
@@ -120,6 +123,9 @@ final class Page
         if (null !== $pdfx && null === $this->trimBox && null === $this->artBox) {
             // PDF/X needs a trim or art box on every page: the crop box (or media box) is the trim.
             $this->trimBox = $this->cropBox ?? $this->mediaBox;
+        }
+        if (null !== $pdfx) {
+            $this->assertPdfXBoxes($pdfx);
         }
         $annots = [];
         foreach ($this->links as [$area, $target]) {
@@ -280,6 +286,41 @@ final class Page
     {
         if ($this->finished) {
             throw new PdfException(sprintf('Page %d has been written and can no longer be drawn on.', $this->number));
+        }
+    }
+
+    /**
+     * PDF/X boxes: a TrimBox or an ArtBox but not both, inside the BleedBox (which defaults to
+     * the CropBox), inside the MediaBox.
+     *
+     * @throws PdfException when the boxes do not nest
+     */
+    private function assertPdfXBoxes(PdfX $pdfx): void
+    {
+        if (null !== $this->trimBox && null !== $this->artBox) {
+            throw new PdfException(sprintf(
+                '%s page %d has both a TrimBox and an ArtBox; set one.',
+                $pdfx->value,
+                $this->number,
+            ));
+        }
+        $bleed = $this->bleedBox ?? $this->cropBox ?? $this->mediaBox;
+        if (! $this->mediaBox->encloses($bleed, self::BOX_TOLERANCE)) {
+            throw new PdfException(sprintf(
+                '%s page %d: the BleedBox must lie within the MediaBox.',
+                $pdfx->value,
+                $this->number,
+            ));
+        }
+        foreach (['TrimBox' => $this->trimBox, 'ArtBox' => $this->artBox] as $name => $box) {
+            if (null !== $box && ! $bleed->encloses($box, self::BOX_TOLERANCE)) {
+                throw new PdfException(sprintf(
+                    '%s page %d: the %s must lie within the BleedBox.',
+                    $pdfx->value,
+                    $this->number,
+                    $name,
+                ));
+            }
         }
     }
 

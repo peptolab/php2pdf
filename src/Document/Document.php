@@ -155,6 +155,69 @@ final class Document
     }
 
     /**
+     * Under PDF/X, checks that a device colour space suits the output intent: DeviceGray always,
+     * DeviceRGB under an RGB intent or once an RGB profile (DefaultRGB) is set, DeviceCMYK under
+     * a CMYK intent.
+     *
+     * @internal
+     *
+     * @param string $space DeviceGray, DeviceRGB or DeviceCMYK
+     * @param string $what  what uses it, for the error message
+     *
+     * @throws PdfException when PDF/X does not allow the space here
+     */
+    public function assertDeviceColour(string $space, string $what = 'colours'): void
+    {
+        $pdfx = $this->options->pdfx;
+        if (null === $pdfx) {
+            return;
+        }
+        $this->assertOutputIntent();
+        if ('DeviceRGB' === $space && null !== $this->options->rgbProfile) {
+            return;
+        }
+        if ($this->intentAllows($space)) {
+            return;
+        }
+        throw new PdfException(sprintf(
+            'DeviceRGB' === $space
+                ? '%s with %s output intent needs an RGB profile (DocumentOptions::$rgbProfile) before RGB %s can be used.'
+                : '%s with %s output intent cannot use DeviceCMYK %s; use the output intent\'s colour space or an ICC-based colour.',
+            $pdfx->value,
+            $this->intentName(),
+            $what,
+        ));
+    }
+
+    /**
+     * Under PDF/X, checks a device colour space an imported page uses. The RGB profile does not
+     * reach imported artwork, whose own resources are kept, so DeviceRGB there needs an RGB
+     * output intent.
+     *
+     * @internal
+     *
+     * @throws PdfException when PDF/X does not allow the space in the imported page
+     */
+    public function assertImportedColour(string $space, int $page): void
+    {
+        $pdfx = $this->options->pdfx;
+        if (null === $pdfx) {
+            return;
+        }
+        $this->assertOutputIntent();
+        if ($this->intentAllows($space)) {
+            return;
+        }
+        throw new PdfException(sprintf(
+            '%s with %s output intent cannot place imported page %d: it draws in %s. Convert the artwork to the output intent\'s colour space first.',
+            $pdfx->value,
+            $this->intentName(),
+            $page,
+            $space,
+        ));
+    }
+
+    /**
      * Under PDF/X, refuses colour until the output intent is set: the first fill, stroke, image
      * or gradient needs it, so the error names the call that did, not the close.
      *
@@ -172,21 +235,6 @@ final class Document
             "{$pdfx->value} needs an output intent before any colour, image or gradient is drawn: "
                 . "call setOutputIntent() with the printing condition's ICC profile first.",
         );
-    }
-
-    /**
-     * Whether an RGB colour may be used: always, unless writing PDF/X without an RGB profile.
-     *
-     * @internal
-     */
-    public function assertRgbAllowed(): void
-    {
-        if (null !== $this->options->pdfx && null === $this->options->rgbProfile) {
-            throw new PdfException(sprintf(
-                '%s needs an RGB profile (DocumentOptions::$rgbProfile) before RGB colours or images can be used.',
-                $this->options->pdfx->value,
-            ));
-        }
     }
 
     /**
@@ -522,6 +570,10 @@ final class Document
         $this->xmpDescriptions[] =
             '<rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">'
             . '<pdf:Trapped>False</pdf:Trapped></rdf:Description>';
+        $this->xmpDescriptions[] =
+            '<rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">'
+            . '<xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>'
+            . '</rdf:Description>';
     }
 
     private function assertOpen(): void
@@ -567,6 +619,25 @@ final class Document
         }
 
         return $dict;
+    }
+
+    /** Whether a device colour space matches the output intent's (DeviceGray always does). */
+    private function intentAllows(string $space): bool
+    {
+        return match ($space) {
+            'DeviceRGB'  => 3 === $this->outputIntentComponents,
+            'DeviceCMYK' => 4 === $this->outputIntentComponents,
+            default      => true,
+        };
+    }
+
+    private function intentName(): string
+    {
+        return match ($this->outputIntentComponents) {
+            1       => 'a grey',
+            3       => 'an RGB',
+            default => 'a CMYK',
+        };
     }
 
     private function navigation(): Navigation

@@ -652,6 +652,17 @@ final class Canvas
     private bool $hasCurrentPoint = false;
     private bool $finished        = false;
 
+    /** The device colour space a colour is drawn in, or ICCBased when it carries its own profile. */
+    private static function deviceSpace(ColorInterface $color): string
+    {
+        return match (true) {
+            $color instanceof Gray => 'DeviceGray',
+            $color instanceof Rgb => 'DeviceRGB',
+            $color instanceof Cmyk => 'DeviceCMYK',
+            default => 'ICCBased',
+        };
+    }
+
     public function setLineJoin(LineJoin $join): self
     {
         $this->ops .= "{$join->value} j\n";
@@ -763,10 +774,7 @@ final class Canvas
     {
         $components = Num::list($color->components());
         $this->document->assertOutputIntent();
-
-        if ($color instanceof Rgb) {
-            $this->document->assertRgbAllowed();
-        }
+        $this->document->assertDeviceColour(self::deviceSpace($color instanceof Spot ? $color->alternate : $color));
 
         return match (true) {
             $color instanceof Gray => "{$components} {$ops[0]}",
@@ -854,9 +862,7 @@ final class Canvas
     private function shadingRef(AbstractGradient $gradient): Reference
     {
         $this->document->assertOutputIntent();
-        if ('DeviceRGB' === $gradient->colorSpaceName()->value) {
-            $this->document->assertRgbAllowed();
-        }
+        $this->document->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
         return $this->document->shared("sh:{$gradient->key()}", $gradient->toShading(...));
     }
 

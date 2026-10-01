@@ -92,4 +92,5 @@ The integration tests show the tools worth having in a pipeline:
 - `qpdf --check file.pdf` verifies the file structure.
 - `pdfinfo`, `pdftotext` and `pdftoppm` from poppler read geometry and text back and render
   pages to PNG for pixel comparison.
-- `veraPDF` checks PDF/X conformance.
+- Acrobat Preflight or callas pdfToolbox check PDF/X conformance (veraPDF validates PDF/A and
+  PDF/UA, not PDF/X).

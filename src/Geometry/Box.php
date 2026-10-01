@@ -71,6 +71,17 @@ final readonly class Box
         return $x >= $this->x && $x <= $this->right() && $y >= $this->y && $y <= $this->far();
     }
 
+    /** Whether another box lies within this one, edges included, to within $tolerance points. */
+    public function encloses(self $other, float $tolerance = 0.0): bool
+    {
+        return (
+            $other->x >= ($this->x - $tolerance)
+                && $other->y >= ($this->y - $tolerance)
+                && $other->right() <= ($this->right() + $tolerance)
+                && $other->far() <= ($this->far() + $tolerance)
+        );
+    }
+
     /** The far y edge (y + height). */
     public function far(): float
     {

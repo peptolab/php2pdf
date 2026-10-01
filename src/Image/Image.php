@@ -48,6 +48,9 @@ final class Image implements PlaceableInterface
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
         $canvas->document()->assertOutputIntent();
+        if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
+            $canvas->document()->assertDeviceColour($this->data->colorSpace->device, 'images');
+        }
         $canvas->drawXObject($this->reference, Matrix::scaling($size->width, $size->height)->then($matrix));
     }
 
@@ -94,10 +97,6 @@ final class Image implements PlaceableInterface
                 'iccstream:' . md5($profile),
                 static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
             );
-        }
-
-        if (null === $icc && 'DeviceRGB' === $data->colorSpace->device) {
-            $document->assertRgbAllowed();
         }
 
         $dict = Dictionary::of([

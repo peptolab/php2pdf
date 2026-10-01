@@ -44,10 +44,32 @@ What the option does:
   packet (`pdfxid:GTS_PDFXVersion`, `pdf:Trapped`);
 - gives every page a trim box (the crop or media box when none was set) and a transparency
   group in the output intent's colour space;
+- writes `xmpMM:VersionID` and `xmpMM:RenditionClass` in the XMP packet;
 - adds a `DefaultRGB` ICCBased colour space to every resource dictionary, so RGB colours and
   images are device-independent;
-- refuses RGB colours, gradients and images without `rgbProfile`, link annotations, and closing
-  without an output intent or a title.
+- refuses link annotations, and closing without an output intent or a title;
+- refuses a page with both a trim box and an art box, a bleed box outside the media box, and a
+  trim or art box outside the bleed box.
 
-The structure follows ISO 15930-7. Validate with veraPDF in your pipeline; CMYK and spot
-colours need no profile, and fonts are always embedded.
+Fonts are always embedded. The structure follows ISO 15930-7; check files with Acrobat Preflight
+or callas pdfToolbox (veraPDF validates PDF/A and PDF/UA, not PDF/X).
+
+### Colour
+
+Colours, gradients and images are checked against the output intent's colour space when they
+are first used, so the error points at the offending call:
+
+| Device colour | Grey intent | RGB intent | CMYK intent |
+|---|---|---|---|
+| `Gray` | yes | yes | yes |
+| `Rgb` | with `rgbProfile` | yes | with `rgbProfile` |
+| `Cmyk` | no | no | yes |
+
+A `Spot` colour is checked by its alternate. ICC-based images and colours are always allowed;
+a palette image is checked by its base colour space. Set the output intent before drawing in
+colour.
+
+Imported pages are scanned for the device colour spaces they draw with (in their content, forms,
+images, shadings and patterns) and must match the output intent itself: `rgbProfile` does not
+apply to them, because their `DefaultRGB` resources are their own. Convert artwork to the
+output intent's colour space before importing it.

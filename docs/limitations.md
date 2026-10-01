@@ -17,7 +17,8 @@ Known gaps, in rough order of how often they matter.
 - **PDF import**: encrypted files are rejected; JPX, JBIG2 and CCITT images pass through
   untouched; pages are copied as artwork and cannot be edited.
 - **PDF/X-4** output follows ISO 15930-7 structurally; no validator ships with the library, so
-  check files with veraPDF in your pipeline.
+  check files with Acrobat Preflight or callas pdfToolbox. Imported pages are checked for device
+  colour spaces but not converted.
 - **Images** in formats other than JPEG and PNG need `ext-imagick` or `ext-gd`.
 - **Not in scope**: forms and annotations other than links, JavaScript, multimedia, tagged PDF,
   encryption, HTML or CSS rendering, editing PDFs in place.

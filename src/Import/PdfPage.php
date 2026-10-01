@@ -81,6 +81,18 @@ final readonly class PdfPage
         return $this->clamped('CropBox', $this->mediaBox());
     }
 
+    /**
+     * The device colour spaces the page draws with, from its resources and content.
+     *
+     * @internal
+     *
+     * @return list<string> DeviceGray, DeviceRGB and DeviceCMYK, as found
+     */
+    public function deviceColourSpaces(): array
+    {
+        return (new ColourScanner($this->reader))->scan($this);
+    }
+
     /** @internal */
     public function dictionary(): Dictionary
     {
