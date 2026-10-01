@@ -84,6 +84,14 @@ final class CoreFontTest extends TestCase
     }
 
     #[Test]
+    public function invalidUtf8IsSkipped(): void
+    {
+        $font = $this->doc->fonts()->standard(StandardFont::Helvetica);
+
+        self::assertSame(1, $font->shape("a\xFF")->count());
+    }
+
+    #[Test]
     public function kerningComesFromTheAfmPairs(): void
     {
         $font = $this->doc->fonts()->standard(StandardFont::Helvetica);
