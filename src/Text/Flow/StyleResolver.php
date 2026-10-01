@@ -86,7 +86,25 @@ final class StyleResolver
             bold: $this->font($merged->bold),
             italic: $this->font($merged->italic),
             boldItalic: $this->font($merged->boldItalic),
+            fallback: null === $merged->fallback ? null : $this->fallbacks($merged->fallback),
         ));
+    }
+
+    /**
+     * The fonts of a fallback list, resolved.
+     *
+     * @param list<FontInterface|string> $fonts
+     *
+     * @return list<FontInterface>
+     */
+    private function fallbacks(array $fonts): array
+    {
+        $resolved = [];
+        foreach ($fonts as $font) {
+            $resolved[] = is_string($font) ? $this->document->fonts()->find($font) : $font;
+        }
+
+        return $resolved;
     }
 
     private function font(FontInterface|string|null $font): ?FontInterface

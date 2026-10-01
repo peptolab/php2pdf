@@ -45,6 +45,20 @@ default) records a warning in `$doc->fonts()->warnings()` once per font and char
 default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
 does not pick up a wrong character for it.
 
+### Fallback fonts
+
+A text style can name fonts to try, in order, for characters its font lacks, as PDFlib's
+`fallbackfonts` does:
+
+```php
+$style = new TextStyle(font: 'Inter', fallback: ['Helvetica', $notoSymbols]);
+```
+
+Each character is set in the first of the font and its fallbacks that has it; spaces stay in the
+font of the text around them. Kerning applies within each font's run, and a line's height takes
+in every font set on it. A character none of them has follows the missing-glyph policy of the
+style's own font. Fallbacks apply to Textflow and table text, which use text styles.
+
 ### Standard 14 fonts
 
 When no font file matches, `find()` falls back to the standard 14 fonts that every PDF reader

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\Glyph;
 use PhpPdf\Font\GlyphRun;
 use PhpPdf\Text\Hyphenation\Hyphenator;
@@ -15,9 +16,12 @@ use function count;
 use function explode;
 use function implode;
 use function mb_chr;
+use function mb_ord;
+use function mb_str_split;
 use function mb_strlen;
 use function preg_match_all;
 use function preg_replace;
+use function spl_object_id;
 use function str_replace;
 
 /**
@@ -95,7 +99,7 @@ final class Itemiser
     public function itemise(array $spans): array
     {
         $items = [];
-        foreach ($spans as [$text, $style]) {
+        foreach ($this->byFont($spans) as [$text, $style]) {
             $text = str_replace(["\r\n", "\r"], replace: "\n", subject: $text);
             foreach ($this->stretches($text) as $stretch) {
                 if ("\n" === $stretch) {
@@ -113,6 +117,69 @@ final class Itemiser
         }
 
         return $items;
+    }
+
+    /**
+     * Spans split where the font changes: each character goes to the first font in its style's
+     * font and fallback list that has it, or to the font when none does. Spaces, tabs and line
+     * breaks stay with the run they are in.
+     *
+     * @param list<array{0: string, 1: TextStyle}> $spans
+     *
+     * @return list<array{0: string, 1: TextStyle}>
+     */
+    private function byFont(array $spans): array
+    {
+        $out = [];
+        foreach ($spans as [$text, $style]) {
+            $fallback = $style->fallback ?? [];
+            if ([] === $fallback) {
+                $out[] = [$text, $style];
+                continue;
+            }
+            $font   = StyleResolver::fontOf($style);
+            $styles = [spl_object_id($font) => $style];
+            $run    = '';
+            $using  = $font;
+            foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+                $choice = $this->fontFor($char, $font, $fallback, $using);
+                if ($choice !== $using && '' !== $run) {
+                    $out[] = [$run, $styles[spl_object_id($using)] ??= $style->merge(new TextStyle(font: $using))];
+                    $run   = '';
+                }
+                $using = $choice;
+                $run   .= $char;
+            }
+            if ('' !== $run) {
+                $out[] = [$run, $styles[spl_object_id($using)] ??= $style->merge(new TextStyle(font: $using))];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * The font that sets a character: the current one for spaces and breaks, otherwise the first
+     * of the font and its fallbacks that has it, or the font itself when none does.
+     *
+     * @param list<FontInterface|string> $fallback resolved, so fonts only
+     */
+    private function fontFor(string $char, FontInterface $font, array $fallback, FontInterface $current): FontInterface
+    {
+        $codePoint = mb_ord($char, encoding: 'UTF-8');
+        if (false === $codePoint || $codePoint <= 0x20 || self::SOFT_HYPHEN === $char) {
+            return $current;
+        }
+        if ($font->hasGlyph($codePoint)) {
+            return $font;
+        }
+        foreach ($fallback as $candidate) {
+            if ($candidate instanceof FontInterface && $candidate->hasGlyph($codePoint)) {
+                return $candidate;
+            }
+        }
+
+        return $font;
     }
 
     /** @return list<string> */

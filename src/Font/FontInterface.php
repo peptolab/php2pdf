@@ -43,6 +43,9 @@ interface FontInterface
      */
     public function encode(array $glyphIds): string;
 
+    /** Whether the font has a glyph for a Unicode code point. */
+    public function hasGlyph(int $codePoint): bool;
+
     public function lineGap(float $size): float;
 
     /**

@@ -14,6 +14,7 @@ use PhpPdf\Document\Document;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\Standard\AfmMetrics;
 
+use function array_key_exists;
 use function count;
 use function max;
 use function mb_ord;
@@ -139,6 +140,12 @@ final class CoreFont implements FontInterface, DeferredInterface
     }
 
     /** AFM files have no line gap: the leading is the layout's to choose. */
+    #[Override]
+    public function hasGlyph(int $codePoint): bool
+    {
+        return array_key_exists($codePoint, $this->metrics->codes);
+    }
+
     #[Override]
     public function lineGap(float $size): float
     {

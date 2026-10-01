@@ -15,6 +15,7 @@ use function get_object_vars;
  * Character and paragraph formatting, as in a desktop publishing style sheet. Every property is
  * optional so styles can be layered: a null property inherits from the style below it. The font
  * may be a FontInterface or a name resolved through the document's font registry when the style is used.
+ * Fallback fonts set characters the font lacks, each from the first fallback that has it.
  *
  * @api
  */
@@ -24,6 +25,8 @@ final readonly class TextStyle
      * @param list<TabStop>|null $tabs
      * @param int|null           $orphans minimum lines kept at the bottom of a box
      * @param int|null           $widows  minimum lines carried to the next box
+     * @param list<FontInterface|string>|null $fallback fonts tried in order for characters the
+     *                                                  font lacks
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -60,6 +63,7 @@ final readonly class TextStyle
         public ?bool $keepTogether = null,
         public ?int $orphans = null,
         public ?int $widows = null,
+        public ?array $fallback = null,
     ) {}
 
     public function fontSize(): float

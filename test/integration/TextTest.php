@@ -11,6 +11,8 @@ use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Font\TextRenderMode;
+use PhpPdf\Geometry\Box;
+use PhpPdf\Text\Style\TextStyle;
 use PhpPdfTest\Support\PdfTools;
 use PhpPdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
@@ -62,5 +64,30 @@ final class TextTest extends TestCase
         self::assertStringContainsString('Top-down text', PdfTools::text($path, 2));
         Visual::assertMatchesBaseline($path, 'text-p1', 1);
         Visual::assertMatchesBaseline($path, 'text-p2', 2);
+    }
+
+    /** A paragraph mixing fonts through a fallback stack renders and copies out whole (#22). */
+    #[Test]
+    public function fallbackFontsSetWhatTheFontLacks(): void
+    {
+        $path   = PdfTools::outputDir() . '/text-fallback.pdf';
+        $doc    = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $dejaVu = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $flow   = $doc->textflow(
+            'Snow ☃ in Ω-band weather, with Helvetica for the Latin text.',
+            new TextStyle(
+                font: 'Helvetica',
+                size: 14.0,
+                fallback: [$dejaVu],
+            ),
+        );
+        $doc->addPage(PageSize::A4)->fitTextflow($flow, new Box(72.0, 600.0, 400.0, 100.0));
+        $doc->close();
+
+        PdfTools::assertValid($path);
+        self::assertStringContainsString(
+            'Snow ☃ in Ω-band weather, with Helvetica for the Latin text.',
+            PdfTools::text($path),
+        );
     }
 }

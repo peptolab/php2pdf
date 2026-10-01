@@ -177,6 +177,12 @@ final class Font implements FontInterface, DeferredInterface
     }
 
     #[Override]
+    public function hasGlyph(int $codePoint): bool
+    {
+        return 0 !== $this->program->glyphId($codePoint);
+    }
+
+    #[Override]
     public function lineGap(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->lineGap, $size);
