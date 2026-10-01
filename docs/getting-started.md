@@ -43,7 +43,9 @@ $page->place($photo, Box::fromMm(25, 20, 60, 15), Fit::meet());
 $doc->close();
 ```
 
-`Document` writes pages as they finish, so a document of any length uses bounded memory.
+`Document` writes pages as they finish, so finished pages do not stay in memory. Memory still
+grows with the input you hand it: a `Table` keeps all its rows and a `Textflow` all its text until
+they are fitted, so very long tables and single flows cost memory in proportion to their length.
 Fonts are subset and written when `close()` is called.
 
 ## Units

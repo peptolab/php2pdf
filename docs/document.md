@@ -36,6 +36,36 @@ decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per im
 constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a
 `Limits` too; lower the limits for files from untrusted sources.
 
+## Handling untrusted files
+
+The library parses these inputs, and any of them may come from a user upload:
+
+- **PDF and AI files** (`import()`, `PdfFile`): the cross-reference, object and page-tree
+  parsers and the stream filters, bounded by `maxDecodedBytes`, `maxPages` and
+  `maxXrefEntries`, with cycles in the page tree detected;
+- **images** (`image()`, `imageFromData()`): the PNG decoder and the header readers of other
+  formats, bounded by `maxImagePixels` before anything is decoded; formats other than JPEG and
+  PNG go to Imagick or GD, which have their own limits;
+- **SVG** (`svg()`, `SvgFile`): the XML parser and renderer, bounded by `maxNesting`,
+  `maxSvgUses` and, for `.svgz`, `maxDecodedBytes`. `<image>` elements may read files: a path is
+  resolved against the SVG's directory, or the working directory for SVG read from a string, and
+  absolute paths are followed. Do not render untrusted SVG in a process that can read files it
+  should not disclose;
+- **fonts** (`fonts()->load()`): the OpenType parser. Fonts are not covered by `Limits`; load
+  only fonts you trust.
+
+The limits stop a small file from asking for unbounded work, but PHP cannot recover from running
+out of memory or time: those are fatal errors, not exceptions, and no `catch` sees them. For
+files from untrusted sources:
+
+- generate the PDF in a separate worker process (a queue job or a CLI subprocess), not in the
+  web request that accepted the upload;
+- give that process its own `memory_limit` and a time limit (`set_time_limit()` or the
+  supervisor's timeout), sized for your largest legitimate document;
+- lower `Limits` to what your documents need;
+- treat a crashed worker as a rejected file, and write to a temporary path (`Document` already
+  renames the file into place only when `close()` succeeds).
+
 ## Deterministic output
 
 With a `FixedClock` identical input produces byte-identical files: object numbers, the
