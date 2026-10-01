@@ -19,12 +19,14 @@ use function preg_match;
 use function preg_replace;
 use function preg_split;
 use function rawurldecode;
+use function realpath;
 use function str_contains;
 use function str_starts_with;
 use function strtolower;
 use function substr;
 use function trim;
 
+use const DIRECTORY_SEPARATOR;
 use const PREG_SPLIT_NO_EMPTY;
 
 /**
@@ -97,7 +99,7 @@ final class ImageRenderer
         $canvas->restore();
     }
 
-    /** The bytes of an image reference: a data URI, or a file relative to the SVG. */
+    /** The bytes of an image reference: a data URI, or a file inside the SVG's directory. */
     private function data(?string $href): ?string
     {
         if (null === $href) {
@@ -118,15 +120,41 @@ final class ImageRenderer
 
             return null;
         }
-        $base = $this->context->file->baseDirectory;
-        $path = str_starts_with($href, '/') || null === $base ? $href : "{$base}/{$href}";
-        if (! is_file($path)) {
-            $this->context->warn('missing image files');
-
+        $path = $this->localPath($href);
+        if (null === $path) {
             return null;
         }
         $data = file_get_contents($path);
 
         return false === $data ? null : $data;
+    }
+
+    /**
+     * The real path of an image file the SVG refers to, which must lie inside the SVG's own
+     * directory: absolute paths, references that climb out of it (directly or through a link)
+     * and any file reference from SVG with no directory are refused.
+     */
+    private function localPath(string $href): ?string
+    {
+        $base = $this->context->file->baseDirectory;
+        $root = null === $base ? false : realpath($base);
+        if (false === $root || str_starts_with($href, '/') || str_starts_with($href, '\\')) {
+            $this->context->warn('image files outside the SVG\'s directory');
+
+            return null;
+        }
+        $path = realpath("{$root}/" . rawurldecode($href));
+        if (false === $path || ! is_file($path)) {
+            $this->context->warn('missing image files');
+
+            return null;
+        }
+        if (! str_starts_with($path, $root . DIRECTORY_SEPARATOR)) {
+            $this->context->warn('image files outside the SVG\'s directory');
+
+            return null;
+        }
+
+        return $path;
     }
 }

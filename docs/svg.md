@@ -24,7 +24,9 @@ Pure PHP, no extensions. It supports:
 - group `opacity` through transparency groups; `display` and `visibility`;
 - presentation attributes, `style` attributes and `<style>` sheets with type, class, id and
   compound selectors (no combinators or pseudo-classes);
-- `<image>` with PNG or JPEG data URIs or files relative to the SVG;
+- `<image>` with PNG or JPEG data URIs or files inside the SVG's directory (absolute paths and
+  references leading out of it are refused with a warning, and SVG read from a string reads no
+  files unless `SvgFile::fromData()` is given a directory);
 - `<text>` and `<tspan>` with positions, `dx`/`dy`, `text-anchor`, `letter-spacing`, weight and
   style, set through the font engine so the text stays searchable. Font families are looked up
   in the document's registry (`$doc->fonts()->addSearchPath(...)`); generic and unknown families

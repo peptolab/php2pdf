@@ -47,10 +47,10 @@ The library parses these inputs, and any of them may come from a user upload:
   formats, bounded by `maxImagePixels` before anything is decoded; formats other than JPEG and
   PNG go to Imagick or GD, which have their own limits;
 - **SVG** (`svg()`, `SvgFile`): the XML parser and renderer, bounded by `maxNesting`,
-  `maxSvgUses` and, for `.svgz`, `maxDecodedBytes`. `<image>` elements may read files: a path is
-  resolved against the SVG's directory, or the working directory for SVG read from a string, and
-  absolute paths are followed. Do not render untrusted SVG in a process that can read files it
-  should not disclose;
+  `maxSvgUses` and, for `.svgz`, `maxDecodedBytes`. `<image>` elements read files only from
+  inside the SVG's own directory: absolute paths, `..` and links that lead out of it are refused,
+  and SVG read from a string reads no files unless `SvgFile::fromData()` is given a directory.
+  Keep untrusted SVG in a directory of its own;
 - **fonts** (`fonts()->load()`): the OpenType parser. Fonts are not covered by `Limits`; load
   only fonts you trust.
 
