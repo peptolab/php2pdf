@@ -56,6 +56,7 @@ final class TiffDecoder
     private const int TILE_WIDTH    = 322;
     private const int INK_SET       = 332;
     private const int EXTRA_SAMPLES = 338;
+    private const int PHOTOSHOP     = 34_377;
     private const int ICC_PROFILE   = 34_675;
 
     private const int NONE          = 1;
@@ -330,6 +331,7 @@ final class TiffDecoder
             dpiX: $this->dpi(self::X_RESOLUTION),
             dpiY: $this->dpi(self::Y_RESOLUTION),
             orientation: $this->orientation(),
+            photoshop: $this->file->raw($this->ifd, self::PHOTOSHOP),
         );
     }
 

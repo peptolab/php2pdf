@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace PhpPdf\Image;
 
 use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Exception\InvalidArgumentException;
+
+use function sprintf;
 
 /**
  * A decoded (or passed-through) image ready to be written as an image XObject.
@@ -23,6 +26,8 @@ final readonly class ImageData
      * @param string|null     $iccProfile   an embedded ICC profile matching the colour space
      * @param int             $orientation  the EXIF orientation (1 to 8) the image is shown in
      * @param bool            $smaskInData  whether JPEG 2000 data carries its own alpha channel
+     * @param string|null     $photoshop    Photoshop image resource blocks, which may hold paths
+     * @param ClippingPath|null $clip       the path the image is clipped to when drawn
      */
     public function __construct(
         public int $width,
@@ -40,6 +45,8 @@ final readonly class ImageData
         public float $dpiY = 72.0,
         public int $orientation = 1,
         public bool $smaskInData = false,
+        public ?string $photoshop = null,
+        public ?ClippingPath $clip = null,
     ) {}
 
     public function hasTransparency(): bool
@@ -56,7 +63,14 @@ final readonly class ImageData
     /** The image as loaded with options: at another resolution, or ignoring its orientation. */
     public function withOptions(ImageOptions $options): self
     {
-        if (null === $options->dpi && ($options->orientation || 1 === $this->orientation)) {
+        if (
+            null === $options->dpi
+            && (
+                $options->orientation
+                || 1 === $this->orientation
+            )
+            && false === $options->clippingPath
+        ) {
             return $this;
         }
 
@@ -76,6 +90,28 @@ final readonly class ImageData
             $options->dpi ?? $this->dpiY,
             $options->orientation ? $this->orientation : 1,
             $this->smaskInData,
+            $this->photoshop,
+            $this->clippingPath($options->clippingPath),
+        );
+    }
+
+    /**
+     * The path to clip to: none, the one Photoshop marks as the clipping path, or one by name.
+     *
+     * @throws InvalidArgumentException when the image has no such path
+     */
+    private function clippingPath(bool|string $request): ?ClippingPath
+    {
+        if (false === $request) {
+            return null;
+        }
+        $resources = new PhotoshopResources($this->photoshop ?? '');
+        $path      = true === $request ? $resources->clippingPath() : $resources->path($request);
+
+        return $path ?? throw new InvalidArgumentException(
+            true === $request
+                ? 'The image has no clipping path.'
+                : sprintf('The image has no path named "%s".', $request),
         );
     }
 }

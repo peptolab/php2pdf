@@ -38,6 +38,9 @@ final class JpegDecoder
 
     private int $orientation = 1;
 
+    /** Photoshop image resource blocks from APP13 segments. */
+    private string $photoshop = '';
+
     private function __construct() {}
 
     public static function decode(string $data): ImageData
@@ -71,6 +74,7 @@ final class JpegDecoder
             dpiX: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[0],
             dpiY: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[1],
             orientation: $decoder->orientation,
+            photoshop: '' === $decoder->photoshop ? null : $decoder->photoshop,
         );
     }
 
@@ -162,6 +166,11 @@ final class JpegDecoder
             $exif              = Exif::read(substr($segment, offset: 6));
             $this->orientation = $exif->orientation;
             $this->exifDpi     = $exif->dpi;
+
+            return;
+        }
+        if (0xED === $marker && str_starts_with($segment, "Photoshop 3.0\0")) {
+            $this->photoshop .= substr($segment, offset: 14);
 
             return;
         }

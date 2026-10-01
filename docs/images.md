@@ -45,7 +45,10 @@ $doc->image('scan.tif', new ImageOptions(dpi: 300, page: 2, orientation: false))
 ```
 
 `dpi` replaces the file's resolution for its natural size, `page` picks a page of a multi-page
-TIFF or GIF (through ext-imagick), and `orientation: false` ignores a JPEG's EXIF orientation.
+TIFF or GIF (TIFF natively, others through ext-imagick), and `orientation: false` ignores a
+JPEG's EXIF orientation. `clippingPath: true` clips the image to the path Photoshop marks as its
+clipping path, in a JPEG or TIFF file, and `clippingPath: 'Outline'` to the path of that name; an
+image without the path asked for is an error. Clipping paths are not applied unless asked for.
 The same file loaded with different options is a different image.
 
 ## Transparency

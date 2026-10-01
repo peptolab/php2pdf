@@ -6,6 +6,7 @@ namespace PhpPdf\Image;
 
 use Override;
 use PhpPdf\Canvas\Canvas;
+use PhpPdf\Canvas\FillRule;
 use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
@@ -70,12 +71,19 @@ final class Image implements PlaceableInterface
         if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
             $this->document->pdfx()->assertDeviceColour($this->data->colorSpace->device, 'images');
         }
-        $canvas->drawXObject(
-            $this->reference,
-            self::orientation($this->data->orientation)
-                ->then(Matrix::scaling($size->width, $size->height))
-                ->then($matrix),
-        );
+        $placement = self::orientation($this->data->orientation)
+            ->then(Matrix::scaling($size->width, $size->height))
+            ->then($matrix);
+        $clip = $this->data->clip;
+        if (null === $clip) {
+            $canvas->drawXObject($this->reference, $placement);
+
+            return;
+        }
+        $canvas->save()->concat($placement);
+        $clip->addTo($canvas);
+        $canvas->clip(FillRule::EvenOdd)->drawXObject($this->reference, Matrix::identity());
+        $canvas->restore();
     }
 
     public function hasTransparency(): bool
