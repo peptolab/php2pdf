@@ -24,6 +24,9 @@ final class PathData
     /** @var list<array{0: string, 1: list<float>}> 'M' [x y], 'L' [x y], 'C' [x1 y1 x2 y2 x y], 'Z' [] */
     public array $commands = [];
 
+    /** @var array<int, true> commands that end inside a source segment (an arc's cubics), so not at a vertex */
+    public array $inner = [];
+
     private float $x      = 0.0;
     private float $y      = 0.0;
     private float $startX = 0.0;
@@ -182,6 +185,14 @@ final class PathData
         return $this;
     }
 
+    /** Marks the last command as ending inside a source segment, not at a vertex. */
+    public function continues(): self
+    {
+        $this->inner[count($this->commands) - 1] = true;
+
+        return $this;
+    }
+
     public function curveTo(float $x1, float $y1, float $x2, float $y2, float $x, float $y): self
     {
         $this->commands[] = ['C', [$x1, $y1, $x2, $y2, $x, $y]];
@@ -273,6 +284,7 @@ final class PathData
             }
             $out->commands[] = [$op, $points];
         }
+        $out->inner = $this->inner;
 
         return $out;
     }

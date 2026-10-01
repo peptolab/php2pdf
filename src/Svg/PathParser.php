@@ -175,7 +175,7 @@ final class PathParser
             [$x1, $y1] = $ellipse->apply(cos($theta) - ($t * sin($theta)), sin($theta) + ($t * cos($theta)));
             [$x2, $y2] = $ellipse->apply(cos($next) + ($t * sin($next)), sin($next) - ($t * cos($next)));
             [$x, $y] = $ellipse->apply(cos($next), sin($next));
-            $this->path->curveTo($x1, $y1, $x2, $y2, $x, $y);
+            $this->path->curveTo($x1, $y1, $x2, $y2, $x, $y)->continues();
             $theta = $next;
         }
     }

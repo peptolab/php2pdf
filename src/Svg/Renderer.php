@@ -53,6 +53,7 @@ final class Renderer
     private readonly ClipBuilder $clips;
 
     private readonly MaskBuilder $masks;
+    private readonly MarkerBuilder $markers;
     private readonly ImageRenderer $images;
     private int $depth = 0;
 
@@ -69,6 +70,7 @@ final class Renderer
         $this->text    = new TextRenderer($context, $this->painter);
         $this->clips   = new ClipBuilder($context);
         $this->masks   = new MaskBuilder($context, $this->clips, $this->children(...));
+        $this->markers = new MarkerBuilder($context, $this->children(...));
         $this->images  = new ImageRenderer($context);
     }
 
@@ -186,6 +188,9 @@ final class Renderer
             return;
         }
         $this->painter->paint($canvas, $path, $style);
+        if (array_key_exists($element->name, MarkerBuilder::MARKABLE)) {
+            $this->markers->draw($canvas, $path, $style);
+        }
     }
 
     private function switch(Canvas $canvas, Element $element, Style $style): void

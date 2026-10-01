@@ -53,7 +53,13 @@ final class Style
         'visibility',
         'clip-rule',
         'direction',
+        'marker-start',
+        'marker-mid',
+        'marker-end',
     ];
+
+    /** The properties the marker shorthand sets. */
+    private const array MARKERS = ['marker-start', 'marker-mid', 'marker-end'];
 
     /** @var list<string> */
     private const array PRESENTATION = [
@@ -67,9 +73,6 @@ final class Style
         'mask',
         'mask-type',
         'filter',
-        'marker-start',
-        'marker-mid',
-        'marker-end',
     ];
 
     /** @param array<string, string> $properties */
@@ -189,11 +192,12 @@ final class Style
             }
             $properties[$name] = $value;
         }
-        foreach ($sheet->match($element) as $name => $value) {
-            $properties[$name] = $value;
-        }
-        foreach (StyleSheet::declarations($element->attribute('style') ?? '') as $name => $value) {
-            $properties[$name] = $value;
+        foreach ([$sheet->match($element), StyleSheet::declarations($element->attribute('style') ?? '')] as $rules) {
+            foreach ($rules as $name => $value) {
+                foreach ('marker' === $name ? self::MARKERS : [$name] as $longhand) {
+                    $properties[$longhand] = $value;
+                }
+            }
         }
         foreach ($properties as $name => $value) {
             if ('inherit' !== trim($value)) {
@@ -316,13 +320,27 @@ final class Style
         };
     }
 
+    /** The id of the mask the element is drawn through, from mask: url(#id). */
+    /** The marker for 'start', 'mid' or 'end' vertices, or null. */
+    public function markerId(string $position): ?string
+    {
+        $m = [];
+        if (
+            preg_match('/url\(\s*["\']?#([^"\')]+)["\']?\s*\)/', $this->properties["marker-{$position}"] ?? '', $m)
+            !== 1
+        ) {
+            return null;
+        }
+
+        return $m[1] ?? null;
+    }
+
     /** Whether a <mask> masks by alpha (mask-type="alpha") rather than luminance. */
     public function maskAlpha(): bool
     {
         return 'alpha' === strtolower(trim($this->properties['mask-type'] ?? ''));
     }
 
-    /** The id of the mask the element is drawn through, from mask: url(#id). */
     public function maskId(): ?string
     {
         $m = [];
@@ -393,19 +411,15 @@ final class Style
         };
     }
 
-    /** Whether a feature this converter does not support is requested (filter, markers). */
-    /** @return list<string> */
+    /**
+     * The features this converter does not support that the element asks for (filters).
+     *
+     * @return list<string>
+     */
     public function unsupported(): array
     {
-        $out = [];
-        foreach (['filter', 'marker-start', 'marker-mid', 'marker-end'] as $name) {
-            $value = strtolower(trim($this->properties[$name] ?? 'none'));
-            if ('none' === $value || '' === $value) {
-                continue;
-            }
-            $out[] = $name;
-        }
+        $value = strtolower(trim($this->properties['filter'] ?? 'none'));
 
-        return $out;
+        return 'none' === $value || '' === $value ? [] : ['filter'];
     }
 }

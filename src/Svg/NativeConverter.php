@@ -11,11 +11,12 @@ use PhpPdf\Template\Template;
 
 /**
  * Converts SVG to vector artwork in pure PHP: paths and basic shapes, transforms, viewBox and
- * nested viewports, fills and strokes with opacity, linear and radial gradients, clip paths,
- * group opacity, inline styles and simple style sheets, <use> with <symbol> and <defs>, images
- * (PNG and JPEG, embedded or by path), and text set through the font engine.
+ * nested viewports, fills and strokes with opacity, linear and radial gradients, patterns, clip
+ * paths, masks, markers, group opacity, inline styles and simple style sheets, <use> with
+ * <symbol> and <defs>, images (PNG and JPEG, embedded or by path), and text set through the font
+ * engine.
  *
- * Masks, filters, patterns and markers are skipped; warnings() lists what a conversion left out.
+ * Filters are skipped; warnings() lists what a conversion left out.
  *
  * @api
  */

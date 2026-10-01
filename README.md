@@ -62,8 +62,8 @@ boundary. The origin is bottom-left as in PDF; pass `topDown: true` to `addPage(
 `$doc->svg('logo.svg')` converts an SVG to reusable artwork in pure PHP: paths and shapes,
 transforms, viewBox and nested viewports, fills and strokes with opacity, linear and radial
 gradients, patterns, clip paths, masks, group opacity, style sheets with simple selectors,
-`<use>`/`<symbol>`, embedded PNG/JPEG images, and text set through the font engine so it stays
-searchable. Filters and markers are skipped and reported by `NativeConverter::warnings()`. When
+`<use>`/`<symbol>`, markers, embedded PNG/JPEG images, and text set through the font engine so
+it stays searchable. Filters are skipped and reported by `NativeConverter::warnings()`. When
 full fidelity matters and `rsvg-convert` is installed, pass `new RsvgConverter()` instead: the
 SVG is converted by librsvg and imported through the PDF importer.
 

@@ -38,8 +38,11 @@ Masks (`<mask>`, by luminance or `mask-type="alpha"`, with `maskUnits` and `mask
 become soft masks; macOS Preview draws them in the wrong place in placed artwork (see
 [canvas.md](canvas.md)). Patterns (`<pattern>`, with `patternUnits`, `patternContentUnits`,
 `viewBox`, `patternTransform` and attributes and children inherited through `href`) become
-tiling patterns for fills and strokes. Filters, markers, `<textPath>`, `<foreignObject>` and
-stroked text are skipped. `NativeConverter::warnings()` lists what the last conversion left out.
+tiling patterns for fills and strokes. Markers (`marker-start`, `marker-mid`, `marker-end` and
+the `marker` shorthand, with `orient` including `auto-start-reverse`, `markerUnits`, `viewBox`
+and `refX`/`refY`) are drawn on paths, lines, polylines and polygons; an arc is one segment, so
+it takes no mid markers inside it. Filters, `<textPath>`, `<foreignObject>` and stroked text are
+skipped. `NativeConverter::warnings()` lists what the last conversion left out.
 
 ## The rsvg-convert adapter
 
