@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Fit;
 
+use PhpPdf\Core\Num;
 use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
@@ -11,6 +12,7 @@ use PhpPdf\Geometry\Origin;
 
 use function max;
 use function min;
+use function sprintf;
 
 /**
  * Fits an object of a given natural size into a box. Shared by images, templates and text lines.
@@ -27,6 +29,13 @@ final class FitEngine
     {
         if ($width <= 0.0 || $height <= 0.0) {
             throw new InvalidArgumentException('Objects need a positive natural size to be placed.');
+        }
+        if (FitMethod::NoFit !== $fit->method && ($box->width <= 0.0 || $box->height <= 0.0)) {
+            throw new InvalidArgumentException(sprintf(
+                'Fitting into a %s × %s box needs a positive width and height.',
+                Num::format($box->width),
+                Num::format($box->height),
+            ));
         }
         $userX = $fit->scaleX;
         $userY = $fit->scaleY ?? $fit->scaleX;

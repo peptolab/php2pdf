@@ -29,6 +29,27 @@ final class FitEngineTest extends TestCase
         yield 'auto shrinks when too big' => [FitMethod::Auto, [0.0, 25.0, 100.0, 75.0], 0.5, 0.5, false];
     }
 
+    /** @return array<string, array{0: FitMethod}> */
+    public static function scalingMethodProvider(): array
+    {
+        return [
+            'meet'   => [FitMethod::Meet],
+            'slice'  => [FitMethod::Slice],
+            'entire' => [FitMethod::Entire],
+            'auto'   => [FitMethod::Auto],
+            'clip'   => [FitMethod::Clip],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('scalingMethodProvider')]
+    public function anEmptyBoxCannotBeFittedInto(FitMethod $method): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Fitting into a 0 × 50 box needs a positive width and height.');
+        FitEngine::place(10.0, 10.0, new Box(0.0, 0.0, 0.0, 50.0), new Fit($method), Origin::BottomLeft);
+    }
+
     #[Test]
     #[DataProvider('methods')]
     public function appliesFitMethods(FitMethod $method, array $bounds, float $sx, float $sy, bool $clips): void
@@ -58,6 +79,26 @@ final class FitEngineTest extends TestCase
 
         self::assertEqualsWithDelta([80.0, 90.0, 100.0, 100.0], $placement->bounds->toRect(), 1e-9);
         self::assertFalse($placement->overflows(new Box(0.0, 0.0, 100.0, 100.0)));
+    }
+
+    /** Without fitting, a zero-size box is just a point; the default centre position centres on it. */
+    #[Test]
+    public function noFitPlacesAtTheBoxWhateverItsSize(): void
+    {
+        $placement = FitEngine::place(
+            10.0,
+            10.0,
+            new Box(5.0, 5.0, 0.0, 0.0),
+            new Fit(FitMethod::NoFit),
+            Origin::BottomLeft,
+        );
+
+        self::assertSame([0.0, 0.0, 10.0, 10.0], [
+            $placement->bounds->x,
+            $placement->bounds->y,
+            $placement->bounds->width,
+            $placement->bounds->height,
+        ]);
     }
 
     #[Test]

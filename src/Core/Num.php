@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core;
 
+use PhpPdf\Exception\InvalidArgumentException;
+
 use function abs;
 use function floor;
 use function implode;
+use function is_finite;
 use function is_int;
 use function number_format;
 use function rtrim;
+use function sprintf;
 
 /**
  * Number formatting for PDF syntax: no exponents, no trailing zeros, no negative zero.
@@ -18,10 +22,14 @@ use function rtrim;
  */
 final class Num
 {
+    /** @throws InvalidArgumentException for NaN or infinity, which PDF syntax cannot express */
     public static function format(float|int $n, int $decimals = 4): string
     {
         if (is_int($n)) {
             return (string) $n;
+        }
+        if (! is_finite($n)) {
+            throw new InvalidArgumentException(sprintf('%s cannot be written into a PDF.', (string) $n));
         }
         if (floor($n) === $n && abs($n) < 1.0e15) {
             return (string) (int) $n;
