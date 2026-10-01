@@ -1,0 +1,63 @@
+{
+    "name": "peptolab/phppdf",
+    "description": "Pure-PHP library for precision PDF layout: embedded fonts, templates, images and text that flows through chained boxes.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "pdf",
+        "layout",
+        "typography",
+        "fonts",
+        "textflow"
+    ],
+    "require": {
+        "php": "~8.3.0 || ~8.4.0 || ~8.5.0",
+        "ext-zlib": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "php-db/phpdb-qa-tools": "0.1.x-dev",
+        "phpunit/phpunit": "^11.5 || ^12.0"
+    },
+    "suggest": {
+        "ext-gd": "Lets images in formats other than JPEG and PNG (GIF, WebP, BMP) be placed by transcoding them.",
+        "ext-imagick": "Preferred over ext-gd for transcoding other image formats; also keeps ICC profiles."
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpPdf\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PhpPdfTest\\Unit\\": "test/unit/",
+            "PhpPdfTest\\Integration\\": "test/integration/",
+            "PhpPdfTest\\Support\\": "test/support/"
+        }
+    },
+    "scripts": {
+        "check": [
+            "@cs-check",
+            "@static-analysis",
+            "@test"
+        ],
+        "cs-check": [
+            "mago format --check",
+            "mago lint"
+        ],
+        "cs-fix": [
+            "mago format",
+            "mago lint --fix"
+        ],
+        "static-analysis": "mago analyze",
+        "test": "phpunit --colors=always --testsuite \"unit test\"",
+        "test-integration": "phpunit --colors=always --testsuite \"integration test\"",
+        "test-coverage": "phpunit --colors=always --coverage-clover clover.xml"
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

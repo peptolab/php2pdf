@@ -1,0 +1,10 @@
+extends = "vendor/php-db/phpdb-qa-tools/mago.toml"
+php-version = "8.3.0"
+
+[source]
+paths = ["src", "test"]
+includes = ["vendor"]
+
+[analyzer]
+# Library errors are runtime failures callers handle at the boundary, not checked exceptions.
+unchecked-exceptions = ["PhpPdf\\Exception\\PdfException"]

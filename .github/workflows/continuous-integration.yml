@@ -1,0 +1,42 @@
+name: "Continuous Integration"
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  qa:
+    uses: php-db/phpdb-qa-tools/.github/workflows/continuous-integration.yml@main
+    secrets: inherit
+    with:
+      php-versions: '["8.3", "8.4", "8.5"]'
+      # Integration tests need qpdf and poppler; they run in the job below.
+      run-integration: false
+      enable-codecov: false
+      enable-infection: false
+
+  integration:
+    name: "Integration (PHP ${{ matrix.php }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.3", "8.4"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install PDF tooling
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends qpdf poppler-utils fonts-dejavu-core
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Integration tests
+        run: composer test-integration

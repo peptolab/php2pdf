@@ -1,0 +1,96 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdfTest\Unit\Core;
+
+use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Core\Object\Name;
+use PhpPdf\Core\Object\Stream;
+use PhpPdf\Core\Output\MemoryOutput;
+use PhpPdf\Core\Writer;
+use PhpPdf\Exception\PdfException;
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
+
+final class WriterTest extends TestCase
+{
+    #[Test]
+    public function writesObjectsXrefAndTrailer(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out, compress: false);
+        $writer->writeHeader('1.7');
+
+        $first = $writer->allocate();
+        $second = $writer->add(Dictionary::of(['Type' => new Name('Catalog')]));
+        $writer->write($first, Stream::of('abc'));
+        $writer->finish(Dictionary::of(['Root' => $second]));
+
+        $pdf = $out->contents();
+        self::assertStringStartsWith("%PDF-1.7\n", $pdf);
+        self::assertStringContainsString("1 0 obj\n<</Length 3>>\nstream\nabc\nendstream\nendobj\n", $pdf);
+        self::assertStringContainsString("2 0 obj\n<</Type/Catalog>>\nendobj\n", $pdf);
+        self::assertStringEndsWith("%%EOF\n", $pdf);
+
+        self::assertSame(1, preg_match('/startxref\n(\d+)\n%%EOF/', $pdf, $m));
+        $xrefOffset = (int) $m[1];
+        self::assertSame("xref\n0 3\n", substr($pdf, $xrefOffset, 9));
+
+        self::assertSame(1, preg_match('/xref\n0 3\n0000000000 65535 f \n(\d{10}) 00000 n \n(\d{10}) 00000 n \n/', $pdf, $offsets));
+        self::assertSame("1 0 obj", substr($pdf, (int) $offsets[1], 7));
+        self::assertSame("2 0 obj", substr($pdf, (int) $offsets[2], 7));
+        self::assertMatchesRegularExpression('/\/ID\[<[0-9a-f]{32}> <[0-9a-f]{32}>\]/', $pdf);
+        self::assertStringContainsString('/Size 3', $pdf);
+    }
+
+    #[Test]
+    public function compressesStreamsWithoutAFilter(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out);
+        $writer->writeHeader('1.7');
+        $data = str_repeat('phppdf ', 100);
+        $writer->add(Stream::of($data));
+        $writer->finish(new Dictionary());
+
+        $pdf = $out->contents();
+        self::assertStringContainsString('/Filter/FlateDecode', $pdf);
+        self::assertStringNotContainsString($data, $pdf);
+    }
+
+    #[Test]
+    public function leavesPreFilteredStreamsAlone(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out);
+        $writer->writeHeader('1.7');
+        $writer->add(new Stream(Dictionary::of(['Filter' => new Name('DCTDecode')]), 'JPEGDATA'));
+        $writer->finish(new Dictionary());
+
+        self::assertStringContainsString("<</Filter/DCTDecode/Length 8>>\nstream\nJPEGDATA\nendstream", $out->contents());
+    }
+
+    #[Test]
+    public function refusesUnwrittenAllocations(): void
+    {
+        $writer = new Writer(new MemoryOutput());
+        $writer->writeHeader('1.7');
+        $writer->allocate();
+
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('never written');
+        $writer->finish(new Dictionary());
+    }
+
+    #[Test]
+    public function refusesDoubleWrites(): void
+    {
+        $writer = new Writer(new MemoryOutput());
+        $ref    = $writer->allocate();
+        $writer->write($ref, 1);
+
+        $this->expectException(PdfException::class);
+        $writer->write($ref, 2);
+    }
+}
