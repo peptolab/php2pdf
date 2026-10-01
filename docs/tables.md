@@ -41,6 +41,26 @@ accept a prepared `Row` as well. Header rows are drawn again at the top of every
 continues in (`TableOptions(repeatHeaders: false)` turns that off). Consecutive rows sharing a
 group id are kept together across boxes when they can be.
 
+### Footer rows
+
+`addFooterRow($cells, $style, $minHeight)` rows are drawn straight after the last row placed in
+every box, the last box included, and their height is reserved in each. To fill them per box,
+for a subtotal carried forward, pass a callback; it is told which body rows the box holds and
+returns one row for each footer row, or null to draw the rows as added:
+
+```php
+$table->addFooterRow(['Carried forward', '']);
+$table->onFooter(function (FooterContext $box) use ($amounts): array {
+    $sum = array_sum(array_slice($amounts, 0, $box->lastRow + 1));
+
+    return [[$box->isLastBox ? 'Total' : 'Carried forward', number_format($sum, 2)]];
+});
+```
+
+The callback's rows are laid out at the heights reserved for the footer rows added with
+`addFooterRow()`, so give those the content or `$minHeight` the tallest footer needs.
+`measure()` counts the footers once.
+
 ## Styles
 
 `CellStyle` layers table < column < row < cell, later non-null values winning: `padding`

@@ -22,6 +22,9 @@ final class Plan
     /** @var array<int, float> */
     public array $bodyHeights = [];
 
+    /** @var array<int, float> */
+    public array $footerHeights = [];
+
     public ?int $lastBodyRow = null;
 
     public FlowResult $result = FlowResult::Done;

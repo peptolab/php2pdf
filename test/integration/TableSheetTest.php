@@ -16,6 +16,7 @@ use PhpPdf\Table\Border;
 use PhpPdf\Table\Cell;
 use PhpPdf\Table\CellStyle;
 use PhpPdf\Table\Column;
+use PhpPdf\Table\FooterContext;
 use PhpPdf\Table\Padding;
 use PhpPdf\Table\Table;
 use PhpPdf\Text\FlowResult;
@@ -28,6 +29,10 @@ use PhpPdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_slice;
+use function array_sum;
+use function preg_match;
+use function str_contains;
 use function str_repeat;
 
 /**
@@ -36,6 +41,49 @@ use function str_repeat;
  */
 final class TableSheetTest extends TestCase
 {
+    /** Each page of a long invoice ends with its subtotal, carried forward until the total (#23). */
+    #[Test]
+    public function footersCarrySubtotalsForward(): void
+    {
+        $path  = PdfTools::outputDir() . '/table-footers.pdf';
+        $doc   = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $text  = new TextStyle(
+            font: $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf')),
+            size: 10.0,
+        );
+        $table = new Table([Column::auto(), Column::pt(80.0)], new CellStyle(padding: Padding::all(3.0)), $text);
+        $table->addHeaderRow(['Item', 'Amount']);
+        $amounts = [];
+        for ($i = 1; $i <= 60; ++$i) {
+            $amounts[] = $i;
+            $table->addRow(["Item {$i}", "{$i}.00"]);
+        }
+        $table->addFooterRow(['Carried forward', '0.00']);
+        $table->onFooter(static function (FooterContext $context) use ($amounts): array {
+            $sum = array_sum(array_slice($amounts, offset: 0, length: $context->lastRow + 1));
+
+            return [[$context->isLastBox ? 'Total' : 'Carried forward', "{$sum}.00"]];
+        });
+        $pages = 0;
+        do {
+            $result = $doc->addPage(PageSize::A5)->fitTable($table, Box::fromMm(15, 15, 118, 180));
+            ++$pages;
+        } while (FlowResult::Done !== $result && $pages < 10);
+        $doc->close();
+
+        PdfTools::assertValid($path);
+        $first = PdfTools::text($path, 1);
+        $last  = PdfTools::text($path, $pages);
+        self::assertSame(
+            [true, true, false],
+            [
+                (bool) preg_match('/Carried forward\s+\d+\.00/', $first),
+                str_contains($last, 'Total') && str_contains($last, '1830.00'),
+                str_contains($first, 'Total'),
+            ],
+        );
+    }
+
     #[Test]
     public function tableSheetMatchesBaseline(): void
     {

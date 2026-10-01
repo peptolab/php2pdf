@@ -12,7 +12,8 @@ use function min;
 
 /**
  * Decides which rows go into a box of a given height: headers first, then body rows from the
- * cursor, groups kept together when they can be, and a row cut when it is alone and too tall.
+ * cursor, groups kept together when they can be, and a row cut when it is alone and too tall;
+ * footer rows follow the last body row, their height reserved in every box.
  *
  * @internal
  */
@@ -25,12 +26,15 @@ final class Planner
         private readonly Grid $headers,
         private readonly Grid $body,
         private readonly TableOptions $options,
+        private readonly ?Grid $footers = null,
     ) {}
 
     public function plan(float $height, int $from, bool $continuing): Plan
     {
-        $plan = new Plan();
-        $y    = $this->placeHeaders($plan, $height, $from);
+        $plan    = new Plan();
+        $footers = $this->footerHeights();
+        $height  -= array_sum($footers);
+        $y       = $height < -self::EPSILON ? null : $this->placeHeaders($plan, $height, $from);
         if (null === $y) {
             $plan->result = FlowResult::BoxEmpty;
 
@@ -64,6 +68,12 @@ final class Planner
             $this->cut($plan, $r, $height - $y, $continuing);
             break;
         }
+        if (null !== $plan->lastBodyRow && null !== $this->footers) {
+            $plan->footerHeights = $footers;
+            foreach ($footers as $footer => $h) {
+                $plan->rows[] = [$this->footers, $footer, $h, null];
+            }
+        }
         $plan->result = null === $plan->lastBodyRow ? FlowResult::BoxEmpty : FlowResult::BoxFull;
         if ([] !== $plan->rows && null !== $plan->lastBodyRow) {
             $plan->result = $r >= $count && null === $this->cutRow ? FlowResult::Done : FlowResult::BoxFull;
@@ -90,6 +100,17 @@ final class Planner
         unset($continuing);
         $this->cutRow = $row;
         $this->add($plan, $row, $available, $available);
+    }
+
+    /** @return array<int, float> */
+    private function footerHeights(): array
+    {
+        $count = $this->footers?->count() ?? 0;
+        if (null === $this->footers || 0 === $count) {
+            return [];
+        }
+
+        return $this->layout->rowHeights($this->footers, 0, $count - 1);
     }
 
     /**

@@ -19,7 +19,7 @@ final readonly class TableFitInfo
     /**
      * @param float       $height      the vertical extent used, from the top of the box
      * @param int         $rowsPlaced  body rows placed (a split row counts in each box)
-     * @param list<float> $rowEdges    canvas y of every horizontal edge, top to bottom (headers included)
+     * @param list<float> $rowEdges    canvas y of every horizontal edge, top to bottom (headers and footers included)
      * @param list<float> $columnEdges canvas x of every vertical edge, left to right
      */
     public function __construct(
