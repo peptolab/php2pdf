@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Svg;
 
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function array_pop;
@@ -135,7 +136,7 @@ final class XmlParser
             }
         }
         if (null === $root) {
-            throw new PdfException('SVG document has no root element.');
+            throw new ParseException('SVG document has no root element.');
         }
 
         return $root;
@@ -158,7 +159,7 @@ final class XmlParser
         if (self::startsWithAt($xml, '<![CDATA[', $this->position)) {
             $end = strpos($xml, needle: ']]>', offset: $this->position);
             if (false === $end) {
-                throw new PdfException('Unterminated CDATA section.');
+                throw new ParseException('Unterminated CDATA section.');
             }
             $this->text(substr($xml, $this->position + 9, $end - $this->position - 9), $stack);
             $this->position = $end + 3;
@@ -193,12 +194,12 @@ final class XmlParser
         if (false !== $bracket && false !== $close && $bracket < $close) {
             $end = strpos($this->xml, needle: ']', offset: $bracket);
             if (false === $end) {
-                throw new PdfException('Unterminated DOCTYPE.');
+                throw new ParseException('Unterminated DOCTYPE.');
             }
             $close = strpos($this->xml, needle: '>', offset: $end);
         }
         if (false === $close) {
-            throw new PdfException('Unterminated declaration.');
+            throw new ParseException('Unterminated declaration.');
         }
         $this->position = $close + 1;
     }
@@ -207,7 +208,7 @@ final class XmlParser
     {
         $end = strpos($this->xml, $terminator, $this->position);
         if (false === $end) {
-            throw new PdfException(sprintf('Unterminated markup at offset %d.', $this->position));
+            throw new ParseException(sprintf('Unterminated markup at offset %d.', $this->position));
         }
         $this->position = $end + strlen($terminator);
     }
@@ -224,7 +225,7 @@ final class XmlParser
                 offset: $this->position,
             ) !== 1
         ) {
-            throw new PdfException(sprintf('Malformed tag at offset %d.', $this->position));
+            throw new ParseException(sprintf('Malformed tag at offset %d.', $this->position));
         }
         $this->position += strlen($m[0] ?? '');
         $element        = new Element(self::localName($m[1] ?? ''), $this->attributes($m[2] ?? ''));
@@ -237,7 +238,7 @@ final class XmlParser
         }
         $stack[] = $element;
         if (count($stack) > $this->maxNesting) {
-            throw new PdfException(sprintf('SVG elements are nested more than %d deep.', $this->maxNesting));
+            throw new ParseException(sprintf('SVG elements are nested more than %d deep.', $this->maxNesting));
         }
 
         return null;

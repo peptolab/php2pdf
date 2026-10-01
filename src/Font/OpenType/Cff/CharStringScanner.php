@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font\OpenType\Cff;
 
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function array_key_exists;
@@ -117,7 +118,7 @@ final class CharStringScanner
     private function enter(string $subr, int $fd, array $localSubrs): bool
     {
         if (++$this->depth > self::MAX_DEPTH) {
-            throw new PdfException('Subroutines nest too deeply.');
+            throw new ParseException('Subroutines nest too deeply.');
         }
         $ended = $this->run($subr, $fd, $localSubrs);
         --$this->depth;
@@ -196,7 +197,7 @@ final class CharStringScanner
                     return false;
                 case 14:
                     if (count($this->stack) >= 4) {
-                        throw new PdfException('endchar accent composition (seac) is not supported.');
+                        throw new ParseException('endchar accent composition (seac) is not supported.');
                     }
 
                     return true;
@@ -204,7 +205,7 @@ final class CharStringScanner
                     $escaped = ord($code[$i] ?? "\0");
                     ++$i;
                     if (in_array($escaped, self::ARITHMETIC, strict: true)) {
-                        throw new PdfException(sprintf('Charstring operator 12 %d is not supported.', $escaped));
+                        throw new ParseException(sprintf('Charstring operator 12 %d is not supported.', $escaped));
                     }
                     $this->stack = [];
                     break;
@@ -223,10 +224,10 @@ final class CharStringScanner
      */
     private function subrIndex(array $subrs): int
     {
-        $value = array_pop($this->stack) ?? throw new PdfException('Subroutine call without a number.');
+        $value = array_pop($this->stack) ?? throw new ParseException('Subroutine call without a number.');
         $index = (int) $value + self::bias(count($subrs));
         if (! array_key_exists($index, $subrs)) {
-            throw new PdfException(sprintf('Subroutine %d of %d does not exist.', $index, count($subrs)));
+            throw new ParseException(sprintf('Subroutine %d of %d does not exist.', $index, count($subrs)));
         }
 
         return $index;

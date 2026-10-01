@@ -7,6 +7,7 @@ namespace PhpPdf\Image;
 use PhpPdf\Core\Filter\Flate;
 use PhpPdf\Core\Limits;
 use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function array_slice;
@@ -53,11 +54,11 @@ final class PngDecoder
     {
         $limits ??= Limits::default();
         if (! str_starts_with($data, self::SIGNATURE)) {
-            throw new PdfException('Not a PNG file.');
+            throw new ParseException('Not a PNG file.');
         }
         $chunks = self::chunks($data);
         [$width, $height, $depth, $type, $interlace] = self::header(
-            $chunks['IHDR'][0] ?? throw new PdfException('PNG has no IHDR chunk.'),
+            $chunks['IHDR'][0] ?? throw new ParseException('PNG has no IHDR chunk.'),
             $limits,
         );
         $channels = match ($type) {
@@ -65,7 +66,7 @@ final class PngDecoder
             2       => 3,
             4       => 2,
             6       => 4,
-            default => throw new PdfException(sprintf('Unsupported PNG colour type %d.', $type)),
+            default => throw new ParseException(sprintf('Unsupported PNG colour type %d.', $type)),
         };
         [$palette, $trns, $idat] = self::pixelChunks($chunks, $type);
         $colorSpace = match ($type) {
@@ -136,7 +137,7 @@ final class PngDecoder
             $size = (int) unpack('N', $data, $offset)[1];
             $type = substr($data, $offset + 4, length: 4);
             if (($offset + 12 + $size) > $length) {
-                throw new PdfException(sprintf('PNG chunk "%s" is truncated.', $type));
+                throw new ParseException(sprintf('PNG chunk "%s" is truncated.', $type));
             }
             $chunks[$type][] = substr($data, $offset + 8, $size);
             if ('IEND' === $type) {
@@ -173,7 +174,7 @@ final class PngDecoder
     private static function header(string $ihdr, Limits $limits): array
     {
         if (strlen($ihdr) < 13) {
-            throw new PdfException('PNG IHDR chunk is truncated.');
+            throw new ParseException('PNG IHDR chunk is truncated.');
         }
         $v         = unpack('Nwidth/Nheight/Cdepth/Ctype/Ccompression/Cfilter/Cinterlace', $ihdr);
         $width     = (int) ($v['width'] ?? 0);
@@ -182,16 +183,16 @@ final class PngDecoder
         $type      = (int) ($v['type'] ?? 0);
         $interlace = (int) ($v['interlace'] ?? 0);
         if ($width < 1 || $height < 1) {
-            throw new PdfException('PNG has no pixels.');
+            throw new ParseException('PNG has no pixels.');
         }
         if (! in_array($depth, self::DEPTHS[$type] ?? [], strict: true)) {
-            throw new PdfException(sprintf('PNG colour type %d cannot have a bit depth of %d.', $type, $depth));
+            throw new ParseException(sprintf('PNG colour type %d cannot have a bit depth of %d.', $type, $depth));
         }
         if (0 !== (int) ($v['compression'] ?? 0) || 0 !== (int) ($v['filter'] ?? 0) || $interlace > 1) {
-            throw new PdfException('PNG uses an unknown compression, filter or interlace method.');
+            throw new ParseException('PNG uses an unknown compression, filter or interlace method.');
         }
         if (($width * $height) > $limits->maxImagePixels) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'The image is %d by %d pixels, more than the %d allowed.',
                 $width,
                 $height,
@@ -241,10 +242,10 @@ final class PngDecoder
         $palette = $chunks['PLTE'][0] ?? null;
         $idat    = implode('', $chunks['IDAT'] ?? []);
         if ('' === $idat) {
-            throw new PdfException('PNG has no image data.');
+            throw new ParseException('PNG has no image data.');
         }
         if (3 === $type && null === $palette) {
-            throw new PdfException('Indexed PNG has no palette.');
+            throw new ParseException('Indexed PNG has no palette.');
         }
 
         return [$palette, $chunks['tRNS'][0] ?? null, $idat];
@@ -292,7 +293,7 @@ final class PngDecoder
         $color = preg_replace($pixel, $colorGroups, $samples);
         $alpha = preg_replace($pixel, "\${$channels}", $samples);
         if (null === $color || null === $alpha) {
-            throw new PdfException('PNG alpha channel could not be separated.');
+            throw new ParseException('PNG alpha channel could not be separated.');
         }
 
         return [$color, $alpha];

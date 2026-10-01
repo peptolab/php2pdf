@@ -7,7 +7,7 @@ namespace PhpPdf\Import;
 use Closure;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Stream;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function array_key_exists;
 use function array_sum;
@@ -82,7 +82,7 @@ final readonly class XrefParser
     private static function widths(mixed $w): array
     {
         if (! is_array($w) || count($w) < 3) {
-            throw new PdfException('Cross-reference stream has no /W array.');
+            throw new ParseException('Cross-reference stream has no /W array.');
         }
         $values = array_values($w);
         $widths = [
@@ -92,11 +92,11 @@ final readonly class XrefParser
         ];
         foreach ($widths as $width) {
             if ($width < 0 || $width > 8) {
-                throw new PdfException('Cross-reference stream /W widths must be whole numbers from 0 to 8.');
+                throw new ParseException('Cross-reference stream /W widths must be whole numbers from 0 to 8.');
             }
         }
         if (0 === $widths[1]) {
-            throw new PdfException('Cross-reference stream /W gives the offset field no bytes.');
+            throw new ParseException('Cross-reference stream /W gives the offset field no bytes.');
         }
 
         return $widths;
@@ -158,7 +158,7 @@ final readonly class XrefParser
         $pos  = strrpos($tail, needle: 'startxref');
         $m    = [];
         if (false === $pos || preg_match('/startxref\s+(\d+)/', $tail, $m, flags: 0, offset: $pos) !== 1) {
-            throw new PdfException('No startxref found.');
+            throw new ParseException('No startxref found.');
         }
 
         return (int) ($m[1] ?? 0);
@@ -179,7 +179,7 @@ final readonly class XrefParser
                 return $this->readStream($object, $table);
             }
         }
-        throw new PdfException(sprintf('No cross-reference section at offset %d.', $offset));
+        throw new ParseException(sprintf('No cross-reference section at offset %d.', $offset));
     }
 
     private function readStream(Stream $stream, XrefTable $table): Dictionary
@@ -198,7 +198,7 @@ final readonly class XrefParser
             $count = (int) ($ranges[$r + 1] ?? 0);
             $total += $count;
             if ($count < 0 || $total > $this->maxEntries) {
-                throw new PdfException(sprintf(
+                throw new ParseException(sprintf(
                     'The PDF declares more than %d cross-reference entries.',
                     $this->maxEntries,
                 ));
@@ -223,12 +223,12 @@ final readonly class XrefParser
             }
             $count = $this->lexer->next();
             if (! $token->is(Token::NUMBER) || ! $count->is(Token::NUMBER)) {
-                throw new PdfException('Malformed cross-reference table.');
+                throw new ParseException('Malformed cross-reference table.');
             }
             $start = (int) $token->value;
             $n     = (int) $count->value;
             if ($n < 0 || $n > $this->maxEntries) {
-                throw new PdfException(sprintf(
+                throw new ParseException(sprintf(
                     'The PDF declares more than %d cross-reference entries.',
                     $this->maxEntries,
                 ));
@@ -237,7 +237,7 @@ final readonly class XrefParser
             for ($i = 0; $i < $n; ++$i) {
                 $m = [];
                 if (preg_match('/\G\s*(\d{1,10})\s+(\d{1,5})\s+([nf])/', $data, $m, flags: 0, offset: $pos) !== 1) {
-                    throw new PdfException('Malformed cross-reference entry.');
+                    throw new ParseException('Malformed cross-reference entry.');
                 }
                 $pos += strlen($m[0] ?? '');
                 if ('n' === ($m[3] ?? 'f')) {

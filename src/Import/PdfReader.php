@@ -11,6 +11,7 @@ use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
 use PhpPdf\Exception\IoException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function array_key_exists;
@@ -72,14 +73,14 @@ final class PdfReader
             $this->repair();
         }
         if ($this->xref->trailer->has('Encrypt')) {
-            throw new PdfException('Encrypted PDF files are not supported.');
+            throw new ParseException('Encrypted PDF files are not supported.');
         }
     }
 
     public static function fromData(string $data, ?Limits $limits = null): self
     {
         if (! str_contains(substr($data, offset: 0, length: 1024), '%PDF-')) {
-            throw new PdfException('Not a PDF file.');
+            throw new ParseException('Not a PDF file.');
         }
 
         return new self($data, $limits ?? Limits::default());
@@ -99,7 +100,7 @@ final class PdfReader
     {
         $root = $this->resolve($this->xref->trailer->get('Root'));
         if (! $root instanceof Dictionary) {
-            throw new PdfException('PDF has no catalog.');
+            throw new ParseException('PDF has no catalog.');
         }
 
         return $root;
@@ -169,7 +170,7 @@ final class PdfReader
     {
         $root = $this->dict($this->catalog(), 'Pages');
         if (null === $root) {
-            throw new PdfException('PDF has no page tree.');
+            throw new ParseException('PDF has no page tree.');
         }
         $pages   = [];
         $visited = [];
@@ -335,7 +336,7 @@ final class PdfReader
         $this->xrefParser->scan($this->xref);
         $this->collectFromObjects();
         if (! $this->xref->trailer->has('Root')) {
-            throw new PdfException('PDF is damaged beyond repair: no catalog found.');
+            throw new ParseException('PDF is damaged beyond repair: no catalog found.');
         }
     }
 
@@ -380,7 +381,7 @@ final class PdfReader
         $isPage = ($type instanceof Name && 'Page' === $type->value) || (! is_array($kids) && $node->has('Contents'));
         if ($isPage) {
             if (count($pages) >= $this->limits->maxPages) {
-                throw new PdfException(sprintf('The PDF has more than %d pages.', $this->limits->maxPages));
+                throw new ParseException(sprintf('The PDF has more than %d pages.', $this->limits->maxPages));
             }
             $page = new Dictionary($node->all());
             foreach ($merged->all() as $key => $value) {

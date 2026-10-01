@@ -7,7 +7,7 @@ namespace PhpPdf\Text\Flow;
 use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Color\Gray;
 use PhpPdf\Document\Document;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\LayoutException;
 use PhpPdf\Font\FontInterface;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\Leading;
@@ -65,7 +65,7 @@ final class StyleResolver
     {
         $font = $style->font;
         if (! $font instanceof FontInterface) {
-            throw new PdfException('Text styles need a font before text can be laid out.');
+            throw new LayoutException('Text styles need a font before text can be laid out.');
         }
 
         return $font;

@@ -8,6 +8,7 @@ use PhpPdf\Core\Limits;
 use PhpPdf\Core\Silencer;
 use PhpPdf\Document\Dimensions;
 use PhpPdf\Exception\IoException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function array_key_exists;
@@ -50,7 +51,7 @@ final class SvgFile
             $data = self::gunzip($data, $limits);
         }
         if (! str_contains($data, '<svg') && ! str_contains($data, '<SVG')) {
-            throw new PdfException('Not an SVG document.');
+            throw new ParseException('Not an SVG document.');
         }
 
         return new self($data, null, $baseDirectory, $limits);
@@ -71,7 +72,7 @@ final class SvgFile
     {
         $decoded = Silencer::run(static fn(): string|false => zlib_decode($data, $limits->maxDecodedBytes));
         if (false === $decoded) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'Cannot decompress the SVGZ data, or it decompresses to more than %d bytes.',
                 $limits->maxDecodedBytes,
             ));
@@ -96,7 +97,7 @@ final class SvgFile
         if (null === $this->root) {
             $root = XmlParser::parse($this->data, $this->limits->maxNesting);
             if ('svg' !== $root->name) {
-                throw new PdfException(sprintf('Expected an <svg> root element, found <%s>.', $root->name));
+                throw new ParseException(sprintf('Expected an <svg> root element, found <%s>.', $root->name));
             }
             $this->root = $root;
         }

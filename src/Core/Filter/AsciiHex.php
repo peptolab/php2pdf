@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Filter;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function ctype_xdigit;
 use function hex2bin;
@@ -24,7 +24,7 @@ final class AsciiHex
         }
         $hex = preg_replace('/\s+/', replacement: '', subject: $data) ?? '';
         if (! ctype_xdigit($hex) && '' !== $hex) {
-            throw new PdfException('Invalid ASCIIHex data.');
+            throw new ParseException('Invalid ASCIIHex data.');
         }
         if (0 !== (strlen($hex) % 2)) {
             $hex .= '0';

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Image;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function implode;
 use function ksort;
@@ -43,19 +43,19 @@ final class JpegDecoder
     public static function decode(string $data): ImageData
     {
         if (! str_starts_with($data, "\xFF\xD8")) {
-            throw new PdfException('Not a JPEG file.');
+            throw new ParseException('Not a JPEG file.');
         }
         $decoder = new self();
         $decoder->scan($data);
-        $frame = $decoder->frame ?? throw new PdfException('JPEG has no frame header.');
+        $frame = $decoder->frame ?? throw new ParseException('JPEG has no frame header.');
         if (8 !== $frame['precision']) {
-            throw new PdfException(sprintf('Only 8-bit JPEGs are supported, %d-bit given.', $frame['precision']));
+            throw new ParseException(sprintf('Only 8-bit JPEGs are supported, %d-bit given.', $frame['precision']));
         }
         $colorSpace = match ($frame['components']) {
             1       => ImageColorSpace::gray(),
             3       => ImageColorSpace::rgb(),
             4       => ImageColorSpace::cmyk(),
-            default => throw new PdfException(sprintf('Unsupported JPEG component count %d.', $frame['components'])),
+            default => throw new ParseException(sprintf('Unsupported JPEG component count %d.', $frame['components'])),
         };
         ksort($decoder->icc);
 
@@ -78,7 +78,7 @@ final class JpegDecoder
     private static function frame(string $segment): array
     {
         if (strlen($segment) < 6) {
-            throw new PdfException('Truncated JPEG frame header.');
+            throw new ParseException('Truncated JPEG frame header.');
         }
 
         return [

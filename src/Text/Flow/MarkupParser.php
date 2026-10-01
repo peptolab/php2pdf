@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Text\Flow;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\TextFormat;
 
@@ -85,7 +85,7 @@ final class MarkupParser
         $text = str_replace(['&nbsp;', '&shy;'], ["\u{00A0}", "\u{00AD}"], $text);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, encoding: 'UTF-8');
         if (str_contains($text, '&') && preg_match('/&#\d+;|&#x[0-9a-f]+;/i', $text) === 1) {
-            throw new PdfException('Unsupported character reference in text markup.');
+            throw new ParseException('Unsupported character reference in text markup.');
         }
 
         return $text;
@@ -167,7 +167,7 @@ final class MarkupParser
 
             return preg_match("/\\b{$key}\\s*=\\s*[\"']([^\"']*)[\"']/i", $inner, $m) === 1 ? $m[1] ?? null : null;
         };
-        $src = $attribute('src') ?? throw new PdfException(
+        $src = $attribute('src') ?? throw new ParseException(
             'An <img> in text markup needs a src naming an inline object.',
         );
         $number = static function (string $key) use ($attribute): ?float {
@@ -297,7 +297,10 @@ final class MarkupParser
     private function unknown(string $tag): void
     {
         if (TextFormat::StrictMarkup === $this->format) {
-            throw new PdfException(sprintf('Unknown tag %s in text markup; escape text with Markup::escape().', $tag));
+            throw new ParseException(sprintf(
+                'Unknown tag %s in text markup; escape text with Markup::escape().',
+                $tag,
+            ));
         }
     }
 }

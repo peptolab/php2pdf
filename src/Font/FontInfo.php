@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Font\OpenType\BinaryReader;
 use PhpPdf\Font\OpenType\NameTable;
 use PhpPdf\Font\OpenType\TableDirectory;
@@ -52,7 +52,7 @@ final readonly class FontInfo
     {
         $handle = fopen($path, mode: 'rb');
         if (false === $handle) {
-            throw new PdfException(sprintf('Cannot open font "%s".', $path));
+            throw new ParseException(sprintf('Cannot open font "%s".', $path));
         }
         try {
             $header = (string) fread($handle, length: 12);

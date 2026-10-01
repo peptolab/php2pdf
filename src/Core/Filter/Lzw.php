@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Filter;
 
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function chr;
@@ -61,7 +62,7 @@ final class Lzw
             $entry = self::entry($code, $dictionary, $previous, $next);
             $out   .= $entry;
             if (strlen($out) > $maxBytes) {
-                throw new PdfException(sprintf('An LZW stream decodes to more than %d bytes.', $maxBytes));
+                throw new ParseException(sprintf('An LZW stream decodes to more than %d bytes.', $maxBytes));
             }
 
             if (null !== $previous && count($dictionary) < 3838) {
@@ -98,6 +99,6 @@ final class Lzw
         if (null !== $previous && $code === $next) {
             return $previous . $previous[0];
         }
-        throw new PdfException(sprintf('Invalid LZW code %d.', $code));
+        throw new ParseException(sprintf('Invalid LZW code %d.', $code));
     }
 }

@@ -11,6 +11,7 @@ use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
 use PhpPdf\Document\DeferredInterface;
 use PhpPdf\Document\Document;
+use PhpPdf\Exception\ConformanceException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\Standard\AfmMetrics;
 
@@ -58,7 +59,7 @@ final class CoreFont implements FontInterface, DeferredInterface
     ) {
         $pdfx = $document->options()->pdfx;
         if (null !== $pdfx) {
-            throw new PdfException(sprintf(
+            throw new ConformanceException(sprintf(
                 '%s requires every font to be embedded, and the standard font "%s" is not; load a font file instead.',
                 $pdfx->value,
                 $font->value,

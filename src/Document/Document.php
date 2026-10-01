@@ -18,8 +18,10 @@ use PhpPdf\Core\Output\FileOutput;
 use PhpPdf\Core\Output\OutputInterface;
 use PhpPdf\Core\TextString;
 use PhpPdf\Core\Writer;
+use PhpPdf\Exception\ConformanceException;
 use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Exception\IoException;
+use PhpPdf\Exception\LayoutException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\FontRegistry;
 use PhpPdf\Geometry\Box;
@@ -210,7 +212,7 @@ final class Document
         if ($this->intentAllows($space)) {
             return;
         }
-        throw new PdfException(sprintf(
+        throw new ConformanceException(sprintf(
             'DeviceRGB' === $space
                 ? '%s with %s output intent needs an RGB profile (DocumentOptions::$rgbProfile) before RGB %s can be used.'
                 : '%s with %s output intent cannot use DeviceCMYK %s; use the output intent\'s colour space or an ICC-based colour.',
@@ -239,7 +241,7 @@ final class Document
         if ($this->intentAllows($space)) {
             return;
         }
-        throw new PdfException(sprintf(
+        throw new ConformanceException(sprintf(
             '%s with %s output intent cannot place imported page %d: it draws in %s. Convert the artwork to the output intent\'s colour space first.',
             $pdfx->value,
             $this->intentName(),
@@ -262,7 +264,7 @@ final class Document
         if (null === $pdfx || null !== $this->outputIntent) {
             return;
         }
-        throw new PdfException(
+        throw new ConformanceException(
             "{$pdfx->value} needs an output intent before any colour, image or gradient is drawn: "
                 . "call setOutputIntent() with the printing condition's ICC profile first.",
         );
@@ -430,7 +432,7 @@ final class Document
             foreach ($boxes as $i => $box) {
                 $result = $canvas->flow($content, $box);
                 if (FlowResult::BoxEmpty === $result && 0 === $i) {
-                    throw new PdfException('The box is too small for any of the content; nothing was placed.');
+                    throw new LayoutException('The box is too small for any of the content; nothing was placed.');
                 }
                 if (FlowResult::BoxFull !== $result && FlowResult::BoxEmpty !== $result) {
                     break;
@@ -640,15 +642,15 @@ final class Document
             return;
         }
         if (null === $this->outputIntent) {
-            throw new PdfException(
+            throw new ConformanceException(
                 "{$pdfx->value} needs an output intent: call setOutputIntent() with the printing condition's ICC profile.",
             );
         }
         if (null === $this->info->title()) {
-            throw new PdfException("{$pdfx->value} needs a document title.");
+            throw new ConformanceException("{$pdfx->value} needs a document title.");
         }
         if (! $this->options->xmp) {
-            throw new PdfException("{$pdfx->value} needs XMP metadata; leave DocumentOptions::\$xmp enabled.");
+            throw new ConformanceException("{$pdfx->value} needs XMP metadata; leave DocumentOptions::\$xmp enabled.");
         }
         $this->xmpDescriptions[] =
             '<rdf:Description rdf:about="" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/">'

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Filter;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function ord;
 use function pack;
@@ -40,7 +40,7 @@ final class Ascii85
                 continue;
             }
             if ($c < 0x21 || $c > 0x75) {
-                throw new PdfException(sprintf('Invalid ASCII85 character 0x%02X.', $c));
+                throw new ParseException(sprintf('Invalid ASCII85 character 0x%02X.', $c));
             }
             $tuple = ($tuple * 85) + ($c - 33);
             if (5 === ++$count) {

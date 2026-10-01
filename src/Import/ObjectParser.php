@@ -9,7 +9,7 @@ use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function is_float;
 use function is_int;
@@ -82,7 +82,7 @@ final class ObjectParser
         $generation = $this->lexer->next();
         $keyword    = $this->lexer->next();
         if (! $number->is(Token::NUMBER) || ! $generation->is(Token::NUMBER) || ! $keyword->is(Token::KEYWORD, 'obj')) {
-            throw new PdfException(sprintf('Expected "n g obj" at offset %d.', $number->end));
+            throw new ParseException(sprintf('Expected "n g obj" at offset %d.', $number->end));
         }
         $object = $this->parse();
         if ($object instanceof Token && $object->is(Token::KEYWORD, 'endobj')) {
@@ -192,7 +192,7 @@ final class ObjectParser
             // Wrong or missing /Length: measure up to the next "endstream" instead.
             $end = strpos($data, needle: 'endstream', offset: $start);
             if (false === $end) {
-                throw new PdfException(sprintf('Stream at offset %d has no endstream.', $start));
+                throw new ParseException(sprintf('Stream at offset %d has no endstream.', $start));
             }
             $length   = $end - $start;
             $measured = substr($data, $start, $length);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Core\Filter;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Image\PngScanlines;
 
 use function in_array;
@@ -38,7 +38,7 @@ final class Predictor
             || $colors > 32
             || ! in_array($bitsPerComponent, [1, 2, 4, 8, 16], strict: true)
         ) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'Invalid predictor parameters: %d columns, %d colours, %d bits per component.',
                 $columns,
                 $colors,
@@ -60,13 +60,13 @@ final class Predictor
         if (2 === $predictor) {
             return self::tiff($data, $colors, $bitsPerComponent, $columns);
         }
-        throw new PdfException(sprintf('Unsupported predictor %d.', $predictor));
+        throw new ParseException(sprintf('Unsupported predictor %d.', $predictor));
     }
 
     private static function tiff(string $data, int $colors, int $bitsPerComponent, int $columns): string
     {
         if (8 !== $bitsPerComponent) {
-            throw new PdfException('TIFF predictor is only supported for 8 bits per component.');
+            throw new ParseException('TIFF predictor is only supported for 8 bits per component.');
         }
         $rowBytes = $columns * $colors;
         $rows     = intdiv(strlen($data), $rowBytes);
@@ -75,7 +75,7 @@ final class Predictor
             /** @var array<int, int>|false $row 1-based */
             $row = unpack('C*', substr($data, $r * $rowBytes, $rowBytes));
             if (false === $row) {
-                throw new PdfException('Predictor row could not be read.');
+                throw new ParseException('Predictor row could not be read.');
             }
             for ($i = $colors + 1; $i <= $rowBytes; ++$i) {
                 $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFF;

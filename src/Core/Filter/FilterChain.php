@@ -6,7 +6,7 @@ namespace PhpPdf\Core\Filter;
 
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function array_key_exists;
 use function array_pad;
@@ -49,7 +49,10 @@ final class FilterChain
                 'ASCIIHexDecode', 'AHx' => AsciiHex::decode($data),
                 'RunLengthDecode', 'RL' => RunLength::decode($data),
                 'Crypt'                 => $data,
-                default                 => throw new PdfException(sprintf('Unsupported stream filter "%s".', $filter)),
+                default                 => throw new ParseException(sprintf(
+                    'Unsupported stream filter "%s".',
+                    $filter,
+                )),
             };
         }
 

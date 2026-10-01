@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Import;
 
 use PhpPdf\Core\Limits;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function count;
@@ -84,7 +85,7 @@ final class PdfFile
     public function page(int $number): PdfPage
     {
         return $this->pages()[$number - 1]
-            ?? throw new PdfException(sprintf(
+            ?? throw new ParseException(sprintf(
                 'Page %d does not exist; the file has %d pages.',
                 $number,
                 $this->pageCount(),

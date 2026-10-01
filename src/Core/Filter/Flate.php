@@ -6,6 +6,7 @@ namespace PhpPdf\Core\Filter;
 
 use InflateContext;
 use PhpPdf\Core\Silencer;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function gzcompress;
@@ -44,7 +45,7 @@ final class Flate
                 return $out;
             }
         }
-        throw new PdfException('Flate decompression failed.');
+        throw new ParseException('Flate decompression failed.');
     }
 
     public static function encode(string $data, int $level = 6): string
@@ -77,7 +78,7 @@ final class Flate
             }
             $out .= $piece;
             if (strlen($out) > $maxBytes) {
-                throw new PdfException(sprintf('A compressed stream decodes to more than %d bytes.', $maxBytes));
+                throw new ParseException(sprintf('A compressed stream decodes to more than %d bytes.', $maxBytes));
             }
         }
 

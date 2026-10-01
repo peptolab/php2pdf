@@ -6,7 +6,7 @@ namespace PhpPdf\Svg;
 
 use PhpPdf\Canvas\Canvas;
 use PhpPdf\Document\Dimensions;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
 use PhpPdf\Geometry\Origin;
@@ -219,7 +219,7 @@ final class Renderer
         }
         $limit = $this->context->file->limits->maxSvgUses;
         if (++$this->uses > $limit) {
-            throw new PdfException(sprintf('The SVG expands more than %d <use> references.', $limit));
+            throw new ParseException(sprintf('The SVG expands more than %d <use> references.', $limit));
         }
         $this->expanding[$id] = true;
         $canvas->save();

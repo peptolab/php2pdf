@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Image;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function abs;
 use function array_fill;
@@ -112,7 +112,7 @@ final class PngScanlines
         $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
         $bpp      = max(1, intdiv($channels * $bitDepth, num2: 8));
         if (strlen($raw) < (($rowBytes + 1) * $height)) {
-            throw new PdfException('PNG image data is truncated.');
+            throw new ParseException('PNG image data is truncated.');
         }
         $out  = '';
         $prev = [];
@@ -122,7 +122,7 @@ final class PngScanlines
             /** @var array<int, int>|false $row */
             $row = unpack('C*', substr($raw, $start + 1, $rowBytes));
             if (false === $row) {
-                throw new PdfException('PNG scanline could not be read.');
+                throw new ParseException('PNG scanline could not be read.');
             }
             $row = match ($filter) {
                 0       => $row,
@@ -130,7 +130,7 @@ final class PngScanlines
                 2       => self::up($row, $prev),
                 3       => self::average($row, $prev, $bpp),
                 4       => self::paeth($row, $prev, $bpp),
-                default => throw new PdfException(sprintf('Unknown PNG filter type %d.', $filter)),
+                default => throw new ParseException(sprintf('Unknown PNG filter type %d.', $filter)),
             };
             $out  .= pack('C*', ...$row);
             $prev = $row;

@@ -11,6 +11,7 @@ use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
+use PhpPdf\Exception\ConformanceException;
 use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Fit\Fit;
@@ -299,7 +300,7 @@ final class Page
     private function assertPdfXBoxes(PdfX $pdfx): void
     {
         if (null !== $this->trimBox && null !== $this->artBox) {
-            throw new PdfException(sprintf(
+            throw new ConformanceException(sprintf(
                 '%s page %d has both a TrimBox and an ArtBox; set one.',
                 $pdfx->value,
                 $this->number,
@@ -307,7 +308,7 @@ final class Page
         }
         $bleed = $this->bleedBox ?? $this->cropBox ?? $this->mediaBox;
         if (! $this->mediaBox->encloses($bleed, self::BOX_TOLERANCE)) {
-            throw new PdfException(sprintf(
+            throw new ConformanceException(sprintf(
                 '%s page %d: the BleedBox must lie within the MediaBox.',
                 $pdfx->value,
                 $this->number,
@@ -315,7 +316,7 @@ final class Page
         }
         foreach (['TrimBox' => $this->trimBox, 'ArtBox' => $this->artBox] as $name => $box) {
             if (null !== $box && ! $bleed->encloses($box, self::BOX_TOLERANCE)) {
-                throw new PdfException(sprintf(
+                throw new ConformanceException(sprintf(
                     '%s page %d: the %s must lie within the BleedBox.',
                     $pdfx->value,
                     $this->number,
@@ -333,7 +334,7 @@ final class Page
             if ($printed->intersect($area)->isEmpty()) {
                 continue;
             }
-            throw new PdfException(sprintf(
+            throw new ConformanceException(sprintf(
                 '%s page %d: a link at [%s] overlaps the %s; PDF/X allows links only outside it.',
                 $pdfx->value,
                 $this->number,

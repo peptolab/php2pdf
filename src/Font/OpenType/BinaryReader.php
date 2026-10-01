@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font\OpenType;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function array_values;
 use function ord;
@@ -119,7 +119,7 @@ final readonly class BinaryReader
     private function check(int $offset, int $length): void
     {
         if ($offset < 0 || ($offset + $length) > $this->length) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'Read of %d bytes at offset %d is outside the font data.',
                 $length,
                 $offset,

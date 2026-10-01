@@ -7,6 +7,7 @@ namespace PhpPdf\Image;
 use GdImage;
 use Imagick;
 use PhpPdf\Core\Silencer;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function extension_loaded;
@@ -50,7 +51,7 @@ final class Transcoder
     {
         $image = Silencer::run(static fn(): GdImage|false => imagecreatefromstring($data));
         if (false === $image) {
-            throw new PdfException('ext-gd could not read the image.');
+            throw new ParseException('ext-gd could not read the image.');
         }
         imagesavealpha($image, enable: true);
         ob_start();
@@ -68,7 +69,7 @@ final class Transcoder
         $image = new Imagick();
         $image->readImageBlob($data);
         if ($page > $image->getNumberImages()) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'The image has %d pages; page %d was asked for.',
                 $image->getNumberImages(),
                 $page,

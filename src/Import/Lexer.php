@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Import;
 
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\ParseException;
 
 use function array_key_exists;
 use function chr;
@@ -72,12 +72,12 @@ final class Lexer
                 : $this->hexString(),
             '>' === $c => '>' === ($this->data[$this->position + 1] ?? '')
                 ? $this->simple(Token::DICT_CLOSE, '>>', 2)
-                : throw new PdfException(sprintf('Unexpected ">" at offset %d.', $this->position)),
+                : throw new ParseException(sprintf('Unexpected ">" at offset %d.', $this->position)),
             '[' === $c => $this->simple(Token::ARRAY_OPEN, '[', 1),
             ']' === $c => $this->simple(Token::ARRAY_CLOSE, ']', 1),
             '{' === $c => $this->simple(Token::BRACE_OPEN, '{', 1),
             '}' === $c => $this->simple(Token::BRACE_CLOSE, '}', 1),
-            ')' === $c => throw new PdfException(sprintf('Unexpected ")" at offset %d.', $this->position)),
+            ')' === $c => throw new ParseException(sprintf('Unexpected ")" at offset %d.', $this->position)),
             ('0' <= $c && $c <= '9') || '+' === $c || '-' === $c || '.' === $c => $this->number(),
             default => $this->keyword(),
         };
@@ -164,7 +164,7 @@ final class Lexer
         $start = $this->position + 1;
         $end   = strpos($this->data, needle: '>', offset: $start);
         if (false === $end) {
-            throw new PdfException(sprintf('Unterminated hex string at offset %d.', $this->position));
+            throw new ParseException(sprintf('Unterminated hex string at offset %d.', $this->position));
         }
         $hex =
             preg_replace('/[^0-9A-Fa-f]/', replacement: '', subject: substr($this->data, $start, $end - $start)) ?? '';
@@ -228,7 +228,7 @@ final class Lexer
             }
             $out .= $c;
         }
-        throw new PdfException(sprintf('Unterminated string at offset %d.', $this->position));
+        throw new ParseException(sprintf('Unterminated string at offset %d.', $this->position));
     }
 
     private function name(): Token

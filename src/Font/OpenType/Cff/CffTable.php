@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font\OpenType\Cff;
 
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\BinaryReader;
 
@@ -55,18 +56,18 @@ final readonly class CffTable
     {
         $reader = new BinaryReader($data);
         if (1 !== $reader->u8(0)) {
-            throw new PdfException(sprintf('CFF version %d is not supported.', $reader->u8(0)));
+            throw new ParseException(sprintf('CFF version %d is not supported.', $reader->u8(0)));
         }
         [$names, $offset] = self::index($reader, $reader->u8(2));
         [$topDicts, $offset] = self::index($reader, $offset);
         [, $offset] = self::index($reader, $offset);
         [$globalSubrs] = self::index($reader, $offset);
         if (1 !== count($names) || 1 !== count($topDicts)) {
-            throw new PdfException('CFF font sets with more than one font are not supported.');
+            throw new ParseException('CFF font sets with more than one font are not supported.');
         }
         $top = Dict::parse($topDicts[0]);
         if (2 !== (int) (($top[self::OP_CHARSTRING_TYPE] ?? null)?->values[0] ?? 2)) {
-            throw new PdfException('Only Type 2 charstrings are supported.');
+            throw new ParseException('Only Type 2 charstrings are supported.');
         }
         [$charStrings] = self::index($reader, self::offset($top, self::OP_CHARSTRINGS));
         $glyphs   = count($charStrings);
@@ -91,7 +92,7 @@ final readonly class CffTable
         $fdSelect = self::fdSelect($reader, self::offset($top, self::OP_FD_SELECT), $glyphs);
         foreach ($fdSelect as $fd) {
             if ($fd >= count($fonts)) {
-                throw new PdfException(sprintf('FDSelect refers to Font DICT %d of %d.', $fd, count($fonts)));
+                throw new ParseException(sprintf('FDSelect refers to Font DICT %d of %d.', $fd, count($fonts)));
             }
         }
 
@@ -111,7 +112,7 @@ final readonly class CffTable
             return $select;
         }
         if (3 !== $format) {
-            throw new PdfException(sprintf('FDSelect format %d is not supported.', $format));
+            throw new ParseException(sprintf('FDSelect format %d is not supported.', $format));
         }
         $ranges = $reader->u16($offset + 1);
         $select = [];
@@ -126,7 +127,7 @@ final readonly class CffTable
         }
         $result = [];
         for ($gid = 0; $gid < $glyphs; ++$gid) {
-            $result[] = $select[$gid] ?? throw new PdfException(sprintf('FDSelect does not cover glyph %d.', $gid));
+            $result[] = $select[$gid] ?? throw new ParseException(sprintf('FDSelect does not cover glyph %d.', $gid));
         }
 
         return $result;
@@ -142,7 +143,7 @@ final readonly class CffTable
      */
     private static function font(BinaryReader $reader, array $dict, array $owner): array
     {
-        $entry = $owner[self::OP_PRIVATE] ?? throw new PdfException('CFF font has no Private DICT.');
+        $entry = $owner[self::OP_PRIVATE] ?? throw new ParseException('CFF font has no Private DICT.');
         $size  = (int) ($entry->values[0] ?? 0);
         $start = (int) ($entry->values[1] ?? 0);
         if (0 === $size) {
@@ -179,7 +180,7 @@ final readonly class CffTable
             $start = $offsets[$i] ?? 0;
             $end   = $offsets[$i + 1] ?? $start;
             if ($end < $start) {
-                throw new PdfException('CFF INDEX offsets are not in order.');
+                throw new ParseException('CFF INDEX offsets are not in order.');
             }
             $items[] = $reader->bytes($base + $start, $end - $start);
         }
@@ -190,7 +191,7 @@ final readonly class CffTable
     /** @param array<int, DictEntry> $dict */
     private static function offset(array $dict, int $operator): int
     {
-        $entry = $dict[$operator] ?? throw new PdfException(sprintf('CFF DICT lacks operator %d.', $operator));
+        $entry = $dict[$operator] ?? throw new ParseException(sprintf('CFF DICT lacks operator %d.', $operator));
 
         return (int) ($entry->values[0] ?? 0);
     }
@@ -198,7 +199,7 @@ final readonly class CffTable
     private static function offsetValue(BinaryReader $reader, int $offset, int $size): int
     {
         if ($size < 1 || $size > 4) {
-            throw new PdfException(sprintf('CFF offset size %d is invalid.', $size));
+            throw new ParseException(sprintf('CFF offset size %d is invalid.', $size));
         }
         $value = 0;
         for ($i = 0; $i < $size; ++$i) {

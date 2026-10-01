@@ -11,6 +11,7 @@ use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
 use PhpPdf\Document\DeferredInterface;
 use PhpPdf\Document\Document;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\Cff\CffSubsetter;
 use PhpPdf\Font\OpenType\OpenTypeFont;
@@ -315,7 +316,7 @@ final class Font implements FontInterface, DeferredInterface
     private function cffStream(Document $document): Reference
     {
         try {
-            $cff     = $this->program->table('CFF ') ?? throw new PdfException('The font has no CFF table.');
+            $cff     = $this->program->table('CFF ') ?? throw new ParseException('The font has no CFF table.');
             $data    = CffSubsetter::subset($cff, $this->used);
             $subtype = 'CIDFontType0C';
         } catch (PdfException $e) {

@@ -7,6 +7,7 @@ namespace PhpPdf\Image;
 use PhpPdf\Core\Limits;
 use PhpPdf\Core\Silencer;
 use PhpPdf\Exception\IoException;
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
 use function file_get_contents;
@@ -32,7 +33,7 @@ final class ImageReader
     {
         $limits ??= Limits::default();
         if ($page > 1 && (str_starts_with($data, "\xFF\xD8") || str_starts_with($data, "\x89PNG"))) {
-            throw new PdfException(sprintf('JPEG and PNG files have one page; page %d was asked for.', $page));
+            throw new ParseException(sprintf('JPEG and PNG files have one page; page %d was asked for.', $page));
         }
         if (str_starts_with($data, "\xFF\xD8")) {
             return JpegDecoder::decode($data);
@@ -45,7 +46,7 @@ final class ImageReader
             static fn(): array|false => getimagesizefromstring($data),
         );
         if (false !== $size && ($size[0] * $size[1]) > $limits->maxImagePixels) {
-            throw new PdfException(sprintf(
+            throw new ParseException(sprintf(
                 'The image is %d by %d pixels, more than the %d allowed.',
                 $size[0],
                 $size[1],

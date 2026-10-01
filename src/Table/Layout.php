@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Table;
 
 use PhpPdf\Canvas\PlaceableInterface;
-use PhpPdf\Exception\PdfException;
+use PhpPdf\Exception\LayoutException;
 use PhpPdf\Fit\FitMethod;
 use PhpPdf\Text\FlowOptions;
 use PhpPdf\Text\Style\VerticalAlignment;
@@ -249,7 +249,11 @@ final class Layout
             $fixed      += $widths[$c];
         }
         if ($fixed > ($width + 1.0e-6)) {
-            throw new PdfException(sprintf('The columns need %.2f pt but the table is %.2f pt wide.', $fixed, $width));
+            throw new LayoutException(sprintf(
+                'The columns need %.2f pt but the table is %.2f pt wide.',
+                $fixed,
+                $width,
+            ));
         }
         if ([] === $autos || null === $this->contentWidths) {
             return $widths;

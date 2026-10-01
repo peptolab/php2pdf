@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font\OpenType\Cff;
 
+use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\BinaryReader;
 
@@ -119,7 +120,7 @@ final class Dict
                 $b0 >= 32 && $b0 <= 246 => [$b0 - 139, 1],
                 $b0 >= 247 && $b0 <= 250 => [(($b0 - 247) * 256) + $reader->u8($i + 1) + 108, 2],
                 $b0 >= 251 && $b0 <= 254 => [(-($b0 - 251) * 256) - $reader->u8($i + 1) - 108, 2],
-                default => throw new PdfException(sprintf('Invalid CFF DICT byte %d.', $b0)),
+                default => throw new ParseException(sprintf('Invalid CFF DICT byte %d.', $b0)),
             };
             $i += $length;
         }
@@ -135,7 +136,7 @@ final class Dict
             0xB     => 'E',
             0xC     => 'E-',
             0xE     => '-',
-            0xD     => throw new PdfException('Reserved nibble in a CFF real number.'),
+            0xD     => throw new ParseException('Reserved nibble in a CFF real number.'),
             default => (string) $nibble,
         };
     }
@@ -157,7 +158,7 @@ final class Dict
                     continue;
                 }
                 if (! is_numeric($text)) {
-                    throw new PdfException(sprintf('Invalid CFF real number "%s".', $text));
+                    throw new ParseException(sprintf('Invalid CFF real number "%s".', $text));
                 }
 
                 return [(float) $text, $i - $offset + 1];

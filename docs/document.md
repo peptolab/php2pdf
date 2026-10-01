@@ -32,7 +32,7 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 `Limits` caps what reading a hostile or broken file can cost: `maxDecodedBytes` (256 MiB per
 decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per imported PDF),
 `maxXrefEntries` (10 million), `maxNesting` (256 levels of SVG elements) and `maxSvgUses`
-(10,000 `<use>` expansions). A file over a limit fails with a `PdfException`. The static
+(10,000 `<use>` expansions). A file over a limit fails with a `ParseException`. The static
 constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a
 `Limits` too; lower the limits for files from untrusted sources.
 
@@ -65,6 +65,19 @@ files from untrusted sources:
 - lower `Limits` to what your documents need;
 - treat a crashed worker as a rejected file, and write to a temporary path (`Document` already
   renames the file into place only when `close()` succeeds).
+
+## Errors
+
+Everything the library throws for a PDF problem is a `PdfException`, and most failures use a
+subtype that says what kind of problem it is:
+
+| Exception | Thrown when |
+|---|---|
+| `ParseException` | an input file or markup is malformed, unsupported, or over a resource limit |
+| `ConformanceException` | the document would break the rules of the standard it declares (PDF/X-4) |
+| `LayoutException` | content cannot be laid out where it was asked to go |
+| `IoException` | a file cannot be read or written |
+| `InvalidArgumentException` | an argument is out of range or the wrong kind |
 
 ## Deterministic output
 
