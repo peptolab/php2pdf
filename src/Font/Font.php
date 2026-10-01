@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Font;
 
 use Override;
+use PhpPdf\Color\Rgb;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
@@ -18,6 +19,7 @@ use PhpPdf\Font\OpenType\Cff\CffTable;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 use PhpPdf\Font\OpenType\TrueTypeSubsetter;
 
+use function array_filter;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
@@ -77,11 +79,28 @@ final class Font implements PdfFontInterface, DeferredInterface
         private readonly Document $document,
         private readonly OpenTypeFont $program,
     ) {
+        if (! $program->hasOutlines()) {
+            $bitmaps = array_values(array_filter(
+                ['sbix', 'CBDT', 'EBDT'],
+                static fn(string $tag): bool => null !== $program->table($tag),
+            ));
+            throw new ParseException(sprintf(
+                'Font "%s" has no outlines (glyf, CFF or CFF2)%s, so it cannot be embedded.',
+                $program->postScriptName(),
+                [] === $bitmaps ? '' : ': its glyphs are ' . implode(', ', $bitmaps) . ' bitmaps',
+            ));
+        }
         $this->registry   = $document->fonts();
         $this->glyphCheck = $document->options()->glyphCheck;
         $this->reference  = $document->writer()->allocate();
         $this->scale      = 1000.0 / $program->unitsPerEm;
         $document->defer($this);
+        if ($program->hasColrVersion1Glyphs()) {
+            $this->registry->warn(sprintf(
+                'Font "%s" has colour glyphs defined only in COLR version 1; they are drawn in one colour.',
+                $program->postScriptName(),
+            ));
+        }
     }
 
     /** Advance of a glyph in thousandths of an em, rounded as the PDF widths array will carry it. */
@@ -101,6 +120,31 @@ final class Font implements PdfFontInterface, DeferredInterface
     public function capHeight(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->capHeight, $size);
+    }
+
+    #[Override]
+    public function colourLayers(GlyphRun $run): array
+    {
+        if (! $this->program->hasColourLayers()) {
+            return [];
+        }
+        $layers = [];
+        foreach ($run->glyphs as $index => $glyph) {
+            $list = [];
+            foreach ($this->program->colourLayers($glyph->id) as [$layer, $palette]) {
+                $colour = 0xFFFF === $palette ? null : $this->program->paletteColour($palette);
+                $list[] = [
+                    $layer,
+                    null === $colour ? null : new Rgb($colour[0] / 255, $colour[1] / 255, $colour[2] / 255),
+                    null === $colour ? 1.0 : $colour[3] / 255,
+                ];
+            }
+            if ([] !== $list) {
+                $layers[$index] = $list;
+            }
+        }
+
+        return $layers;
     }
 
     /** Negative: distance below the baseline. */
@@ -201,6 +245,9 @@ final class Font implements PdfFontInterface, DeferredInterface
         foreach ($run->glyphs as $glyph) {
             $this->used[$glyph->id] = true;
             if (0 === $glyph->id) {
+                continue;
+            }
+            if ($glyph->codePoint < 0) {
                 continue;
             }
             $this->glyphToCodePoint[$glyph->id] ??= $glyph->codePoints();

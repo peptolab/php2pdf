@@ -60,6 +60,9 @@ final class OpenTypeFont
     private ?GposKerning $gpos        = null;
     private bool         $gposChecked = false;
 
+    /** @var array<int, list<array{0: int, 1: int}>>|null base glyph => layers */
+    private ?array $colr = null;
+
     private ?Gsub $gsub        = null;
     private bool  $gsubChecked = false;
 
@@ -141,6 +144,19 @@ final class OpenTypeFont
     public function advance(int $glyphId): int
     {
         return $this->advances[$glyphId] ?? $this->advances[count($this->advances) - 1] ?? 0;
+    }
+
+    /**
+     * The colour layers of a glyph from the COLR (version 0) table: each layer glyph with its
+     * CPAL palette entry, 0xFFFF meaning the text colour. Empty for a glyph without layers.
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    public function colourLayers(int $glyph): array
+    {
+        $this->colr ??= $this->readColr();
+
+        return $this->colr[$glyph] ?? [];
     }
 
     /**
@@ -227,6 +243,25 @@ final class OpenTypeFont
         return $this->gsub;
     }
 
+    /** Whether the font has colour glyphs drawn from layers (COLR version 0). */
+    public function hasColourLayers(): bool
+    {
+        $this->colr ??= $this->readColr();
+
+        return [] !== $this->colr;
+    }
+
+    /**
+     * Whether the font defines colour glyphs only as COLR version 1 paint graphs, which are drawn
+     * in one colour from their outlines.
+     */
+    public function hasColrVersion1Glyphs(): bool
+    {
+        $colr = $this->tableReader('COLR');
+
+        return null !== $colr && $colr->u16(0) >= 1 && $colr->length >= 18 && 0 !== $colr->u32(14);
+    }
+
     public function hasGlyph(int $codePoint): bool
     {
         return array_key_exists($codePoint, $this->cmap);
@@ -235,6 +270,12 @@ final class OpenTypeFont
     public function hasKerning(): bool
     {
         return null !== $this->gposKerning() || [] !== $this->kernPairs();
+    }
+
+    /** Whether the font has outlines (glyf, CFF or CFF2), not just bitmaps. */
+    public function hasOutlines(): bool
+    {
+        return $this->isCff || $this->tables->has('glyf');
     }
 
     /** Kerning adjustment between two glyphs in font units (negative moves them closer). */
@@ -263,6 +304,25 @@ final class OpenTypeFont
         $offset  = $glyphId < $metrics ? (4 * $glyphId) + 2 : (4 * $metrics) + (2 * ($glyphId - $metrics));
 
         return ($offset + 2) <= $hmtx->length ? $hmtx->i16($offset) : 0;
+    }
+
+    /**
+     * A colour of the first CPAL palette as red, green, blue and alpha (0 to 255), or null.
+     *
+     * @return array{0: int, 1: int, 2: int, 3: int}|null
+     */
+    public function paletteColour(int $index): ?array
+    {
+        $cpal = $this->tableReader('CPAL');
+        if (null === $cpal || $index >= $cpal->u16(2)) {
+            return null;
+        }
+        $record = $cpal->u32(8) + (4 * ($cpal->u16(12) + $index));
+        if (($record + 4) > $cpal->length) {
+            return null;
+        }
+
+        return [$cpal->u8($record + 2), $cpal->u8($record + 1), $cpal->u8($record), $cpal->u8($record + 3)];
     }
 
     public function postScriptName(): string
@@ -363,5 +423,38 @@ final class OpenTypeFont
         }
 
         return [] === $advances ? [$this->unitsPerEm] : $advances;
+    }
+
+    /**
+     * The layers of every base glyph in the COLR table (version 0 records).
+     *
+     * @return array<int, list<array{0: int, 1: int}>>
+     */
+    private function readColr(): array
+    {
+        $colr = $this->tableReader('COLR');
+        if (null === $colr || $colr->length < 14) {
+            return [];
+        }
+        $bases    = $colr->u16(2);
+        $baseAt   = $colr->u32(4);
+        $layerAt  = $colr->u32(8);
+        $layerMax = $colr->u16(12);
+        $layers   = [];
+        for ($k = 0; $k < $bases; ++$k) {
+            $record = $baseAt + (6 * $k);
+            if (($record + 6) > $colr->length) {
+                break;
+            }
+            $first = $colr->u16($record + 2);
+            $count = $colr->u16($record + 4);
+            $list  = [];
+            for ($l = $first; $l < ($first + $count) && $l < $layerMax; ++$l) {
+                $list[] = [$colr->u16($layerAt + (4 * $l)), $colr->u16($layerAt + (4 * $l) + 2)];
+            }
+            $layers[$colr->u16($record)] = $list;
+        }
+
+        return $layers;
     }
 }

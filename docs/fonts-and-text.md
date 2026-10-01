@@ -24,6 +24,13 @@ outlines already; for CFF2 ones the default instance is worked out from the blen
 embedded as an ordinary CFF subset, so every reader draws it. Other instances along the font's
 axes are not available yet.
 
+Colour fonts with layered glyphs (COLR version 0, as in many emoji and icon fonts) draw each
+colour glyph as its layers, in the colours of the font's first palette (CPAL); a layer marked for
+the text colour takes the current fill colour. The glyph underneath is set invisibly, so the text
+still copies and searches. Glyphs defined only as COLR version 1 paint graphs are drawn in one
+colour, with a warning, and fonts with only bitmap glyphs (sbix, CBDT) are refused when loaded,
+since they have no outlines to embed.
+
 If a CFF font cannot be subset (for example, it builds accented glyphs with the deprecated
 `seac` form of `endchar`), it is embedded whole instead and a warning is recorded:
 

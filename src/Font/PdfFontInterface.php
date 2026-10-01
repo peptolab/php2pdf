@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PhpPdf\Font;
 
+use PhpPdf\Color\Rgb;
 use PhpPdf\Core\Object\Reference;
 use PhpPdf\Document\Document;
 
@@ -15,6 +16,14 @@ use PhpPdf\Document\Document;
  */
 interface PdfFontInterface extends FontInterface
 {
+    /**
+     * The colour layers of the run's colour glyphs, by position in the run: each layer glyph with
+     * its colour (null for the text colour) and opacity.
+     *
+     * @return array<int, list<array{0: int, 1: Rgb|null, 2: float}>>
+     */
+    public function colourLayers(GlyphRun $run): array;
+
     /**
      * The document the font is embedded in.
      */

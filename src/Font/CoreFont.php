@@ -93,6 +93,13 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
         return self::scale($this->metrics->capHeight, $size);
     }
 
+    /** The standard fonts have no colour glyphs. */
+    #[Override]
+    public function colourLayers(GlyphRun $run): array
+    {
+        return [];
+    }
+
     #[Override]
     public function descender(float $size): float
     {

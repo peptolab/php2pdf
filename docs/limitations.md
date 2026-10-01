@@ -8,6 +8,9 @@ Known gaps, in rough order of how often they matter.
   Arabic, Indic and CJK vertical text are not supported.
 - **Variable fonts** draw their default instance only; named instances and axis values are not
   supported.
+- **Colour fonts**: COLR version 0 layers are drawn in colour; COLR version 1 paint graphs
+  (gradients, transforms) are drawn in one colour, SVG glyphs from their outlines, and fonts with
+  only bitmap glyphs (sbix, CBDT) cannot be used.
 - **CFF fonts** whose charstrings use `seac` accent composition or the arithmetic and storage
   operators are embedded whole, with a warning in `$doc->fonts()->warnings()`; others are subset.
 - **Standard 14 fonts** cover WinAnsiEncoding only (Symbol and ZapfDingbats have their own

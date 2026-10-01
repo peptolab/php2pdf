@@ -15,6 +15,8 @@ use function mb_chr;
 final readonly class Glyph
 {
     /**
+     * @param int       $codePoint  the character the glyph stands for; -1 for a glyph that stands
+     *                              for no text (a colour layer)
      * @param list<int> $components the code points a ligature stands for, in order; empty for a
      *                              glyph that stands for $codePoint alone
      */

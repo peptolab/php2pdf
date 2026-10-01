@@ -28,9 +28,11 @@ use PhpPdf\Fit\Placement;
 use PhpPdf\Flow\FlowableInterface;
 use PhpPdf\Flow\FlowResult;
 use PhpPdf\Font\FontInterface;
+use PhpPdf\Font\Glyph;
 use PhpPdf\Font\GlyphRun;
 use PhpPdf\Font\PdfFontInterface;
 use PhpPdf\Font\TextOptions;
+use PhpPdf\Font\TextRenderMode;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
 use PhpPdf\Geometry\Origin;
@@ -41,17 +43,17 @@ use PhpPdf\Text\TextlineOptions;
 use PhpPdf\Text\TextlinePlacement;
 
 use function abs;
+use function array_keys;
 use function array_pop;
+use function array_slice;
 use function ceil;
 use function cos;
 use function count;
 use function deg2rad;
-use function implode;
 use function max;
 use function min;
 use function sin;
 use function sprintf;
-use function strtr;
 use function tan;
 
 /**
@@ -85,49 +87,6 @@ final class Canvas
             $this->ctm = new Matrix(1.0, 0.0, 0.0, -1.0, 0.0, $height);
             $this->ops = '1 0 0 -1 0 ' . Num::format($height) . " cm\n";
         }
-    }
-
-    /** Bytes as a PDF literal string; carriage returns are escaped so readers do not normalise them. */
-    private static function literal(string $bytes): string
-    {
-        return '(' . strtr($bytes, ['\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '\\r']) . ')';
-    }
-
-    /**
-     * The text-showing operation for a run: one Tj string when nothing adjusts the glyph
-     * positions, otherwise a TJ array of strings interleaved with kerning, tracking and word
-     * spacing adjustments in thousandths of an em.
-     */
-    private static function showOperation(
-        GlyphRun $run,
-        PdfFontInterface $font,
-        float $size,
-        TextOptions $options,
-    ): string {
-        $wordAdjust = 0.0 === $options->wordSpacing || $size <= 0.0 ? 0.0 : ($options->wordSpacing / $size) * 1000.0;
-        $tracking   = $options->tracking;
-        $parts      = [];
-        $ids        = [];
-        foreach ($run->glyphs as $glyph) {
-            $ids[]  = $glyph->id;
-            $adjust = $glyph->kerning + $tracking;
-            if (0.0 !== $wordAdjust && $glyph->isSpace()) {
-                $adjust += $wordAdjust;
-            }
-            if (0.0 !== $adjust) {
-                $parts[] = self::literal($font->encode($ids));
-                $parts[] = Num::format(-$adjust, 2);
-                $ids     = [];
-            }
-        }
-        if ([] !== $ids) {
-            $parts[] = self::literal($font->encode($ids));
-        }
-        if (1 === count($parts)) {
-            return "{$parts[0]} Tj";
-        }
-
-        return '[' . implode(' ', $parts) . '] TJ';
     }
 
     /**
@@ -732,32 +691,26 @@ final class Canvas
                 'Text can only be drawn with fonts from the document\'s FontRegistry, not %s.',
                 $font::class,
             ));
-        $this->document->assertOwns($font->document(), 'A font');
-        $font->markUsed($run);
-        $ops = 'BT';
-        $tf  = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
-        if ($tf !== $this->text['Tf']) {
-            $ops              .= " {$tf}";
-            $this->text['Tf'] = $tf;
-        }
-        $state = [
-            'Tc' => Num::format($options->charSpacing) . ' Tc',
-            'Tz' => Num::format($options->horizontalScale) . ' Tz',
-            'Ts' => Num::format($options->rise) . ' Ts',
-            'Tr' => "{$options->renderMode->value} Tr",
-        ];
-        foreach ($state as $operator => $operation) {
-            if ($operation === ($this->text[$operator] ?? null)) {
-                continue;
+        $layers = TextRenderMode::Invisible === $options->renderMode ? [] : $font->colourLayers($run);
+        $this->showText($run, $font, $size, $textMatrix, $options, array_keys($layers));
+        foreach ($layers as $index => $list) {
+            $origin = Matrix::translation(
+                $font->width(new GlyphRun(array_slice($run->glyphs, offset: 0, length: $index)), $size, $options),
+                0.0,
+            )->then($textMatrix);
+            foreach ($list as [$glyph, $colour, $opacity]) {
+                $this->save();
+                if (null !== $colour) {
+                    $this->setFillColor($colour);
+                }
+                if ($opacity < 1.0) {
+                    $this->setOpacity($opacity);
+                }
+                $layer = new GlyphRun([new Glyph($glyph, -1, $font->advance($glyph))]);
+                $this->showText($layer, $font, $size, $origin, $options, []);
+                $this->restore();
             }
-            $ops                   .= " {$operation}";
-            $this->text[$operator] = $operation;
         }
-        $m        = $textMatrix;
-        $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
-            ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
-            : "{$m->toPdf()} Tm";
-        $this->ops .= "{$ops} {$position} " . self::showOperation($run, $font, $size, $options) . " ET\n";
 
         return $this;
     }
@@ -882,6 +835,51 @@ final class Canvas
         $this->document->pdfx()->assertOutputIntent();
         $this->document->pdfx()->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
         return $this->document->objects()->shared("sh:{$gradient->key()}", $gradient->toShading(...));
+    }
+
+    /**
+     * Shows a run in one text object. Glyphs at the $hidden positions (colour glyphs, whose layers
+     * are drawn over them) are shown invisibly, so they keep their place and their text.
+     *
+     * @param list<int> $hidden
+     */
+    private function showText(
+        GlyphRun $run,
+        PdfFontInterface $font,
+        float $size,
+        Matrix $textMatrix,
+        TextOptions $options,
+        array $hidden,
+    ): void {
+        $this->document->assertOwns($font->document(), 'A font');
+        $font->markUsed($run);
+        $ops = 'BT';
+        $tf  = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
+        if ($tf !== $this->text['Tf']) {
+            $ops              .= " {$tf}";
+            $this->text['Tf'] = $tf;
+        }
+        $state = [
+            'Tc' => Num::format($options->charSpacing) . ' Tc',
+            'Tz' => Num::format($options->horizontalScale) . ' Tz',
+            'Ts' => Num::format($options->rise) . ' Ts',
+            'Tr' => "{$options->renderMode->value} Tr",
+        ];
+        foreach ($state as $operator => $operation) {
+            if ($operation === ($this->text[$operator] ?? null)) {
+                continue;
+            }
+            $ops                   .= " {$operation}";
+            $this->text[$operator] = $operation;
+        }
+        $m        = $textMatrix;
+        $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
+            ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
+            : "{$m->toPdf()} Tm";
+        $this->ops .=
+            "{$ops} {$position} "
+            . TextOperators::show($run, $font, $size, $options, $hidden, $this->text['Tr'] ?? '0 Tr')
+            . " ET\n";
     }
 
     private function spotColorSpace(Spot $spot): Reference

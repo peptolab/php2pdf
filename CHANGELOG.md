@@ -27,6 +27,7 @@ The first release.
 - Kerning across word spaces and hyphenation points; left side bearings kept in subsets.
 - Standard ligatures (`liga`) by default, matching HarfBuzz glyph for glyph; copied text expands them.
 - Variable fonts with CFF2 outlines, at their default instance.
+- Colour fonts with COLR version 0 layers, in their palette colours; bitmap-only fonts refused with a clear error.
 - OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others) through
   single, alternate, ligature and chained context substitution.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`).
