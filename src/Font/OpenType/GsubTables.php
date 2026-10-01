@@ -28,6 +28,9 @@ final class GsubTables
     /** @var array<int, list<array{0: int, 1: int}>> lookup index => (type, subtable offset) */
     private array $subtables = [];
 
+    /** @var array<int, array<int, int>> lookup index => glyphs a match can start at (as keys) */
+    private array $starts = [];
+
     /** @var array<int, array<int, int>> coverage offset => glyph => index */
     private array $coverages = [];
 
@@ -152,6 +155,35 @@ final class GsubTables
         ksort($indices);
 
         return array_keys($indices);
+    }
+
+    /**
+     * The glyphs a lookup's subtables can match at, as keys: their coverage, or for chained
+     * context by coverage (format 3) the first input position's coverage.
+     *
+     * @return array<int, int>
+     */
+    public function startGlyphs(int $lookup): array
+    {
+        if (array_key_exists($lookup, $this->starts)) {
+            return $this->starts[$lookup];
+        }
+        $r      = $this->reader;
+        $starts = [];
+        foreach ($this->subtables($lookup) as [$type, $offset]) {
+            $coverage = $offset + $r->u16($offset + 2);
+            if (6 === $type && 3 === $r->u16($offset)) {
+                $backtrack = $r->u16($offset + 2);
+                $input     = $offset + 4 + (2 * $backtrack);
+                if (0 === $r->u16($input)) {
+                    continue;
+                }
+                $coverage = $offset + $r->u16($input + 2);
+            }
+            $starts += $this->coverage($coverage);
+        }
+
+        return $this->starts[$lookup] = $starts;
     }
 
     /** @return list<array{0: int, 1: int}> sequence index and lookup index */

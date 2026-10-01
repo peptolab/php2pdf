@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Font\OpenType;
 
 use function array_column;
+use function array_key_exists;
 use function array_slice;
 use function array_splice;
 use function count;
@@ -127,8 +128,13 @@ final class Gsub
      */
     private function applyLookup(int $lookup, array $glyphs, int $depth = 0): array
     {
-        $i = 0;
+        $starts = $this->tables->startGlyphs($lookup);
+        $i      = 0;
         while ($i < count($glyphs)) {
+            if (! array_key_exists($glyphs[$i][0] ?? -1, $starts)) {
+                ++$i;
+                continue;
+            }
             $result = $this->applyAt($lookup, $glyphs, $i, $depth);
             if (null === $result) {
                 ++$i;
