@@ -22,7 +22,13 @@ final readonly class Item
         public float $width = 0.0,
         /** For penalties: the hyphen shown when the line breaks here. */
         public ?GlyphRun $hyphenRun = null,
+        /** For penalties: the hyphen's width, with the kerning change below, in points. */
         public float $hyphenWidth = 0.0,
+        /**
+         * For penalties: the change, in thousandths of an em, to the kerning of the glyph before
+         * the break when the hyphen follows it instead of the next piece.
+         */
+        public float $hyphenKerning = 0.0,
     ) {}
 
     public function isBreakOpportunity(): bool

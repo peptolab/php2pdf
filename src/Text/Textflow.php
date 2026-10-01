@@ -144,11 +144,37 @@ final class Textflow implements FlowableInterface
         return self::fromMarkup($document, implode("\n\n", $markup), $style, $hyphenators);
     }
 
-    private static function scaledPenalty(TextStyle $style): Item
+    /**
+     * An item at a scaled style. Its shaped glyphs are kept, since kerning is in thousandths of an
+     * em; only the widths are measured again.
+     */
+    private static function scaledItem(Item $item, TextStyle $style): Item
     {
-        $hyphen = Itemiser::box('-', $style);
+        $font    = StyleResolver::fontOf($style);
+        $size    = $style->fontSize();
+        $options = $style->textOptions();
+        $hyphen  = $item->hyphenRun;
 
-        return new Item(ItemKind::Penalty, $style, '', null, 0.0, $hyphen->run, $hyphen->width);
+        return match (true) {
+            null !== $item->run => new Item(
+                $item->kind,
+                $style,
+                $item->text,
+                $item->run,
+                $font->width($item->run, $size, $options),
+            ),
+            null !== $hyphen => new Item(
+                $item->kind,
+                $style,
+                '',
+                null,
+                0.0,
+                $hyphen,
+                $font->width($hyphen, $size, $options) + Itemiser::kerningWidth($item->hyphenKerning, $style),
+                $item->hyphenKerning,
+            ),
+            default => new Item($item->kind, $style),
+        };
     }
 
     /**
@@ -399,12 +425,7 @@ final class Textflow implements FlowableInterface
             $items = [];
             foreach ($paragraph->items as $item) {
                 $itemStyle = $item->style->scaled($scale);
-                $items[]   = match ($item->kind) {
-                    ItemKind::Box     => Itemiser::box($item->text, $itemStyle),
-                    ItemKind::Glue    => Itemiser::glue($itemStyle),
-                    ItemKind::Penalty => self::scaledPenalty($itemStyle),
-                    default           => new Item($item->kind, $itemStyle),
-                };
+                $items[]   = self::scaledItem($item, $itemStyle);
             }
             $out[] = new Paragraph($style, $items);
         }

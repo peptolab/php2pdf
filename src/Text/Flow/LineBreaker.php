@@ -68,6 +68,10 @@ final class LineBreaker
             $alignment = $style->lastLineAlignment ?? Alignment::Left;
         }
 
+        if (ItemKind::Glue === ($items[$end->index] ?? null)?->kind) {
+            $lineItems = self::rekernLast($lineItems, null);
+        }
+
         return self::compose($lineItems, $end->hyphen, $style, $alignment, $left, $available, $consumed, $last);
     }
 
@@ -86,13 +90,15 @@ final class LineBreaker
         int $consumed,
         bool $last,
     ): Line {
-        // Trailing glue does not count.
-        $trailing = end($items);
-        while ($trailing instanceof Item && ItemKind::Glue === $trailing->kind) {
-            array_pop($items);
-            $trailing = end($items);
+        $end = count($items);
+        while ($end > 0 && ItemKind::Glue === ($items[$end - 1] ?? null)?->kind) {
+            --$end;
+        }
+        if ($end < count($items)) {
+            $items = self::rekernLast(array_slice($items, offset: 0, length: $end), null);
         }
         if (null !== $hyphen && null !== $hyphen->hyphenRun) {
+            $items   = self::rekernLast($items, $hyphen->hyphenKerning);
             $items[] = new Item(ItemKind::Box, $hyphen->style, '-', $hyphen->hyphenRun, $hyphen->hyphenWidth);
         }
         $natural = 0.0;
@@ -236,6 +242,38 @@ final class LineBreaker
         $step = max(1.0, $style->defaultTabWidth ?? 36.0);
 
         return (floor(($x / $step) + 1.0e-6) + 1.0) * $step;
+    }
+
+    /**
+     * Changes the kerning of the line's last glyph: by $change thousandths of an em when a hyphen
+     * follows it (the hyphen's width already includes the change), or to none when the line ends
+     * at a space it was kerned towards.
+     *
+     * @param list<Item> $items
+     *
+     * @return list<Item>
+     */
+    private static function rekernLast(array $items, ?float $change): array
+    {
+        $index = count($items) - 1;
+        $item  = $items[$index] ?? null;
+        $run   = $item?->run;
+        if (null === $item || null === $run || ItemKind::Box !== $item->kind) {
+            return $items;
+        }
+        $glyphs = $run->glyphs;
+        $last   = count($glyphs) - 1;
+        $glyph  = $glyphs[$last] ?? null;
+        if (null === $glyph || 0.0 === ($change ?? $glyph->kerning)) {
+            return $items;
+        }
+        $kerning       = null === $change ? 0.0 : $glyph->kerning + $change;
+        $glyphs[$last] = new Glyph($glyph->id, $glyph->codePoint, $glyph->advance, $kerning);
+        $width         = $item->width
+        - (null === $change ? Itemiser::kerningWidth($glyph->kerning, $item->style) : 0.0);
+        $items[$index] = new Item(ItemKind::Box, $item->style, $item->text, new GlyphRun($glyphs), $width);
+
+        return $items;
     }
 
     /**
