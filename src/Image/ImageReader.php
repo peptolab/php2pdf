@@ -23,10 +23,17 @@ use function str_starts_with;
  */
 final class ImageReader
 {
-    /** @throws PdfException for unreadable data or an image over the limits */
-    public static function read(string $data, ?Limits $limits = null): ImageData
+    /**
+     * @param int $page the 1-based page of a multi-page file (TIFF, GIF), read through ext-imagick
+     *
+     * @throws PdfException for unreadable data, a missing page or an image over the limits
+     */
+    public static function read(string $data, ?Limits $limits = null, int $page = 1): ImageData
     {
         $limits ??= Limits::default();
+        if ($page > 1 && (str_starts_with($data, "\xFF\xD8") || str_starts_with($data, "\x89PNG"))) {
+            throw new PdfException(sprintf('JPEG and PNG files have one page; page %d was asked for.', $page));
+        }
         if (str_starts_with($data, "\xFF\xD8")) {
             return JpegDecoder::decode($data);
         }
@@ -46,7 +53,7 @@ final class ImageReader
             ));
         }
 
-        return PngDecoder::decode(Transcoder::toPng($data), $limits);
+        return PngDecoder::decode(Transcoder::toPng($data, $page), $limits);
     }
 
     public static function readFile(string $path, ?Limits $limits = null): ImageData

@@ -109,9 +109,9 @@ final class InlineObjectTest extends TestCase
 
         self::assertEqualsWithDelta(
             50.0
-            + $this->font->width('Call ', 10.0 * $scale)
-            + (16.0 * $scale)
-            + $this->font->width(' now', 10.0 * $scale),
+                + $this->font->width('Call ', 10.0 * $scale)
+                + (16.0 * $scale)
+                + $this->font->width(' now', 10.0 * $scale),
             $info?->textEnd[0] ?? 0.0,
             1.0e-6,
         );

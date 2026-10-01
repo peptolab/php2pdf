@@ -28,6 +28,16 @@ The natural size in points comes from the pixel size and the resolution stored i
 (JPEG JFIF density, or the EXIF resolution when JFIF gives none; PNG pHYs), 72 dpi when none. `Fit::meet()->withDpi(300)` or
 `Fit::noFit()->withDpi(300)` overrides it for one placement.
 
+`ImageOptions` sets how a file is loaded:
+
+```php
+$doc->image('scan.tif', new ImageOptions(dpi: 300, page: 2, orientation: false));
+```
+
+`dpi` replaces the file's resolution for its natural size, `page` picks a page of a multi-page
+TIFF or GIF (through ext-imagick), and `orientation: false` ignores a JPEG's EXIF orientation.
+The same file loaded with different options is a different image.
+
 ## Transparency
 
 Images with alpha get an `/SMask`; colour-keyed PNGs get a `/Mask` array. Group opacity and

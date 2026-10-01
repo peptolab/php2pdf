@@ -61,7 +61,7 @@ final class LineBreaker
             $count = count($items);
         }
         $lineItems = array_slice($items, $start, $end->index - $start);
-        $consumed  = $end->index - $offset + ($end->forced ? 1 : 0);
+        $consumed  = self::consumed($end, $items, $offset);
         $last      = ($start + $end->index - $start + ($end->forced ? 1 : 0)) >= $count || $end->forced;
 
         $alignment = $style->alignment ?? Alignment::Left;
@@ -142,6 +142,19 @@ final class LineBreaker
             $last,
             $inlines,
         );
+    }
+
+    /**
+     * How many items from $offset the line takes: up to its end, and a forced line break with it.
+     * A column or page break stays for the layout, which stops the box there.
+     *
+     * @param list<Item> $items
+     */
+    private static function consumed(LineEnd $end, array $items, int $offset): int
+    {
+        $lineBreak = $end->forced && ItemKind::LineBreak === ($items[$end->index] ?? null)?->kind;
+
+        return $end->index - $offset + ($lineBreak ? 1 : 0);
     }
 
     /** @param list<Item> $items */

@@ -50,4 +50,29 @@ final readonly class ImageData
     {
         return $this->orientation >= 5;
     }
+
+    /** The image as loaded with options: at another resolution, or ignoring its orientation. */
+    public function withOptions(ImageOptions $options): self
+    {
+        if (null === $options->dpi && ($options->orientation || 1 === $this->orientation)) {
+            return $this;
+        }
+
+        return new self(
+            $this->width,
+            $this->height,
+            $this->bitsPerComponent,
+            $this->colorSpace,
+            $this->data,
+            $this->filter,
+            $this->decodeParms,
+            $this->decode,
+            $this->softMask,
+            $this->colorKeyMask,
+            $this->iccProfile,
+            $options->dpi ?? $this->dpiX,
+            $options->dpi ?? $this->dpiY,
+            $options->orientation ? $this->orientation : 1,
+        );
+    }
 }

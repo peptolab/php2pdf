@@ -112,6 +112,10 @@ Pages stream to the output as they finish. Fonts, templates and other deferred o
 written when `close()` runs, together with the page tree, catalog, Info dictionary and
 cross-reference table. A document that was never given a page cannot be closed.
 
+`onClose($callback)` runs a callback when `close()` is called, before the last page is finished:
+the page count is final, templates placed on every page can still be drawn on (a "Page X of Y"
+footer; see the cookbook), and so can the last page.
+
 ## Shared objects
 
 Anything written through `Document::shared($key, $factory)` is written once per document and

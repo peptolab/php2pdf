@@ -25,6 +25,7 @@ use PhpPdf\Font\FontRegistry;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Origin;
 use PhpPdf\Image\Image;
+use PhpPdf\Image\ImageOptions;
 use PhpPdf\Image\ImageReader;
 use PhpPdf\Import\HiddenLayers;
 use PhpPdf\Import\ImportedDocument;
@@ -84,18 +85,20 @@ final class Document
     /** @var array<string, PlaceableInterface> svg key => converted artwork */
     private array $svgs = [];
 
+    /** @var list<Closure(Document): void> */
+    private array $closing = [];
+
     /** @var array<string, Image> content hash => image */
     private array $images = [];
 
     private ?FontRegistry  $fonts  = null;
     private ?StyleRegistry $styles = null;
 
-    private ?InlineRegistry $inlines                = null;
-    private ?Dictionary     $outputIntent           = null;
-    private ?Page           $current                = null;
-    private bool            $closed                 = false;
-    private ?Navigation     $navigation             = null;
-    private ?int            $outputIntentComponents = null;
+    private ?InlineRegistry $inlines      = null;
+    private ?OutputIntent   $outputIntent = null;
+    private ?Page           $current      = null;
+    private bool            $closed       = false;
+    private ?Navigation     $navigation   = null;
 
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
@@ -109,6 +112,30 @@ final class Document
         $this->createdAt = $this->options->clock->now();
         $this->writer->writeHeader($this->options->version);
         $this->pagesRef = $this->writer->allocate();
+    }
+
+    /**
+     * Each page's frames, from flow()'s argument.
+     *
+     * @param Box|list<Box|list<Box>> $frames
+     *
+     * @return non-empty-list<non-empty-list<Box>>
+     */
+    private static function framesPerPage(Box|array $frames): array
+    {
+        $pages = [];
+        foreach ($frames instanceof Box ? [$frames] : $frames as $entry) {
+            $boxes = $entry instanceof Box ? [$entry] : array_values($entry);
+            if ([] === $boxes) {
+                throw new InvalidArgumentException('flow() needs at least one frame on every page.');
+            }
+            $pages[] = $boxes;
+        }
+        if ([] === $pages) {
+            throw new InvalidArgumentException('flow() needs at least one box.');
+        }
+
+        return $pages;
     }
 
     /**
@@ -269,7 +296,7 @@ final class Document
             return new Name('DeviceRGB');
         }
 
-        return match ($this->outputIntentComponents ?? 3) {
+        return match ($this->outputIntent->components ?? 3) {
             1       => new Name('DeviceGray'),
             4       => new Name('DeviceCMYK'),
             default => $this->defaultRgb() ?? new Name('DeviceRGB'),
@@ -282,7 +309,8 @@ final class Document
     }
 
     /**
-     * Finishes the current page and writes the page tree, catalog, metadata and trailer.
+     * Runs the onClose() callbacks, then finishes the current page and writes the page tree,
+     * catalog, metadata and trailer.
      */
     public function close(): void
     {
@@ -290,6 +318,10 @@ final class Document
             return;
         }
         $this->assertOpen();
+        foreach ($this->closing as $callback) {
+            $callback($this);
+        }
+        $this->closing = [];
         $this->finishCurrentPage();
         if ([] === $this->pageRefs) {
             throw new PdfException('A document needs at least one page.');
@@ -326,7 +358,7 @@ final class Document
             $catalog->set('Metadata', $this->writer->add($metadata));
         }
         if (null !== $this->outputIntent) {
-            $catalog->set('OutputIntents', [$this->writer->add($this->outputIntent)]);
+            $catalog->set('OutputIntents', [$this->writer->add($this->outputIntent->dictionary)]);
         }
         $catalogRef = $this->writer->add($catalog);
         $infoRef    = $this->writer->add($this->infoDictionary());
@@ -376,34 +408,37 @@ final class Document
     /**
      * Drains flowable content (a Textflow, a Table) across as many pages as it needs. The closure
      * makes each page (placing templates, headers and so on) and returns it; the content is then
-     * fitted into the box for that page. With a list of boxes the first page uses the first box,
-     * the second page the second, and the last box repeats; so page one can leave room for a
-     * title block. Returns the number of pages used.
+     * fitted into that page's frames. Each entry of $frames is a page's frame, or a list of
+     * frames (columns) filled in turn: when one is full the content moves to the next, and to a
+     * new page after the last, or straight away at a page break. The first page uses the first
+     * entry, the second page the second, and the last entry repeats, so page one can leave room
+     * for a title block. Returns the number of pages used.
      *
-     * @param Box|list<Box>                   $boxes
-     * @param Closure(Document, int): Page    $page  receives the document and the 1-based page index
+     * @param Box|list<Box|list<Box>>      $frames
+     * @param Closure(Document, int): Page $page   receives the document and the 1-based page index
      */
-    public function flow(FlowableInterface $content, Box|array $boxes, Closure $page): int
+    public function flow(FlowableInterface $content, Box|array $frames, Closure $page): int
     {
         $this->assertOpen();
-        $list = $boxes instanceof Box ? [$boxes] : array_values($boxes);
-        if ([] === $list) {
-            throw new InvalidArgumentException('flow() needs at least one box.');
-        }
-        $pages = 0;
+        $pages = self::framesPerPage($frames);
+        $count = 0;
         do {
-            ++$pages;
-            $box = $list[min($pages, count($list)) - 1] ?? throw new InvalidArgumentException(
-                'flow() needs at least one box.',
-            );
-            $target = $page($this, $pages);
-            $result = $target->canvas()->flow($content, $box);
-            if (FlowResult::BoxEmpty === $result) {
-                throw new PdfException('The box is too small for any of the content; nothing was placed.');
+            ++$count;
+            $boxes  = $pages[min($count, count($pages)) - 1] ?? [];
+            $canvas = $page($this, $count)->canvas();
+            $result = FlowResult::BoxFull;
+            foreach ($boxes as $i => $box) {
+                $result = $canvas->flow($content, $box);
+                if (FlowResult::BoxEmpty === $result && 0 === $i) {
+                    throw new PdfException('The box is too small for any of the content; nothing was placed.');
+                }
+                if (FlowResult::BoxFull !== $result && FlowResult::BoxEmpty !== $result) {
+                    break;
+                }
             }
         } while (FlowResult::Done !== $result);
 
-        return $pages;
+        return $count;
     }
 
     /** Fonts for this document: load by path, find by name, or group into families. */
@@ -416,7 +451,7 @@ final class Document
      * Loads an image file (JPEG or PNG natively; other formats through ext-imagick or ext-gd).
      * The same file is written once however many times it is loaded or placed.
      */
-    public function image(string $path): Image
+    public function image(string $path, ?ImageOptions $options = null): Image
     {
         $this->assertOpen();
         $data = file_get_contents($path);
@@ -424,15 +459,19 @@ final class Document
             throw new IoException(sprintf('Cannot read image file "%s".', $path));
         }
 
-        return $this->imageFromData($data);
+        return $this->imageFromData($data, $options);
     }
 
     /** Loads an image from memory. */
-    public function imageFromData(string $data): Image
+    public function imageFromData(string $data, ?ImageOptions $options = null): Image
     {
         $this->assertOpen();
+        $options ??= new ImageOptions();
 
-        return $this->images[md5($data)] ??= new Image($this, ImageReader::read($data, $this->options->limits));
+        return $this->images[md5($data) . $options->key()] ??= new Image(
+            $this,
+            ImageReader::read($data, $this->options->limits, $options->page)->withOptions($options),
+        );
     }
 
     /**
@@ -459,6 +498,21 @@ final class Document
     public function inlines(): InlineRegistry
     {
         return $this->inlines ??= new InlineRegistry();
+    }
+
+    /**
+     * Runs a callback when close() is called, before the last page is finished: the page count is
+     * final then, and templates placed on every page (a "Page X of Y" footer) can still be drawn
+     * on, as can the last page. Callbacks run in the order they were added.
+     *
+     * @param Closure(Document): void $callback
+     */
+    public function onClose(Closure $callback): self
+    {
+        $this->assertOpen();
+        $this->closing[] = $callback;
+
+        return $this;
     }
 
     public function options(): DocumentOptions
@@ -489,15 +543,14 @@ final class Document
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
-        $this->outputIntentComponents = $profile->componentCount;
-        $this->outputIntent           = Dictionary::of([
+        $this->outputIntent = new OutputIntent(Dictionary::of([
             'Type'                      => new Name('OutputIntent'),
             'S'                         => new Name('GTS_PDFX'),
             'OutputConditionIdentifier' => $identifier,
             'Info'                      => $info ?? $identifier,
             'RegistryName'              => 'http://www.color.org',
             'DestOutputProfile'         => $profileRef,
-        ]);
+        ]), $profile->componentCount);
 
         return $this;
     }
@@ -658,15 +711,15 @@ final class Document
     private function intentAllows(string $space): bool
     {
         return match ($space) {
-            'DeviceRGB'  => 3 === $this->outputIntentComponents,
-            'DeviceCMYK' => 4 === $this->outputIntentComponents,
+            'DeviceRGB'  => 3 === $this->outputIntent?->components,
+            'DeviceCMYK' => 4 === $this->outputIntent?->components,
             default      => true,
         };
     }
 
     private function intentName(): string
     {
-        return match ($this->outputIntentComponents) {
+        return match ($this->outputIntent?->components) {
             1       => 'a grey',
             3       => 'an RGB',
             default => 'a CMYK',

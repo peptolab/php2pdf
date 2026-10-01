@@ -101,5 +101,7 @@ $pages = $doc->flow($table, [Box::fromMm(15, 48, 180, 176), Box::fromMm(15, 20, 
 ```
 
 With a list of boxes the first page uses the first box, later pages the following ones, and the
-last box repeats. To share the first page with other content, fit the table on that page
+last box repeats. An entry may itself be a list of boxes, the page's frames (columns): content
+fills them in turn and moves to a new page after the last, or at a `<pagebreak>`; a
+`<columnbreak>` moves to the next frame. To share the first page with other content, fit the table on that page
 yourself and call `flow()` for the rest when `isDone()` is false.

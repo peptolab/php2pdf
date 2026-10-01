@@ -40,6 +40,15 @@ final class TextflowTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
 
+    /** @return array<string, array{0: string, 1: FlowResult}> */
+    public static function midLineBreakProvider(): array
+    {
+        return [
+            'column break' => ['Before<columnbreak>after', FlowResult::BoxFull],
+            'page break'   => ['Before<pagebreak>after', FlowResult::NextPage],
+        ];
+    }
+
     /** @return array<string, array{0: Alignment, 1: string, 2: float}> */
     public static function textEndProvider(): array
     {
@@ -61,6 +70,24 @@ final class TextflowTest extends TestCase
     private static function num(float $v): string
     {
         return Num::format($v, 6);
+    }
+
+    /** A column or page break after text on the same line still ends the box. */
+    #[Test]
+    #[DataProvider('midLineBreakProvider')]
+    public function aBreakInsideALineEndsTheBox(string $markup, FlowResult $result): void
+    {
+        $flow = $this->doc->textflow($markup, 'body', TextFormat::Markup);
+        $page = $this->doc->addPage();
+
+        self::assertSame(
+            [$result, 1, FlowResult::Done],
+            [
+                $page->fitTextflow($flow, new Box(50.0, 500.0, 200.0, 100.0)),
+                $flow->lastFit()?->lineCount,
+                $page->fitTextflow($flow, new Box(50.0, 300.0, 200.0, 100.0)),
+            ],
+        );
     }
 
     #[Test]

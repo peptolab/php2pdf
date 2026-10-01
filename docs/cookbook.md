@@ -68,7 +68,8 @@ invoice as a test.
 ```php
 $layout = $doc->import('layout.ai')->page(1);
 $flow   = $doc->textflow(file_get_contents('copy.txt'), 'body', TextFormat::Plain, ['en' => $en]);
-$doc->flow($flow, [Box::fromMm(15, 20, 85, 250)], function (Document $doc) use ($layout): Page {
+$columns = [Box::fromMm(15, 20, 85, 250), Box::fromMm(110, 20, 85, 250)];
+$doc->flow($flow, [$columns], function (Document $doc) use ($layout): Page {
     $page = $doc->addPage(PageSize::A4);
     $page->place($layout, $page->trimBox(), Fit::entire());
 
@@ -76,8 +77,29 @@ $doc->flow($flow, [Box::fromMm(15, 20, 85, 250)], function (Document $doc) use (
 });
 ```
 
-For two columns on each page, drive the loop yourself: fit the left box, and when the result is
-`BoxFull` fit the right box on the same page before adding the next.
+Each page's frames are filled in turn: the left column, then the right, then a new page. A
+`<columnbreak>` in markup moves on to the next column, a `<pagebreak>` to the next page.
+
+## Page X of Y
+
+Finished pages are written as they go, so the total is not known while they are made. Place a
+template on every page and draw the total into it when the document closes:
+
+```php
+$total = $doc->template(Dimensions::mm(10, 4));
+$doc->onClose(fn (Document $doc) => $total->canvas()->drawText((string) $doc->pageCount(), $font, 8, 0, 1));
+
+$doc->flow($flow, $box, function (Document $doc, int $n) use ($total, $font): Page {
+    $page = $doc->addPage(PageSize::A4);
+    $page->canvas()->drawText("Page {$n} of", $font, 8, 480, 20);
+    $page->place($total, Box::fromMm(185, 6, 10, 4), Fit::noFit(Position::bottomLeft()));
+
+    return $page;
+});
+```
+
+`onClose()` callbacks run when `close()` is called, before the last page is finished, so they
+can also draw on that page.
 
 ## A report with a repeating table and a figure
 
