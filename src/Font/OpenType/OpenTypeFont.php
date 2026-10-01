@@ -56,6 +56,8 @@ final class OpenTypeFont
     /** @var list<int>|null glyph offsets into glyf (numGlyphs + 1 entries) */
     private ?array $loca = null;
 
+    private ?BinaryReader $hmtx = null;
+
     private readonly BinaryReader $reader;
 
     private function __construct(string $data, int $faceIndex)
@@ -202,6 +204,23 @@ final class OpenTypeFont
         }
 
         return $this->kernPairs()[($left << 16) | $right] ?? 0;
+    }
+
+    /**
+     * Left side bearing of a glyph in font units. Subset fonts must keep it: with the head flag
+     * that says it equals the glyph's xMin, renderers position each outline by it.
+     */
+    public function leftSideBearing(int $glyphId): int
+    {
+        $this->hmtx ??= $this->tableReader('hmtx');
+        $hmtx       = $this->hmtx;
+        if (null === $hmtx || $glyphId < 0) {
+            return 0;
+        }
+        $metrics = count($this->advances);
+        $offset  = $glyphId < $metrics ? (4 * $glyphId) + 2 : (4 * $metrics) + (2 * ($glyphId - $metrics));
+
+        return ($offset + 2) <= $hmtx->length ? $hmtx->i16($offset) : 0;
     }
 
     public function postScriptName(): string

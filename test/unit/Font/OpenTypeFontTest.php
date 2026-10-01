@@ -8,6 +8,7 @@ use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 use PhpPdf\Font\OpenType\TrueTypeSubsetter;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -19,6 +20,19 @@ use function unpack;
 
 final class OpenTypeFontTest extends TestCase
 {
+    /** @return array<string, array{0: int, 1: int}> */
+    public static function sideBearingProvider(): array
+    {
+        return [
+            'negative, j'                    => [77, -37],
+            'last full metric'               => [6237, 165],
+            'first of the trailing bearings' => [6238, 165],
+            'last of the trailing bearings'  => [6252, 151],
+            'negative glyph id'              => [-1, 0],
+            'glyph id beyond the font'       => [99_999, 0],
+        ];
+    }
+
     private static function checksum(string $data): int
     {
         $data .= str_repeat("\0", (4 - (strlen($data) % 4)) % 4);
@@ -83,6 +97,13 @@ final class OpenTypeFontTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('sideBearingProvider')]
+    public function readsLeftSideBearings(int $glyphId, int $bearing): void
+    {
+        self::assertSame($bearing, self::dejaVu()->leftSideBearing($glyphId));
+    }
+
+    #[Test]
     public function readsPairKerning(): void
     {
         $font = self::dejaVu();
@@ -102,6 +123,19 @@ final class OpenTypeFontTest extends TestCase
     {
         $this->expectException(PdfException::class);
         OpenTypeFont::fromData(str_repeat('x', times: 100));
+    }
+
+    #[Test]
+    public function subsetsKeepLeftSideBearings(): void
+    {
+        $font   = self::dejaVu();
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [77 => true, 82 => true]));
+
+        self::assertSame(
+            [$font->leftSideBearing(77), $font->leftSideBearing(82)],
+            [$subset->leftSideBearing(77), $subset->leftSideBearing(82)],
+            'Renderers position outlines by the bearing; zeroes shift every glyph by its own bearing.',
+        );
     }
 
     #[Test]

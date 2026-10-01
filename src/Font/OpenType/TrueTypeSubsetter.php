@@ -41,7 +41,7 @@ final class TrueTypeSubsetter
         [$glyf, $loca] = self::buildGlyf($font, $keep, $numGlyphs);
         $hmtx = '';
         for ($gid = 0; $gid < $numGlyphs; ++$gid) {
-            $hmtx .= pack('nn', $font->advance($gid), 0);
+            $hmtx .= pack('nn', $font->advance($gid), $font->leftSideBearing($gid) & 0xFFFF);
         }
 
         $head = $font->table('head') ?? '';
