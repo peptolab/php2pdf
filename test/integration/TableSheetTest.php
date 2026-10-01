@@ -45,9 +45,9 @@ final class TableSheetTest extends TestCase
     #[Test]
     public function footersCarrySubtotalsForward(): void
     {
-        $path  = PdfTools::outputDir() . '/table-footers.pdf';
-        $doc   = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $text  = new TextStyle(
+        $path = PdfTools::outputDir() . '/table-footers.pdf';
+        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $text = new TextStyle(
             font: $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf')),
             size: 10.0,
         );

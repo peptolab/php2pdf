@@ -178,6 +178,17 @@ final class Textflow implements FlowableInterface
         };
     }
 
+    /** How far a line's text reaches from its start, as drawn (justified lines included). */
+    private static function textWidth(Flow\Line $line): float
+    {
+        $width = 0.0;
+        foreach ($line->segments as $segment) {
+            $width = max($width, $segment->x + $segment->width);
+        }
+
+        return $width;
+    }
+
     /**
      * Places as much of the remaining text as fits into the box.
      *
@@ -213,10 +224,12 @@ final class Textflow implements FlowableInterface
 
         $firstBaseline = null;
         $lastBaseline  = null;
+        $textEnd       = null;
         foreach ($layout->lines as [$line, $baseline]) {
             $point         = $this->baselinePoint($canvas, $box, $line, $baseline + $shift);
             $firstBaseline ??= $point;
             $lastBaseline  = $point;
+            $textEnd       = [$point[0] + self::textWidth($line), $point[1]];
         }
         $this->last = new FitInfo(
             $layout->result,
@@ -225,6 +238,7 @@ final class Textflow implements FlowableInterface
             $firstBaseline,
             $lastBaseline,
             $scale,
+            $textEnd,
         );
         $this->paragraphIndex = $layout->paragraphIndex;
         $this->itemIndex      = $layout->itemIndex;

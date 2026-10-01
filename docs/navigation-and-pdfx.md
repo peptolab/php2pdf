@@ -11,7 +11,8 @@ $page->addLink($box, Destination::at(3, 72, 500, zoom: 1.5));
 $page->addLink($box, Destination::named('chapter-2'));
 ```
 
-Links draw nothing; style the content underneath. The area is in the page's coordinate mode.
+`addLink($area, $target, tooltip: 'Opens in a browser')` adds a tooltip viewers show when the
+pointer rests on the link. Links draw nothing; style the content underneath. The area is in the page's coordinate mode.
 Links may point at pages that do not exist yet: annotations are written when the document closes.
 
 ## Named destinations and bookmarks

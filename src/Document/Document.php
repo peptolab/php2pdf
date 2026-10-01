@@ -126,9 +126,9 @@ final class Document
      *
      * @internal
      */
-    public function addLinkAnnotation(Box $area, Destination|string $target): Reference
+    public function addLinkAnnotation(Box $area, Destination|string $target, ?string $tooltip = null): Reference
     {
-        return $this->navigation()->addLink($area, $target);
+        return $this->navigation()->addLink($area, $target, $tooltip);
     }
 
     /**

@@ -16,6 +16,8 @@ final readonly class FitInfo
      * @param array{0: float, 1: float}|null $firstBaseline canvas coordinates of the first baseline's start
      * @param array{0: float, 1: float}|null $lastBaseline  canvas coordinates of the last baseline's start
      * @param float                        $scale         the copy-fitting scale applied (1.0 when none)
+     * @param array{0: float, 1: float}|null $textEnd       canvas coordinates where the last placed line's
+     *                                                     text ends, on its baseline, to continue inline
      */
     public function __construct(
         public FlowResult $result,
@@ -24,6 +26,7 @@ final readonly class FitInfo
         public ?array $firstBaseline,
         public ?array $lastBaseline,
         public float $scale,
+        public ?array $textEnd = null,
     ) {}
 
     public function overflowed(): bool

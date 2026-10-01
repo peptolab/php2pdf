@@ -40,6 +40,15 @@ final class TextflowTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
 
+    /** @return array<string, array{0: Alignment, 1: string, 2: float}> */
+    public static function textEndProvider(): array
+    {
+        return [
+            'left'  => [Alignment::Left, 'Lead in', 50.0],
+            'right' => [Alignment::Right, 'Lead in', 250.0],
+        ];
+    }
+
     /** @return array<string, array{0: string}> */
     public static function unknownTagProvider(): array
     {
@@ -266,6 +275,28 @@ final class TextflowTest extends TestCase
         self::assertSame('Two', $flow->remainingText());
         self::assertSame(FlowResult::Done, $page->fitTextflow($flow, new Box(0.0, 0.0, 100.0, 100.0)));
         $this->doc->close();
+    }
+
+    /** The text end lies on the last baseline, where the last line's text stops. */
+    #[Test]
+    #[DataProvider('textEndProvider')]
+    public function reportsWhereTheTextEnds(Alignment $alignment, string $text, float $edge): void
+    {
+        $style = new TextStyle(
+            font: 'DejaVuSans',
+            size: 10.0,
+            alignment: $alignment,
+        );
+        $flow  = $this->doc->textflow("First line of the flow.\n{$text}", $style);
+        $this->doc->addPage()->fitTextflow($flow, new Box(50.0, 500.0, 200.0, 100.0));
+        $info  = $flow->lastFit();
+        $width = $this->doc->fonts()->find('DejaVuSans')->width($text, 10.0);
+
+        self::assertEqualsWithDelta(
+            [Alignment::Right === $alignment ? $edge : $edge + $width, $info?->lastBaseline[1]],
+            $info?->textEnd,
+            1.0e-6,
+        );
     }
 
     #[Test]

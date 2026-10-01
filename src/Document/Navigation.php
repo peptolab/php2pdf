@@ -7,6 +7,7 @@ namespace PhpPdf\Document;
 use PhpPdf\Core\Object\Dictionary;
 use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
+use PhpPdf\Core\TextString;
 use PhpPdf\Core\Writer;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Geometry\Box;
@@ -31,7 +32,7 @@ final class Navigation
     /** @var array<string, Destination> */
     private array $destinations = [];
 
-    /** @var list<array{0: Reference, 1: Box, 2: Destination|string}> */
+    /** @var list<array{0: Reference, 1: Box, 2: Destination|string, 3: string|null}> */
     private array $links = [];
 
     public function __construct(
@@ -46,10 +47,10 @@ final class Navigation
     }
 
     /** Allocates a link annotation; it is written at close. */
-    public function addLink(Box $area, Destination|string $target): Reference
+    public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): Reference
     {
         $ref           = $this->writer->allocate();
-        $this->links[] = [$ref, $area, $target];
+        $this->links[] = [$ref, $area, $target, $tooltip];
 
         return $ref;
     }
@@ -64,12 +65,13 @@ final class Navigation
         $resolve =
             /** @return list<mixed>|string */
             fn(Destination $destination): array|string => $this->resolve($destination, $pageRefs);
-        foreach ($this->links as [$ref, $area, $target]) {
+        foreach ($this->links as [$ref, $area, $target, $tooltip]) {
             $annotation = Dictionary::of([
-                'Type'    => new Name('Annot'),
-                'Subtype' => new Name('Link'),
-                'Rect'    => $area->toRect(),
-                'Border'  => [0, 0, 0],
+                'Type'     => new Name('Annot'),
+                'Subtype'  => new Name('Link'),
+                'Rect'     => $area->toRect(),
+                'Border'   => [0, 0, 0],
+                'Contents' => null === $tooltip ? null : TextString::encode($tooltip),
             ]);
             if ($target instanceof Destination) {
                 $annotation->set('Dest', $resolve($target));

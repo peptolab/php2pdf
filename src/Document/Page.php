@@ -49,7 +49,7 @@ final class Page
     private int  $rotation = 0;
     private bool $finished = false;
 
-    /** @var list<array{0: Box, 1: Destination|string}> link areas in PDF coordinates with their targets */
+    /** @var list<array{0: Box, 1: Destination|string, 2: string|null}> link areas in PDF coordinates, targets and tooltips */
     private array $links = [];
 
     /** @internal */
@@ -67,11 +67,12 @@ final class Page
     /**
      * Makes an area of the page a link to a URL (or any URI such as mailto:) or to a destination
      * in this document. The link draws nothing; style the content underneath as you like. Under
-     * PDF/X a link must lie outside the bleed box (the trim box when no bleed box is set).
+     * PDF/X a link must lie outside the bleed box (the trim box when no bleed box is set). A
+     * tooltip is shown by viewers when the pointer rests on the link.
      */
-    public function addLink(Box $area, Destination|string $target): self
+    public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): self
     {
-        $this->links[] = [$this->toPdfBox($area), $target];
+        $this->links[] = [$this->toPdfBox($area), $target, $tooltip];
 
         return $this;
     }
@@ -128,8 +129,8 @@ final class Page
             $this->assertPdfXLinks($pdfx);
         }
         $annots = [];
-        foreach ($this->links as [$area, $target]) {
-            $annots[] = $this->document->addLinkAnnotation($area, $target);
+        foreach ($this->links as [$area, $target, $tooltip]) {
+            $annots[] = $this->document->addLinkAnnotation($area, $target, $tooltip);
         }
         $dict = Dictionary::of([
             'Type'      => new Name('Page'),

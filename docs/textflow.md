@@ -97,7 +97,15 @@ between boxes.
 ```php
 $flow->isDone();              $flow->remainingText();         $flow->reset();
 $flow->measure($width);       // height the remaining text would take at a width, without placing it
-$info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseline, lastBaseline, scale, overflowed()
+$info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseline, lastBaseline, scale, textEnd, overflowed()
+```
+
+`textEnd` is the canvas point where the last placed line's text stops, on its baseline (PDFlib's
+`textendx`/`textendy`), for continuing inline, such as placing an icon after the text:
+
+```php
+[$x, $y] = $flow->lastFit()->textEnd;
+$page->place($arrow, new Box($x + 2, $y, 8, 8), Fit::meet());
 ```
 
 ## Hyphenation

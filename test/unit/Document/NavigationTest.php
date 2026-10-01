@@ -43,6 +43,15 @@ final class NavigationTest extends TestCase
     }
 
     #[Test]
+    public function writesALinkTooltipAsItsContents(): void
+    {
+        $this->doc->addPage(PageSize::A4)->addLink(new Box(0.0, 0.0, 10.0, 10.0), 'https://example.com/', 'Visit us');
+        $this->doc->close();
+
+        self::assertStringContainsString('/Contents(Visit us)', $this->out->contents());
+    }
+
+    #[Test]
     public function writesLinkAnnotationsForUrlsAndDestinations(): void
     {
         $first = $this->doc->addPage(PageSize::A4);
