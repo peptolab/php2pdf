@@ -49,7 +49,7 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
 
     private readonly AfmMetrics $metrics;
 
-    /** @var array<int, int> code => code point, for ToUnicode */
+    /** @var array<int, list<int>> code => code point, for ToUnicode */
     private array $codeToCodePoint = [];
 
     /** @internal */
@@ -158,7 +158,7 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
     public function markUsed(GlyphRun $run): void
     {
         foreach ($run->glyphs as $glyph) {
-            $this->codeToCodePoint[$glyph->id] ??= $glyph->codePoint;
+            $this->codeToCodePoint[$glyph->id] ??= $glyph->codePoints();
         }
     }
 

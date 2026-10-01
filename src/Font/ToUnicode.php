@@ -11,14 +11,16 @@ use function ksort;
 use function sprintf;
 
 /**
- * Builds a ToUnicode CMap mapping 2-byte glyph ids to UTF-16BE text, so copied text is right.
+ * Builds a ToUnicode CMap mapping 2-byte glyph ids to UTF-16BE text, so copied text is right; a
+ * ligature maps to all the characters it stands for.
  *
  * @internal
  */
 final class ToUnicode
 {
     /**
-     * @param array<int, int> $glyphToCodePoint glyph id (or code) => code point
+     * @param array<int, int|list<int>> $glyphToCodePoint glyph id (or code) => code point, or the
+     *                                                  code points of a ligature
      * @param int             $bytes            the length of the codes: 2 for glyph ids, 1 for simple fonts
      */
     public static function build(array $glyphToCodePoint, int $bytes = 2): string
@@ -27,7 +29,11 @@ final class ToUnicode
         ksort($glyphToCodePoint);
         $entries = [];
         foreach ($glyphToCodePoint as $glyph => $codePoint) {
-            $entries[] = sprintf($format, $glyph, self::utf16Hex($codePoint));
+            $hex = '';
+            foreach ((array) $codePoint as $point) {
+                $hex .= self::utf16Hex($point);
+            }
+            $entries[] = sprintf($format, $glyph, $hex);
         }
 
         $blocks = '';

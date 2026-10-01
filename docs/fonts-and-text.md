@@ -36,6 +36,16 @@ used font files, up to 64 MiB of font data, and 64 search-path directories. A fi
 that changes on disk is read again. `OpenTypeFont::clearCache()` and `FontRegistry::clearCache()`
 empty them.
 
+### Ligatures
+
+Fonts with standard ligatures (the OpenType `liga` feature: `fi`, `fl`, `ffi`, `ft` and the
+like, as each font defines them) use them by default, as PDFlib, InDesign and HarfBuzz do. Kerning
+is applied to the ligature glyph, widths are measured with it, and copied or searched text still
+gives the separate letters. `TextOptions(ligatures: false)` or `TextStyle(ligatures: false)` turns
+them off, and tracking or character spacing turns them off too. In a Textflow a hyphenation
+point never falls inside a ligature: the letters are set separately when a break may come between
+them. The standard 14 fonts have no ligatures.
+
 ### Missing glyphs
 
 A character the font has no glyph for is drawn as the font's `.notdef` glyph, usually a box or

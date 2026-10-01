@@ -2,8 +2,9 @@
 
 Known gaps, in rough order of how often they matter.
 
-- **Scripts.** Text is shaped character by character with pair kerning. Ligatures, contextual
-  forms, Arabic, Indic and CJK vertical text are not supported.
+- **Scripts.** Text is shaped character by character with the font's standard ligatures and pair
+  kerning. Contextual and discretionary ligatures, other OpenType features, Arabic, Indic and CJK
+  vertical text are not supported.
 - **CFF fonts** whose charstrings use `seac` accent composition or the arithmetic and storage
   operators are embedded whole, with a warning in `$doc->fonts()->warnings()`; others are subset.
 - **Standard 14 fonts** cover WinAnsiEncoding only (Symbol and ZapfDingbats have their own

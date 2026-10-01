@@ -36,6 +36,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `show_xy` | `$canvas->drawText($text, $font, $size, $x, $y)` |
 | `stringwidth` | `$font->width($text, $size)` |
 | `kerning=true` | On by default; `TextStyle(kerning: false)` or `TextOptions(kerning: false)` turns it off |
+| `features={liga}` | Standard ligatures on by default; `ligatures: false` on `TextStyle` or `TextOptions` turns them off |
 | `charspacing`, `wordspacing`, `horizscaling`, `textrise` | `TextStyle(charSpacing:, wordSpacing:, horizontalScale:, rise:)` |
 
 ## Textflow
@@ -103,6 +104,6 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 ## Not there yet
 
-Standard ligatures and other OpenType features, right-to-left and complex scripts, tagged PDF,
+OpenType features beyond standard ligatures, right-to-left and complex scripts, tagged PDF,
 PDF/A, forms and annotations other than links, and encryption: see
 [limitations.md](limitations.md) and the issue tracker.

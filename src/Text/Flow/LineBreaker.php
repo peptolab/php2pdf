@@ -305,7 +305,7 @@ final class LineBreaker
             return $items;
         }
         $kerning       = null === $change ? 0.0 : $glyph->kerning + $change;
-        $glyphs[$last] = new Glyph($glyph->id, $glyph->codePoint, $glyph->advance, $kerning);
+        $glyphs[$last] = $glyph->withKerning($kerning);
         $width         = $item->width
         - (null === $change ? Itemiser::kerningWidth($glyph->kerning, $item->style) : 0.0);
         $items[$index] = new Item(ItemKind::Box, $item->style, $item->text, new GlyphRun($glyphs), $width);

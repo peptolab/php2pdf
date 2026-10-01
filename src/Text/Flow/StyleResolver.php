@@ -40,6 +40,7 @@ final class StyleResolver
             underline: false,
             strikeout: false,
             kerning: true,
+            ligatures: true,
             alignment: Alignment::Left,
             firstLineIndent: 0.0,
             leftIndent: 0.0,

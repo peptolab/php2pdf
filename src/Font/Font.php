@@ -57,7 +57,7 @@ final class Font implements PdfFontInterface, DeferredInterface
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
 
-    /** @var array<int, int> glyph id => code point, for ToUnicode */
+    /** @var array<int, list<int>> glyph id => the code points it stands for, for ToUnicode */
     private array $glyphToCodePoint = [];
 
     /** @var array<int, int> glyph id => advance in thousandths of an em, memoised */
@@ -202,7 +202,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             if (0 === $glyph->id) {
                 continue;
             }
-            $this->glyphToCodePoint[$glyph->id] ??= $glyph->codePoint;
+            $this->glyphToCodePoint[$glyph->id] ??= $glyph->codePoints();
         }
     }
 
@@ -225,19 +225,21 @@ final class Font implements PdfFontInterface, DeferredInterface
     }
 
     /**
-     * Maps UTF-8 text to glyphs with kerning. Characters the font lacks become .notdef.
+     * Maps UTF-8 text to glyphs, substitutes the font's standard ligatures, then kerns. Characters
+     * the font lacks become .notdef.
      */
     #[Override]
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
-        $kerning = ($options ?? TextOptions::default())->kerning && $this->program->hasKerning();
-        $key     = ($kerning ? 'k' : '-') . $text;
-        $cached  = $this->shapes[$key] ?? null;
+        $options   ??= TextOptions::default();
+        $kerning   = $options->kerning && $this->program->hasKerning();
+        $ligatures = $options->useLigatures() ? $this->program->ligatures() : null;
+        $key       = ($kerning ? 'k' : '-') . (null === $ligatures ? '-' : 'l') . $text;
+        $cached    = $this->shapes[$key] ?? null;
         if (null !== $cached) {
             return $cached;
         }
-        $glyphs = [];
-        $prev   = null;
+        $sequence = [];
         foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
             $codePoint = mb_ord($char, encoding: 'UTF-8');
             if (false === $codePoint) {
@@ -247,18 +249,27 @@ final class Font implements PdfFontInterface, DeferredInterface
             if (0 === $id) {
                 $this->missingGlyph($char, $codePoint);
             }
+            $sequence[] = [$id, [$codePoint]];
+        }
+        if (null !== $ligatures) {
+            $sequence = $ligatures->apply($sequence);
+        }
+        $glyphs = [];
+        $prev   = null;
+        foreach ($sequence as [$id, $codePoints]) {
             if ($kerning && null !== $prev) {
                 $kern = $this->program->kerning($prev->id, $id);
                 if (0 !== $kern) {
-                    $glyphs[count($glyphs) - 1] = new Glyph(
-                        $prev->id,
-                        $prev->codePoint,
-                        $prev->advance,
-                        $kern * $this->scale,
-                    );
+                    $glyphs[count($glyphs) - 1] = $prev->withKerning($kern * $this->scale);
                 }
             }
-            $prev     = new Glyph($id, $codePoint, $this->advance($id));
+            $prev = new Glyph(
+                $id,
+                $codePoints[0] ?? 0,
+                $this->advance($id),
+                0.0,
+                count($codePoints) > 1 ? $codePoints : [],
+            );
             $glyphs[] = $prev;
         }
 

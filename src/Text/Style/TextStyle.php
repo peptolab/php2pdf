@@ -64,6 +64,7 @@ final readonly class TextStyle
         public ?int $orphans = null,
         public ?int $widows = null,
         public ?array $fallback = null,
+        public ?bool $ligatures = null,
     ) {}
 
     public function fontSize(): float
@@ -120,6 +121,7 @@ final readonly class TextStyle
             rise: $this->rise ?? 0.0,
             renderMode: $this->renderMode ?? TextRenderMode::Fill,
             kerning: $this->kerning ?? true,
+            ligatures: $this->ligatures ?? true,
         );
     }
 }

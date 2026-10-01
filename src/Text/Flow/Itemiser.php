@@ -10,11 +10,11 @@ use PhpPdf\Font\GlyphRun;
 use PhpPdf\Text\Hyphenation\Hyphenator;
 use PhpPdf\Text\Style\TextStyle;
 
+use function array_key_exists;
 use function array_slice;
 use function array_values;
 use function count;
 use function explode;
-use function mb_chr;
 use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
@@ -239,11 +239,8 @@ final class Itemiser
         $last   = $before[count($before) - 1] ?? null;
         $change = 0.0;
         if (null !== $last) {
-            $pair = StyleResolver::fontOf($style)->shape(
-                mb_chr($last->codePoint, encoding: 'UTF-8') . '-',
-                $style->textOptions(),
-            );
-            $first  = $pair->glyphs[0] ?? null;
+            $pair   = StyleResolver::fontOf($style)->shape("{$last->text()}-", $style->textOptions());
+            $first  = $pair->glyphs[count($pair->glyphs) - 2] ?? null;
             $change = (null === $first ? 0.0 : $first->kerning) - $last->kerning;
         }
 
@@ -257,6 +254,50 @@ final class Itemiser
             $hyphen->width + self::kerningWidth($change, $style),
             $change,
         );
+    }
+
+    /**
+     * The glyphs with every ligature that straddles a break between pieces (a hyphenation point,
+     * a hard hyphen) set as separate glyphs instead, each kerned towards the character after it.
+     *
+     * @param list<Glyph>                         $glyphs
+     * @param list<array{0: string, 1: ?string}> $pieces
+     *
+     * @return list<Glyph>
+     */
+    private function splitLigatures(array $glyphs, array $pieces, string $shaped, TextStyle $style): array
+    {
+        $boundaries = [];
+        $at         = 0;
+        foreach ($pieces as [$piece]) {
+            $at              += mb_strlen($piece, encoding: 'UTF-8');
+            $boundaries[$at] = true;
+        }
+        $font    = StyleResolver::fontOf($style);
+        $options = $style->textOptions()->withLigatures(false);
+        $chars   = mb_str_split($shaped, length: 1, encoding: 'UTF-8');
+        $out     = [];
+        $at      = 0;
+        foreach ($glyphs as $glyph) {
+            $length    = $glyph->length();
+            $straddles = false;
+            for ($b = $at + 1; $b < ($at + $length); ++$b) {
+                $straddles = $straddles || array_key_exists($b, $boundaries);
+            }
+            $parts = $straddles
+                ? array_slice(
+                    $font->shape($glyph->text() . ($chars[$at + $length] ?? ''), $options)->glyphs,
+                    offset: 0,
+                    length: $length,
+                )
+                : [$glyph];
+            foreach ($parts as $part) {
+                $out[] = $part;
+            }
+            $at += $length;
+        }
+
+        return $out;
     }
 
     /**
@@ -292,14 +333,19 @@ final class Itemiser
                 $shaped   .= $piece[0];
             }
         }
-        $glyphs = $font->shape($shaped, $style->textOptions())->glyphs;
+        $glyphs = $this->splitLigatures($font->shape($shaped, $style->textOptions())->glyphs, $pieces, $shaped, $style);
 
         $items  = [];
-        $offset = 0;
+        $cursor = 0;
         foreach ($pieces as [$piece, $after]) {
             $length = mb_strlen($piece, encoding: 'UTF-8');
-            $slice  = array_slice($glyphs, $offset, $length);
-            $offset += $length;
+            $slice  = [];
+            $count  = 0;
+            while ($count < $length && null !== ($glyph = $glyphs[$cursor] ?? null)) {
+                $slice[] = $glyph;
+                $count   += $glyph->length();
+                ++$cursor;
+            }
             if (self::GLUE === $after) {
                 $first = $slice[0] ?? null;
                 $last  = $slice[count($slice) - 1] ?? null;
