@@ -33,7 +33,7 @@ use function sprintf;
  *
  * @api
  */
-final class CoreFont implements FontInterface, DeferredInterface
+final class CoreFont implements PdfFontInterface, DeferredInterface
 {
     /** AFM files carry no strikeout metrics; these match what OpenType fonts without them get. */
     private const int STRIKEOUT_POSITION = 250;

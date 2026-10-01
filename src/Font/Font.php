@@ -44,7 +44,7 @@ use function strlen;
  *
  * @api
  */
-final class Font implements FontInterface, DeferredInterface
+final class Font implements PdfFontInterface, DeferredInterface
 {
     /** Shaped runs kept for reuse; cleared when full so free text cannot grow it without bound. */
     private const int SHAPE_CACHE_SIZE = 10_000;

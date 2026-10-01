@@ -29,6 +29,7 @@ use PhpPdf\Flow\FlowableInterface;
 use PhpPdf\Flow\FlowResult;
 use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\GlyphRun;
+use PhpPdf\Font\PdfFontInterface;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
@@ -97,8 +98,12 @@ final class Canvas
      * positions, otherwise a TJ array of strings interleaved with kerning, tracking and word
      * spacing adjustments in thousandths of an em.
      */
-    private static function showOperation(GlyphRun $run, FontInterface $font, float $size, TextOptions $options): string
-    {
+    private static function showOperation(
+        GlyphRun $run,
+        PdfFontInterface $font,
+        float $size,
+        TextOptions $options,
+    ): string {
         $wordAdjust = 0.0 === $options->wordSpacing || $size <= 0.0 ? 0.0 : ($options->wordSpacing / $size) * 1000.0;
         $tracking   = $options->tracking;
         $parts      = [];
@@ -721,6 +726,12 @@ final class Canvas
         if ($run->isEmpty()) {
             return $this;
         }
+        $font = $font instanceof PdfFontInterface
+            ? $font
+            : throw new InvalidArgumentException(sprintf(
+                'Text can only be drawn with fonts from the document\'s FontRegistry, not %s.',
+                $font::class,
+            ));
         $this->document->assertOwns($font->document(), 'A font');
         $font->markUsed($run);
         $ops = 'BT';
