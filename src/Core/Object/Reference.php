@@ -6,6 +6,8 @@ namespace PhpPdf\Core\Object;
 
 /**
  * An indirect object reference (n g R).
+ *
+ * @api
  */
 final readonly class Reference
 {

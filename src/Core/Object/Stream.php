@@ -10,6 +10,8 @@ namespace PhpPdf\Core\Object;
  * When $compress is true and the dictionary carries no /Filter, the writer applies FlateDecode
  * if the document is configured to compress. Data that is already encoded (JPEG, pre-deflated PNG
  * rows) sets its own /Filter and is passed through untouched.
+ *
+ * @api
  */
 final class Stream
 {

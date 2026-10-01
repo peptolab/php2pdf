@@ -31,8 +31,7 @@ final class ForeignColorTest extends TestCase
                 return [0.5];
             }
         };
-        $canvas = (new Document(new MemoryOutput()))
-            ->addPage(PageSize::A4)
+        $canvas = (new Document(new MemoryOutput()))->addPage(PageSize::A4)
             ->canvas();
 
         $this->expectException(InvalidArgumentException::class);

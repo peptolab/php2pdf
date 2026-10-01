@@ -6,6 +6,8 @@ namespace PhpPdf\Core\Object;
 
 /**
  * Pre-serialised PDF syntax, written verbatim.
+ *
+ * @internal
  */
 final readonly class Raw
 {

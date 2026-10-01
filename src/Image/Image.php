@@ -66,9 +66,9 @@ final class Image implements PlaceableInterface
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
         $canvas->document()->assertOwns($this->document, 'An image');
-        $this->document->assertOutputIntent();
+        $this->document->pdfx()->assertOutputIntent();
         if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
-            $this->document->assertDeviceColour($this->data->colorSpace->device, 'images');
+            $this->document->pdfx()->assertDeviceColour($this->data->colorSpace->device, 'images');
         }
         $canvas->drawXObject(
             $this->reference,
@@ -117,7 +117,7 @@ final class Image implements PlaceableInterface
         if (null !== $data->iccProfile && ! $data->colorSpace->isIndexed()) {
             $profile = $data->iccProfile;
             $n       = $data->colorSpace->components;
-            $icc     = $document->shared(
+            $icc     = $document->objects()->shared(
                 'iccstream:' . md5($profile),
                 static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
             );

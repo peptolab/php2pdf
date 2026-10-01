@@ -17,7 +17,6 @@ use PhpPdf\Core\Output\FileOutput;
 use PhpPdf\Core\Output\OutputInterface;
 use PhpPdf\Core\TextString;
 use PhpPdf\Core\Writer;
-use PhpPdf\Exception\ConformanceException;
 use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Exception\IoException;
 use PhpPdf\Exception\LayoutException;
@@ -68,15 +67,14 @@ final class Document
     private readonly Info $info;
     private readonly DocumentOptions $options;
     private readonly DateTimeImmutable $createdAt;
+    private readonly Objects $objects;
+    private readonly PdfXRules $pdfx;
 
     /** @var list<Reference> */
     private array $pageRefs = [];
 
     /** @var list<DeferredInterface> */
     private array $deferred = [];
-
-    /** @var array<string, Reference> */
-    private array $shared = [];
 
     /** @var list<string> extra XMP descriptions */
     private array $xmpDescriptions = [];
@@ -96,11 +94,10 @@ final class Document
     private ?FontRegistry  $fonts  = null;
     private ?StyleRegistry $styles = null;
 
-    private ?InlineRegistry $inlines      = null;
-    private ?OutputIntent   $outputIntent = null;
-    private ?Page           $current      = null;
-    private bool            $closed       = false;
-    private ?Navigation     $navigation   = null;
+    private ?InlineRegistry $inlines    = null;
+    private ?Page           $current    = null;
+    private bool            $closed     = false;
+    private ?Navigation     $navigation = null;
 
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
@@ -114,6 +111,8 @@ final class Document
         $this->createdAt = $this->options->clock->now();
         $this->writer->writeHeader($this->options->version);
         $this->pagesRef = $this->writer->allocate();
+        $this->objects  = new Objects($this->writer);
+        $this->pdfx     = new PdfXRules($this->options);
     }
 
     /**
@@ -188,89 +187,6 @@ final class Document
     }
 
     /**
-     * Under PDF/X, checks that a device colour space suits the output intent: DeviceGray always,
-     * DeviceRGB under an RGB intent or once an RGB profile (DefaultRGB) is set, DeviceCMYK under
-     * a CMYK intent.
-     *
-     * @internal
-     *
-     * @param string $space DeviceGray, DeviceRGB or DeviceCMYK
-     * @param string $what  what uses it, for the error message
-     *
-     * @throws PdfException when PDF/X does not allow the space here
-     */
-    public function assertDeviceColour(string $space, string $what = 'colours'): void
-    {
-        $pdfx = $this->options->pdfx;
-        if (null === $pdfx) {
-            return;
-        }
-        $this->assertOutputIntent();
-        if ('DeviceRGB' === $space && null !== $this->options->rgbProfile) {
-            return;
-        }
-        if ($this->intentAllows($space)) {
-            return;
-        }
-        throw new ConformanceException(sprintf(
-            'DeviceRGB' === $space
-                ? '%s with %s output intent needs an RGB profile (DocumentOptions::$rgbProfile) before RGB %s can be used.'
-                : '%s with %s output intent cannot use DeviceCMYK %s; use the output intent\'s colour space or an ICC-based colour.',
-            $pdfx->value,
-            $this->intentName(),
-            $what,
-        ));
-    }
-
-    /**
-     * Under PDF/X, checks a device colour space an imported page uses. The RGB profile does not
-     * reach imported artwork, whose own resources are kept, so DeviceRGB there needs an RGB
-     * output intent.
-     *
-     * @internal
-     *
-     * @throws PdfException when PDF/X does not allow the space in the imported page
-     */
-    public function assertImportedColour(string $space, int $page): void
-    {
-        $pdfx = $this->options->pdfx;
-        if (null === $pdfx) {
-            return;
-        }
-        $this->assertOutputIntent();
-        if ($this->intentAllows($space)) {
-            return;
-        }
-        throw new ConformanceException(sprintf(
-            '%s with %s output intent cannot place imported page %d: it draws in %s. Convert the artwork to the output intent\'s colour space first.',
-            $pdfx->value,
-            $this->intentName(),
-            $page,
-            $space,
-        ));
-    }
-
-    /**
-     * Under PDF/X, refuses colour until the output intent is set: the first fill, stroke, image
-     * or gradient needs it, so the error names the call that did, not the close.
-     *
-     * @internal
-     *
-     * @throws PdfException when writing PDF/X without an output intent
-     */
-    public function assertOutputIntent(): void
-    {
-        $pdfx = $this->options->pdfx;
-        if (null === $pdfx || null !== $this->outputIntent) {
-            return;
-        }
-        throw new ConformanceException(
-            "{$pdfx->value} needs an output intent before any colour, image or gradient is drawn: "
-                . "call setOutputIntent() with the printing condition's ICC profile first.",
-        );
-    }
-
-    /**
      * Refuses a resource made by another document, which would refer to objects this one never
      * writes.
      *
@@ -298,7 +214,7 @@ final class Document
             return new Name('DeviceRGB');
         }
 
-        return match ($this->outputIntent->components ?? 3) {
+        return match ($this->pdfx->intent()->components ?? 3) {
             1       => new Name('DeviceGray'),
             4       => new Name('DeviceCMYK'),
             default => $this->defaultRgb() ?? new Name('DeviceRGB'),
@@ -328,7 +244,9 @@ final class Document
         if ([] === $this->pageRefs) {
             throw new PdfException('A document needs at least one page.');
         }
-        $this->assertConformance();
+        foreach ($this->pdfx->complete($this->info->title()) as $description) {
+            $this->xmpDescriptions[] = $description;
+        }
 
         foreach ($this->deferred as $deferred) {
             $deferred->finalize($this);
@@ -359,8 +277,9 @@ final class Document
             );
             $catalog->set('Metadata', $this->writer->add($metadata));
         }
-        if (null !== $this->outputIntent) {
-            $catalog->set('OutputIntents', [$this->writer->add($this->outputIntent->dictionary)]);
+        $intent = $this->pdfx->intent();
+        if (null !== $intent) {
+            $catalog->set('OutputIntents', [$this->writer->add($intent->dictionary)]);
         }
         $catalogRef = $this->writer->add($catalog);
         $infoRef    = $this->writer->add($this->infoDictionary());
@@ -385,12 +304,12 @@ final class Document
         if (null === $profile) {
             return null;
         }
-        $stream = $this->shared(
+        $stream = $this->objects->shared(
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
 
-        return $this->shared(
+        return $this->objects->shared(
             "icc:{$profile->key()}",
             /** @return array{Name, Reference} */
             static fn(): array => [new Name('ICCBased'), $stream],
@@ -503,6 +422,14 @@ final class Document
     }
 
     /**
+     * The document's PDF objects, for artwork of your own that writes its own resources.
+     */
+    public function objects(): Objects
+    {
+        return $this->objects;
+    }
+
+    /**
      * Runs a callback when close() is called, before the last page is finished: the page count is
      * final then, and templates placed on every page (a "Page X of Y" footer) can still be drawn
      * on, as can the last page. Callbacks run in the order they were added.
@@ -534,6 +461,16 @@ final class Document
     }
 
     /**
+     * What PDF/X asks of the document, checked as it is drawn.
+     *
+     * @internal
+     */
+    public function pdfx(): PdfXRules
+    {
+        return $this->pdfx;
+    }
+
+    /**
      * Declares the intended output condition (ICC profile), as PDF/X requires.
      *
      * @param string $identifier Registry name of the condition, e.g. "FOGRA39" or "sRGB IEC61966-2.1".
@@ -541,32 +478,22 @@ final class Document
     public function setOutputIntent(IccProfile $profile, string $identifier, ?string $info = null): self
     {
         $this->assertOpen();
-        $profileRef = $this->shared(
+        $profileRef = $this->objects->shared(
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
-        $this->outputIntent = new OutputIntent(Dictionary::of([
-            'Type'                      => new Name('OutputIntent'),
-            'S'                         => new Name('GTS_PDFX'),
-            'OutputConditionIdentifier' => $identifier,
-            'Info'                      => $info ?? $identifier,
-            'RegistryName'              => 'http://www.color.org',
-            'DestOutputProfile'         => $profileRef,
-        ]), $profile->componentCount);
+        $this->pdfx->setIntent(
+            new OutputIntent(Dictionary::of([
+                'Type'                      => new Name('OutputIntent'),
+                'S'                         => new Name('GTS_PDFX'),
+                'OutputConditionIdentifier' => $identifier,
+                'Info'                      => $info ?? $identifier,
+                'RegistryName'              => 'http://www.color.org',
+                'DestOutputProfile'         => $profileRef,
+            ]), $profile->componentCount),
+        );
 
         return $this;
-    }
-
-    /**
-     * Writes an object once per document and returns its reference on later calls with the same key.
-     *
-     * @internal
-     *
-     * @param \Closure(): mixed $factory
-     */
-    public function shared(string $key, Closure $factory): Reference
-    {
-        return $this->shared[$key] ??= $this->writer->add($factory());
     }
 
     /** Named text styles for Textflow. */
@@ -634,36 +561,6 @@ final class Document
         return $this->writer;
     }
 
-    /** Checks what a PDF/X level requires of the document as a whole and adds its declarations. */
-    private function assertConformance(): void
-    {
-        $pdfx = $this->options->pdfx;
-        if (null === $pdfx) {
-            return;
-        }
-        if (null === $this->outputIntent) {
-            throw new ConformanceException(
-                "{$pdfx->value} needs an output intent: call setOutputIntent() with the printing condition's ICC profile.",
-            );
-        }
-        if (null === $this->info->title()) {
-            throw new ConformanceException("{$pdfx->value} needs a document title.");
-        }
-        if (! $this->options->xmp) {
-            throw new ConformanceException("{$pdfx->value} needs XMP metadata; leave DocumentOptions::\$xmp enabled.");
-        }
-        $this->xmpDescriptions[] =
-            '<rdf:Description rdf:about="" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/">'
-            . "<pdfxid:GTS_PDFXVersion>{$pdfx->value}</pdfxid:GTS_PDFXVersion></rdf:Description>";
-        $this->xmpDescriptions[] =
-            '<rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">'
-            . '<pdf:Trapped>False</pdf:Trapped></rdf:Description>';
-        $this->xmpDescriptions[] =
-            '<rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">'
-            . '<xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>'
-            . '</rdf:Description>';
-    }
-
     private function assertOpen(): void
     {
         if ($this->closed) {
@@ -707,25 +604,6 @@ final class Document
         }
 
         return $dict;
-    }
-
-    /** Whether a device colour space matches the output intent's (DeviceGray always does). */
-    private function intentAllows(string $space): bool
-    {
-        return match ($space) {
-            'DeviceRGB'  => 3 === $this->outputIntent?->components,
-            'DeviceCMYK' => 4 === $this->outputIntent?->components,
-            default      => true,
-        };
-    }
-
-    private function intentName(): string
-    {
-        return match ($this->outputIntent?->components) {
-            1       => 'a grey',
-            3       => 'an RGB',
-            default => 'a CMYK',
-        };
     }
 
     private function navigation(): Navigation

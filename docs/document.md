@@ -131,6 +131,19 @@ footer; see the cookbook), and so can the last page.
 
 ## Shared objects
 
-Anything written through `Document::shared($key, $factory)` is written once per document and
-reused: ICC streams, shadings, extended graphics states and so on. Images are deduplicated by
-content hash, imported PDFs by path, SVG files by path and converter.
+`$doc->objects()` holds the document's PDF objects. `add($object)` writes one and returns its
+reference; `shared($key, $factory)` writes it once per document and returns the same reference
+for the same key, as the library does for ICC streams, shadings and extended graphics states.
+Images are deduplicated by content hash, imported PDFs by path, SVG files by path and converter.
+
+Artwork of your own (see [fit-engine.md](fit-engine.md)) can write its own resources there with
+`Dictionary`, `Stream`, `Name` and `Reference` from `PhpPdf\Core\Object`, and draw a form or image
+XObject with `Canvas::drawXObject($reference, $matrix)`:
+
+```php
+$form = $doc->objects()->shared('logo-mark', fn () => new Stream(
+    Dictionary::of(['Type' => new Name('XObject'), 'Subtype' => new Name('Form'), 'BBox' => [0, 0, 10, 10]]),
+    '0 0 10 10 re f',
+));
+$canvas->drawXObject($form, $matrix);
+```

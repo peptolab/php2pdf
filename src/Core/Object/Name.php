@@ -6,6 +6,8 @@ namespace PhpPdf\Core\Object;
 
 /**
  * A PDF name object (/Foo). Names are atoms; the value is stored unescaped.
+ *
+ * @api
  */
 final readonly class Name
 {

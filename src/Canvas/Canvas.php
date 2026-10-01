@@ -252,9 +252,9 @@ final class Canvas
     }
 
     /**
-     * Draws a form or image XObject with the given matrix, inside its own save/restore.
-     *
-     * @internal
+     * Draws a form or image XObject with the given matrix, inside its own save/restore: for
+     * artwork of your own that writes its XObject through Document::objects(). An image XObject
+     * fills the unit square, so the matrix scales it to its size.
      */
     public function drawXObject(Reference $ref, Matrix $matrix): self
     {
@@ -786,8 +786,10 @@ final class Canvas
     private function colorOps(ColorInterface $color, array $ops): string
     {
         $components = Num::list($color->components());
-        $this->document->assertOutputIntent();
-        $this->document->assertDeviceColour(self::deviceSpace($color instanceof Spot ? $color->alternate : $color));
+        $this->document->pdfx()->assertOutputIntent();
+        $this->document
+            ->pdfx()
+            ->assertDeviceColour(self::deviceSpace($color instanceof Spot ? $color->alternate : $color));
 
         return match (true) {
             $color instanceof Gray => "{$components} {$ops[0]}",
@@ -827,7 +829,7 @@ final class Canvas
     private function extGState(array $entries): self
     {
         $dict = Dictionary::of(['Type' => new Name('ExtGState'), ...$entries]);
-        $ref  = $this->document->shared(
+        $ref  = $this->document->objects()->shared(
             'gs:' . Serializer::serialize($dict),
             static fn(): Dictionary => $dict,
         );
@@ -839,12 +841,12 @@ final class Canvas
     private function iccColorSpace(IccColor $color): Reference
     {
         $profile = $color->profile;
-        $stream  = $this->document->shared(
+        $stream  = $this->document->objects()->shared(
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
 
-        return $this->document->shared(
+        return $this->document->objects()->shared(
             "icc:{$profile->key()}",
             /** @return array{Name, Reference} */
             static fn(): array => [new Name('ICCBased'), $stream],
@@ -863,7 +865,7 @@ final class Canvas
     {
         $shading = $this->shadingRef($gradient);
         $matrix  = null === $matrix ? $this->ctm : $matrix->then($this->ctm);
-        $pattern = $this->document->shared(
+        $pattern = $this->document->objects()->shared(
             "pat:{$gradient->key()}:{$matrix->toPdf()}",
             static fn(): Dictionary => Dictionary::of([
                 'PatternType' => 2,
@@ -877,9 +879,9 @@ final class Canvas
 
     private function shadingRef(AbstractGradient $gradient): Reference
     {
-        $this->document->assertOutputIntent();
-        $this->document->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
-        return $this->document->shared("sh:{$gradient->key()}", $gradient->toShading(...));
+        $this->document->pdfx()->assertOutputIntent();
+        $this->document->pdfx()->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
+        return $this->document->objects()->shared("sh:{$gradient->key()}", $gradient->toShading(...));
     }
 
     private function spotColorSpace(Spot $spot): Reference
@@ -887,7 +889,7 @@ final class Canvas
         $alternate = $spot->alternate;
         $key       = 'sep:' . $spot->name . ':' . $alternate::class . ':' . Num::list($alternate->components());
 
-        return $this->document->shared($key, static function () use ($spot, $alternate): array {
+        return $this->document->objects()->shared($key, static function () use ($spot, $alternate): array {
             $white = match (true) {
                 $alternate instanceof Gray => [1.0],
                 $alternate instanceof Rgb => [1.0, 1.0, 1.0],

@@ -58,7 +58,7 @@ final class ImportedPage implements PlaceableInterface
         $canvas->document()->assertOwns($this->document, 'An imported page');
         if (null === $this->reference && null !== $this->document->options()->pdfx) {
             foreach ($this->page->deviceColourSpaces() as $space) {
-                $this->document->assertImportedColour($space, $this->page->number);
+                $this->document->pdfx()->assertImportedColour($space, $this->page->number);
             }
         }
         $this->reference ??= $this->write();

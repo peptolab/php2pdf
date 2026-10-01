@@ -25,6 +25,8 @@ use function strlen;
  * Streams indirect objects to an Output as they are written and emits the cross-reference table
  * and trailer at the end. Object numbers can be allocated ahead of time so objects may reference
  * each other before being written.
+ *
+ * @internal
  */
 final class Writer
 {

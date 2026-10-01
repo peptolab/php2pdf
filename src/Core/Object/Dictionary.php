@@ -10,6 +10,8 @@ use function count;
 /**
  * A PDF dictionary. Keys are stored without the leading slash; insertion order is preserved
  * so output is deterministic.
+ *
+ * @api
  */
 final class Dictionary
 {
