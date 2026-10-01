@@ -27,6 +27,7 @@ use function mb_ord;
 use function mb_str_split;
 use function md5;
 use function ord;
+use function pack;
 use function round;
 use function sort;
 use function sprintf;
@@ -50,9 +51,6 @@ final class Font implements FontInterface, DeferredInterface
 
     /** @var array<string, GlyphRun> kerning flag and text => shaped run */
     private array $shapes = [];
-
-    /** @var array<int, string> glyph id => content stream code, memoised */
-    private array $codes = [];
 
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
@@ -94,18 +92,22 @@ final class Font implements FontInterface, DeferredInterface
         return $this->program->metrics->scale($this->program->metrics->capHeight, $size);
     }
 
-    /** @internal */
-    #[Override]
-    public function code(int $glyphId): string
-    {
-        return $this->codes[$glyphId] ??= sprintf('%04X', $glyphId);
-    }
-
     /** Negative: distance below the baseline. */
     #[Override]
     public function descender(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->descender, $size);
+    }
+
+    /**
+     * @internal
+     *
+     * @param list<int> $glyphIds
+     */
+    #[Override]
+    public function encode(array $glyphIds): string
+    {
+        return pack('n*', ...$glyphIds);
     }
 
     /** @internal */

@@ -112,7 +112,7 @@ final class CoreFontTest extends TestCase
             '<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold/Encoding/WinAnsiEncoding>>',
             $pdf,
         );
-        self::assertStringContainsString('[<486921>] TJ', $pdf);
+        self::assertStringContainsString('(Hi!) Tj', $pdf);
         self::assertStringNotContainsString('/FontFile', $pdf);
     }
 

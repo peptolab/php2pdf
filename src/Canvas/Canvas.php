@@ -28,7 +28,6 @@ use PhpPdf\Fit\Placement;
 use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\GlyphRun;
 use PhpPdf\Font\TextOptions;
-use PhpPdf\Font\TextRenderMode;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
 use PhpPdf\Geometry\Origin;
@@ -50,6 +49,7 @@ use function max;
 use function min;
 use function sin;
 use function sprintf;
+use function strtr;
 use function tan;
 
 /**
@@ -63,43 +63,65 @@ use function tan;
  */
 final class Canvas
 {
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @param bool $inheritsState whether the content is drawn inside other content, as a form
+     *                            XObject is, so its text state starts unknown rather than at the
+     *                            defaults every page starts with
+     */
     public function __construct(
         private readonly Document $document,
         private readonly Resources $resources,
         private readonly float $height,
         private readonly bool $topDown,
+        bool $inheritsState = false,
     ) {
-        $this->ctm = Matrix::identity();
+        $this->text = $inheritsState ? self::UNKNOWN_STATE : self::PAGE_STATE;
+        $this->ctm  = Matrix::identity();
         if ($topDown) {
             $this->ctm = new Matrix(1.0, 0.0, 0.0, -1.0, 0.0, $height);
             $this->ops = '1 0 0 -1 0 ' . Num::format($height) . " cm\n";
         }
     }
 
+    /** Bytes as a PDF literal string; carriage returns are escaped so readers do not normalise them. */
+    private static function literal(string $bytes): string
+    {
+        return '(' . strtr($bytes, ['\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '\\r']) . ')';
+    }
+
     /**
-     * The TJ operand for a run: hex glyph strings interleaved with kerning, tracking and word
+     * The text-showing operation for a run: one Tj string when nothing adjusts the glyph
+     * positions, otherwise a TJ array of strings interleaved with kerning, tracking and word
      * spacing adjustments in thousandths of an em.
      */
-    private static function tjArray(GlyphRun $run, FontInterface $font, float $size, TextOptions $options): string
+    private static function showOperation(GlyphRun $run, FontInterface $font, float $size, TextOptions $options): string
     {
         $wordAdjust = 0.0 === $options->wordSpacing || $size <= 0.0 ? 0.0 : ($options->wordSpacing / $size) * 1000.0;
+        $tracking   = $options->tracking;
         $parts      = [];
-        $hex        = '';
+        $ids        = [];
         foreach ($run->glyphs as $glyph) {
-            $hex    .= $font->code($glyph->id);
-            $adjust = $glyph->kerning + $options->tracking + ($glyph->isSpace() ? $wordAdjust : 0.0);
+            $ids[]  = $glyph->id;
+            $adjust = $glyph->kerning + $tracking;
+            if (0.0 !== $wordAdjust && $glyph->isSpace()) {
+                $adjust += $wordAdjust;
+            }
             if (0.0 !== $adjust) {
-                $parts[] = "<{$hex}>";
+                $parts[] = self::literal($font->encode($ids));
                 $parts[] = Num::format(-$adjust, 2);
-                $hex     = '';
+                $ids     = [];
             }
         }
-        if ('' !== $hex) {
-            $parts[] = "<{$hex}>";
+        if ([] !== $ids) {
+            $parts[] = self::literal($font->encode($ids));
+        }
+        if (1 === count($parts)) {
+            return "{$parts[0]} Tj";
         }
 
-        return '[' . implode(' ', $parts) . ']';
+        return '[' . implode(' ', $parts) . '] TJ';
     }
 
     /**
@@ -454,7 +476,8 @@ final class Canvas
     /** Appends raw content-stream syntax. A newline is added. */
     public function raw(string $syntax): self
     {
-        $this->ops .= "{$syntax}\n";
+        $this->ops  .= "{$syntax}\n";
+        $this->text = self::UNKNOWN_STATE;
 
         return $this;
     }
@@ -479,6 +502,7 @@ final class Canvas
             throw new PdfException('restore() without a matching save().');
         }
         $this->ctm             = array_pop($this->ctmStack);
+        $this->text            = array_pop($this->textStack) ?? self::UNKNOWN_STATE;
         $this->ops             .= "Q\n";
         $this->hasCurrentPoint = false;
 
@@ -514,8 +538,9 @@ final class Canvas
 
     public function save(): self
     {
-        $this->ctmStack[] = $this->ctm;
-        $this->ops        .= "q\n";
+        $this->ctmStack[]  = $this->ctm;
+        $this->textStack[] = $this->text;
+        $this->ops         .= "q\n";
 
         return $this;
     }
@@ -548,7 +573,11 @@ final class Canvas
 
     public function setFillColor(ColorInterface $color): self
     {
-        $this->ops .= "{$this->colorOps($color, self::FILL_OPS)}\n";
+        $operation = $this->colorOps($color, self::FILL_OPS);
+        if ($operation !== $this->text['fill']) {
+            $this->ops          .= "{$operation}\n";
+            $this->text['fill'] = $operation;
+        }
 
         return $this;
     }
@@ -559,7 +588,8 @@ final class Canvas
      */
     public function setFillGradient(AbstractGradient $gradient, ?Matrix $matrix = null): self
     {
-        $this->ops .= "/Pattern cs /{$this->patternName($gradient, $matrix)} scn\n";
+        $this->ops          .= "/Pattern cs /{$this->patternName($gradient, $matrix)} scn\n";
+        $this->text['fill'] = null;
 
         return $this;
     }
@@ -570,6 +600,57 @@ final class Canvas
 
         return $this;
     }
+
+    /** Bézier control-point factor for a quarter circle. */
+    private const float KAPPA = 0.552_284_749_830_793_6;
+
+    private const array INITIAL_STATE = [
+        'Tf'   => null,
+        'Tc'   => '0 Tc',
+        'Tz'   => '100 Tz',
+        'Ts'   => '0 Ts',
+        'Tr'   => '0 Tr',
+        'fill' => null,
+    ];
+    private const array PAGE_STATE    = [
+        'Tf'   => null,
+        'Tc'   => '0 Tc',
+        'Tz'   => '100 Tz',
+        'Ts'   => '0 Ts',
+        'Tr'   => '0 Tr',
+        'fill' => '0 g',
+    ];
+    private const array UNKNOWN_STATE = [
+        'Tf'   => null,
+        'Tc'   => null,
+        'Tz'   => null,
+        'Ts'   => null,
+        'Tr'   => null,
+        'fill' => null,
+    ];
+
+    private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
+    private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];
+
+    private string $ops = '';
+    private Matrix $ctm;
+
+    /** @var list<Matrix> */
+    private array $ctmStack = [];
+
+    /**
+     * The text state and fill colour last written, as the operations that set them, so they are
+     * written again only when they change. Null is unknown.
+     *
+     * @var array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}
+     */
+    private array $text;
+
+    /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}> */
+    private array $textStack = [];
+
+    private bool $hasCurrentPoint = false;
+    private bool $finished        = false;
 
     public function setLineJoin(LineJoin $join): self
     {
@@ -629,22 +710,30 @@ final class Canvas
             return $this;
         }
         $font->markUsed($run);
-        $name = $this->resources->font($font->reference());
-
-        $ops = "BT /{$name} " . Num::format($size) . ' Tf';
-        if (0.0 !== $options->charSpacing) {
-            $ops .= ' ' . Num::format($options->charSpacing) . ' Tc';
+        $ops = 'BT';
+        $tf  = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
+        if ($tf !== $this->text['Tf']) {
+            $ops              .= " {$tf}";
+            $this->text['Tf'] = $tf;
         }
-        if (100.0 !== $options->horizontalScale) {
-            $ops .= ' ' . Num::format($options->horizontalScale) . ' Tz';
+        $state = [
+            'Tc' => Num::format($options->charSpacing) . ' Tc',
+            'Tz' => Num::format($options->horizontalScale) . ' Tz',
+            'Ts' => Num::format($options->rise) . ' Ts',
+            'Tr' => "{$options->renderMode->value} Tr",
+        ];
+        foreach ($state as $operator => $operation) {
+            if ($operation === ($this->text[$operator] ?? null)) {
+                continue;
+            }
+            $ops                   .= " {$operation}";
+            $this->text[$operator] = $operation;
         }
-        if (0.0 !== $options->rise) {
-            $ops .= ' ' . Num::format($options->rise) . ' Ts';
-        }
-        if (TextRenderMode::Fill !== $options->renderMode) {
-            $ops .= " {$options->renderMode->value} Tr";
-        }
-        $this->ops .= "{$ops} {$textMatrix->toPdf()} Tm " . self::tjArray($run, $font, $size, $options) . " TJ ET\n";
+        $m        = $textMatrix;
+        $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
+            ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
+            : "{$m->toPdf()} Tm";
+        $this->ops .= "{$ops} {$position} " . self::showOperation($run, $font, $size, $options) . " ET\n";
 
         return $this;
     }
@@ -708,21 +797,6 @@ final class Canvas
             . Num::format($thickness)
             . " re f Q\n";
     }
-
-    /** Bézier control-point factor for a quarter circle. */
-    private const float KAPPA = 0.552_284_749_830_793_6;
-
-    private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
-    private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];
-
-    private string $ops = '';
-    private Matrix $ctm;
-
-    /** @var list<Matrix> */
-    private array $ctmStack = [];
-
-    private bool $hasCurrentPoint = false;
-    private bool $finished        = false;
 
     /** @param array<string, mixed> $entries */
     private function extGState(array $entries): self

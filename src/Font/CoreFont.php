@@ -18,6 +18,7 @@ use function count;
 use function max;
 use function mb_ord;
 use function mb_str_split;
+use function pack;
 use function sprintf;
 
 /**
@@ -43,9 +44,6 @@ final class CoreFont implements FontInterface, DeferredInterface
 
     /** @var array<string, GlyphRun> kerning flag and text => shaped run */
     private array $shapes = [];
-
-    /** @var array<int, string> glyph id => content stream code, memoised */
-    private array $codes = [];
 
     private readonly AfmMetrics $metrics;
 
@@ -93,17 +91,21 @@ final class CoreFont implements FontInterface, DeferredInterface
         return self::scale($this->metrics->capHeight, $size);
     }
 
-    /** @internal */
-    #[Override]
-    public function code(int $glyphId): string
-    {
-        return $this->codes[$glyphId] ??= sprintf('%02X', $glyphId);
-    }
-
     #[Override]
     public function descender(float $size): float
     {
         return self::scale($this->metrics->descender, $size);
+    }
+
+    /**
+     * @internal
+     *
+     * @param list<int> $glyphIds
+     */
+    #[Override]
+    public function encode(array $glyphIds): string
+    {
+        return pack('C*', ...$glyphIds);
     }
 
     /** @internal */

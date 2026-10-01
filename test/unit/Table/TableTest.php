@@ -37,6 +37,7 @@ use PHPUnit\Framework\TestCase;
 use function count;
 use function preg_match_all;
 use function str_repeat;
+use function substr_count;
 
 final class TableTest extends TestCase
 {
@@ -301,7 +302,11 @@ final class TableTest extends TestCase
         $pdf = $this->out->contents();
         self::assertStringContainsString('1 g', $pdf);
         self::assertStringContainsString('0.9 g', $pdf);
-        self::assertStringContainsString('0 g', $pdf);
+        self::assertSame(
+            4,
+            substr_count($pdf, needle: " re\nf\n"),
+            'Every cell fills its background; black is the initial fill colour.',
+        );
         self::assertStringContainsString(' 20 Tf', $pdf);
     }
 

@@ -23,15 +23,17 @@ interface FontInterface
 
     public function capHeight(float $size): float;
 
-    /**
-     * The glyph's code in a content stream, as hex digits.
-     *
-     * @internal
-     */
-    public function code(int $glyphId): string;
-
     /** Negative: distance below the baseline. */
     public function descender(float $size): float;
+
+    /**
+     * The bytes that select these glyphs in a content stream string.
+     *
+     * @internal
+     *
+     * @param list<int> $glyphIds
+     */
+    public function encode(array $glyphIds): string;
 
     public function lineGap(float $size): float;
 

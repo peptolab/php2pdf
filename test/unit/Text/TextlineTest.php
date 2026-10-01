@@ -84,7 +84,7 @@ final class TextlineTest extends TestCase
         self::assertEqualsWithDelta(300.0 - $width, $placement->baselineX, 1e-6);
         self::assertEqualsWithDelta(150.0 - $this->font->ascender(10.0), $placement->baselineY, 1e-6);
         self::assertStringContainsString(
-            sprintf('Tf 1 0 0 1 %s %s Tm', self::num($placement->baselineX, 6), self::num($placement->baselineY, 6)),
+            sprintf(' %s %s Td ', self::num($placement->baselineX, 6), self::num($placement->baselineY, 6)),
             $this->out->contents(),
         );
     }
@@ -105,7 +105,7 @@ final class TextlineTest extends TestCase
 
         self::assertEqualsWithDelta(50.0 + 10.0 - ($placement->bounds->width / 2.0), $placement->bounds->x, 1e-6);
         self::assertTrue($placement->fits);
-        self::assertMatchesRegularExpression('/Tf 0 [0-9.]+ -[0-9.]+ 0 [0-9.]+ [0-9.]+ Tm/', $this->out->contents());
+        self::assertMatchesRegularExpression('/ Tf 0 [0-9.]+ -[0-9.]+ 0 [0-9.]+ [0-9.]+ Tm /', $this->out->contents());
     }
 
     #[Test]
@@ -135,7 +135,7 @@ final class TextlineTest extends TestCase
         self::assertFalse($limited->fits);
 
         $this->doc->close();
-        self::assertStringContainsString('Tf 0.9 0 0 0.9 ', $this->out->contents());
+        self::assertMatchesRegularExpression('/ 0\.9 0 0 0\.9 [0-9.]+ [0-9.]+ Tm /', $this->out->contents());
     }
 
     protected function setUp(): void

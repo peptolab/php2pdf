@@ -149,8 +149,15 @@ final class FontTest extends TestCase
         $this->doc->close();
         $pdf = $this->out->contents();
 
-        self::assertStringContainsString('BT /F1 12 Tf 1 Tc 1 0 0 1 10 20 Tm [<0024> 53.96 <0039> -10] TJ ET', $pdf);
-        self::assertStringContainsString('BT /F1 12 Tf 1 Tr 1 0 0 1 10 40 Tm [<00250003> -500 <0026>] TJ ET', $pdf);
+        self::assertStringContainsString(
+            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x00\x24) 53.96 (\x00\x39) -10] TJ ET",
+            $pdf,
+        );
+        self::assertStringContainsString(
+            "BT 0 Tc 1 Tr 10 40 Td [(\x00\x25\x00\x03) -500 (\x00\x26)] TJ ET",
+            $pdf,
+            'Only the text state that changed is set again, including back to its default.',
+        );
         self::assertMatchesRegularExpression(
             '/\/Subtype\/Type0\/BaseFont\/[A-Z]{6}\+DejaVuSans\/Encoding\/Identity-H/',
             $pdf,

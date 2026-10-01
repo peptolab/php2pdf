@@ -27,7 +27,9 @@ use PHPUnit\Framework\TestCase;
 
 use function count;
 use function end;
+use function preg_match;
 use function preg_match_all;
+use function preg_quote;
 use function str_repeat;
 use function substr_count;
 
@@ -70,10 +72,11 @@ final class TextflowTest extends TestCase
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, $width + 0.5, 100.0));
         self::assertSame(2, $flow->lastFit()?->lineCount);
         $this->doc->close();
+        preg_match('/stream\n(.*?)\nendstream/s', $this->out->contents(), $content);
         self::assertSame(
             1,
-            substr_count($this->out->contents(), needle: '<0010>'),
-            'One hyphen glyph is shown at the break.',
+            substr_count($content[1] ?? '', needle: "\x00\x10"),
+            'One hyphen glyph (id 16) is shown at the break.',
         );
     }
 
@@ -142,7 +145,7 @@ final class TextflowTest extends TestCase
         preg_match_all('/\[([^\]]*)\] TJ/', $pdf, $m);
         self::assertGreaterThan(1, count($m[1]));
         self::assertMatchesRegularExpression(
-            '/0003> -[0-9.]+ </',
+            '/\x00\x03\) -[0-9.]+ \(/',
             $m[1][0],
             'Justified lines carry negative adjustments after space glyphs.',
         );
@@ -185,8 +188,14 @@ final class TextflowTest extends TestCase
         $font = $this->doc->fonts()->find('DejaVuSans');
         $bb   = $font->width('bb', 10.0);
         $one2 = $font->width('12', 10.0);
-        self::assertStringContainsString('1 0 0 1 ' . self::num(100.0 - $bb) . ' ', $pdf);
-        self::assertStringContainsString('1 0 0 1 ' . self::num(180.0 - $one2) . ' ', $pdf);
+        self::assertMatchesRegularExpression(
+            '/ ' . preg_quote(self::num(100.0 - $bb), delimiter: '/') . ' [0-9.]+ Td /',
+            $pdf,
+        );
+        self::assertMatchesRegularExpression(
+            '/ ' . preg_quote(self::num(180.0 - $one2), delimiter: '/') . ' [0-9.]+ Td /',
+            $pdf,
+        );
     }
 
     #[Test]

@@ -47,7 +47,13 @@ final class Template implements PlaceableInterface, DeferredInterface
     ) {
         $this->reference = $document->writer()->allocate();
         $this->resources = new Resources($document->defaultRgb());
-        $this->canvas    = new Canvas($document, $this->resources, $size->height, $origin->isTopDown());
+        $this->canvas    = new Canvas(
+            $document,
+            $this->resources,
+            $size->height,
+            $origin->isTopDown(),
+            inheritsState: true,
+        );
         $document->defer($this);
     }
 
