@@ -13,6 +13,7 @@ use Php2Pdf\Text\Style\TextStyle;
 
 use function array_pop;
 use function array_slice;
+use function ceil;
 use function count;
 use function end;
 use function floor;
@@ -167,6 +168,34 @@ final class LineBreaker
         }
 
         return false;
+    }
+
+    /**
+     * The leader filling a tab's gap from $from to $to: whole repeats of its text on a grid of its
+     * width from the line's start, or null when none fits.
+     */
+    private static function leader(float $from, float $to, ?string $text, TextStyle $style): ?Segment
+    {
+        if (null === $text) {
+            return null;
+        }
+        $unit = Itemiser::box($text, $style);
+        if (null === $unit->run || $unit->width <= 0.0) {
+            return null;
+        }
+        $start   = ceil(($from / $unit->width) - 1.0e-6) * $unit->width;
+        $repeats = (int) floor((($to - $start) / $unit->width) + 1.0e-6);
+        if ($repeats < 1) {
+            return null;
+        }
+        $glyphs = [];
+        for ($k = 0; $k < $repeats; ++$k) {
+            foreach ($unit->run->glyphs as $glyph) {
+                $glyphs[] = $glyph;
+            }
+        }
+
+        return new Segment($start, $repeats * $unit->width, $style, new GlyphRun($glyphs));
     }
 
     /**
@@ -330,7 +359,12 @@ final class LineBreaker
         $i        = 0;
         while (null !== ($item = $items[$i] ?? null)) {
             if (ItemKind::Tab === $item->kind) {
-                $x = self::tabTarget($x, $items, $i + 1, $tabs, $style);
+                $target = self::tabTarget($x, $items, $i + 1, $tabs, $style);
+                $leader = self::leader($x, $target, self::stopAfter($x, $tabs)?->leader, $item->style);
+                if (null !== $leader) {
+                    $segments[] = $leader;
+                }
+                $x = $target;
                 ++$i;
                 continue;
             }
@@ -408,6 +442,22 @@ final class LineBreaker
         return '' === $tail ? [$head] : [$head, Itemiser::box($tail, $item->style)];
     }
 
+    /**
+     * The first tab stop after $x, or null past the last one (default tabs follow).
+     *
+     * @param list<TabStop> $tabs
+     */
+    private static function stopAfter(float $x, array $tabs): ?TabStop
+    {
+        foreach ($tabs as $tab) {
+            if ($tab->position > ($x + 1.0e-6)) {
+                return $tab;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<TabStop> */
     private static function tabPositions(TextStyle $style): array
     {
@@ -426,14 +476,7 @@ final class LineBreaker
      */
     private static function tabTarget(float $x, array $items, int $from, array $tabs, TextStyle $style): float
     {
-        $stop = null;
-        foreach ($tabs as $tab) {
-            if ($tab->position <= ($x + 1.0e-6)) {
-                continue;
-            }
-            $stop = $tab;
-            break;
-        }
+        $stop = self::stopAfter($x, $tabs);
         if (null === $stop) {
             return self::nextTab($x, $tabs, $style);
         }

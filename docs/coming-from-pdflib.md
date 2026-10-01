@@ -51,7 +51,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `verticalalign=center` | `new FlowOptions(verticalAlignment: VerticalAlignment::Center)` |
 | `info_textflow($tf, 'textendx')`, `'textendy'` | `$flow->lastFit()->textEnd` |
 | `info_textflow($tf, 'firstlinedist')` etc. | `$flow->lastFit()->firstBaseline`, `lastBaseline`, `lineCount`, `height` |
-| `hyphenchar`, `hortabmethod`, `ruler` | Soft hyphens and `Hyphenator` patterns; `tabs: [TabStop::decimal(120)]` |
+| `hyphenchar`, `hortabmethod`, `ruler` | Soft hyphens and `Hyphenator` patterns; `tabs: [TabStop::decimal(120)]`, leaders with `TabStop::right(400, leader: '.')` |
 | `<nextparagraph>`, `<nextline>` | Blank line or `</p>`, and `<br>` |
 | Matchboxes for inline images | `<img src="name" height="9">` with `$doc->inlines()->define('name', $image)` |
 | A flow over several frames | `$doc->flow($flow, [[$left, $right]], $makePage)`; `<columnbreak>` moves to the next frame |

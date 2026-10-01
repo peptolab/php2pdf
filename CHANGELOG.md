@@ -31,7 +31,7 @@ The first release.
 - OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others) through
   single, alternate, ligature and chained context substitution.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`).
-- Textflow: styles, markup, a builder, box chaining, copy fitting, tabs, hyphenation, widows and
+- Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and
   fixed-width Unicode spaces.
 - `fitTextline()` for single lines with fit methods.

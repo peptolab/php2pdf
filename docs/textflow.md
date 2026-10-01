@@ -45,10 +45,20 @@ Properties: `font` (a `Font` or a registry name), `size`, `leading` (`Leading::p
 faces `<b>` and `<i>` switch to), `alignment` (Left, Right, Center, Justify),
 `lastLineAlignment`, `firstLineIndent`, `leftIndent`, `rightIndent`, `spaceBefore`,
 `spaceAfter`, `hyphenate`, `language`, `minHyphenatedWordLength`, `hyphenLeftMin`,
-`hyphenRightMin`, `tabs` (a list of `TabStop::left/right/center/decimal($position)`),
+`hyphenRightMin`, `tabs` (a list of `TabStop::left/right/center/decimal($position)`, each with
+an optional leader),
 `defaultTabWidth`, `keepWithNext`, `keepTogether`, `orphans`, `widows`, `fallback` (fonts for
 characters the font lacks), `ligatures` and `features` (OpenType features by tag; see
 [fonts-and-text.md](fonts-and-text.md)).
+
+A tab stop can carry a leader, repeated across the space the tab jumps: dots to a page number
+in a contents list, for example. Its repeats sit on a grid of their own width from the start of
+the line, so the dots on successive lines line up.
+
+```php
+$styles->define('toc', new TextStyle(tabs: [TabStop::left(20), TabStop::right(260, leader: '.')]), basedOn: 'body');
+$flow = $doc->textflow("1\tIntroduction\t1\n2\tGetting started\t4", 'toc');
+```
 
 ## Markup
 
