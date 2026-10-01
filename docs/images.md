@@ -23,8 +23,14 @@ content.
 - **PNG**: every colour type and bit depth, palettes, transparency (tRNS as a colour key or a
   soft mask), alpha channels split into a soft mask, interlaced files, resolution and ICC chunks.
   Pixel data stays Flate-compressed with PNG predictors, so nothing is re-encoded.
-- **Other formats** (GIF, WebP, BMP, TIFF...) are transcoded to PNG with `ext-imagick` when it
-  is loaded, else `ext-gd`. Without either, loading them throws.
+- **TIFF**: baseline files are read natively, every page: strips uncompressed or compressed with
+  LZW, Deflate or PackBits (with the horizontal predictor), grey, RGB, palette and CMYK at 1 to 16
+  bits, an unassociated alpha channel as a soft mask, and the embedded ICC profile, resolution
+  and orientation. CMYK stays CMYK. Single-strip CCITT Group 3 and 4 fax images pass through
+  untouched (CCITTFaxDecode). Tiled, JPEG-compressed, YCbCr and premultiplied-alpha TIFFs go to
+  the transcoder below.
+- **Other formats** (GIF, WebP, BMP...) are transcoded to PNG with `ext-imagick` when it is
+  loaded, else `ext-gd`. Without either, loading them throws.
 
 ## Resolution and natural size
 

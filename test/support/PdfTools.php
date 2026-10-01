@@ -57,13 +57,23 @@ final class PdfTools
      */
     public static function coreGraphicsInk(string $path): int
     {
+        return self::ink(self::coreGraphicsRender($path));
+    }
+
+    /**
+     * Renders page 1 with macOS's PDF renderer (CoreGraphics, as Preview uses) and returns the
+     * PNG path. Skips off macOS or without ext-gd.
+     */
+    public static function coreGraphicsRender(string $path): string
+    {
         if (PHP_OS_FAMILY !== 'Darwin' || null === self::which('sips') || ! function_exists('imagecreatefrompng')) {
             Assert::markTestSkipped('Rendering with CoreGraphics needs macOS (sips) and ext-gd.');
         }
         $png = self::outputDir() . '/' . pathinfo($path, PATHINFO_FILENAME) . '-coregraphics.png';
         [$code, $output] = self::run(['sips', '-s', 'format', 'png', $path, '--out', $png]);
         Assert::assertSame(0, $code, "sips failed for {$path}:\n{$output}");
-        return self::ink($png);
+
+        return $png;
     }
 
     /**

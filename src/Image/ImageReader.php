@@ -49,6 +49,12 @@ final class ImageReader
         if (str_starts_with($data, JpxDecoder::JP2_SIGNATURE) || str_starts_with($data, JpxDecoder::CODESTREAM)) {
             return JpxDecoder::decode($data, $limits);
         }
+        if (TiffFile::isTiff($data)) {
+            $tiff = TiffDecoder::decode($data, $limits, $page);
+            if (null !== $tiff) {
+                return $tiff;
+            }
+        }
         if (str_starts_with($data, "\x89PNG")) {
             return PngDecoder::decode($data, $limits);
         }

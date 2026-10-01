@@ -18,10 +18,8 @@ use function in_array;
 use function intdiv;
 use function max;
 use function ord;
-use function preg_replace;
 use function sprintf;
 use function str_pad;
-use function str_repeat;
 use function str_split;
 use function str_starts_with;
 use function strlen;
@@ -283,19 +281,6 @@ final class PngDecoder
             return [$samples, null];
         }
 
-        $colorChannels = $channels - 1;
-        $sample        = '(.)' . str_repeat('.', max(0, $bytes - 1));
-        $pixel         = '/' . str_repeat($sample, max(1, $channels)) . '/s';
-        $colorGroups   = '';
-        for ($c = 1; $c <= $colorChannels; ++$c) {
-            $colorGroups .= "\${$c}";
-        }
-        $color = preg_replace($pixel, $colorGroups, $samples);
-        $alpha = preg_replace($pixel, "\${$channels}", $samples);
-        if (null === $color || null === $alpha) {
-            throw new ParseException('PNG alpha channel could not be separated.');
-        }
-
-        return [$color, $alpha];
+        return AlphaSplit::split($samples, $channels, $bytes);
     }
 }

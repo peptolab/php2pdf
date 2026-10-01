@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PhpPdf\Image;
 
+use PhpPdf\Exception\ParseException;
+
 use function is_float;
 use function is_int;
 
@@ -32,11 +34,20 @@ final readonly class Exif
     /** Reads the tags from the TIFF data that follows "Exif\0\0" in an APP1 segment. */
     public static function read(string $tiff): self
     {
-        $tags        = new ExifTags($tiff);
-        $orientation = $tags->value(self::TAG_ORIENTATION);
-        $x           = $tags->value(self::TAG_X_RESOLUTION);
-        $y           = $tags->value(self::TAG_Y_RESOLUTION);
-        $unit        = $tags->value(self::TAG_RESOLUTION_UNIT) ?? 2;
+        try {
+            return self::tags(TiffFile::isTiff($tiff) ? new TiffFile($tiff) : null);
+        } catch (ParseException) {
+            return new self(1, null);
+        }
+    }
+
+    /** The tags of the first directory; malformed ones read as absent. */
+    private static function tags(?TiffFile $tags): self
+    {
+        $orientation = $tags?->value(0, self::TAG_ORIENTATION);
+        $x           = $tags?->value(0, self::TAG_X_RESOLUTION);
+        $y           = $tags?->value(0, self::TAG_Y_RESOLUTION);
+        $unit        = $tags?->value(0, self::TAG_RESOLUTION_UNIT) ?? 2;
         $dpi         = null;
         if (is_float($x) && is_float($y) && $x > 0.0 && $y > 0.0 && (2 === $unit || 3 === $unit)) {
             $dpi = 3 === $unit ? [$x * 2.54, $y * 2.54] : [$x, $y];
