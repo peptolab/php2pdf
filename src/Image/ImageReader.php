@@ -10,6 +10,7 @@ use PhpPdf\Exception\IoException;
 use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 
+use function array_filter;
 use function file_get_contents;
 use function getimagesizefromstring;
 use function is_file;
@@ -32,11 +33,21 @@ final class ImageReader
     public static function read(string $data, ?Limits $limits = null, int $page = 1): ImageData
     {
         $limits ??= Limits::default();
-        if ($page > 1 && (str_starts_with($data, "\xFF\xD8") || str_starts_with($data, "\x89PNG"))) {
-            throw new ParseException(sprintf('JPEG and PNG files have one page; page %d was asked for.', $page));
+        $single = ["\xFF\xD8", "\x89PNG", JpxDecoder::JP2_SIGNATURE, JpxDecoder::CODESTREAM];
+        if (
+            $page > 1
+            && [] !== array_filter($single, static fn(string $magic): bool => str_starts_with($data, $magic))
+        ) {
+            throw new ParseException(sprintf(
+                'JPEG, JPEG 2000 and PNG files have one page; page %d was asked for.',
+                $page,
+            ));
         }
         if (str_starts_with($data, "\xFF\xD8")) {
             return JpegDecoder::decode($data);
+        }
+        if (str_starts_with($data, JpxDecoder::JP2_SIGNATURE) || str_starts_with($data, JpxDecoder::CODESTREAM)) {
+            return JpxDecoder::decode($data, $limits);
         }
         if (str_starts_with($data, "\x89PNG")) {
             return PngDecoder::decode($data, $limits);

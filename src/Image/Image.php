@@ -134,6 +134,7 @@ final class Image implements PlaceableInterface
             'DecodeParms'      => $data->decodeParms,
             'Decode'           => $data->decode,
             'Mask'             => $data->colorKeyMask,
+            'SMaskInData'      => $data->smaskInData ? 1 : null,
         ]);
         if (null !== $data->softMask) {
             $dict->set(

@@ -16,6 +16,10 @@ content.
   embedded ICC profile becomes an ICCBased colour space. The EXIF orientation from cameras and
   phones is honoured: the image is drawn mirrored or turned as it says, without re-encoding, and
   a quarter turn swaps its natural width and height.
+- **JPEG 2000** (`.jp2` files and bare `.j2k` codestreams): size, components, depth and colour
+  space (or embedded ICC profile) are read from the header and the data passes through untouched
+  (JPXDecode). An alpha channel is kept in the data (`SMaskInData`); Acrobat and Ghostscript
+  honour it, but poppler ignores it and macOS Preview blends it unreliably.
 - **PNG**: every colour type and bit depth, palettes, transparency (tRNS as a colour key or a
   soft mask), alpha channels split into a soft mask, interlaced files, resolution and ICC chunks.
   Pixel data stays Flate-compressed with PNG predictors, so nothing is re-encoded.
