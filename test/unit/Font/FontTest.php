@@ -8,11 +8,15 @@ use PhpPdf\Core\FixedClock;
 use PhpPdf\Core\Output\MemoryOutput;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
+use PhpPdf\Document\PdfX;
+use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\Font;
+use PhpPdf\Font\GlyphCheck;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Font\TextRenderMode;
 use PhpPdf\Font\ToUnicode;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -21,6 +25,39 @@ final class FontTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
     private Font $font;
+
+    /** @return array<string, array{0: DocumentOptions, 1: string|null, 2: int}> */
+    public static function glyphCheckProvider(): array
+    {
+        $error = 'Font "DejaVuSans" has no glyph for "中" (U+4E2D).';
+
+        return [
+            'PDF/X defaults to an error' => [new DocumentOptions(pdfx: PdfX::X4), $error, 0],
+            'explicit error'             => [new DocumentOptions(glyphCheck: GlyphCheck::Error), $error, 0],
+            'explicit ignore'            => [new DocumentOptions(glyphCheck: GlyphCheck::Ignore), null, 0],
+            'ignore wins under PDF/X'    => [
+                new DocumentOptions(
+                    pdfx: PdfX::X4,
+                    glyphCheck: GlyphCheck::Ignore,
+                ),
+                null,
+                0,
+            ],
+            'warn by default'            => [new DocumentOptions(), null, 1],
+        ];
+    }
+
+    #[Test]
+    public function aMissingGlyphIsReportedOncePerCharacterByDefault(): void
+    {
+        $this->font->shape('a中');
+        $this->font->shape('中b');
+
+        self::assertSame(
+            ['Font "DejaVuSans" has no glyph for "中" (U+4E2D); it is drawn as .notdef.'],
+            $this->doc->fonts()->warnings(),
+        );
+    }
 
     #[Test]
     public function buildsSurrogatePairsInToUnicode(): void
@@ -37,6 +74,19 @@ final class FontTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString('1 0 0 -1 10 20 Tm', $this->out->contents());
+    }
+
+    #[Test]
+    public function glyphZeroNeverReachesTheToUnicodeMap(): void
+    {
+        $this->doc->addPage()->canvas()->drawText('a中b', $this->font, 12.0, 10.0, 10.0);
+        $this->doc->close();
+
+        self::assertStringContainsString(
+            "2 beginbfchar\n<0044> <0061>\n<0045> <0062>\nendbfchar",
+            $this->out->contents(),
+            'Only a and b are mapped; the missing character is not.',
+        );
     }
 
     #[Test]
@@ -120,6 +170,24 @@ final class FontTest extends TestCase
         };
 
         self::assertSame($build(), $build());
+    }
+
+    #[Test]
+    #[DataProvider('glyphCheckProvider')]
+    public function theGlyphCheckDecidesWhatAMissingGlyphDoes(
+        DocumentOptions $options,
+        ?string $error,
+        int $warnings,
+    ): void {
+        $doc  = new Document(new MemoryOutput(), $options);
+        $font = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        if (null !== $error) {
+            $this->expectException(PdfException::class);
+            $this->expectExceptionMessage($error);
+        }
+        $font->shape('中');
+
+        self::assertCount($warnings, $doc->fonts()->warnings());
     }
 
     #[Test]

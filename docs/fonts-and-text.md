@@ -30,6 +30,15 @@ $fonts->warnings();   // ['Font "X" is embedded whole because its CFF outlines c
 The same file loaded twice yields the same `Font`; fonts belong to the document they were
 loaded into.
 
+### Missing glyphs
+
+A character the font has no glyph for is drawn as the font's `.notdef` glyph, usually a box or
+nothing. `DocumentOptions(glyphCheck: ...)` decides what else happens: `GlyphCheck::Warn` (the
+default) records a warning in `$doc->fonts()->warnings()` once per font and character,
+`GlyphCheck::Error` throws a `PdfException`, and `GlyphCheck::Ignore` does neither. Under PDF/X the
+default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
+does not pick up a wrong character for it.
+
 ### Standard 14 fonts
 
 When no font file matches, `find()` falls back to the standard 14 fonts that every PDF reader

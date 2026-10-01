@@ -16,6 +16,7 @@ use PhpPdf\Font\OpenType\Cff\CffSubsetter;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 use PhpPdf\Font\OpenType\TrueTypeSubsetter;
 
+use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function array_values;
@@ -63,13 +64,21 @@ final class Font implements FontInterface, DeferredInterface
 
     private readonly float $scale;
 
+    private readonly FontRegistry $registry;
+    private readonly GlyphCheck $glyphCheck;
+
+    /** @var array<int, true> code points already reported as missing */
+    private array $missing = [];
+
     /** @internal */
     public function __construct(
         Document $document,
         private readonly OpenTypeFont $program,
     ) {
-        $this->reference = $document->writer()->allocate();
-        $this->scale     = 1000.0 / $program->unitsPerEm;
+        $this->registry   = $document->fonts();
+        $this->glyphCheck = $document->options()->glyphCheck;
+        $this->reference  = $document->writer()->allocate();
+        $this->scale      = 1000.0 / $program->unitsPerEm;
         $document->defer($this);
     }
 
@@ -175,7 +184,10 @@ final class Font implements FontInterface, DeferredInterface
     public function markUsed(GlyphRun $run): void
     {
         foreach ($run->glyphs as $glyph) {
-            $this->used[$glyph->id]             = true;
+            $this->used[$glyph->id] = true;
+            if (0 === $glyph->id) {
+                continue;
+            }
             $this->glyphToCodePoint[$glyph->id] ??= $glyph->codePoint;
         }
     }
@@ -218,6 +230,9 @@ final class Font implements FontInterface, DeferredInterface
                 continue;
             }
             $id = $this->program->glyphId($codePoint);
+            if (0 === $id) {
+                $this->missingGlyph($char, $codePoint);
+            }
             if ($kerning && null !== $prev) {
                 $kern = $this->program->kerning($prev->id, $id);
                 if (0 !== $kern) {
@@ -319,6 +334,29 @@ final class Font implements FontInterface, DeferredInterface
         }
 
         return $flags;
+    }
+
+    /**
+     * Applies the document's glyph check to a character this font has no glyph for.
+     *
+     * @throws PdfException under GlyphCheck::Error
+     */
+    private function missingGlyph(string $char, int $codePoint): void
+    {
+        if (GlyphCheck::Ignore === $this->glyphCheck || array_key_exists($codePoint, $this->missing)) {
+            return;
+        }
+        $what = sprintf(
+            'Font "%s" has no glyph for "%s" (U+%04X)',
+            $this->program->postScriptName(),
+            $char,
+            $codePoint,
+        );
+        if (GlyphCheck::Error === $this->glyphCheck) {
+            throw new PdfException("{$what}.");
+        }
+        $this->missing[$codePoint] = true;
+        $this->registry->warn("{$what}; it is drawn as .notdef.");
     }
 
     private function stemV(): int
