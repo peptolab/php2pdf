@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace PhpPdf\Table;
 
 use PhpPdf\Color\ColorInterface;
+use PhpPdf\Text\FirstBaseline;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\Style\VerticalAlignment;
 
 /**
- * How cells look: padding, background, borders, alignment and the text style for string
- * content. Every property is optional; styles layer table < column < row < cell, later
+ * How cells look: padding, background, borders, alignment, where the first baseline of text
+ * sits and the text style for string content. Every property is optional; styles layer table < column < row < cell, later
  * non-null values winning. A side border beats the all-sides border.
  *
  * @api
@@ -29,6 +30,7 @@ final readonly class CellStyle
         public ?VerticalAlignment $verticalAlignment = null,
         public ?Alignment $alignment = null,
         public TextStyle|string|null $text = null,
+        public ?FirstBaseline $firstBaseline = null,
     ) {}
 
     /** This style with another layered on top. */
@@ -49,6 +51,7 @@ final readonly class CellStyle
             $over->verticalAlignment ?? $this->verticalAlignment,
             $over->alignment ?? $this->alignment,
             $over->text ?? $this->text,
+            $over->firstBaseline ?? $this->firstBaseline,
         );
     }
 

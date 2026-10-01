@@ -46,8 +46,13 @@ group id are kept together across boxes when they can be.
 `CellStyle` layers table < column < row < cell, later non-null values winning: `padding`
 (`Padding::all()`, `symmetric()`, `mm()`), `background`, `border` for all sides or
 `borderTop`/`Right`/`Bottom`/`Left` (`new Border($width, $color, $dash)`), `verticalAlignment`,
-`alignment` (horizontal, applied to text and placeables) and `text` (a `TextStyle` or name
-layered under the cell's own `text`).
+`alignment` (horizontal, applied to text and placeables), `firstBaseline` and `text` (a
+`TextStyle` or name layered under the cell's own `text`).
+
+Text in a cell starts with its ascender at the top of the padding. To match PDFlib's
+`firstlinedist=leading`, put the first baseline one leading down for the whole table with
+`TableOptions(firstBaseline: FirstBaseline::Leading)`, or for some cells with
+`CellStyle(firstBaseline: ...)`. Rows are measured and drawn with the same setting.
 
 ## Splitting and results
 

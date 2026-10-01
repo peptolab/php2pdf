@@ -23,11 +23,14 @@ use PhpPdf\Table\Padding;
 use PhpPdf\Table\Row;
 use PhpPdf\Table\Table;
 use PhpPdf\Table\TableOptions;
+use PhpPdf\Text\FirstBaseline;
 use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\Leading;
 use PhpPdf\Text\Style\TextStyle;
+use PhpPdf\Text\Textflow;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -40,6 +43,55 @@ final class TableTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
     private TextStyle $body;
+
+    /** @return array<string, array{0: FirstBaseline}> */
+    public static function firstBaselineProvider(): array
+    {
+        return [
+            'ascender'   => [FirstBaseline::Ascender],
+            'cap height' => [FirstBaseline::CapHeight],
+            'x-height'   => [FirstBaseline::XHeight],
+            'leading'    => [FirstBaseline::Leading],
+        ];
+    }
+
+    #[Test]
+    public function cellStyleFirstBaselineOverridesTheTableOption(): void
+    {
+        $flow  = Textflow::fromText($this->doc, 'a', $this->body);
+        $table = new Table(
+            [Column::auto(), Column::auto()],
+            null,
+            $this->body,
+            new TableOptions(firstBaseline: FirstBaseline::Ascender),
+        );
+        $table->addRow([Cell::text('b'), new Cell($flow, style: new CellStyle(firstBaseline: FirstBaseline::Leading))]);
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 500.0));
+        self::assertEqualsWithDelta(500.0 - 12.0, $flow->lastFit()?->firstBaseline[1] ?? 0.0, 1.0e-6);
+        self::assertEqualsWithDelta(
+            12.0 - $this->bodyFont()->descender(10.0),
+            $table->lastFit()->height ?? 0.0,
+            1.0e-6,
+        );
+    }
+
+    #[Test]
+    #[DataProvider('firstBaselineProvider')]
+    public function cellTextIsDrawnAtTheTableFirstBaseline(FirstBaseline $mode): void
+    {
+        $flow  = Textflow::fromText($this->doc, 'a', $this->body);
+        $table = new Table(
+            [Column::auto()],
+            new CellStyle(padding: Padding::all(2.0)),
+            $this->body,
+            new TableOptions(firstBaseline: $mode),
+        );
+        $table->addRow([$flow]);
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 500.0));
+        $baseline = $flow->lastFit()?->firstBaseline;
+        self::assertNotNull($baseline);
+        self::assertEqualsWithDelta(500.0 - 2.0 - $this->firstBaselineOffset($mode), $baseline[1], 1.0e-6);
+    }
 
     #[Test]
     public function documentFlowDrainsAcrossPages(): void
@@ -148,6 +200,18 @@ final class TableTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('firstBaselineProvider')]
+    public function placedRowsMatchTheirMeasuredHeight(FirstBaseline $mode): void
+    {
+        $table = new Table([Column::auto()], null, $this->body, new TableOptions(firstBaseline: $mode));
+        $table->addRow(['a']);
+        $table->addRow(['b']);
+        $measured = $table->measure($this->doc, 200.0);
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 500.0));
+        self::assertEqualsWithDelta($measured, $table->lastFit()->height ?? 0.0, 1.0e-6);
+    }
+
+    #[Test]
     public function rejectsColumnsWiderThanTheBox(): void
     {
         $table = new Table([Column::pt(300.0), Column::pt(300.0)], null, $this->body);
@@ -174,6 +238,21 @@ final class TableTest extends TestCase
         self::assertSame(FlowResult::BoxEmpty, $page->fitTable($table, new Box(0.0, 0.0, 100.0, 30.0)));
         self::assertFalse($table->isDone());
         self::assertSame(FlowResult::Done, $page->fitTable($table, new Box(0.0, 0.0, 300.0, 800.0)));
+    }
+
+    #[Test]
+    #[DataProvider('firstBaselineProvider')]
+    public function rowsAreMeasuredFromTheTableFirstBaseline(FirstBaseline $mode): void
+    {
+        $table = new Table(
+            [Column::auto()],
+            new CellStyle(padding: Padding::all(1.0)),
+            $this->body,
+            new TableOptions(firstBaseline: $mode),
+        );
+        $table->addRow(['a']);
+        $expected = $this->firstBaselineOffset($mode) - $this->bodyFont()->descender(10.0) + 2.0;
+        self::assertEqualsWithDelta($expected, $table->measure($this->doc, 200.0), 1.0e-6);
     }
 
     #[Test]
@@ -239,5 +318,25 @@ final class TableTest extends TestCase
             size: 10.0,
             leading: Leading::pt(12.0),
         );
+    }
+
+    private function bodyFont(): Font
+    {
+        $font = $this->body->font;
+        self::assertInstanceOf(Font::class, $font);
+
+        return $font;
+    }
+
+    private function firstBaselineOffset(FirstBaseline $mode): float
+    {
+        $font = $this->bodyFont();
+
+        return match ($mode) {
+            FirstBaseline::Ascender  => $font->ascender(10.0),
+            FirstBaseline::CapHeight => $font->capHeight(10.0),
+            FirstBaseline::XHeight   => $font->xHeight(10.0),
+            FirstBaseline::Leading   => 12.0,
+        };
     }
 }

@@ -7,6 +7,8 @@ namespace PhpPdf\Table;
 use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Fit\FitMethod;
+use PhpPdf\Text\FlowOptions;
+use PhpPdf\Text\Style\VerticalAlignment;
 
 use function array_fill;
 use function array_key_exists;
@@ -56,12 +58,24 @@ final class Layout
         $inner   = $this->innerWidth($placed);
         $content = $placed->cell->content;
         $height  = match (true) {
-            null !== $placed->flow => $placed->flow->measure($inner),
+            null !== $placed->flow => $placed->flow->measure($inner, $this->flowOptions($placed)),
             $content instanceof PlaceableInterface => $this->placeableHeight($placed, $inner),
             default => 0.0,
         };
 
         return $height + $padding->vertical();
+    }
+
+    /**
+     * How a cell's text is fitted: measuring and drawing share these so rows are drawn at the
+     * height they were measured at.
+     */
+    public function flowOptions(PlacedCell $placed): FlowOptions
+    {
+        return new FlowOptions(
+            firstBaseline: $placed->style->firstBaseline ?? $this->options->firstBaseline,
+            verticalAlignment: $placed->style->verticalAlignment ?? VerticalAlignment::Top,
+        );
     }
 
     public function innerWidth(PlacedCell $placed): float

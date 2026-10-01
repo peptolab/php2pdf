@@ -9,7 +9,6 @@ use PhpPdf\Canvas\PlaceableInterface;
 use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\Position;
 use PhpPdf\Geometry\Box;
-use PhpPdf\Text\FlowOptions;
 use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\VerticalAlignment;
@@ -134,7 +133,7 @@ final class Painter
         $vertical = $placed->style->verticalAlignment ?? VerticalAlignment::Top;
         if (null !== $placed->flow) {
             $before = $placed->flow->lastFit();
-            $result = $this->canvas->fitTextflow($placed->flow, $inner, new FlowOptions(verticalAlignment: $vertical));
+            $result = $this->canvas->fitTextflow($placed->flow, $inner, $this->layout->flowOptions($placed));
 
             return FlowResult::BoxEmpty !== $result || (null !== $before && $before->lineCount > 0);
         }
