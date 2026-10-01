@@ -11,6 +11,8 @@ $page->addLink($box, Destination::at(3, 72, 500, zoom: 1.5));
 $page->addLink($box, Destination::named('chapter-2'));
 ```
 
+Text in a Textflow links with `<a href="…">` (see [textflow.md](textflow.md)).
+
 `addLink($area, $target, tooltip: 'Opens in a browser')` adds a tooltip viewers show when the
 pointer rests on the link. Links draw nothing; style the content underneath. The area is in the page's coordinate mode.
 Links may point at pages that do not exist yet: annotations are written when the document closes.

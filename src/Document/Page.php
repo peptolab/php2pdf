@@ -24,6 +24,7 @@ use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextlineOptions;
 use Php2Pdf\Text\TextlinePlacement;
+use WeakReference;
 
 use function implode;
 use function sprintf;
@@ -62,7 +63,19 @@ final class Page
     ) {
         $this->mediaBox  = new Box(0.0, 0.0, $size->width, $size->height);
         $this->resources = new Resources($document->defaultRgb());
-        $this->canvas    = new Canvas($document, $this->resources, $size->height, $topDown);
+        $page            = WeakReference::create($this);
+        $this->canvas    = new Canvas(
+            $document,
+            $this->resources,
+            $size->height,
+            $topDown,
+            links: static function (Box $area, Destination|string $target, ?string $tooltip) use ($page): void {
+                $owner = $page->get();
+                if (null !== $owner) {
+                    $owner->links[] = [$area, $target, $tooltip];
+                }
+            },
+        );
     }
 
     /**

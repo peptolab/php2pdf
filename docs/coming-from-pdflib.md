@@ -54,6 +54,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `hyphenchar`, `hortabmethod`, `ruler` | Soft hyphens and `Hyphenator` patterns; `tabs: [TabStop::decimal(120)]`, leaders with `TabStop::right(400, leader: '.')` |
 | `<nextparagraph>`, `<nextline>` | Blank line or `</p>`, and `<br>` |
 | Matchboxes for inline images | `<img src="name" height="9">` with `$doc->inlines()->define('name', $image)` |
+| Matchboxes over text, `create_annotation` with `usematchbox` | `<span match="name">` and `lastFit()->matchboxes['name']`; links with `<a href="…">` |
 | A flow over several frames | `$doc->flow($flow, [[$left, $right]], $makePage)`; `<columnbreak>` moves to the next frame |
 
 ## Tables

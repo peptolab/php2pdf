@@ -215,6 +215,10 @@ final class Textflow implements FlowableInterface
             };
         }
         LinePainter::draw($canvas, $box, $layout, $shift);
+        [$links, $matchboxes] = LinePainter::markedAreas($canvas, $box, $layout, $shift);
+        foreach ($links as [$area, $target, $tooltip]) {
+            $canvas->linkArea($area, $target, $tooltip);
+        }
 
         $firstBaseline = null;
         $lastBaseline  = null;
@@ -233,6 +237,7 @@ final class Textflow implements FlowableInterface
             $lastBaseline,
             $scale,
             $textEnd,
+            $matchboxes,
         );
         $this->paragraphIndex = $layout->paragraphIndex;
         $this->itemIndex      = $layout->itemIndex;

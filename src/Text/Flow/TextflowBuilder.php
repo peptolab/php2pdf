@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Document\Destination;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 
@@ -88,6 +89,21 @@ final class TextflowBuilder
         $this->breaks[] = [count($this->spans), ItemKind::LineBreak];
 
         return $this;
+    }
+
+    /** Text that links to a URL or a destination, over each line's piece of it. */
+    public function link(Destination|string $target, string $text, ?string $tooltip = null): self
+    {
+        return $this->text($text, new TextStyle(
+            link: $target,
+            linkTooltip: $tooltip,
+        ));
+    }
+
+    /** Text whose areas are reported under a name in FitInfo::$matchboxes. */
+    public function match(string $name, string $text): self
+    {
+        return $this->text($text, new TextStyle(match: $name));
     }
 
     public function pageBreak(): self

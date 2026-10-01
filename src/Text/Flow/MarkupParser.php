@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Document\Destination;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
@@ -29,8 +30,9 @@ use const ENT_QUOTES;
 use const PREG_SPLIT_DELIM_CAPTURE;
 
 /**
- * A small inline markup: <p style="name">, <span style="name">, <b>, <i>, <u>, <s>, <sup>,
- * <sub>, <br>, <tab>, <columnbreak>, <pagebreak>, <img src="name" width height raise>, and the entities &lt; &gt; &amp; &quot;
+ * A small inline markup: <p style="name">, <span style="name" match="name">, <b>, <i>, <u>, <s>,
+ * <sup>, <sub>, <a href="url or #destination" title="tooltip">, <br>, <tab>, <columnbreak>,
+ * <pagebreak>, <img src="name" width height raise>, and the entities &lt; &gt; &amp; &quot;
  * &nbsp; &shy; &#NNN; &#xHH;. Outside <p> elements, blank lines separate paragraphs.
  *
  * @internal
@@ -51,6 +53,7 @@ final class MarkupParser
         'sup',
         'sub',
         'img',
+        'a',
     ];
 
     /** @var list<array{style: ?TextStyle, spans: list<array{0: string, 1: TextStyle}>, breaks: list<array{0: int, 1: ItemKind|Item}>}> */
@@ -80,6 +83,16 @@ final class MarkupParser
         $this->current = $resolver->resolve($base);
     }
 
+    /** An attribute of a tag, with entities decoded. */
+    private static function attribute(string $inner, string $key): ?string
+    {
+        $m = [];
+
+        return preg_match("/\\b{$key}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')/i", $inner, $m) === 1
+            ? self::decodeEntities(($m[1] ?? '') . ($m[2] ?? ''))
+            : null;
+    }
+
     private static function decodeEntities(string $text): string
     {
         $text = str_replace(['&nbsp;', '&shy;'], ["\u{00A0}", "\u{00AD}"], $text);
@@ -89,6 +102,31 @@ final class MarkupParser
         }
 
         return $text;
+    }
+
+    /**
+     * The link of an <a href title> (a URL, or a named destination after #) or the match name of
+     * a <span match>.
+     */
+    private static function marks(string $name, string $inner): ?TextStyle
+    {
+        if ('span' === $name) {
+            $match = self::attribute($inner, 'match');
+
+            return null === $match || '' === $match ? null : new TextStyle(match: $match);
+        }
+        if ('a' !== $name) {
+            return null;
+        }
+        $href = self::attribute($inner, 'href');
+        if (null === $href || '' === $href) {
+            return null;
+        }
+
+        return new TextStyle(
+            link: str_starts_with($href, '#') ? Destination::named(substr($href, offset: 1)) : $href,
+            linkTooltip: self::attribute($inner, 'title'),
+        );
     }
 
     /**
@@ -201,7 +239,7 @@ final class MarkupParser
         return false;
     }
 
-    private function open(string $name, ?string $styleName): void
+    private function open(string $name, ?string $styleName, ?TextStyle $marks = null): void
     {
         $this->stack[] = [$name, $this->current];
         $override      = null === $styleName ? null : $this->resolver->named($styleName);
@@ -224,7 +262,8 @@ final class MarkupParser
                     rise: -$this->current->fontSize() * 0.15,
                 ),
                 default => new TextStyle(),
-            });
+            })
+            ->merge($marks);
         if ('b' === $name && null !== $this->current->boldItalic && $this->isOpen('i')) {
             $this->current = $this->current->merge(new TextStyle(font: $this->current->boldItalic));
         }
@@ -267,7 +306,7 @@ final class MarkupParser
             'columnbreak' => $this->break(ItemKind::ColumnBreak),
             'pagebreak'   => $this->break(ItemKind::PageBreak),
             'img'         => $this->image($inner),
-            default       => $this->open($name, $style),
+            default       => $this->open($name, $style, self::marks($name, $inner)),
         };
     }
 

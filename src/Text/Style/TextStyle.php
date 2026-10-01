@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Style;
 
 use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Document\Destination;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
@@ -29,6 +30,11 @@ final readonly class TextStyle
      *                                                  font lacks
      * @param list<string>|null               $features OpenType features besides the standard
      *                                                  ligatures: tnum, onum, smcp and so on
+     * @param Destination|string|null         $link     a URL or destination the text links to,
+     *                                                  over each line's piece of it when fitted
+     *                                                  on a page
+     * @param string|null                     $match    a name under which the text's areas are
+     *                                                  reported in FitInfo::$matchboxes
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -68,6 +74,9 @@ final readonly class TextStyle
         public ?array $fallback = null,
         public ?bool $ligatures = null,
         public ?array $features = null,
+        public Destination|string|null $link = null,
+        public ?string $linkTooltip = null,
+        public ?string $match = null,
     ) {}
 
     public function fontSize(): float

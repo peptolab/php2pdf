@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Canvas;
 
+use Closure;
 use Php2Pdf\Color\AbstractGradient;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Core\Num;
@@ -11,6 +12,7 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Serializer;
+use Php2Pdf\Document\Destination;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\Resources;
 use Php2Pdf\Exception\InvalidArgumentException;
@@ -62,14 +64,14 @@ use function tan;
  */
 final class Canvas
 {
-    private readonly ColourOperators $colours;
-
     /**
      * @internal
      *
      * @param bool $inheritsState whether the content is drawn inside other content, as a form
      *                            XObject is, so its text state starts unknown rather than at the
      *                            defaults every page starts with
+     * @param (Closure(Box, Destination|string, ?string): void)|null $links where a page's canvas
+     *                            sends link areas, in default user space; artwork cannot carry links
      */
     public function __construct(
         private readonly Document $document,
@@ -77,6 +79,7 @@ final class Canvas
         private readonly float $height,
         private readonly bool $topDown,
         bool $inheritsState = false,
+        private readonly ?Closure $links = null,
     ) {
         $this->colours = new ColourOperators($this->document, $this->resources);
         $this->text    = $inheritsState ? self::UNKNOWN_STATE : self::PAGE_STATE;
@@ -394,6 +397,32 @@ final class Canvas
         return $this;
     }
 
+    /**
+     * Makes an area in the current user space a link, on a page's canvas; artwork (templates)
+     * cannot carry links, so there it does nothing. A transformed area becomes its bounding box.
+     *
+     * @internal used by Textflow for linked text
+     */
+    public function linkArea(Box $area, Destination|string $target, ?string $tooltip = null): self
+    {
+        if (null === $this->links) {
+            return $this;
+        }
+        $xs = [];
+        $ys = [];
+        foreach ([
+            [$area->x, $area->y],
+            [$area->right(), $area->y],
+            [$area->x, $area->far()],
+            [$area->right(), $area->far()],
+        ] as [$x, $y]) {
+            [$xs[], $ys[]] = $this->ctm->apply($x, $y);
+        }
+        ($this->links)(new Box(min($xs), min($ys), max($xs) - min($xs), max($ys) - min($ys)), $target, $tooltip);
+
+        return $this;
+    }
+
     public function moveTo(float $x, float $y): self
     {
         $this->ops             .= Num::list([$x, $y]) . " m\n";
@@ -435,6 +464,8 @@ final class Canvas
 
         return $placement;
     }
+
+    private readonly ColourOperators $colours;
 
     /** Appends raw content-stream syntax. A newline is added. */
     public function raw(string $syntax): self

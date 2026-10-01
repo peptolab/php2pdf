@@ -68,6 +68,8 @@ A small tag set, with `style="name"` on `<p>` and `<span>` referring to named st
 |-----|---------|
 | `<p>` … `</p>`, `<p style="h2">` | A paragraph; text outside `<p>` forms paragraphs separated by blank lines |
 | `<span style="x">`, `<b>`, `<i>`, `<u>`, `<s>`, `<sup>`, `<sub>` | Inline style changes |
+| `<a href="https://…" title="tip">`, `<a href="#name">` | A link to a URL or a named destination, with an optional tooltip (see below) |
+| `<span match="name">` | Text whose areas `lastFit()->matchboxes['name']` reports |
 | `<br>` | Line break |
 | `<tab>` | Tab to the next tab stop |
 | `<columnbreak>` | Stop filling this box: the fit returns `BoxFull` |
@@ -116,7 +118,7 @@ between boxes.
 ```php
 $flow->isDone();              $flow->remainingText();         $flow->reset();
 $flow->measure($width);       // height the remaining text would take at a width, without placing it
-$info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseline, lastBaseline, scale, textEnd, overflowed()
+$info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseline, lastBaseline, scale, textEnd, matchboxes, overflowed()
 ```
 
 `textEnd` is the canvas point where the last placed line's text stops, on its baseline (PDFlib's
@@ -126,6 +128,32 @@ $info = $flow->lastFit();     // FitInfo: result, height, lineCount, firstBaseli
 [$x, $y] = $flow->lastFit()->textEnd;
 $page->place($arrow, new Box($x + 2, $y, 8, 8), Fit::meet());
 ```
+
+## Links and matched text
+
+Linked text becomes a link over each line's piece of it when the flow is fitted on a page, from
+the fonts' descenders to their ascenders. A link in artwork (a template) is not made, as PDF
+artwork cannot carry links; under PDF/X links must lie outside the printed area, so linked text
+there is refused when the page is finished. Style links as you like; they draw nothing.
+
+```php
+$flow = $doc->textflow('<p>See <a href="https://example.com/" title="Opens a browser">our site</a> or <a href="#prices">the prices</a>.</p>', 'body', TextFormat::Markup);
+$flow = Textflow::build($doc, 'body')->text('See ')->link('https://example.com/', 'our site')->build();
+```
+
+Text marked with a match name reports its areas after each fit (PDFlib's matchboxes), one box
+per line it is set on, in canvas coordinates, to draw a highlight or a frame or to add a link
+of your own:
+
+```php
+$flow = $doc->textflow('<p>Total <span match="total">€ 1,250</span></p>', 'body', TextFormat::Markup);
+$page->fitTextflow($flow, $box);
+foreach ($flow->lastFit()->matchboxes['total'] ?? [] as $area) {
+    $page->canvas()->setStrokeColor(Rgb::fromHex('#c2185b'))->rect($area->x, $area->y, $area->width, $area->height)->stroke();
+}
+```
+
+The `link`, `linkTooltip` and `match` properties of `TextStyle` do the same for a whole style.
 
 ## Artwork in the text
 
