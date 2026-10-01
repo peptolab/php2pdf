@@ -29,7 +29,8 @@ final class CffBuilder
      * @param string             $fdSelect    raw FDSelect data
      * @param list<list<string>> $fdSubrs     local subrs of each Font DICT
      * @param list<string>       $globalSubrs
-     * @param array<int, string> $fdExtra     extra entries for every Font DICT
+     * @param list<array<int, string>> $fdExtra extra entries for each Font DICT, in order
+     * @param array<int, string>       $top     extra Top DICT entries
      */
     public static function cidKeyed(
         array $charStrings,
@@ -37,6 +38,7 @@ final class CffBuilder
         array $fdSubrs,
         array $globalSubrs = [],
         array $fdExtra = [],
+        array $top = [],
     ): string {
         $charStrings = Dict::index($charStrings);
         $privates    = [];
@@ -44,17 +46,22 @@ final class CffBuilder
             $privates[] = self::privateDict($subrs) . ([] === $subrs ? '' : Dict::index($subrs));
         }
         $topDict = static fn(int $cs, int $select, int $fdArray): string => Dict::encode([
-            self::OP_ROS         => Dict::int(391) . Dict::int(392) . Dict::int(0),
-            self::OP_CHARSTRINGS => Dict::int32($cs),
-            self::OP_FD_SELECT   => Dict::int32($select),
-            self::OP_FD_ARRAY    => Dict::int32($fdArray),
-        ]);
+            self::OP_ROS => Dict::int(391) . Dict::int(392) . Dict::int(0),
+        ]
+            + $top
+            + [
+                self::OP_CHARSTRINGS => Dict::int32($cs),
+                self::OP_FD_SELECT   => Dict::int32($select),
+                self::OP_FD_ARRAY    => Dict::int32($fdArray),
+            ]);
         $fdDicts = static function (int $offset) use ($fdSubrs, $fdExtra): array {
             $dicts = [];
-            foreach ($fdSubrs as $subrs) {
+            foreach ($fdSubrs as $fd => $subrs) {
                 $size    = strlen(self::privateDict($subrs));
-                $dicts[] = Dict::encode($fdExtra + [self::OP_PRIVATE => Dict::int32($size) . Dict::int32($offset)]);
-                $offset  += $size + ([] === $subrs ? 0 : strlen(Dict::index($subrs)));
+                $dicts[] = Dict::encode(
+                    ($fdExtra[$fd] ?? []) + [self::OP_PRIVATE => Dict::int32($size) . Dict::int32($offset)],
+                );
+                $offset += $size + ([] === $subrs ? 0 : strlen(Dict::index($subrs)));
             }
 
             return $dicts;

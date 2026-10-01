@@ -5,17 +5,32 @@ declare(strict_types=1);
 namespace PhpPdfTest\Integration;
 
 use PhpPdf\Core\FixedClock;
+use PhpPdf\Document\Dimensions;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function pathinfo;
+
+use const PATHINFO_FILENAME;
+
 #[Group('integration')]
 final class CffSubsetTest extends TestCase
 {
+    /** @return array<string, array{0: string}> */
+    public static function cffFontProvider(): array
+    {
+        return [
+            'name-keyed' => ['fonts/SourceSans3-Regular.otf'],
+            'CID-keyed'  => ['fonts/PhpPdfCidTest.otf'],
+        ];
+    }
+
     #[Test]
     public function subsetCffFontsProduceAValidFileWithExtractableText(): void
     {
@@ -46,5 +61,23 @@ final class CffSubsetTest extends TestCase
         $text = PdfTools::text($path);
         self::assertStringContainsString('Name-keyed CFF: Grüße, 12 € — Ŧħę qüïçķ ƀŗøŵñ', $text);
         self::assertStringContainsString('CID-keyed CFF: The QUICK brown fox', $text);
+    }
+
+    /**
+     * macOS's renderer applies only the Top DICT's font matrix, so a subset whose matrix sits in a
+     * Font DICT under an identity Top DICT draws its glyphs a thousand times too large, off the page.
+     */
+    #[Test]
+    #[DataProvider('cffFontProvider')]
+    public function subsetCffTextIsVisibleInMacOs(string $asset): void
+    {
+        $path = PdfTools::outputDir() . '/cff-' . pathinfo($asset, PATHINFO_FILENAME) . '.pdf';
+        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc->addPage(new Dimensions(600.0, 120.0))
+            ->canvas()
+            ->drawText('object jest Templates', $doc->fonts()->load(PdfTools::assetPath($asset)), 60.0, 10.0, 40.0);
+        $doc->close();
+
+        self::assertGreaterThan(500, PdfTools::coreGraphicsInk($path));
     }
 }

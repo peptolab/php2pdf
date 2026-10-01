@@ -9,8 +9,10 @@ use PhpPdf\Exception\PdfException;
 use function array_filter;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function chr;
 use function count;
+use function floatval;
 use function max;
 use function pack;
 use function strlen;
@@ -30,12 +32,6 @@ final class CffSubsetter
 {
     private const string EMPTY_GLYPH = "\x0E";
     private const string EMPTY_SUBR  = "\x0B";
-
-    /** [1 0 0 1 0 0] */
-    private const string IDENTITY_MATRIX = "\x8C\x8B\x8B\x8C\x8B\x8B";
-
-    /** [0.001 0 0 0.001 0 0] */
-    private const string DEFAULT_MATRIX = "\x1E\x0A\x00\x1F\x8B\x8B\x1E\x0A\x00\x1F\x8B\x8B";
 
     /**
      * @param string           $cff      the font's CFF table
@@ -164,8 +160,8 @@ final class CffSubsetter
     }
 
     /**
-     * The Font DICTs, each pointing at its Private DICT laid out from $offset on. A name-keyed
-     * font's matrix moves to its Font DICT, and its Top DICT's matrix becomes the identity.
+     * The Font DICTs, each pointing at its Private DICT laid out from $offset on, with their
+     * matrices unless hoistedMatrix() moves them to the Top DICT.
      *
      * @param list<array{0: string, 1: string}> $privates
      *
@@ -177,9 +173,9 @@ final class CffSubsetter
         foreach ($privates as $fd => [$dict, $subrs]) {
             $size    = strlen(self::privateDict($dict, $subrs));
             $entries = [
-                CffTable::OP_FONT_MATRIX => $table->cidKeyed
+                CffTable::OP_FONT_MATRIX => null === self::hoistedMatrix($table)
                     ? self::operands($table->fonts[$fd]['dict'] ?? [], CffTable::OP_FONT_MATRIX)
-                    : self::operands($table->top, CffTable::OP_FONT_MATRIX) ?? self::DEFAULT_MATRIX,
+                    : null,
                 CffTable::OP_PRIVATE     => Dict::int32($size) . Dict::int32($offset),
             ];
             $dicts[] = Dict::encode(array_filter(
@@ -190,6 +186,32 @@ final class CffSubsetter
         }
 
         return $dicts;
+    }
+
+    /**
+     * The Font DICTs' shared matrix, when the Top DICT has none or the identity, to be written in
+     * the Top DICT instead. Readers are meant to combine the two, but macOS's renderer uses only
+     * the Top DICT's matrix (drawing glyphs a thousand times too large, off the page) and poppler
+     * sizes its glyph cache from it. Null when the Font DICTs differ or carry no matrix.
+     */
+    private static function hoistedMatrix(CffTable $table): ?string
+    {
+        $top = $table->top[CffTable::OP_FONT_MATRIX] ?? null;
+        if (null !== $top && [1.0, 0.0, 0.0, 1.0, 0.0, 0.0] !== array_map(floatval(...), $top->values)) {
+            return null;
+        }
+        $matrices = [];
+        foreach ($table->fonts as $font) {
+            $matrices[] = self::operands($font['dict'], CffTable::OP_FONT_MATRIX);
+        }
+        $shared = $matrices[0] ?? null;
+        foreach ($matrices as $matrix) {
+            if ($matrix !== $shared) {
+                return null;
+            }
+        }
+
+        return $shared;
     }
 
     /**
@@ -242,9 +264,8 @@ final class CffSubsetter
     ): string {
         $entries                           = [CffTable::OP_ROS => Dict::int(391) . Dict::int(392) . Dict::int(0)];
         $entries[CffTable::OP_FONT_BBOX]   = self::operands($table->top, CffTable::OP_FONT_BBOX);
-        $entries[CffTable::OP_FONT_MATRIX] = $table->cidKeyed
-            ? self::operands($table->top, CffTable::OP_FONT_MATRIX)
-            : self::IDENTITY_MATRIX;
+        $entries[CffTable::OP_FONT_MATRIX] = self::hoistedMatrix($table)
+            ?? self::operands($table->top, CffTable::OP_FONT_MATRIX);
         $entries[CffTable::OP_CID_COUNT]   = Dict::int($glyphs);
         $entries[CffTable::OP_CHARSET]     = Dict::int32($charset);
         $entries[CffTable::OP_FD_SELECT]   = Dict::int32($fdSelect);

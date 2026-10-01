@@ -9,7 +9,12 @@ use PHPUnit\Framework\Assert;
 use function dirname;
 use function explode;
 use function fclose;
+use function function_exists;
 use function getenv;
+use function imagecolorat;
+use function imagecreatefrompng;
+use function imagesx;
+use function imagesy;
 use function is_dir;
 use function is_executable;
 use function mkdir;
@@ -23,9 +28,11 @@ use function trim;
 
 use const PATH_SEPARATOR;
 use const PATHINFO_FILENAME;
+use const PHP_OS_FAMILY;
 
 /**
- * Wraps the external validators (qpdf, poppler) used by integration tests.
+ * Wraps the external validators (qpdf, poppler, and macOS's own PDF renderer through sips) used
+ * by integration tests.
  */
 final class PdfTools
 {
@@ -42,6 +49,36 @@ final class PdfTools
     public static function assetPath(string $relative): string
     {
         return dirname(__DIR__) . '/asset/' . $relative;
+    }
+
+    /**
+     * Renders page 1 with macOS's PDF renderer (CoreGraphics, as Preview uses) and counts the
+     * dark, opaque pixels, sampling every other pixel. Skips off macOS or without ext-gd.
+     */
+    public static function coreGraphicsInk(string $path): int
+    {
+        if (PHP_OS_FAMILY !== 'Darwin' || null === self::which('sips') || ! function_exists('imagecreatefrompng')) {
+            Assert::markTestSkipped('Rendering with CoreGraphics needs macOS (sips) and ext-gd.');
+        }
+        $png = self::outputDir() . '/' . pathinfo($path, PATHINFO_FILENAME) . '-coregraphics.png';
+        [$code, $output] = self::run(['sips', '-s', 'format', 'png', $path, '--out', $png]);
+        Assert::assertSame(0, $code, "sips failed for {$path}:\n{$output}");
+        $image = imagecreatefrompng($png);
+        Assert::assertNotFalse($image);
+        $ink    = 0;
+        $width  = imagesx($image);
+        $height = imagesy($image);
+        for ($y = 0; $y < $height; $y += 2) {
+            for ($x = 0; $x < $width; $x += 2) {
+                $pixel = imagecolorat($image, $x, $y);
+                if (false === $pixel || (($pixel >> 24) & 0x7F) >= 64 || (($pixel >> 16) & 0xFF) >= 128) {
+                    continue;
+                }
+                ++$ink;
+            }
+        }
+
+        return $ink;
     }
 
     public static function hasPoppler(): bool

@@ -77,13 +77,58 @@ final class CffSubsetterTest extends TestCase
     }
 
     #[Test]
-    public function aNameKeyedFontMatrixMovesToTheFontDict(): void
+    public function aMatrixSharedByEveryFontDictMovesToTheTopDict(): void
+    {
+        $font   = self::cidTestFont();
+        $subset = CffTable::parse(CffSubsetter::subset($font->table('CFF ') ?? '', self::glyphs($font, 'A')));
+
+        self::assertSame(
+            [[0.001, 0, 0, 0.001, 0, 0], false, false],
+            [
+                $subset->top[CffTable::OP_FONT_MATRIX]?->values,
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[1]['dict'] ?? []),
+            ],
+        );
+    }
+
+    #[Test]
+    public function aNameKeyedFontMatrixStaysInTheTopDict(): void
     {
         $matrix = Dict::int(0) . Dict::int(1);
         $cff    = CffBuilder::nameKeyed([self::ENDCHAR], top: [CffTable::OP_FONT_MATRIX => $matrix]);
         $subset = CffTable::parse(CffSubsetter::subset($cff, []));
 
-        self::assertSame($matrix, $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->operands);
+        self::assertSame(
+            [$matrix, false],
+            [
+                $subset->top[CffTable::OP_FONT_MATRIX]?->operands,
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
+            ],
+        );
+    }
+
+    #[Test]
+    public function aNonIdentityTopMatrixKeepsTheFontDictMatrices(): void
+    {
+        $top = Dict::int(2) . Dict::int(0) . Dict::int(0) . Dict::int(2) . Dict::int(0) . Dict::int(0);
+        $fd  = Dict::int(1) . Dict::int(0);
+        $cff = CffBuilder::cidKeyed(
+            [self::ENDCHAR],
+            "\x00\x00",
+            [[]],
+            fdExtra: [[CffTable::OP_FONT_MATRIX => $fd]],
+            top: [CffTable::OP_FONT_MATRIX => $top],
+        );
+        $subset = CffTable::parse(CffSubsetter::subset($cff, []));
+
+        self::assertSame(
+            [$top, $fd],
+            [
+                $subset->top[CffTable::OP_FONT_MATRIX]?->operands,
+                $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
+            ],
+        );
     }
 
     #[Test]
@@ -102,24 +147,6 @@ final class CffSubsetterTest extends TestCase
     }
 
     #[Test]
-    public function cidKeyedFontsKeepTheirFontMatrices(): void
-    {
-        $font   = self::cidTestFont();
-        $subset = CffTable::parse(CffSubsetter::subset($font->table('CFF ') ?? '', self::glyphs($font, 'A')));
-
-        self::assertSame(
-            [
-                [1,     0, 0, 1,     0, 0],
-                [0.001, 0, 0, 0.001, 0, 0],
-            ],
-            [
-                $subset->top[CffTable::OP_FONT_MATRIX]?->values,
-                $subset->fonts[1]['dict'][CffTable::OP_FONT_MATRIX]?->values,
-            ],
-        );
-    }
-
-    #[Test]
     public function cidKeyedFontsWithoutMatricesGetNone(): void
     {
         $cff    = CffBuilder::cidKeyed([self::ENDCHAR, self::ENDCHAR], "\x00\x00\x00", [[]]);
@@ -130,6 +157,29 @@ final class CffSubsetterTest extends TestCase
             [
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->top),
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
+            ],
+        );
+    }
+
+    #[Test]
+    public function differingFontDictMatricesStayInTheirFontDicts(): void
+    {
+        $small = Dict::int(1) . Dict::int(0);
+        $large = Dict::int(2) . Dict::int(0);
+        $cff   = CffBuilder::cidKeyed(
+            [self::ENDCHAR, self::ENDCHAR],
+            "\x00\x00\x01",
+            [[], []],
+            fdExtra: [[CffTable::OP_FONT_MATRIX => $small], [CffTable::OP_FONT_MATRIX => $large]],
+        );
+        $subset = CffTable::parse(CffSubsetter::subset($cff, [1 => true]));
+
+        self::assertSame(
+            [false, $small, $large],
+            [
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->top),
+                $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
+                $subset->fonts[1]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
             ],
         );
     }
@@ -195,19 +245,20 @@ final class CffSubsetterTest extends TestCase
     }
 
     #[Test]
-    public function makesANameKeyedFontCidKeyedWithItsMatrixInTheFontDict(): void
+    public function makesANameKeyedFontCidKeyedWithItsDefaultMatrix(): void
     {
         $font   = self::sourceSans();
         $subset = CffTable::parse(CffSubsetter::subset($font->table('CFF ') ?? '', self::glyphs($font, 'H')));
 
         self::assertSame(
-            [true, [391, 392, 0], [1, 0, 0, 1, 0, 0], [0.001, 0, 0, 0.001, 0, 0]],
+            [true, [391, 392, 0], false, false],
             [
                 $subset->cidKeyed,
                 $subset->top[CffTable::OP_ROS]?->values,
-                $subset->top[CffTable::OP_FONT_MATRIX]?->values,
-                $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->values,
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->top),
+                array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
             ],
+            'Source Sans has the default matrix, so neither DICT writes one.',
         );
     }
 
