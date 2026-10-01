@@ -34,10 +34,14 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_unique;
+use function array_values;
 use function count;
 use function preg_match_all;
 use function str_repeat;
 use function substr_count;
+
+use const SORT_REGULAR;
 
 final class TableTest extends TestCase
 {
@@ -54,6 +58,27 @@ final class TableTest extends TestCase
             'x-height'   => [FirstBaseline::XHeight],
             'leading'    => [FirstBaseline::Leading],
         ];
+    }
+
+    #[Test]
+    public function autoColumnsKeepTheirWidthsInEveryBox(): void
+    {
+        $table = new Table([Column::auto(), Column::auto()], null, $this->body);
+        for ($i = 0; $i < 6; ++$i) {
+            $table->addRow([str_repeat('long words here ', times: 3), 'x']);
+        }
+        for ($i = 0; $i < 6; ++$i) {
+            $table->addRow(['x', str_repeat('other long words ', times: 3)]);
+        }
+        $page  = $this->doc->addPage(PageSize::A4);
+        $edges = [];
+        do {
+            $result  = $page->fitTable($table, new Box(0.0, 0.0, 300.0, 80.0));
+            $edges[] = $table->lastFit()?->columnEdges;
+        } while (FlowResult::Done !== $result && count($edges) < 20);
+
+        self::assertGreaterThan(2, count($edges));
+        self::assertSame([$edges[0]], array_values(array_unique($edges, SORT_REGULAR)));
     }
 
     #[Test]
@@ -239,6 +264,20 @@ final class TableTest extends TestCase
         self::assertSame(FlowResult::BoxEmpty, $page->fitTable($table, new Box(0.0, 0.0, 100.0, 30.0)));
         self::assertFalse($table->isDone());
         self::assertSame(FlowResult::Done, $page->fitTable($table, new Box(0.0, 0.0, 300.0, 800.0)));
+    }
+
+    #[Test]
+    public function resetMeasuresAutoColumnsAgainFromTheWholeTable(): void
+    {
+        $table = new Table([Column::auto(), Column::auto()], null, $this->body);
+        $table->addRow(['short', str_repeat('a longer cell ', times: 4)]);
+        $page = $this->doc->addPage(PageSize::A4);
+        $page->fitTable($table, new Box(0.0, 0.0, 300.0, 400.0));
+        $first = $table->lastFit()?->columnEdges;
+        $table->reset();
+        $page->fitTable($table, new Box(0.0, 0.0, 300.0, 400.0));
+
+        self::assertSame($first, $table->lastFit()?->columnEdges);
     }
 
     #[Test]

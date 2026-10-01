@@ -49,6 +49,9 @@ final class Table implements FlowableInterface
     private bool          $continuing = false;
     private ?TableFitInfo $last       = null;
 
+    /** @var array{0: array<int, float>, 1: array<int, float>}|null auto column content widths, from the whole table */
+    private ?array $contentWidths = null;
+
     /**
      * @param list<Column>          $columns
      * @param CellStyle|null        $style   the base style of every cell
@@ -113,7 +116,7 @@ final class Table implements FlowableInterface
         [$headers, $body] = $this->grids($canvas->document());
         // Header rows are drawn afresh in every box.
         $headers->reset();
-        $layout  = new Layout($this->columns, [$headers, $body], $box->width, $this->options);
+        $layout  = $this->layout($headers, $body, $box->width);
         $painter = new Painter($canvas, $layout, $box);
         $planner = new Planner($layout, $headers, $body, $this->options);
         $plan    = $planner->plan(
@@ -185,7 +188,7 @@ final class Table implements FlowableInterface
     {
         [$headers, $body] = $this->grids($document);
         $headers->reset();
-        $layout = new Layout($this->columns, [$headers, $body], $width, $this->options);
+        $layout = $this->layout($headers, $body, $width);
         $height = array_sum($layout->rowHeights($headers, 0, $headers->count() - 1));
         if ($this->nextRow < $body->count()) {
             $height += array_sum($layout->rowHeights($body, $this->nextRow, $body->count() - 1));
@@ -199,9 +202,10 @@ final class Table implements FlowableInterface
     {
         $this->headerGrid?->reset();
         $this->bodyGrid?->reset();
-        $this->nextRow    = 0;
-        $this->continuing = false;
-        $this->last       = null;
+        $this->nextRow       = 0;
+        $this->continuing    = false;
+        $this->last          = null;
+        $this->contentWidths = null;
     }
 
     /** @return list<Row> */
@@ -228,5 +232,20 @@ final class Table implements FlowableInterface
         $this->bodyGrid   ??= new Grid($this->rows, $this->columns, $this->style, $this->text, $document);
 
         return [$this->headerGrid, $this->bodyGrid];
+    }
+
+    /** The layout for a box width, sizing auto columns from the whole table's content once. */
+    private function layout(Grid $headers, Grid $body, float $width): Layout
+    {
+        $layout = new Layout(
+            $this->columns,
+            [$headers, $body],
+            $width,
+            $this->options,
+            $this->contentWidths,
+        );
+        $this->contentWidths ??= $layout->contentWidths;
+
+        return $layout;
     }
 }

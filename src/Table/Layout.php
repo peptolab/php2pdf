@@ -32,18 +32,37 @@ final class Layout
     public readonly array $edges;
 
     /**
-     * @param list<Column> $columns
-     * @param list<Grid>   $grids   every grid whose content sizes auto columns
+     * The minimum and maximum content widths of the auto columns, or null when there are none.
+     * A table keeps the first ones, measured from its whole content, so its columns do not change
+     * from box to box as text is placed.
+     *
+     * @var array{0: array<int, float>, 1: array<int, float>}|null
+     */
+    public readonly ?array $contentWidths;
+
+    /**
+     * @param list<Column>                                            $columns
+     * @param list<Grid>                                              $grids         every grid whose content sizes auto columns
+     * @param array{0: array<int, float>, 1: array<int, float>}|null $contentWidths widths measured before, to reuse
      */
     public function __construct(
         private readonly array $columns,
         array $grids,
         float $width,
         private readonly TableOptions $options,
+        ?array $contentWidths = null,
     ) {
-        $this->widths = $this->resolveWidths($grids, $width);
-        $edges        = [0.0];
-        $x            = 0.0;
+        $autos = [];
+        foreach ($columns as $c => $column) {
+            if (! $column->isAuto()) {
+                continue;
+            }
+            $autos[] = $c;
+        }
+        $this->contentWidths = [] === $autos ? null : $contentWidths ?? $this->measureContentWidths($grids, $autos);
+        $this->widths        = $this->resolveWidths($width);
+        $edges               = [0.0];
+        $x                   = 0.0;
         foreach ($this->widths as $w) {
             $x       += $w;
             $edges[] = $x;
@@ -177,7 +196,7 @@ final class Layout
      *
      * @return array{0: array<int, float>, 1: array<int, float>}
      */
-    private function contentWidths(array $grids, array $autos): array
+    private function measureContentWidths(array $grids, array $autos): array
     {
         $min = [];
         $max = [];
@@ -214,12 +233,8 @@ final class Layout
         return $natural->height * $this->placeableScale($placed, $innerWidth);
     }
 
-    /**
-     * @param list<Grid> $grids
-     *
-     * @return list<float>
-     */
-    private function resolveWidths(array $grids, float $width): array
+    /** @return list<float> */
+    private function resolveWidths(float $width): array
     {
         $count  = count($this->columns);
         $widths = array_fill(0, $count, value: 0.0);
@@ -236,10 +251,10 @@ final class Layout
         if ($fixed > ($width + 1.0e-6)) {
             throw new PdfException(sprintf('The columns need %.2f pt but the table is %.2f pt wide.', $fixed, $width));
         }
-        if ([] === $autos) {
+        if ([] === $autos || null === $this->contentWidths) {
             return $widths;
         }
-        [$min, $max] = $this->contentWidths($grids, $autos);
+        [$min, $max] = $this->contentWidths;
         $remaining = $width - $fixed;
         $sumMin    = array_sum($min);
         $sumMax    = array_sum($max);
