@@ -104,7 +104,7 @@ bookmarks panel.
 every page, a `DefaultRGB` profile so RGB colours and images are device-independent, output
 intent and conformance declarations in the Info dictionary and XMP, and transparency groups in
 the output intent's colour space. The document refuses device colours the output intent cannot reproduce, imported pages that draw
-in them, links, badly nested page boxes, and closing without `setOutputIntent()` or a title. The
+in them, links inside the printed area, badly nested page boxes, and closing without `setOutputIntent()` or a title. The
 structure follows ISO 15930-7; check the output with Acrobat Preflight or callas pdfToolbox for a
 formal check.
 

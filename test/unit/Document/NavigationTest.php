@@ -12,12 +12,14 @@ use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Geometry\Box;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function preg_match;
 use function substr_count;
 
+#[Group('unit')]
 final class NavigationTest extends TestCase
 {
     private MemoryOutput $out;
@@ -56,12 +58,29 @@ final class NavigationTest extends TestCase
         self::assertSame(4, substr_count($pdf, needle: '/Subtype/Link'));
         self::assertStringContainsString('/A<</S/URI/URI(https://example.com/)>>', $pdf);
         self::assertStringContainsString('/Dest(chapter)', $pdf);
-        self::assertSame(1, preg_match('#/Dests \d+ 0 R#', $pdf));
-        self::assertSame(1, preg_match('#/chapter\[\d+ 0 R /FitH 700\]#', $pdf));
+        self::assertSame(1, preg_match('#/Names<</Dests \d+ 0 R>>#', $pdf));
+        self::assertSame(1, preg_match('#\(chapter\) \[\d+ 0 R /FitH 700\]#', $pdf));
         self::assertSame(1, preg_match('#/Dest\[\d+ 0 R /XYZ 0 800 1\.5\]#', $pdf));
         // The top-down page's link area is flipped into PDF coordinates: y from 791.89 up.
         self::assertSame(1, preg_match('#/Rect\[0 791\.8898 50 841\.8898\]#', $pdf));
         self::assertStringContainsString('/Annots[', $pdf);
+    }
+
+    #[Test]
+    public function writesNamedDestinationsAsASortedNameTree(): void
+    {
+        $this->doc->addPage(PageSize::A4);
+        foreach (['b', 'a', '2024', 'B'] as $name) {
+            $this->doc->addDestination($name, Destination::page(1));
+        }
+        $this->doc->close();
+        $tree = [];
+        preg_match('#<</Limits\[(.*?)\]/Names\[(.*?)\]>>#', $this->out->contents(), $tree);
+
+        self::assertSame(
+            ['(2024) (b)', '(2024) [3 0 R /Fit] (B) [3 0 R /Fit] (a) [3 0 R /Fit] (b) [3 0 R /Fit]'],
+            [$tree[1] ?? '', $tree[2] ?? ''],
+        );
     }
 
     #[Test]

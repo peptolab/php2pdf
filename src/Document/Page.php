@@ -24,6 +24,7 @@ use PhpPdf\Text\Textflow;
 use PhpPdf\Text\TextlineOptions;
 use PhpPdf\Text\TextlinePlacement;
 
+use function implode;
 use function sprintf;
 
 /**
@@ -65,13 +66,11 @@ final class Page
 
     /**
      * Makes an area of the page a link to a URL (or any URI such as mailto:) or to a destination
-     * in this document. The link draws nothing; style the content underneath as you like.
+     * in this document. The link draws nothing; style the content underneath as you like. Under
+     * PDF/X a link must lie outside the bleed box (the trim box when no bleed box is set).
      */
     public function addLink(Box $area, Destination|string $target): self
     {
-        if (null !== $this->document->options()->pdfx) {
-            throw new PdfException('PDF/X does not allow link annotations in the page area.');
-        }
         $this->links[] = [$this->toPdfBox($area), $target];
 
         return $this;
@@ -126,6 +125,7 @@ final class Page
         }
         if (null !== $pdfx) {
             $this->assertPdfXBoxes($pdfx);
+            $this->assertPdfXLinks($pdfx);
         }
         $annots = [];
         foreach ($this->links as [$area, $target]) {
@@ -321,6 +321,24 @@ final class Page
                     $name,
                 ));
             }
+        }
+    }
+
+    /** PDF/X allows annotations only outside the printed area. */
+    private function assertPdfXLinks(PdfX $pdfx): void
+    {
+        $printed = $this->bleedBox ?? $this->trimBox ?? $this->artBox ?? $this->mediaBox;
+        foreach ($this->links as [$area]) {
+            if ($printed->intersect($area)->isEmpty()) {
+                continue;
+            }
+            throw new PdfException(sprintf(
+                '%s page %d: a link at [%s] overlaps the %s; PDF/X allows links only outside it.',
+                $pdfx->value,
+                $this->number,
+                implode(' ', $area->toRect()),
+                null === $this->bleedBox ? 'TrimBox' : 'BleedBox',
+            ));
         }
     }
 

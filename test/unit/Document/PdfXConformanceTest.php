@@ -150,6 +150,43 @@ final class PdfXConformanceTest extends TestCase
     }
 
     #[Test]
+    public function linksInsideTheTrimBoxAreRefused(): void
+    {
+        $doc = $this->document('CMYK');
+        $doc->addPage(PageSize::A4)
+            ->addLink(new Box(0.0, 0.0, 40.0, 40.0), 'https://example.com/')
+            ->setTrimBox(new Box(30.0, 30.0, 500.0, 700.0));
+
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('PDF/X-4 page 1: a link at [0 0 40 40] overlaps the TrimBox');
+        $doc->close();
+    }
+
+    #[Test]
+    public function linksOnAPageWithoutPrintedBoxesAreRefused(): void
+    {
+        $doc = $this->document('CMYK');
+        $doc->addPage(PageSize::A4)->addLink(new Box(0.0, 0.0, 20.0, 10.0), 'https://example.com/');
+
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('overlaps the TrimBox');
+        $doc->close();
+    }
+
+    #[Test]
+    public function linksOutsideTheBleedBoxAreAllowed(): void
+    {
+        $doc = $this->document('CMYK');
+        $doc->addPage(PageSize::A4)
+            ->addLink(new Box(0.0, 0.0, 20.0, 10.0), 'https://example.com/')
+            ->setBleedBox(new Box(30.0, 30.0, 500.0, 700.0))
+            ->setTrimBox(new Box(40.0, 40.0, 480.0, 680.0));
+        $doc->close();
+
+        self::assertStringContainsString('/Subtype/Link', $this->out->contents());
+    }
+
+    #[Test]
     public function nestedBoxesAndXmpVersionFieldsAreWritten(): void
     {
         $doc = $this->document('CMYK');

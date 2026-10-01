@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdfTest\Integration;
 
 use PhpPdf\Core\FixedClock;
+use PhpPdf\Document\Destination;
 use PhpPdf\Document\Dimensions;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
@@ -44,5 +45,23 @@ final class DocumentStructureTest extends TestCase
         self::assertSame(['2.83', '2.83', '609.45', '856.06'], preg_split('/\s+/', trim($info['CropBox'])));
         self::assertSame(['0.00', '0.00', '612.28', '858.90'], preg_split('/\s+/', trim($info['BleedBox'])));
         self::assertSame(['8.50', '8.50', '603.78', '850.39'], preg_split('/\s+/', trim($info['TrimBox'])));
+    }
+
+    /** Readers find named destinations in the name tree that links and bookmarks refer to. */
+    #[Test]
+    public function namedDestinationsResolve(): void
+    {
+        $path = PdfTools::outputDir() . '/named-destinations.pdf';
+        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc->addPage(PageSize::A4)->addLink(new Box(72.0, 72.0, 100.0, 20.0), Destination::named('chapter-2'));
+        $doc->addPage(PageSize::A4);
+        $doc->addDestination('chapter-2', Destination::top(2, 700.0));
+        $doc->outline()->add('Chapter 2', Destination::named('chapter-2'));
+        $doc->close();
+
+        PdfTools::assertValid($path);
+        [$code, $output] = PdfTools::run(['pdfinfo', '-dests', $path]);
+        self::assertSame(0, $code, $output);
+        self::assertMatchesRegularExpression('/^\s*2\s+\[ FitH\s+700\s*\]\s+"chapter-2"/m', $output);
     }
 }

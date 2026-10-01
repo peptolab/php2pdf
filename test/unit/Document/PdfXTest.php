@@ -13,7 +13,6 @@ use PhpPdf\Color\LinearGradient;
 use PhpPdf\Color\Rgb;
 use PhpPdf\Core\FixedClock;
 use PhpPdf\Core\Output\MemoryOutput;
-use PhpPdf\Document\Destination;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
@@ -93,14 +92,6 @@ final class PdfXTest extends TestCase
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('PDF/X-4 needs an output intent before any colour, image or gradient is drawn');
         $use($doc, $canvas);
-    }
-
-    #[Test]
-    public function rejectsLinks(): void
-    {
-        $doc = new Document(new MemoryOutput(), self::options());
-        $this->expectException(PdfException::class);
-        $doc->addPage(PageSize::A4)->addLink(new Box(0.0, 0.0, 1.0, 1.0), Destination::page(1));
     }
 
     #[Test]

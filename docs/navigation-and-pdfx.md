@@ -26,6 +26,8 @@ $two->add('Section 2.2', Destination::named('chapter-2'), open: false);
 ```
 
 Destination coordinates are in the target page's PDF user space (origin bottom-left, points).
+Named destinations are written to the catalog's name tree (`/Names /Dests`), where links and
+bookmarks that refer to them by name are looked up.
 
 ## PDF/X-4
 
@@ -47,7 +49,8 @@ What the option does:
 - writes `xmpMM:VersionID` and `xmpMM:RenditionClass` in the XMP packet;
 - adds a `DefaultRGB` ICCBased colour space to every resource dictionary, so RGB colours and
   images are device-independent;
-- refuses link annotations, and closing without an output intent or a title;
+- refuses links that overlap the bleed box (the trim box when no bleed box is set), and closing
+  without an output intent or a title. Links in the slug, outside the printed area, are allowed;
 - refuses a page with both a trim box and an art box, a bleed box outside the media box, and a
   trim or art box outside the bleed box.
 

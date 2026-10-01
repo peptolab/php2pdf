@@ -12,8 +12,11 @@ use PhpPdf\Exception\PdfException;
 use PhpPdf\Geometry\Box;
 
 use function array_key_exists;
+use function count;
 use function is_string;
 use function sprintf;
+use function strcmp;
+use function usort;
 
 /**
  * A document's links, named destinations and outline, written when the document closes and
@@ -77,16 +80,44 @@ final class Navigation
             $this->writer->write($ref, $annotation);
         }
         if ([] !== $this->destinations) {
-            $dests = new Dictionary();
-            foreach ($this->destinations as $name => $destination) {
-                $dests->set($name, $resolve($destination));
-            }
-            $catalog->set('Dests', $this->writer->add($dests));
+            $catalog->set('Names', Dictionary::of(['Dests' => $this->writer->add($this->nameTree($resolve))]));
         }
         if (! $this->outline->isEmpty()) {
             $catalog->set('Outlines', $this->outline->write($this->writer, $resolve));
             $catalog->set('PageMode', new Name('UseOutlines'));
         }
+    }
+
+    /**
+     * The named destinations as a name tree: one node listing names and destinations in byte
+     * order, which is how links and bookmarks that refer to a destination by name find it.
+     *
+     * @param callable(Destination): (list<mixed>|string) $resolve
+     */
+    private function nameTree(callable $resolve): Dictionary
+    {
+        $pairs = [];
+        foreach ($this->destinations as $name => $destination) {
+            $pairs[] = ["{$name}", $resolve($destination)];
+        }
+        usort(
+            $pairs,
+            /**
+             * @param array{0: string, 1: mixed} $a
+             * @param array{0: string, 1: mixed} $b
+             */
+            static fn(array $a, array $b): int => strcmp($a[0], $b[0]),
+        );
+        $entries = [];
+        foreach ($pairs as [$name, $destination]) {
+            $entries[] = $name;
+            $entries[] = $destination;
+        }
+
+        return Dictionary::of([
+            'Limits' => [$pairs[0][0] ?? '', $pairs[count($pairs) - 1][0] ?? ''],
+            'Names'  => $entries,
+        ]);
     }
 
     /**
