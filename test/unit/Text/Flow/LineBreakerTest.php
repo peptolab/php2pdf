@@ -36,6 +36,28 @@ final class LineBreakerTest extends TestCase
     }
 
     #[Test]
+    public function aLineEndingAtAFixedSpaceDropsIt(): void
+    {
+        $line = $this->firstLine("Total\u{2003}due", $this->serif->width("Total\u{2003}d", 10.0));
+
+        self::assertSame(
+            ['l', $this->serif->width('Total', 10.0)],
+            [mb_chr($this->lastGlyphs($line, 1)[0]->codePoint), $line->width],
+        );
+    }
+
+    #[Test]
+    public function aLineEndingAtAHardHyphenAddsNoHyphen(): void
+    {
+        $line = $this->firstLine('well-known', $this->serif->width('well-kn', 10.0));
+
+        self::assertSame(
+            ['-', $this->serif->width('well-', 10.0)],
+            [mb_chr($this->lastGlyphs($line, 1)[0]->codePoint), $line->width],
+        );
+    }
+
+    #[Test]
     public function aLineEndingAtASpaceDropsTheKerningTowardsIt(): void
     {
         $line = $this->firstLine('AT Teams', $this->serif->width('AT Te', 10.0));

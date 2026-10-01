@@ -14,15 +14,17 @@ use function array_slice;
 use function array_values;
 use function count;
 use function explode;
-use function implode;
 use function mb_chr;
 use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
+use function preg_match;
 use function preg_match_all;
-use function preg_replace;
+use function preg_split;
 use function spl_object_id;
 use function str_replace;
+
+use const PREG_SPLIT_NO_EMPTY;
 
 /**
  * Splits styled text into boxes, glue and penalties: words, spaces, tabs, explicit breaks, soft
@@ -38,6 +40,18 @@ use function str_replace;
 final class Itemiser
 {
     private const string SOFT_HYPHEN = "\u{00AD}";
+
+    /** Spaces of fixed width that allow a break: en, em, three-, four- and six-per-em, punctuation, thin, hair. */
+    private const string FIXED_SPACES = '[\x{2002}-\x{2006}\x{2008}-\x{200A}]';
+
+    /** A run of word spaces: glue. */
+    private const string GLUE = 'glue';
+
+    /** A hyphenation point: a penalty showing a hyphen. */
+    private const string HYPHEN = 'hyphen';
+
+    /** A break that shows nothing. */
+    private const string BREAK = 'break';
 
     /** @param array<string, Hyphenator> $hyphenators by language */
     public function __construct(
@@ -182,19 +196,35 @@ final class Itemiser
         return $font;
     }
 
-    /** @return list<string> */
+    /**
+     * A word's hyphenation points from the patterns for its language. Punctuation before and after
+     * the letters stays attached, so "(typography," hyphenates like "typography".
+     *
+     * @return list<string>
+     */
     private function patternPieces(string $word, TextStyle $style): array
     {
         $hyphenator = $this->hyphenators[$style->language ?? ''] ?? null;
-        if (null === $hyphenator || true !== $style->hyphenate) {
+        $parts      = [];
+        if (
+            null === $hyphenator
+            || true !== $style->hyphenate
+            || preg_match('/^([^\p{L}]*)(\p{L}+)([^\p{L}]*)$/u', $word, $parts) !== 1
+        ) {
             return [$word];
         }
-        $letters = preg_replace('/[^\p{L}]/u', replacement: '', subject: $word) ?? $word;
-        if (mb_strlen($letters, encoding: 'UTF-8') < ($style->minHyphenatedWordLength ?? 6) || $letters !== $word) {
+        $lead    = $parts[1] ?? '';
+        $letters = $parts[2] ?? '';
+        $trail   = $parts[3] ?? '';
+        if (mb_strlen($letters, encoding: 'UTF-8') < ($style->minHyphenatedWordLength ?? 6)) {
             return [$word];
         }
+        $syllables        = $hyphenator->syllables($letters, $style->hyphenLeftMin ?? 2, $style->hyphenRightMin ?? 2);
+        $syllables[0]     = $lead . ($syllables[0] ?? '');
+        $last             = count($syllables) - 1;
+        $syllables[$last] = ($syllables[$last] ?? '') . $trail;
 
-        return $hyphenator->syllables($word, $style->hyphenLeftMin ?? 2, $style->hyphenRightMin ?? 2);
+        return $syllables;
     }
 
     /**
@@ -230,59 +260,63 @@ final class Itemiser
     }
 
     /**
-     * Items for text with no tab or line break, shaped as one run. A run of spaces becomes one
-     * glue, kerned like its last space towards the next word.
+     * Items for text with no tab or line break, shaped as one run. A run of word spaces becomes
+     * one glue, kerned like its last space towards the next word. Fixed-width spaces (en, em,
+     * thin...) are boxes a line may break after; hard hyphens, dashes and slashes are followed by
+     * a break that shows no hyphen.
      *
      * @return list<Item>
      */
     private function stretch(string $text, TextStyle $style): array
     {
+        $font    = StyleResolver::fontOf($style);
         $matches = [];
-        preg_match_all('/[ ]+|[^ ]+/u', $text, $matches);
-        $chunks = $matches[0] ?? [];
-        $parts  = [];
+        preg_match_all('/[ ]+|' . self::FIXED_SPACES . '|(?:(?!' . self::FIXED_SPACES . ')[^ ])+/u', $text, $matches);
+        /** @var list<array{0: string, 1: ?string}> $pieces piece, then the break after it */
+        $pieces = [];
         $shaped = '';
-        foreach ($chunks as $chunk) {
+        foreach ($matches[0] ?? [] as $chunk) {
             if (' ' === $chunk[0]) {
-                $parts[] = [$chunk];
-                $shaped  .= $chunk;
+                $pieces[] = [$chunk, self::GLUE];
+                $shaped   .= $chunk;
                 continue;
             }
-            $pieces = explode(self::SOFT_HYPHEN, $chunk);
-            if (1 === count($pieces)) {
-                $pieces = $this->patternPieces($chunk, $style);
+            if (preg_match('/^' . self::FIXED_SPACES . '$/u', $chunk) === 1) {
+                $pieces[]  = [$chunk, self::BREAK];
+                $codePoint = mb_ord($chunk, encoding: 'UTF-8');
+                $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
+                continue;
             }
-            $parts[] = $pieces;
-            $shaped  .= implode('', $pieces);
+            foreach ($this->wordPieces($chunk, $style) as $piece) {
+                $pieces[] = $piece;
+                $shaped   .= $piece[0];
+            }
         }
-        $glyphs = StyleResolver::fontOf($style)->shape($shaped, $style->textOptions())->glyphs;
+        $glyphs = $font->shape($shaped, $style->textOptions())->glyphs;
 
         $items  = [];
         $offset = 0;
-        foreach ($parts as $pieces) {
-            if (' ' === ($pieces[0][0] ?? '')) {
-                $length = mb_strlen($pieces[0] ?? '', encoding: 'UTF-8');
-                $first  = $glyphs[$offset] ?? null;
-                $last   = $glyphs[$offset + $length - 1] ?? null;
-                $offset += $length;
-                if (null === $first || null === $last) {
-                    continue;
+        foreach ($pieces as [$piece, $after]) {
+            $length = mb_strlen($piece, encoding: 'UTF-8');
+            $slice  = array_slice($glyphs, $offset, $length);
+            $offset += $length;
+            if (self::GLUE === $after) {
+                $first = $slice[0] ?? null;
+                $last  = $slice[count($slice) - 1] ?? null;
+                if (null !== $first && null !== $last) {
+                    $space   = new Glyph($first->id, $first->codePoint, $first->advance, $last->kerning);
+                    $items[] = self::cut(ItemKind::Glue, $style, ' ', [$space]);
                 }
-                $space   = new Glyph($first->id, $first->codePoint, $first->advance, $last->kerning);
-                $items[] = self::cut(ItemKind::Glue, $style, ' ', [$space]);
                 continue;
             }
-            $lastPiece = count($pieces) - 1;
-            foreach ($pieces as $i => $piece) {
-                $length = mb_strlen($piece, encoding: 'UTF-8');
-                $slice  = array_slice($glyphs, $offset, $length);
-                $offset += $length;
-                if ('' !== $piece) {
-                    $items[] = self::cut(ItemKind::Box, $style, $piece, $slice);
-                }
-                if ($i < $lastPiece) {
-                    $items[] = $this->penalty($slice, $style);
-                }
+            if ('' !== $piece) {
+                $items[] = self::cut(ItemKind::Box, $style, $piece, $slice);
+            }
+            if (self::HYPHEN === $after) {
+                $items[] = $this->penalty($slice, $style);
+            }
+            if (self::BREAK === $after) {
+                $items[] = new Item(ItemKind::Penalty, $style);
             }
         }
 
@@ -300,5 +334,40 @@ final class Itemiser
         preg_match_all('/\n|\t|[^\n\t]+/u', $text, $matches);
 
         return array_values($matches[0] ?? []);
+    }
+
+    /**
+     * A word cut where it may break: after hard hyphens, en dashes and slashes (not before a
+     * digit), on both sides of an em dash, and at soft hyphens or, failing those, pattern
+     * hyphenation points within each part.
+     *
+     * @return list<array{0: string, 1: ?string}> pieces, each with the break that follows it
+     */
+    private function wordPieces(string $word, TextStyle $style): array
+    {
+        $parts = preg_split(
+            '/(?<=[^\s\-\x{2010}\x{2013}\x{2014}\/])(?=\x{2014})|(?<=[\-\x{2010}\x{2013}\/])(?=[^\d\-\x{2010}\x{2013}\x{2014}\/])|(?<=\x{2014})(?=[^\x{2014}])/u',
+            $word,
+            flags: PREG_SPLIT_NO_EMPTY,
+        );
+        $parts  = false === $parts || [] === $parts ? [$word] : $parts;
+        $pieces = [];
+        $last   = count($parts) - 1;
+        foreach ($parts as $p => $part) {
+            $syllables = explode(self::SOFT_HYPHEN, $part);
+            if (1 === count($syllables)) {
+                $syllables = $this->patternPieces($part, $style);
+            }
+            $final = count($syllables) - 1;
+            foreach ($syllables as $s => $syllable) {
+                $after = $p < $last ? self::BREAK : null;
+                if ($s < $final) {
+                    $after = self::HYPHEN;
+                }
+                $pieces[] = [$syllable, $after];
+            }
+        }
+
+        return $pieces;
     }
 }

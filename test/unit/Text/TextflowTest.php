@@ -287,7 +287,7 @@ final class TextflowTest extends TestCase
             size: 10.0,
             alignment: $alignment,
         );
-        $flow  = $this->doc->textflow("First line of the flow.\n{$text}", $style);
+        $flow = $this->doc->textflow("First line of the flow.\n{$text}", $style);
         $this->doc->addPage()->fitTextflow($flow, new Box(50.0, 500.0, 200.0, 100.0));
         $info  = $flow->lastFit();
         $width = $this->doc->fonts()->find('DejaVuSans')->width($text, 10.0);

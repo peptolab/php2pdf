@@ -63,7 +63,14 @@ A small tag set, with `style="name"` on `<p>` and `<span>` referring to named st
 | `<pagebreak>` | Stop and ask for a new page: the fit returns `NextPage` |
 
 `&amp;`, `&lt;`, `&gt;` and numeric entities are decoded. Soft hyphens (U+00AD) mark allowed
-breaks; non-breaking spaces (U+00A0) never break or stretch.
+breaks; non-breaking spaces (U+00A0, U+202F narrow and U+2007 figure) never break or stretch.
+
+Lines also break after a hard hyphen, U+2010 hyphen, en dash or slash (unless a digit follows,
+so "10-12" stays whole) and on either side of an em dash, adding no hyphen. En, em, thin, hair
+and the other fixed spaces (U+2002–U+2006, U+2008–U+200A) keep their width when a line is
+justified, allow a break after them, and are dropped at the end of a line; a font without the
+glyph sets a word space in its place. Pattern hyphenation looks past punctuation around a word,
+so "(typography," hyphenates.
 
 Plain text (`TextFormat::Plain`) treats blank lines as paragraph breaks, single line ends as
 line breaks, and tabs as tabs.

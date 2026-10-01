@@ -20,6 +20,7 @@ use function implode;
 use function intdiv;
 use function max;
 use function mb_str_split;
+use function preg_match;
 use function strpos;
 use function substr;
 use function usort;
@@ -100,6 +101,9 @@ final class LineBreaker
         if (null !== $hyphen && null !== $hyphen->hyphenRun) {
             $items   = self::rekernLast($items, $hyphen->hyphenKerning);
             $items[] = new Item(ItemKind::Box, $hyphen->style, '-', $hyphen->hyphenRun, $hyphen->hyphenWidth);
+        }
+        if (null !== $hyphen && null === $hyphen->hyphenRun) {
+            $items = self::rekernLast(self::withoutTrailingSpace($items), null);
         }
         $natural = 0.0;
         $glues   = 0;
@@ -415,5 +419,26 @@ final class LineBreaker
             TabAlignment::Center  => max($x, $stop->position - ($segmentWidth / 2.0)),
             TabAlignment::Decimal => max($x, $stop->position - ($decimalWidth ?? $segmentWidth)),
         };
+    }
+
+    /**
+     * The items without a fixed-width space at the end, which a line breaking after it drops.
+     *
+     * @param list<Item> $items
+     *
+     * @return list<Item>
+     */
+    private static function withoutTrailingSpace(array $items): array
+    {
+        $last = $items[count($items) - 1] ?? null;
+        if (
+            null !== $last
+            && ItemKind::Box === $last->kind
+            && preg_match('/^[\x{2002}-\x{2006}\x{2008}-\x{200A}]$/u', $last->text) === 1
+        ) {
+            array_pop($items);
+        }
+
+        return $items;
     }
 }

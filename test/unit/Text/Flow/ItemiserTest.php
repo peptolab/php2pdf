@@ -7,7 +7,9 @@ namespace PhpPdfTest\Unit\Text\Flow;
 use PhpPdf\Text\Flow\Item;
 use PhpPdf\Text\Flow\Itemiser;
 use PhpPdf\Text\Flow\ItemKind;
+use PhpPdf\Text\Hyphenation\Hyphenator;
 use PhpPdfTest\Support\KerningFixtureTrait;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +24,33 @@ use function count;
 final class ItemiserTest extends TestCase
 {
     use KerningFixtureTrait;
+
+    /** @return array<string, array{0: string, 1: list<string>}> */
+    public static function breakOpportunityProvider(): array
+    {
+        return [
+            'hard hyphen'           => ['well-known', ['well-', '|', 'known']],
+            'hyphen before a digit' => ['pages 10-12', ['pages', ' ', '10-12']],
+            'unicode hyphen'        => ["co\u{2010}op", ["co\u{2010}", '|', 'op']],
+            'en dash'               => ["1990s\u{2013}now", ["1990s\u{2013}", '|', 'now']],
+            'em dash on both sides' => ["yes\u{2014}no", ['yes', '|', "\u{2014}", '|', 'no']],
+            'slash'                 => ['and/or', ['and/', '|', 'or']],
+            'thin space'            => ["10\u{2009}000", ['10', "\u{2009}", '|', '000']],
+            'no-break space'        => ["10\u{00A0}000", ["10\u{00A0}000"]],
+            'narrow no-break space' => ["10\u{202F}000", ["10\u{202F}000"]],
+        ];
+    }
+
+    #[Test]
+    public function aFixedSpaceKeepsItsOwnWidth(): void
+    {
+        $thin = array_values(array_filter(
+            $this->itemise("10\u{2009}000"),
+            static fn(Item $item): bool => "\u{2009}" === $item->text,
+        ))[0];
+
+        self::assertSame($this->serif->width("\u{2009}", 10.0), $thin->width);
+    }
 
     #[Test]
     public function aPenaltyCarriesTheKerningChangeForItsHyphen(): void
@@ -58,6 +87,21 @@ final class ItemiserTest extends TestCase
         self::assertSame(-19.0, $boxes[0]->run?->glyphs[1]?->kerning);
     }
 
+    /** @param list<string> $expected boxes by text, glue as a space, plain breaks as | */
+    #[Test]
+    #[DataProvider('breakOpportunityProvider')]
+    public function breaksAfterHyphensDashesSlashesAndFixedSpaces(string $text, array $expected): void
+    {
+        self::assertSame($expected, array_map(
+            static fn(Item $item): string => match ($item->kind) {
+                ItemKind::Glue    => ' ',
+                ItemKind::Penalty => null === $item->hyphenRun ? '|' : '-',
+                default           => $item->text,
+            },
+            $this->itemise($text),
+        ));
+    }
+
     #[Test]
     public function itemsKeepTheKerningOfTheWholeText(): void
     {
@@ -66,6 +110,23 @@ final class ItemiserTest extends TestCase
         $width = array_sum(array_map(static fn(Item $item): float => $item->width, $items));
 
         self::assertEqualsWithDelta($this->serif->width($text, 10.0), $width, 1.0e-9);
+    }
+
+    #[Test]
+    public function punctuationAroundAWordDoesNotStopHyphenation(): void
+    {
+        $items = (new Itemiser(['en' => new Hyphenator([], ['ty-pog-ra-phy'])]))->itemise([[
+            '(typography,',
+            $this->style,
+        ]]);
+
+        self::assertSame(
+            ['(ty', '-', 'pog', '-', 'ra', '-', 'phy,'],
+            array_map(
+                static fn(Item $item): string => ItemKind::Penalty === $item->kind ? '-' : $item->text,
+                $items,
+            ),
+        );
     }
 
     #[Test]
