@@ -42,6 +42,20 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function aLineIsAsTallAsItsTallestStyle(): void
+    {
+        $flow = Textflow::build($this->doc, 'body')
+            ->paragraph()
+            ->text('small ')
+            ->text('big', new TextStyle(size: 20.0))
+            ->text(' small again')
+            ->build();
+        $font = $this->doc->fonts()->find('DejaVuSans');
+
+        self::assertEqualsWithDelta($font->ascender(20.0) - $font->descender(20.0), $flow->measure(300.0), 1.0e-9);
+    }
+
+    #[Test]
     public function breaksWordsAtSoftHyphensAndPatterns(): void
     {
         $hyphenator = new Hyphenator(['hy3ph', 'he2n', 'hena4', 'hen5at', '1na', 'n2at', '1tio', '2io', 'o2n']);
@@ -210,6 +224,24 @@ final class TextflowTest extends TestCase
     {
         $this->expectException(PdfException::class);
         $this->doc->textflow('<p>No font</p>')->measure(100.0);
+    }
+
+    #[Test]
+    public function risenTextRaisesTheLine(): void
+    {
+        $flow = Textflow::build($this->doc, 'body')
+            ->paragraph()
+            ->text('base ')
+            ->text('up', new TextStyle(rise: 5.0))
+            ->text(' base')
+            ->build();
+        $font = $this->doc->fonts()->find('DejaVuSans');
+
+        self::assertEqualsWithDelta(
+            $font->ascender(10.0) + 5.0 - $font->descender(10.0),
+            $flow->measure(300.0),
+            1.0e-9,
+        );
     }
 
     #[Test]

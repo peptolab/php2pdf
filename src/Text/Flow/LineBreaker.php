@@ -208,10 +208,12 @@ final class LineBreaker
             'xHeight'    => $font->xHeight($size),
             'lineHeight' => $style->lineHeight(),
         ];
+        $measured = null;
         foreach ($items as $item) {
-            if (ItemKind::Box !== $item->kind) {
+            if (ItemKind::Box !== $item->kind || $item->style === $measured) {
                 continue;
             }
+            $measured              = $item->style;
             $f                     = StyleResolver::fontOf($item->style);
             $s                     = $item->style->fontSize();
             $rise                  = $item->style->rise ?? 0.0;
