@@ -163,6 +163,6 @@ final class Painter
             $v = 1.0 - $v;
         }
 
-        return Position::percent($horizontal, max(0.0, $v));
+        return new Position($horizontal, max(0.0, $v));
     }
 }

@@ -24,8 +24,9 @@ natural size.
 ## Positions
 
 `Position::topLeft()` … `Position::bottomRight()` are the nine anchor points;
-`Position::percent(0.25, 0.8)` positions by fractions of the free space (horizontal, vertical;
-vertical 1.0 is the top on both page orientations).
+`new Position(0.25, 0.8)` positions by fractions of the free space and `Position::percent(25, 80)`
+by percentages of it (horizontal, vertical; a vertical of 1.0, or 100 %, is the top on both page
+orientations).
 
 ## Placement
 

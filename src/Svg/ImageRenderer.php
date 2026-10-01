@@ -57,7 +57,7 @@ final class ImageRenderer
             'ymax'  => 0.0,
             default => 0.5,
         };
-        $position = Position::percent($horizontal, $vertical);
+        $position = new Position($horizontal, $vertical);
 
         return 'slice' === ($words[count($words) - 1] ?? '') ? Fit::slice($position) : Fit::meet($position);
     }

@@ -6,7 +6,9 @@ namespace PhpPdfTest\Unit\Table;
 
 use PhpPdf\Color\Gray;
 use PhpPdf\Core\FixedClock;
+use PhpPdf\Core\Num;
 use PhpPdf\Core\Output\MemoryOutput;
+use PhpPdf\Document\Dimensions;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\Page;
@@ -28,6 +30,7 @@ use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\Leading;
 use PhpPdf\Text\Style\TextStyle;
+use PhpPdf\Text\Style\VerticalAlignment;
 use PhpPdf\Text\Textflow;
 use PhpPdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -38,6 +41,7 @@ use function array_unique;
 use function array_values;
 use function count;
 use function preg_match_all;
+use function sprintf;
 use function str_repeat;
 use function substr_count;
 
@@ -48,6 +52,16 @@ final class TableTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
     private TextStyle $body;
+
+    /** @return array<string, array{0: VerticalAlignment, 1: float}> */
+    public static function cellImageAlignmentProvider(): array
+    {
+        return [
+            'top'    => [VerticalAlignment::Top, 80.0],
+            'centre' => [VerticalAlignment::Center, 40.0],
+            'bottom' => [VerticalAlignment::Bottom, 0.0],
+        ];
+    }
 
     /** @return array<string, array{0: FirstBaseline}> */
     public static function firstBaselineProvider(): array
@@ -92,6 +106,25 @@ final class TableTest extends TestCase
 
         self::assertGreaterThan(2, count($edges));
         self::assertSame([$edges[0]], array_values(array_unique($edges, SORT_REGULAR)));
+    }
+
+    /** A 100×20 template in a 100 pt column, in a row 100 pt tall: its y follows the alignment. */
+    #[Test]
+    #[DataProvider('cellImageAlignmentProvider')]
+    public function cellImagesFollowVerticalAlignment(VerticalAlignment $alignment, float $y): void
+    {
+        $template = $this->doc->template(new Dimensions(100.0, 20.0));
+        $table    = new Table([Column::pt(100.0), Column::pt(100.0)], null, $this->body);
+        $table->addRow(
+            [Cell::of($template, null, new CellStyle(verticalAlignment: $alignment)), null],
+            null,
+            null,
+            100.0,
+        );
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 100.0));
+        $this->doc->close();
+
+        self::assertStringContainsString(sprintf('q 1 0 0 1 0 %s cm /', Num::format($y)), $this->out->contents());
     }
 
     #[Test]

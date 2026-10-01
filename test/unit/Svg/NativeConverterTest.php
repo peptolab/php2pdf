@@ -14,9 +14,12 @@ use PhpPdf\Geometry\Box;
 use PhpPdf\Svg\NativeConverter;
 use PhpPdf\Svg\SvgFile;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function base64_encode;
+use function file_get_contents;
 use function gzencode;
 use function preg_match;
 use function str_contains;
@@ -26,6 +29,16 @@ final class NativeConverterTest extends TestCase
 {
     private MemoryOutput $out;
     private Document $doc;
+
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function preserveAspectRatioProvider(): array
+    {
+        return [
+            'left'   => ['xMinYMin', '0'],
+            'centre' => ['xMidYMax', '33.333333'],
+            'right'  => ['xMaxYMin', '66.666667'],
+        ];
+    }
 
     #[Test]
     public function convertsShapesIntoAFormXObjectWithRealPaths(): void
@@ -88,6 +101,22 @@ final class NativeConverterTest extends TestCase
         self::assertSame(2, substr_count($pdf, needle: '0 0.502 0 rg'));
         self::assertStringContainsString('1 0.6471 0 rg', $pdf);
         self::assertSame(['mask'], $converter->warnings());
+    }
+
+    /** A 64×48 image meets a 200×100 viewport at 133.3×100, leaving 66.7 to place it in. */
+    #[Test]
+    #[DataProvider('preserveAspectRatioProvider')]
+    public function imagesArePlacedPerPreserveAspectRatio(string $align, string $x): void
+    {
+        $png = base64_encode((string) file_get_contents(PdfTools::assetPath('images/rgb8.png')));
+        $svg = SvgFile::fromData(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100">'
+                . "<image width=\"200\" height=\"100\" preserveAspectRatio=\"{$align} meet\" href=\"data:image/png;base64,{$png}\"/></svg>",
+        );
+        $this->doc->addPage()->place($this->doc->svg($svg), new Box(0.0, 0.0, 200.0, 100.0), Fit::entire());
+        $this->doc->close();
+
+        self::assertStringContainsString("q 133.333333 0 0 100 {$x} 0 cm /", $this->out->contents());
     }
 
     #[Test]
