@@ -30,8 +30,13 @@ final class JpegDecoder
     /** @var array<int, string> ICC profile chunks by sequence number */
     private array $icc = [];
 
-    /** @var array{0: float, 1: float} */
-    private array $dpi = [72.0, 72.0];
+    /** @var array{0: float, 1: float}|null density from the JFIF header, when it gives one */
+    private ?array $dpi = null;
+
+    /** @var array{0: float, 1: float}|null density from the EXIF resolution tags */
+    private ?array $exifDpi = null;
+
+    private int $orientation = 1;
 
     private function __construct() {}
 
@@ -63,8 +68,9 @@ final class JpegDecoder
             'DCTDecode',
             decode: 4 === $frame['components'] && $decoder->adobe ? [1, 0, 1, 0, 1, 0, 1, 0] : null,
             iccProfile: [] === $decoder->icc ? null : implode('', $decoder->icc),
-            dpiX: $decoder->dpi[0],
-            dpiY: $decoder->dpi[1],
+            dpiX: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[0],
+            dpiY: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[1],
+            orientation: $decoder->orientation,
         );
     }
 
@@ -88,23 +94,27 @@ final class JpegDecoder
         return 0xC0 <= $marker && $marker <= 0xCF && 0xC4 !== $marker && 0xC8 !== $marker && 0xCC !== $marker;
     }
 
-    /** @return array{0: float, 1: float} */
-    private static function jfifDensity(string $segment): array
+    /**
+     * The JFIF density in dots per inch, or null when the header gives only an aspect ratio.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    private static function jfifDensity(string $segment): ?array
     {
         if (strlen($segment) < 12) {
-            return [72.0, 72.0];
+            return null;
         }
         $units = ord($segment[7]);
         $x     = (ord($segment[8]) << 8) | ord($segment[9]);
         $y     = (ord($segment[10]) << 8) | ord($segment[11]);
         if (0 === $x || 0 === $y) {
-            return [72.0, 72.0];
+            return null;
         }
 
         return match ($units) {
             1       => [(float) $x, (float) $y],
             2       => [$x * 2.54, $y * 2.54],
-            default => [72.0, 72.0],
+            default => null,
         };
     }
 
@@ -145,6 +155,13 @@ final class JpegDecoder
         }
         if (0xE0 === $marker && str_starts_with($segment, "JFIF\0")) {
             $this->dpi = self::jfifDensity($segment);
+
+            return;
+        }
+        if (0xE1 === $marker && str_starts_with($segment, "Exif\0\0")) {
+            $exif              = Exif::read(substr($segment, offset: 6));
+            $this->orientation = $exif->orientation;
+            $this->exifDpi     = $exif->dpi;
 
             return;
         }

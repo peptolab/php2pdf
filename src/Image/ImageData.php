@@ -21,6 +21,7 @@ final readonly class ImageData
      * @param string|null     $softMask     8-bit alpha samples, one byte per pixel, uncompressed
      * @param list<int>|null  $colorKeyMask /Mask ranges for colour-key transparency
      * @param string|null     $iccProfile   an embedded ICC profile matching the colour space
+     * @param int             $orientation  the EXIF orientation (1 to 8) the image is shown in
      */
     public function __construct(
         public int $width,
@@ -36,10 +37,17 @@ final readonly class ImageData
         public ?string $iccProfile = null,
         public float $dpiX = 72.0,
         public float $dpiY = 72.0,
+        public int $orientation = 1,
     ) {}
 
     public function hasTransparency(): bool
     {
         return null !== $this->softMask || null !== $this->colorKeyMask;
+    }
+
+    /** Whether the orientation turns the image a quarter turn, swapping its width and height. */
+    public function isTransposed(): bool
+    {
+        return $this->orientation >= 5;
     }
 }

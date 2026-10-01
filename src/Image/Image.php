@@ -34,6 +34,24 @@ final class Image implements PlaceableInterface
         $this->reference = $this->write($document);
     }
 
+    /**
+     * Maps the stored image's unit square onto the unit square it is shown in, for an EXIF
+     * orientation: mirrored, turned a half or quarter turn, or both.
+     */
+    private static function orientation(int $orientation): Matrix
+    {
+        return match ($orientation) {
+            2       => new Matrix(-1.0, 0.0, 0.0, 1.0, 1.0, 0.0),
+            3       => new Matrix(-1.0, 0.0, 0.0, -1.0, 1.0, 1.0),
+            4       => new Matrix(1.0, 0.0, 0.0, -1.0, 0.0, 1.0),
+            5       => new Matrix(0.0, -1.0, -1.0, 0.0, 1.0, 1.0),
+            6       => new Matrix(0.0, -1.0, 1.0, 0.0, 0.0, 1.0),
+            7       => new Matrix(0.0, 1.0, 1.0, 0.0, 0.0, 0.0),
+            8       => new Matrix(0.0, 1.0, -1.0, 0.0, 1.0, 0.0),
+            default => Matrix::identity(),
+        };
+    }
+
     public function dpiX(): float
     {
         return $this->data->dpiX;
@@ -52,7 +70,12 @@ final class Image implements PlaceableInterface
         if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
             $this->document->assertDeviceColour($this->data->colorSpace->device, 'images');
         }
-        $canvas->drawXObject($this->reference, Matrix::scaling($size->width, $size->height)->then($matrix));
+        $canvas->drawXObject(
+            $this->reference,
+            self::orientation($this->data->orientation)
+                ->then(Matrix::scaling($size->width, $size->height))
+                ->then($matrix),
+        );
     }
 
     public function hasTransparency(): bool
@@ -68,10 +91,10 @@ final class Image implements PlaceableInterface
     #[Override]
     public function naturalSize(?float $dpi = null): Dimensions
     {
-        return new Dimensions(
-            ($this->data->width * 72.0) / ($dpi ?? $this->data->dpiX),
-            ($this->data->height * 72.0) / ($dpi ?? $this->data->dpiY),
-        );
+        $width  = ($this->data->width * 72.0) / ($dpi ?? $this->data->dpiX);
+        $height = ($this->data->height * 72.0) / ($dpi ?? $this->data->dpiY);
+
+        return $this->data->isTransposed() ? new Dimensions($height, $width) : new Dimensions($width, $height);
     }
 
     /** @internal */

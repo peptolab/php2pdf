@@ -13,7 +13,9 @@ content.
 
 - **JPEG**: dimensions and colour space are read from the markers and the data passes through
   untouched (DCTDecode). CMYK JPEGs from Adobe applications are inverted correctly, and an
-  embedded ICC profile becomes an ICCBased colour space.
+  embedded ICC profile becomes an ICCBased colour space. The EXIF orientation from cameras and
+  phones is honoured: the image is drawn mirrored or turned as it says, without re-encoding, and
+  a quarter turn swaps its natural width and height.
 - **PNG**: every colour type and bit depth, palettes, transparency (tRNS as a colour key or a
   soft mask), alpha channels split into a soft mask, interlaced files, resolution and ICC chunks.
   Pixel data stays Flate-compressed with PNG predictors, so nothing is re-encoded.
@@ -23,7 +25,7 @@ content.
 ## Resolution and natural size
 
 The natural size in points comes from the pixel size and the resolution stored in the file
-(JPEG JFIF/EXIF density, PNG pHYs), 72 dpi when none. `Fit::meet()->withDpi(300)` or
+(JPEG JFIF density, or the EXIF resolution when JFIF gives none; PNG pHYs), 72 dpi when none. `Fit::meet()->withDpi(300)` or
 `Fit::noFit()->withDpi(300)` overrides it for one placement.
 
 ## Transparency
