@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace PhpPdfTest\Unit\Document;
 
+use Closure;
+use PhpPdf\Canvas\Canvas;
 use PhpPdf\Color\Cmyk;
+use PhpPdf\Color\GradientStop;
 use PhpPdf\Color\IccProfile;
+use PhpPdf\Color\LinearGradient;
 use PhpPdf\Color\Rgb;
 use PhpPdf\Core\FixedClock;
 use PhpPdf\Core\Output\MemoryOutput;
@@ -15,7 +19,10 @@ use PhpPdf\Document\DocumentOptions;
 use PhpPdf\Document\PageSize;
 use PhpPdf\Document\PdfX;
 use PhpPdf\Exception\PdfException;
+use PhpPdf\Fit\Placement;
 use PhpPdf\Geometry\Box;
+use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -26,6 +33,37 @@ use function trim;
 
 final class PdfXTest extends TestCase
 {
+    /** @return array<string, array{0: Closure(Document, Canvas): mixed}> */
+    public static function colourUseProvider(): array
+    {
+        return [
+            'fill colour'   => [
+                static fn(Document $doc, Canvas $c): Canvas => $c->setFillColor(Cmyk::fromPercent(0, 0, 0, 100)),
+            ],
+            'stroke colour' => [
+                static fn(Document $doc, Canvas $c): Canvas => $c->setStrokeColor(Cmyk::fromPercent(0, 0, 0, 100)),
+            ],
+            'gradient'      => [
+                static fn(Document $doc, Canvas $c): Canvas => $c->setFillGradient(new LinearGradient(
+                    0,
+                    0,
+                    10,
+                    0,
+                    [
+                        new GradientStop(0.0, Cmyk::fromPercent(0, 0, 0, 0)),
+                        new GradientStop(1.0, Cmyk::fromPercent(0, 0, 0, 100)),
+                    ],
+                )),
+            ],
+            'image'         => [
+                static fn(Document $doc, Canvas $c): Placement => $c->place(
+                    $doc->image(PdfTools::assetPath('images/cmyk.jpg')),
+                    new Box(0.0, 0.0, 100.0, 100.0),
+                ),
+            ],
+        ];
+    }
+
     private static function options(?IccProfile $rgb = null): DocumentOptions
     {
         return new DocumentOptions(
@@ -44,6 +82,19 @@ final class PdfXTest extends TestCase
         );
     }
 
+    /** @param Closure(Document, Canvas): mixed $use */
+    #[Test]
+    #[DataProvider('colourUseProvider')]
+    public function colourBeforeTheOutputIntentIsRefused(Closure $use): void
+    {
+        $doc    = new Document(new MemoryOutput(), self::options());
+        $canvas = $doc->addPage(PageSize::A4)->canvas();
+
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('PDF/X-4 needs an output intent before any colour, image or gradient is drawn');
+        $use($doc, $canvas);
+    }
+
     #[Test]
     public function rejectsLinks(): void
     {
@@ -56,6 +107,7 @@ final class PdfXTest extends TestCase
     public function rejectsRgbWithoutAProfile(): void
     {
         $doc = new Document(new MemoryOutput(), self::options());
+        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39');
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('RGB profile');
         $doc->addPage(PageSize::A4)->canvas()->setFillColor(Rgb::fromHex('#ff0000'));
@@ -79,6 +131,19 @@ final class PdfXTest extends TestCase
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('title');
         $doc->close();
+    }
+
+    #[Test]
+    public function theOutputIntentMayBeSetAfterPagesAreAdded(): void
+    {
+        $doc  = new Document(new MemoryOutput(), self::options());
+        $page = $doc->addPage(PageSize::A4);
+        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39');
+        $page->canvas()
+            ->setFillColor(Cmyk::fromPercent(0, 0, 0, 100))
+            ->fillRect(0, 0, 10, 10);
+
+        self::assertStringContainsString('0 0 0 1 k', $page->canvas()->finish());
     }
 
     #[Test]

@@ -155,6 +155,26 @@ final class Document
     }
 
     /**
+     * Under PDF/X, refuses colour until the output intent is set: the first fill, stroke, image
+     * or gradient needs it, so the error names the call that did, not the close.
+     *
+     * @internal
+     *
+     * @throws PdfException when writing PDF/X without an output intent
+     */
+    public function assertOutputIntent(): void
+    {
+        $pdfx = $this->options->pdfx;
+        if (null === $pdfx || null !== $this->outputIntent) {
+            return;
+        }
+        throw new PdfException(
+            "{$pdfx->value} needs an output intent before any colour, image or gradient is drawn: "
+                . "call setOutputIntent() with the printing condition's ICC profile first.",
+        );
+    }
+
+    /**
      * Whether an RGB colour may be used: always, unless writing PDF/X without an RGB profile.
      *
      * @internal

@@ -47,6 +47,7 @@ final class Image implements PlaceableInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
+        $canvas->document()->assertOutputIntent();
         $canvas->drawXObject($this->reference, Matrix::scaling($size->width, $size->height)->then($matrix));
     }
 

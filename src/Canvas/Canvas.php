@@ -762,6 +762,7 @@ final class Canvas
     private function colorOps(ColorInterface $color, array $ops): string
     {
         $components = Num::list($color->components());
+        $this->document->assertOutputIntent();
 
         if ($color instanceof Rgb) {
             $this->document->assertRgbAllowed();
@@ -852,6 +853,7 @@ final class Canvas
 
     private function shadingRef(AbstractGradient $gradient): Reference
     {
+        $this->document->assertOutputIntent();
         if ('DeviceRGB' === $gradient->colorSpaceName()->value) {
             $this->document->assertRgbAllowed();
         }
