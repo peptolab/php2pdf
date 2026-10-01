@@ -27,7 +27,8 @@ use const PATHINFO_FILENAME;
 
 /**
  * Loads fonts for a document by path or by name from search paths, and groups them into families.
- * Each font file is embedded once per document however often it is requested.
+ * Each font file is embedded once per document however often it is requested. The standard 14
+ * fonts (Helvetica, Times-Roman, Courier...) are found by name when no font file matches.
  *
  * @api
  */
@@ -41,6 +42,9 @@ final class FontRegistry
 
     /** @var array<string, Font> path#face => embedded font */
     private array $fonts = [];
+
+    /** @var array<string, CoreFont> */
+    private array $standard = [];
 
     /** @internal */
     public function __construct(
@@ -140,20 +144,25 @@ final class FontRegistry
 
     /**
      * Finds a font by PostScript name, full name, "Family Style", or file name, case-insensitively.
+     * A font file in the search paths wins over a standard font of the same name.
      */
-    public function find(string $name): Font
+    public function find(string $name): FontInterface
     {
-        $info = $this->lookup($name) ?? throw new PdfException(sprintf(
-            'Font "%s" not found in the search paths.',
+        $info = $this->lookup($name);
+        if (null !== $info) {
+            return $this->load($info->path, $info->faceIndex);
+        }
+        $standard = StandardFont::fromName($name) ?? throw new PdfException(sprintf(
+            'Font "%s" not found in the search paths, and it is not one of the standard 14 fonts.',
             $name,
         ));
 
-        return $this->load($info->path, $info->faceIndex);
+        return $this->standard($standard);
     }
 
     public function has(string $name): bool
     {
-        return null !== $this->lookup($name);
+        return null !== $this->lookup($name) || null !== StandardFont::fromName($name);
     }
 
     /**
@@ -173,6 +182,16 @@ final class FontRegistry
     public function searchPaths(): array
     {
         return $this->searchPaths;
+    }
+
+    /**
+     * Uses one of the standard 14 fonts: not embedded, so it cannot be used under PDF/X.
+     *
+     * @throws PdfException when the document is written to a PDF/X level
+     */
+    public function standard(StandardFont $font): CoreFont
+    {
+        return $this->standard[$font->value] ??= new CoreFont($this->document, $font);
     }
 
     private function lookup(string $name): ?FontInfo

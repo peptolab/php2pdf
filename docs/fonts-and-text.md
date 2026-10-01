@@ -20,6 +20,28 @@ Type0 font with Identity-H encoding and a ToUnicode map, so text copies and sear
 The same file loaded twice yields the same `Font`; fonts belong to the document they were
 loaded into.
 
+### Standard 14 fonts
+
+When no font file matches, `find()` falls back to the standard 14 fonts that every PDF reader
+provides: Helvetica, Times-Roman and Courier, each with bold, italic/oblique and bold italic
+variants, plus Symbol and ZapfDingbats. The enum names them directly:
+
+```php
+$helvetica = $fonts->find('Helvetica');                  // or 'Helvetica-Bold', 'times bold italic'...
+$times     = $fonts->standard(StandardFont::TimesRoman);
+new TextStyle(font: 'Helvetica', bold: 'Helvetica-Bold');
+```
+
+They return a `CoreFont`. Like `Font`, it implements `FontInterface`, so it works anywhere a font
+does. Standard fonts are written as simple Type1 fonts and are not embedded, so they add almost
+nothing to the file. Widths and kerning come from Adobe's AFM metrics, which keeps line breaking
+and alignment exact. A font file in the search paths with the same name wins.
+
+They cover WinAnsiEncoding only (Western European Latin, plus symbols such as € — “ ”).
+Shaping any other character throws a `PdfException`; load a font file for that text instead.
+Symbol and ZapfDingbats use their own character sets. PDF/X requires embedded fonts, so these
+fonts are refused under `DocumentOptions(pdfx: ...)`.
+
 ## Metrics
 
 ```php

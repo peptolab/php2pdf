@@ -15,7 +15,7 @@ use PhpPdf\Exception\InvalidArgumentException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\Placement;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Table\Table;
 use PhpPdf\Text\FlowOptions;
@@ -164,7 +164,7 @@ final class Page
     /** Fits a single line of text into a box on this page. */
     public function fitTextline(
         string $text,
-        Font $font,
+        FontInterface $font,
         float $size,
         Box $box,
         ?TextlineOptions $options = null,

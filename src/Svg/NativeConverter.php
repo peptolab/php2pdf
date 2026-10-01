@@ -6,7 +6,7 @@ namespace PhpPdf\Svg;
 
 use Override;
 use PhpPdf\Document\Document;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Template\Template;
 
 /**
@@ -25,11 +25,11 @@ final class NativeConverter implements SvgConverterInterface
     private array $warnings = [];
 
     /**
-     * @param Font|null $fallbackFont used for generic families (sans-serif, serif...) and fonts the
+     * @param FontInterface|null $fallbackFont used for generic families (sans-serif, serif...) and fonts the
      *                                document's registry cannot find; without one such text is skipped
      */
     public function __construct(
-        private readonly ?Font $fallbackFont = null,
+        private readonly ?FontInterface $fallbackFont = null,
     ) {}
 
     #[Override]

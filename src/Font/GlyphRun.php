@@ -28,6 +28,17 @@ final readonly class GlyphRun
         return [] === $this->glyphs;
     }
 
+    /** Width in points at the given size, including kerning, spacing and tracking. */
+    public function measure(float $size, TextOptions $options): float
+    {
+        $count = $this->count();
+        $width = ((($this->width() + ($options->tracking * $count)) / 1000.0) * $size)
+        + ($options->charSpacing * $count)
+        + ($options->wordSpacing * $this->spaceCount());
+
+        return ($width * $options->horizontalScale) / 100.0;
+    }
+
     public function spaceCount(): int
     {
         $count = 0;

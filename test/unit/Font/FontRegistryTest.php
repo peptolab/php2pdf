@@ -25,7 +25,8 @@ final class FontRegistryTest extends TestCase
         self::assertTrue($registry->has('DejaVuSans-Bold'));
         self::assertTrue($registry->has('dejavu sans bold'));
         self::assertTrue($registry->has('DejaVu Sans'));
-        self::assertFalse($registry->has('Helvetica'));
+        self::assertFalse($registry->has('Futura'));
+        self::assertTrue($registry->has('Helvetica'), 'The standard 14 fonts are always available.');
 
         $bold = $registry->find('DejaVu Sans Bold');
         self::assertSame('DejaVuSans-Bold', $bold->name());

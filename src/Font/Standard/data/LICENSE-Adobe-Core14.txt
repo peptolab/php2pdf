@@ -1,0 +1,16 @@
+The files in this directory are derived from Adobe's Core 14 AFM files by
+tools/generate-standard-fonts.php. They are modified: the metrics are re-encoded
+to WinAnsiEncoding (Symbol and ZapfDingbats keep their built-in encodings),
+reduced to the header values, advance widths and kerning pairs, and written as
+PHP arrays. Each file retains the copyright notice of the AFM file it was
+derived from.
+
+The Core 14 AFM files carry the following licence:
+
+This file and the 14 PostScript(R) AFM files it accompanies may be used, copied,
+and distributed for any purpose and without charge, with or without modification,
+provided that all copyright notices are retained; that the AFM files are not
+distributed without this file; that all modifications to this file or any of the
+AFM files are prominently noted in the modified file(s); and that this paragraph
+is not modified. Adobe Systems has no responsibility or obligation to support the
+use of the AFM files.

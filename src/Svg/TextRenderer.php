@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Svg;
 
 use PhpPdf\Canvas\Canvas;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
@@ -33,9 +33,9 @@ final class TextRenderer
     ) {}
 
     /**
-     * @param list<array{0: string, 1: Style, 2: Font, 3: float, 4: float, 5: float}> $chunk
+     * @param list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}> $chunk
      *
-     * @return list<array{0: string, 1: Style, 2: Font, 3: float, 4: float, 5: float}>
+     * @return list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}>
      */
     private static function anchored(array $chunk, float $anchor, float $total): array
     {
@@ -122,7 +122,7 @@ final class TextRenderer
      *
      * @param list<array{0: string, 1: Style, 2: ?float, 3: ?float, 4: float, 5: float}> $runs
      *
-     * @return list<list<array{0: string, 1: Style, 2: Font, 3: float, 4: float, 5: float}>> text, style, font, x, y, width
+     * @return list<list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}>> text, style, font, x, y, width
      */
     private function chunks(array $runs, float $x, float $y): array
     {
@@ -220,7 +220,7 @@ final class TextRenderer
         }
     }
 
-    /** @param list<array{0: string, 1: Style, 2: Font, 3: float, 4: float, 5: float}> $chunk */
+    /** @param list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}> $chunk */
     private function drawChunk(Canvas $canvas, array $chunk): void
     {
         foreach ($chunk as [$text, $style, $font, $x, $y, $width]) {

@@ -6,7 +6,7 @@ namespace PhpPdf\Svg;
 
 use PhpPdf\Document\Document;
 use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\FontStyle;
 
 use function array_key_exists;
@@ -21,16 +21,16 @@ use function strtolower;
  */
 final class FontResolver
 {
-    /** @var array<string, Font|null> */
+    /** @var array<string, FontInterface|null> */
     private array $cache = [];
 
     public function __construct(
         private readonly Document $document,
-        private readonly ?Font $fallback,
+        private readonly ?FontInterface $fallback,
     ) {}
 
     /** @param list<string> $families */
-    public function resolve(array $families, bool $bold, bool $italic): ?Font
+    public function resolve(array $families, bool $bold, bool $italic): ?FontInterface
     {
         $style = match (true) {
             $bold && $italic => FontStyle::BoldItalic,
@@ -47,7 +47,7 @@ final class FontResolver
     }
 
     /** @param list<string> $families */
-    private function lookup(array $families, FontStyle $style): ?Font
+    private function lookup(array $families, FontStyle $style): ?FontInterface
     {
         $registry = $this->document->fonts();
         foreach ($families as $family) {

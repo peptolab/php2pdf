@@ -7,7 +7,7 @@ namespace PhpPdf\Text\Flow;
 use PhpPdf\Color\Gray;
 use PhpPdf\Document\Document;
 use PhpPdf\Exception\PdfException;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\Leading;
 use PhpPdf\Text\Style\TextStyle;
@@ -60,10 +60,10 @@ final class StyleResolver
     }
 
     /** The resolved style's font, which resolve() guarantees. */
-    public static function fontOf(TextStyle $style): Font
+    public static function fontOf(TextStyle $style): FontInterface
     {
         $font = $style->font;
-        if (! $font instanceof Font) {
+        if (! $font instanceof FontInterface) {
             throw new PdfException('Text styles need a font before text can be laid out.');
         }
 
@@ -89,7 +89,7 @@ final class StyleResolver
         ));
     }
 
-    private function font(Font|string|null $font): ?Font
+    private function font(FontInterface|string|null $font): ?FontInterface
     {
         return is_string($font) ? $this->document->fonts()->find($font) : $font;
     }

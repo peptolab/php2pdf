@@ -27,6 +27,7 @@ use function md5;
 use function ord;
 use function round;
 use function sort;
+use function sprintf;
 use function strlen;
 
 /**
@@ -38,7 +39,7 @@ use function strlen;
  *
  * @api
  */
-final class Font implements DeferredInterface
+final class Font implements FontInterface, DeferredInterface
 {
     private readonly Reference $reference;
 
@@ -64,22 +65,33 @@ final class Font implements DeferredInterface
     }
 
     /** Advance of a glyph in thousandths of an em, rounded as the PDF widths array will carry it. */
+    #[Override]
     public function advance(int $glyphId): int
     {
         return $this->advances[$glyphId] ??= (int) round($this->program->advance($glyphId) * $this->scale);
     }
 
+    #[Override]
     public function ascender(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->ascender, $size);
     }
 
+    #[Override]
     public function capHeight(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->capHeight, $size);
     }
 
+    /** @internal */
+    #[Override]
+    public function code(int $glyphId): string
+    {
+        return sprintf('%04X', $glyphId);
+    }
+
     /** Negative: distance below the baseline. */
+    #[Override]
     public function descender(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->descender, $size);
@@ -137,6 +149,7 @@ final class Font implements DeferredInterface
         ]));
     }
 
+    #[Override]
     public function lineGap(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->lineGap, $size);
@@ -147,6 +160,7 @@ final class Font implements DeferredInterface
      *
      * @internal
      */
+    #[Override]
     public function markUsed(GlyphRun $run): void
     {
         foreach ($run->glyphs as $glyph) {
@@ -155,6 +169,7 @@ final class Font implements DeferredInterface
         }
     }
 
+    #[Override]
     public function name(): string
     {
         return $this->program->postScriptName();
@@ -166,6 +181,7 @@ final class Font implements DeferredInterface
     }
 
     /** @internal */
+    #[Override]
     public function reference(): Reference
     {
         return $this->reference;
@@ -174,6 +190,7 @@ final class Font implements DeferredInterface
     /**
      * Maps UTF-8 text to glyphs with kerning. Characters the font lacks become .notdef.
      */
+    #[Override]
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
         $kerning = ($options ?? TextOptions::default())->kerning && $this->program->hasKerning();
@@ -203,40 +220,41 @@ final class Font implements DeferredInterface
         return new GlyphRun(array_values($glyphs));
     }
 
+    #[Override]
     public function strikeoutPosition(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->strikeoutPosition, $size);
     }
 
+    #[Override]
     public function strikeoutSize(float $size): float
     {
         return max(0.1, $this->program->metrics->scale($this->program->metrics->strikeoutSize, $size));
     }
 
     /** Underline offset from the baseline (negative is below). */
+    #[Override]
     public function underlinePosition(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->underlinePosition, $size);
     }
 
+    #[Override]
     public function underlineThickness(float $size): float
     {
         return max(0.1, $this->program->metrics->scale($this->program->metrics->underlineThickness, $size));
     }
 
     /** Width of text in points at the given size, including kerning, spacing and tracking. */
+    #[Override]
     public function width(string|GlyphRun $text, float $size, ?TextOptions $options = null): float
     {
         $options ??= TextOptions::default();
-        $run     = $text instanceof GlyphRun ? $text : $this->shape($text, $options);
-        $count   = $run->count();
-        $width   = ((($run->width() + ($options->tracking * $count)) / 1000.0) * $size)
-        + ($options->charSpacing * $count)
-        + ($options->wordSpacing * $run->spaceCount());
 
-        return ($width * $options->horizontalScale) / 100.0;
+        return ($text instanceof GlyphRun ? $text : $this->shape($text, $options))->measure($size, $options);
     }
 
+    #[Override]
     public function xHeight(float $size): float
     {
         return $this->program->metrics->scale($this->program->metrics->xHeight, $size);

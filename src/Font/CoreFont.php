@@ -1,0 +1,224 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PhpPdf\Font;
+
+use Override;
+use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Core\Object\Name;
+use PhpPdf\Core\Object\Reference;
+use PhpPdf\Core\Object\Stream;
+use PhpPdf\Document\DeferredInterface;
+use PhpPdf\Document\Document;
+use PhpPdf\Exception\PdfException;
+use PhpPdf\Font\Standard\AfmMetrics;
+
+use function count;
+use function max;
+use function mb_ord;
+use function mb_str_split;
+use function sprintf;
+
+/**
+ * One of the standard 14 fonts, used in one document. It is written as a simple Type1 font
+ * that is not embedded: the reader supplies the outlines, and the widths and kerning come from
+ * Adobe's AFM metrics so layout matches what the reader draws.
+ *
+ * Glyph ids are the font's single-byte codes: WinAnsiEncoding for the Latin fonts, the built-in
+ * encoding for Symbol and ZapfDingbats.
+ *
+ * @api
+ */
+final class CoreFont implements FontInterface, DeferredInterface
+{
+    /** AFM files carry no strikeout metrics; these match what OpenType fonts without them get. */
+    private const int STRIKEOUT_POSITION = 250;
+    private const int STRIKEOUT_SIZE     = 50;
+
+    private readonly Reference $reference;
+
+    private readonly AfmMetrics $metrics;
+
+    /** @var array<int, int> code => code point, for ToUnicode */
+    private array $codeToCodePoint = [];
+
+    /** @internal */
+    public function __construct(
+        Document $document,
+        private readonly StandardFont $font,
+    ) {
+        $pdfx = $document->options()->pdfx;
+        if (null !== $pdfx) {
+            throw new PdfException(sprintf(
+                '%s requires every font to be embedded, and the standard font "%s" is not; load a font file instead.',
+                $pdfx->value,
+                $font->value,
+            ));
+        }
+        $this->metrics   = AfmMetrics::of($font);
+        $this->reference = $document->writer()->allocate();
+        $document->defer($this);
+    }
+
+    private static function scale(int $units, float $size): float
+    {
+        return ($units * $size) / 1000.0;
+    }
+
+    #[Override]
+    public function advance(int $glyphId): int
+    {
+        return $this->metrics->widths[$glyphId] ?? 0;
+    }
+
+    #[Override]
+    public function ascender(float $size): float
+    {
+        return self::scale($this->metrics->ascender, $size);
+    }
+
+    #[Override]
+    public function capHeight(float $size): float
+    {
+        return self::scale($this->metrics->capHeight, $size);
+    }
+
+    /** @internal */
+    #[Override]
+    public function code(int $glyphId): string
+    {
+        return sprintf('%02X', $glyphId);
+    }
+
+    #[Override]
+    public function descender(float $size): float
+    {
+        return self::scale($this->metrics->descender, $size);
+    }
+
+    /** @internal */
+    #[Override]
+    public function finalize(Document $document): void
+    {
+        $encoding = $this->metrics->encoding;
+        $writer   = $document->writer();
+        $writer->write($this->reference, Dictionary::of([
+            'Type'      => new Name('Font'),
+            'Subtype'   => new Name('Type1'),
+            'BaseFont'  => new Name($this->font->value),
+            'Encoding'  => null === $encoding ? null : new Name($encoding),
+            'ToUnicode' => null === $encoding && [] !== $this->codeToCodePoint
+                ? $writer->add(Stream::of(ToUnicode::build($this->codeToCodePoint, 1)))
+                : null,
+        ]));
+    }
+
+    /** The standard font this is. */
+    public function font(): StandardFont
+    {
+        return $this->font;
+    }
+
+    /** AFM files have no line gap: the leading is the layout's to choose. */
+    #[Override]
+    public function lineGap(float $size): float
+    {
+        return 0.0;
+    }
+
+    /** @internal */
+    #[Override]
+    public function markUsed(GlyphRun $run): void
+    {
+        foreach ($run->glyphs as $glyph) {
+            $this->codeToCodePoint[$glyph->id] ??= $glyph->codePoint;
+        }
+    }
+
+    #[Override]
+    public function name(): string
+    {
+        return $this->font->value;
+    }
+
+    /** @internal */
+    #[Override]
+    public function reference(): Reference
+    {
+        return $this->reference;
+    }
+
+    /**
+     * Maps UTF-8 text to the font's codes with kerning.
+     *
+     * @throws PdfException for a character the font's encoding cannot represent
+     */
+    #[Override]
+    public function shape(string $text, ?TextOptions $options = null): GlyphRun
+    {
+        $metrics = $this->metrics;
+        $kerning = ($options ?? TextOptions::default())->kerning;
+        $glyphs  = [];
+        $prev    = null;
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+            $codePoint = mb_ord($char, encoding: 'UTF-8');
+            if (false === $codePoint) {
+                continue;
+            }
+            $code = $metrics->codes[$codePoint] ?? throw new PdfException(sprintf(
+                'The standard font %s cannot show "%s" (U+%04X); %s. Load a font file that has it instead.',
+                $this->font->value,
+                $char,
+                $codePoint,
+                $this->font->isSymbolic() ? 'it is not in its character set' : 'it is outside WinAnsiEncoding',
+            ));
+            $kern = null === $prev || ! $kerning ? 0 : $metrics->kerning[$prev->id][$code] ?? 0;
+            if (0 !== $kern && null !== $prev) {
+                $glyphs[count($glyphs) - 1] = new Glyph($prev->id, $prev->codePoint, $prev->advance, $kern);
+            }
+            $prev     = new Glyph($code, $codePoint, $this->advance($code));
+            $glyphs[] = $prev;
+        }
+
+        return new GlyphRun($glyphs);
+    }
+
+    #[Override]
+    public function strikeoutPosition(float $size): float
+    {
+        return self::scale(self::STRIKEOUT_POSITION, $size);
+    }
+
+    #[Override]
+    public function strikeoutSize(float $size): float
+    {
+        return max(0.1, self::scale(self::STRIKEOUT_SIZE, $size));
+    }
+
+    #[Override]
+    public function underlinePosition(float $size): float
+    {
+        return self::scale($this->metrics->underlinePosition, $size);
+    }
+
+    #[Override]
+    public function underlineThickness(float $size): float
+    {
+        return max(0.1, self::scale($this->metrics->underlineThickness, $size));
+    }
+
+    #[Override]
+    public function width(string|GlyphRun $text, float $size, ?TextOptions $options = null): float
+    {
+        $options ??= TextOptions::default();
+
+        return ($text instanceof GlyphRun ? $text : $this->shape($text, $options))->measure($size, $options);
+    }
+
+    #[Override]
+    public function xHeight(float $size): float
+    {
+        return self::scale($this->metrics->xHeight, $size);
+    }
+}

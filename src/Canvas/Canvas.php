@@ -25,7 +25,7 @@ use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\FitEngine;
 use PhpPdf\Fit\FitMethod;
 use PhpPdf\Fit\Placement;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\GlyphRun;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Font\TextRenderMode;
@@ -81,13 +81,13 @@ final class Canvas
      * The TJ operand for a run: hex glyph strings interleaved with kerning, tracking and word
      * spacing adjustments in thousandths of an em.
      */
-    private static function tjArray(GlyphRun $run, float $size, TextOptions $options): string
+    private static function tjArray(GlyphRun $run, FontInterface $font, float $size, TextOptions $options): string
     {
         $wordAdjust = 0.0 === $options->wordSpacing || $size <= 0.0 ? 0.0 : ($options->wordSpacing / $size) * 1000.0;
         $parts      = [];
         $hex        = '';
         foreach ($run->glyphs as $glyph) {
-            $hex    .= sprintf('%04X', $glyph->id);
+            $hex    .= $font->code($glyph->id);
             $adjust = $glyph->kerning + $options->tracking + ($glyph->isSpace() ? $wordAdjust : 0.0);
             if (0.0 !== $adjust) {
                 $parts[] = "<{$hex}>";
@@ -211,7 +211,7 @@ final class Canvas
      */
     public function drawText(
         string $text,
-        Font $font,
+        FontInterface $font,
         float $size,
         float $x,
         float $y,
@@ -318,7 +318,7 @@ final class Canvas
      */
     public function fitTextline(
         string $text,
-        Font $font,
+        FontInterface $font,
         float $size,
         Box $box,
         ?TextlineOptions $options = null,
@@ -618,8 +618,13 @@ final class Canvas
      *
      * @internal
      */
-    public function showRun(GlyphRun $run, Font $font, float $size, Matrix $textMatrix, TextOptions $options): self
-    {
+    public function showRun(
+        GlyphRun $run,
+        FontInterface $font,
+        float $size,
+        Matrix $textMatrix,
+        TextOptions $options,
+    ): self {
         if ($run->isEmpty()) {
             return $this;
         }
@@ -639,7 +644,7 @@ final class Canvas
         if (TextRenderMode::Fill !== $options->renderMode) {
             $ops .= " {$options->renderMode->value} Tr";
         }
-        $this->ops .= "{$ops} {$textMatrix->toPdf()} Tm " . self::tjArray($run, $size, $options) . " TJ ET\n";
+        $this->ops .= "{$ops} {$textMatrix->toPdf()} Tm " . self::tjArray($run, $font, $size, $options) . " TJ ET\n";
 
         return $this;
     }

@@ -17,13 +17,17 @@ use function sprintf;
  */
 final class ToUnicode
 {
-    /** @param array<int, int> $glyphToCodePoint glyph id => code point */
-    public static function build(array $glyphToCodePoint): string
+    /**
+     * @param array<int, int> $glyphToCodePoint glyph id (or code) => code point
+     * @param int             $bytes            the length of the codes: 2 for glyph ids, 1 for simple fonts
+     */
+    public static function build(array $glyphToCodePoint, int $bytes = 2): string
     {
+        $format = 1 === $bytes ? '<%02X> <%s>' : '<%04X> <%s>';
         ksort($glyphToCodePoint);
         $entries = [];
         foreach ($glyphToCodePoint as $glyph => $codePoint) {
-            $entries[] = sprintf('<%04X> <%s>', $glyph, self::utf16Hex($codePoint));
+            $entries[] = sprintf($format, $glyph, self::utf16Hex($codePoint));
         }
 
         $blocks = '';
@@ -40,7 +44,9 @@ final class ToUnicode
                 . "/CIDSystemInfo <</Registry (Adobe) /Ordering (UCS) /Supplement 0>> def\n"
                 . "/CMapName /Adobe-Identity-UCS def\n"
                 . "/CMapType 2 def\n"
-                . "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n"
+                . "1 begincodespacerange\n"
+                . (1 === $bytes ? '<00> <FF>' : '<0000> <FFFF>')
+                . "\nendcodespacerange\n"
                 . "{$blocks}endcmap\n"
                 . "CMapName currentdict /CMap defineresource pop\n"
                 . "end\nend\n"

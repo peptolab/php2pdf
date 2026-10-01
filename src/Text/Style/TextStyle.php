@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Text\Style;
 
 use PhpPdf\Color\ColorInterface;
-use PhpPdf\Font\Font;
+use PhpPdf\Font\FontInterface;
 use PhpPdf\Font\TextOptions;
 use PhpPdf\Font\TextRenderMode;
 
@@ -14,7 +14,7 @@ use function get_object_vars;
 /**
  * Character and paragraph formatting, as in a desktop publishing style sheet. Every property is
  * optional so styles can be layered: a null property inherits from the style below it. The font
- * may be a Font or a name resolved through the document's font registry when the style is used.
+ * may be a FontInterface or a name resolved through the document's font registry when the style is used.
  *
  * @api
  */
@@ -26,7 +26,7 @@ final readonly class TextStyle
      * @param int|null           $widows  minimum lines carried to the next box
      */
     public function __construct(
-        public Font|string|null $font = null,
+        public FontInterface|string|null $font = null,
         public ?float $size = null,
         public ?Leading $leading = null,
         public ?ColorInterface $color = null,
@@ -39,9 +39,9 @@ final readonly class TextStyle
         public ?bool $underline = null,
         public ?bool $strikeout = null,
         public ?bool $kerning = null,
-        public Font|string|null $bold = null,
-        public Font|string|null $italic = null,
-        public Font|string|null $boldItalic = null,
+        public FontInterface|string|null $bold = null,
+        public FontInterface|string|null $italic = null,
+        public FontInterface|string|null $boldItalic = null,
         public ?Alignment $alignment = null,
         public ?Alignment $lastLineAlignment = null,
         public ?float $firstLineIndent = null,
