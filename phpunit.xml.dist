@@ -12,6 +12,8 @@
          displayDetailsOnTestsThatTriggerWarnings="true"
          displayDetailsOnPhpunitDeprecations="true"
          failOnWarning="true"
+         failOnIncomplete="true"
+         failOnRisky="true"
          failOnDeprecation="true"
          failOnNotice="true"
          colors="true"
@@ -33,5 +35,8 @@
         <include>
             <directory suffix=".php">./src</directory>
         </include>
+        <exclude>
+            <directory>./src/Font/Standard/data</directory>
+        </exclude>
     </source>
 </phpunit>

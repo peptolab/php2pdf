@@ -19,6 +19,7 @@ use PhpPdfTest\Support\Visual;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function intdiv;
 
 final class ImageSheetTest extends TestCase
@@ -88,6 +89,13 @@ final class ImageSheetTest extends TestCase
         $doc->close();
 
         PdfTools::assertValid($path);
+        $labels = PdfTools::text($path, 1);
+        foreach ([
+            ...self::FILES,
+            ...array_map(static fn(FitMethod $m): string => $m->name, FitMethod::cases()),
+        ] as $label) {
+            self::assertStringContainsString($label, $labels);
+        }
         Visual::assertMatchesBaseline($path, 'image-sheet-p1', 1);
         Visual::assertMatchesBaseline($path, 'image-sheet-p2', 2);
     }
