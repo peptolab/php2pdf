@@ -69,8 +69,7 @@ final class ColourFontTest extends TestCase
     {
         $path = PdfTools::outputDir() . '/colour-font.pdf';
         $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
-        $doc
-            ->addPage(new Dimensions(200.0, 60.0))
+        $doc->addPage(new Dimensions(200.0, 60.0))
             ->canvas()
             ->drawText(
                 'AB A',

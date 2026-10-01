@@ -223,7 +223,10 @@ final class Style
 
     public function fillOpacity(): float
     {
-        return self::opacityValue($this->properties['fill-opacity'] ?? null);
+        return (
+            self::opacityValue($this->properties['fill-opacity'] ?? null)
+                * ColorParser::alpha($this->properties['fill'] ?? null, $this->properties['color'] ?? null)
+        );
     }
 
     public function fillRule(): FillRule
@@ -338,7 +341,10 @@ final class Style
 
     public function stopOpacity(): float
     {
-        return self::opacityValue($this->properties['stop-opacity'] ?? null);
+        return (
+            self::opacityValue($this->properties['stop-opacity'] ?? null)
+                * ColorParser::alpha($this->properties['stop-color'] ?? null, $this->properties['color'] ?? null)
+        );
     }
 
     public function stroke(): Paint
@@ -348,7 +354,10 @@ final class Style
 
     public function strokeOpacity(): float
     {
-        return self::opacityValue($this->properties['stroke-opacity'] ?? null);
+        return (
+            self::opacityValue($this->properties['stroke-opacity'] ?? null)
+                * ColorParser::alpha($this->properties['stroke'] ?? null, $this->properties['color'] ?? null)
+        );
     }
 
     public function strokeWidth(): float

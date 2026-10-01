@@ -7,19 +7,28 @@ namespace PhpPdf\Svg;
 use PhpPdf\Color\Rgb;
 
 use function array_key_exists;
-use function array_keys;
+use function count;
+use function fmod;
+use function hexdec;
 use function max;
 use function min;
 use function preg_match;
-use function preg_match_all;
+use function preg_split;
+use function rad2deg;
+use function rtrim;
+use function str_ends_with;
+use function str_repeat;
 use function strlen;
 use function strtolower;
 use function substr;
 use function trim;
 
+use const PREG_SPLIT_NO_EMPTY;
+
 /**
- * CSS colours as SVG uses them: named, #rgb, #rrggbb (alpha digits are ignored), rgb() and
- * rgba() with numbers or percentages, plus "none", "currentColor" and url() paint servers.
+ * CSS colours as SVG uses them: named, #rgb, #rgba, #rrggbb, #rrggbbaa, rgb() and rgba() with
+ * numbers or percentages, hsl() and hsla(), in comma or space syntax, plus "none", "currentColor"
+ * and url() paint servers. Alpha is read separately (alpha()) and applied as opacity.
  *
  * @internal
  */
@@ -177,6 +186,42 @@ final class ColorParser
         'yellowgreen'          => '9acd32',
     ];
 
+    /**
+     * The alpha of a colour value from 0.0 to 1.0: the alpha digits of #rgba and #rrggbbaa, or
+     * the fourth argument of rgba() and hsla(); 1.0 for colours without one, paint servers and
+     * anything else. currentColor takes the alpha of the color property.
+     */
+    public static function alpha(?string $value, ?string $currentColor = null): float
+    {
+        $value = strtolower(trim($value ?? ''));
+        if ('currentcolor' === $value) {
+            return null === $currentColor || 'currentcolor' === strtolower(trim($currentColor))
+                ? 1.0
+                : self::alpha($currentColor);
+        }
+        if ('' !== $value && '#' === $value[0] && preg_match('/^#([0-9a-f]{4}|[0-9a-f]{8})$/', $value) === 1) {
+            $digits = 5 === strlen($value) ? str_repeat($value[4], times: 2) : substr($value, offset: 7, length: 2);
+
+            return hexdec($digits) / 255;
+        }
+        $m = [];
+        if (preg_match('/^(?:rgb|hsl)a?\(([^)]*)\)$/', $value, $m) !== 1) {
+            return 1.0;
+        }
+        $arguments = self::arguments($m[1] ?? '');
+        $alpha     = $arguments[3] ?? null;
+        if (null === $alpha) {
+            return 1.0;
+        }
+
+        return max(0.0, min(
+            1.0,
+            str_ends_with($alpha, '%')
+                ? Length::toFloat(rtrim($alpha, characters: '%')) / 100.0
+                : Length::toFloat($alpha),
+        ));
+    }
+
     /** A colour value, or null when the text is not a colour. */
     public static function color(?string $value, ?Rgb $currentColor = null): ?Rgb
     {
@@ -196,6 +241,9 @@ final class ColorParser
         $m = [];
         if (preg_match('/^rgba?\(\s*([^)]*)\)$/', $value, $m) === 1) {
             return self::rgb($m[1] ?? '');
+        }
+        if (preg_match('/^hsla?\(\s*([^)]*)\)$/', $value, $m) === 1) {
+            return self::hsl($m[1] ?? '');
         }
 
         return null;
@@ -222,6 +270,18 @@ final class ColorParser
         return null === $color ? null : Paint::color($color);
     }
 
+    /**
+     * The arguments of a colour function, separated by commas, spaces or a slash before alpha.
+     *
+     * @return list<string>
+     */
+    private static function arguments(string $args): array
+    {
+        $parts = preg_split('/\s*[,\/]\s*|\s+/', trim($args), flags: PREG_SPLIT_NO_EMPTY);
+
+        return false === $parts ? [] : $parts;
+    }
+
     private static function hex(string $hex): ?Rgb
     {
         $length = strlen($hex);
@@ -238,21 +298,59 @@ final class ColorParser
         return Rgb::fromHex($hex);
     }
 
-    private static function rgb(string $args): ?Rgb
+    /** hsl() and hsla(): hue in degrees (or with deg, turn, rad), saturation and lightness in percent. */
+    private static function hsl(string $args): ?Rgb
     {
-        $m     = [];
-        $found = preg_match_all('/([0-9.]+)(%?)/', $args, $m);
-        if (false === $found || $found < 3) {
+        $parts = self::arguments($args);
+        if (count($parts) < 3) {
             return null;
         }
-        $numbers    = $m[1] ?? [];
-        $units      = $m[2] ?? [];
-        $components = [0.0, 0.0, 0.0];
-        foreach (array_keys($components) as $i) {
-            $number         = Length::toFloat($numbers[$i] ?? '0');
-            $components[$i] = max(0.0, min(1.0, '%' === ($units[$i] ?? '') ? $number / 100.0 : $number / 255.0));
+        $hue = $parts[0];
+        $h   = match (true) {
+            str_ends_with($hue, 'turn') => Length::toFloat(substr($hue, offset: 0, length: -4)) * 360.0,
+            str_ends_with($hue, 'rad')  => rad2deg(Length::toFloat(substr($hue, offset: 0, length: -3))),
+            str_ends_with($hue, 'deg')  => Length::toFloat(substr($hue, offset: 0, length: -3)),
+            default                     => Length::toFloat($hue),
+        };
+        $h = fmod(fmod($h, num2: 360.0) + 360.0, num2: 360.0) / 360.0;
+        $s = max(0.0, min(1.0, Length::toFloat(rtrim($parts[1] ?? '0', characters: '%')) / 100.0));
+        $l = max(0.0, min(1.0, Length::toFloat(rtrim($parts[2] ?? '0', characters: '%')) / 100.0));
+        $q = $l < 0.5 ? $l * (1.0 + $s) : $l + $s - ($l * $s);
+        $p = (2.0 * $l) - $q;
+
+        return new Rgb(self::hue($p, $q, $h + (1 / 3)), self::hue($p, $q, $h), self::hue($p, $q, $h - (1 / 3)));
+    }
+
+    /** One channel of an HSL colour, from the CSS Color specification. */
+    private static function hue(float $p, float $q, float $t): float
+    {
+        if ($t < 0.0) {
+            $t += 1.0;
+        }
+        if ($t > 1.0) {
+            $t -= 1.0;
         }
 
-        return new Rgb($components[0], $components[1], $components[2]);
+        return match (true) {
+            $t < (1 / 6) => $p + (($q - $p) * 6.0 * $t),
+            $t < 0.5 => $q,
+            $t < (2 / 3) => $p + (($q - $p) * ((2 / 3) - $t) * 6.0),
+            default => $p,
+        };
+    }
+
+    private static function rgb(string $args): ?Rgb
+    {
+        $parts = self::arguments($args);
+        if (count($parts) < 3) {
+            return null;
+        }
+        $channel = static function (string $part): float {
+            $number = Length::toFloat(rtrim($part, characters: '%'));
+
+            return max(0.0, min(1.0, str_ends_with($part, '%') ? $number / 100.0 : $number / 255.0));
+        };
+
+        return new Rgb($channel($parts[0]), $channel($parts[1] ?? '0'), $channel($parts[2] ?? '0'));
     }
 }

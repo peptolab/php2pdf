@@ -16,7 +16,9 @@ Pure PHP, no extensions. It supports:
 
 - paths with every command, rectangles (rounded), circles, ellipses, lines, polylines, polygons;
 - transforms, `viewBox` with `preserveAspectRatio`, nested `<svg>` viewports, `<symbol>` and `<use>`;
-- fill and stroke colours in every CSS notation, `fill-rule`, `fill-opacity`, `stroke-opacity`,
+- fill and stroke colours: named, `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`, `hsl()`
+  and `hsla()` in comma or space syntax, with any alpha applied as opacity; `fill-rule`,
+  `fill-opacity`, `stroke-opacity`,
   line width, caps, joins, miter limit, dashes;
 - linear and radial gradients in object bounding box or user space units, `gradientTransform`,
   `href` inheritance, `spreadMethod` pad;
