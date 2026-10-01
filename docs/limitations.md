@@ -17,7 +17,8 @@ Known gaps, in rough order of how often they matter.
 - **PDF import**: encrypted files are rejected; JPX, JBIG2 and CCITT images pass through
   untouched; pages are copied as artwork and cannot be edited. Layers (optional content) keep
   their default visibility, but macOS Preview ignores layers inside placed artwork and shows
-  hidden ones.
+  hidden ones unless they are removed with `HiddenLayers::Remove`. Visibility expressions
+  (`/VE`) in membership dictionaries are not evaluated; their `/P` policy is used.
 - **PDF/X-4** output follows ISO 15930-7 structurally; no validator ships with the library, so
   check files with Acrobat Preflight or callas pdfToolbox. Imported pages are checked for device
   colour spaces but not converted.

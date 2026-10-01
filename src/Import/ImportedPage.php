@@ -35,6 +35,7 @@ final class ImportedPage implements PlaceableInterface
         private readonly ObjectCopier $copier,
         public readonly PdfPage $page,
         public readonly PageBox $box,
+        private readonly ?HiddenContent $hidden = null,
     ) {
         $this->bounds = $page->box($box);
         $rotation     = Matrix::rotation(-$page->rotation());
@@ -86,6 +87,11 @@ final class ImportedPage implements PlaceableInterface
             $dict->set('Group', $this->copier->copyDictionary($group));
         }
 
-        return $this->document->writer()->add(new Stream($dict, $page->content()));
+        $content = $page->content();
+        if (null !== $this->hidden) {
+            $content = $this->hidden->filter($content, $page->resources());
+        }
+
+        return $this->document->writer()->add(new Stream($dict, $content));
     }
 }

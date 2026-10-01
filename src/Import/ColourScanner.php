@@ -14,10 +14,7 @@ use function array_keys;
 use function array_values;
 use function count;
 use function is_array;
-use function preg_match;
 use function spl_object_id;
-
-use const PREG_OFFSET_CAPTURE;
 
 /**
  * Finds the device colour spaces an imported page draws with: those named in its resources (and
@@ -212,13 +209,7 @@ final class ColourScanner
             }
             $key = null;
         }
-        $match = [];
-        if (preg_match('/\sEI(?=\s|$)/', $lexer->data(), $match, PREG_OFFSET_CAPTURE, $lexer->position()) === 1) {
-            $lexer->seek((int) ($match[0][1] ?? 0) + 3);
-
-            return;
-        }
-        $lexer->seek($lexer->length());
+        $lexer->skipInlineImageData();
     }
 
     /** Scans a resource dictionary and everything it draws. */

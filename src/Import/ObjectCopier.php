@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Import;
 
 use PhpPdf\Core\Object\Dictionary;
+use PhpPdf\Core\Object\Name;
 use PhpPdf\Core\Object\Reference;
 use PhpPdf\Core\Object\Stream;
 use PhpPdf\Core\Writer;
@@ -14,6 +15,7 @@ use function is_array;
 /**
  * Deep-copies objects from a source PDF into a document being written. Every source object is
  * written once, so fonts and images shared by several imported pages appear once in the output.
+ * When hidden layers are removed, the content of the forms copied is filtered on the way.
  *
  * @internal
  */
@@ -25,6 +27,7 @@ final class ObjectCopier
     public function __construct(
         private readonly PdfReader $source,
         private readonly Writer $target,
+        private readonly ?HiddenContent $hidden = null,
     ) {}
 
     /** The target reference of a source object already copied, or null. */
@@ -39,7 +42,7 @@ final class ObjectCopier
             return $this->copyReference($value);
         }
         if ($value instanceof Stream) {
-            return new Stream($this->copyDictionary($value->dictionary), $value->data, compress: false);
+            return $this->copyStream($value);
         }
         if ($value instanceof Dictionary) {
             return $this->copyDictionary($value);
@@ -78,5 +81,26 @@ final class ObjectCopier
         $this->target->write($target, $this->copy($this->source->object($ref->id)));
 
         return $target;
+    }
+
+    /**
+     * Copies a stream as it is, except a form when hidden layers are removed: its content is
+     * decoded, filtered and compressed again.
+     */
+    private function copyStream(Stream $stream): Stream
+    {
+        $dict    = $this->copyDictionary($stream->dictionary);
+        $subtype = $this->source->get($stream->dictionary, 'Subtype');
+        if (null === $this->hidden || ! $subtype instanceof Name || 'Form' !== $subtype->value) {
+            return new Stream($dict, $stream->data, compress: false);
+        }
+        $content = $this->hidden->filter(
+            $this->source->decode($stream),
+            $this->source->dict($stream->dictionary, 'Resources'),
+        );
+        $dict->remove('Filter');
+        $dict->remove('DecodeParms');
+
+        return new Stream($dict, $content);
     }
 }

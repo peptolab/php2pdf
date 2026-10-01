@@ -25,6 +25,8 @@ use function strpos;
 use function strspn;
 use function substr;
 
+use const PREG_OFFSET_CAPTURE;
+
 /**
  * Tokenises PDF syntax from a byte string at a movable position.
  *
@@ -91,7 +93,6 @@ final class Lexer
         $this->position = max(0, min($position, $this->length));
     }
 
-    /** Skips whitespace only, leaving the position at the next byte (used after "stream"). */
     public function skipEol(): void
     {
         if ("\r" === ($this->data[$this->position] ?? '')) {
@@ -100,6 +101,22 @@ final class Lexer
         if ("\n" === ($this->data[$this->position] ?? '')) {
             ++$this->position;
         }
+    }
+
+    /** Skips whitespace only, leaving the position at the next byte (used after "stream"). */
+    /**
+     * Skips an inline image's data, just after its ID operator, to the end of its EI operator (or
+     * of the stream when there is none).
+     */
+    public function skipInlineImageData(): void
+    {
+        $match = [];
+        if (preg_match('/\sEI(?=\s|$)/', $this->data, $match, PREG_OFFSET_CAPTURE, $this->position) === 1) {
+            $this->seek((int) ($match[0][1] ?? 0) + 3);
+
+            return;
+        }
+        $this->seek($this->length());
     }
 
     /**

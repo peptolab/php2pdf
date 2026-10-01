@@ -33,7 +33,16 @@ pages of the same file (fonts, images, colour spaces) are written once.
 Layers (optional content groups) the placed pages use are merged into the document with the
 source's default state, so guide or dieline layers switched off in Illustrator stay off, and
 appear in a viewer's layers panel in the source's order. Acrobat, poppler and Ghostscript honour
-them; macOS Preview ignores layers inside placed artwork and draws hidden ones.
+them; macOS Preview ignores layers inside placed artwork and draws hidden ones. To hide them
+everywhere, remove them on import:
+
+```php
+$layout = $doc->import('layout.ai', HiddenLayers::Remove);
+```
+
+Content marked with a layer that is off by default (directly, or through a membership dictionary
+and its visibility policy) is cut from the page and from the forms it draws, and the layer is
+left out of the layers panel. Visible layers stay switchable.
 
 The reader handles classic cross-reference tables, cross-reference streams and object streams,
 chains of incremental updates, and rebuilds the cross-reference by scanning the file when

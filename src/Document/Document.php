@@ -26,6 +26,7 @@ use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Origin;
 use PhpPdf\Image\Image;
 use PhpPdf\Image\ImageReader;
+use PhpPdf\Import\HiddenLayers;
 use PhpPdf\Import\ImportedDocument;
 use PhpPdf\Import\OptionalContent;
 use PhpPdf\Import\PdfFile;
@@ -434,15 +435,17 @@ final class Document
 
     /**
      * Opens an existing PDF (or AI file saved as PDF-compatible) so its pages can be placed as
-     * templates. The same file is imported once; shared resources are written once.
+     * templates. The same file is imported once; shared resources are written once. Layers the
+     * file switches off stay off; HiddenLayers::Remove removes their content instead, so viewers
+     * that ignore layers in placed artwork (macOS Preview) do not show them either.
      */
-    public function import(PdfFile|string $source): ImportedDocument
+    public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument
     {
         $this->assertOpen();
         $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
-        $key  = $file->path ?? 'object#' . spl_object_id($file);
+        $key  = ($file->path ?? 'object#' . spl_object_id($file)) . '#' . $hiddenLayers->name;
 
-        return $this->imports[$key] ??= new ImportedDocument($this, $file);
+        return $this->imports[$key] ??= new ImportedDocument($this, $file, $hiddenLayers);
     }
 
     public function info(): Info

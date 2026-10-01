@@ -34,6 +34,8 @@ final class OptionalContent
     /** @var list<Reference> */
     private array $groups = [];
 
+    private ?HiddenContent $removed = null;
+
     /** @var list<Reference> */
     private array $locked = [];
 
@@ -47,9 +49,11 @@ final class OptionalContent
     private array $radio = [];
 
     /** Adds the groups of one source document that its copied pages use. */
-    public function add(PdfReader $source, ObjectCopier $copier): void
+    /** @param HiddenContent|null $removed the layers whose content was removed, left out here too */
+    public function add(PdfReader $source, ObjectCopier $copier, ?HiddenContent $removed = null): void
     {
-        $properties = $source->dict($source->catalog(), 'OCProperties');
+        $this->removed = $removed;
+        $properties    = $source->dict($source->catalog(), 'OCProperties');
         if (null === $properties) {
             return;
         }
@@ -124,7 +128,10 @@ final class OptionalContent
         }
         $out = [];
         foreach ($list as $item) {
-            $target = $item instanceof Reference ? $copier->copied($item) : null;
+            $target =
+                $item instanceof Reference && true !== $this->removed?->isHidden($item)
+                    ? $copier->copied($item)
+                    : null;
             if (null !== $target && ! in_array($target, $out, strict: true)) {
                 $out[] = $target;
             }

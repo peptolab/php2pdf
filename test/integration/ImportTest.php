@@ -13,6 +13,7 @@ use PhpPdf\Document\PageSize;
 use PhpPdf\Fit\Fit;
 use PhpPdf\Fit\Position;
 use PhpPdf\Geometry\Box;
+use PhpPdf\Import\HiddenLayers;
 use PhpPdf\Import\PageBox;
 use PhpPdf\Import\PdfFile;
 use PhpPdfTest\Support\LayeredPdf;
@@ -103,5 +104,28 @@ final class ImportTest extends TestCase
         self::assertStringContainsString('Page 1 of the import corpus', PdfTools::text($path, 2));
         Visual::assertMatchesBaseline($path, 'import-p1', 1);
         Visual::assertMatchesBaseline($path, 'import-p2', 2);
+    }
+
+    /** With hidden layers removed, no renderer shows them, macOS Preview included. */
+    #[Test]
+    public function removedHiddenLayersShowNowhere(): void
+    {
+        $path = PdfTools::outputDir() . '/import-layers-removed.pdf';
+        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc->addPage(new Dimensions(100.0, 100.0))->place(
+            $doc->import(PdfFile::fromData(LayeredPdf::make()), HiddenLayers::Remove)->page(1),
+            new Box(0.0, 0.0, 100.0, 100.0),
+        );
+        $doc->close();
+
+        PdfTools::assertValid($path);
+        self::assertSame(
+            ['poppler' => 0, 'Ghostscript' => 0, 'CoreGraphics' => 0],
+            [
+                'poppler'      => PdfTools::ink(PdfTools::render($path)),
+                'Ghostscript'  => PdfTools::ink(PdfTools::ghostscriptRender($path)),
+                'CoreGraphics' => PdfTools::coreGraphicsInk($path),
+            ],
+        );
     }
 }

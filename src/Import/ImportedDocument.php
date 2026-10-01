@@ -16,6 +16,8 @@ final class ImportedDocument
 {
     private readonly ObjectCopier $copier;
 
+    private readonly ?HiddenContent $hidden;
+
     /** @var array<string, ImportedPage> */
     private array $pages = [];
 
@@ -23,8 +25,10 @@ final class ImportedDocument
     public function __construct(
         private readonly Document $document,
         public readonly PdfFile $file,
+        public readonly HiddenLayers $hiddenLayers = HiddenLayers::Keep,
     ) {
-        $this->copier = new ObjectCopier($file->reader(), $document->writer());
+        $this->hidden = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
+        $this->copier = new ObjectCopier($file->reader(), $document->writer(), $this->hidden);
     }
 
     /**
@@ -34,7 +38,7 @@ final class ImportedDocument
      */
     public function addOptionalContent(OptionalContent $layers): void
     {
-        $layers->add($this->file->reader(), $this->copier);
+        $layers->add($this->file->reader(), $this->copier, $this->hidden);
     }
 
     /** A page by 1-based number, bounded by the given box (the crop box by default). */
@@ -45,6 +49,7 @@ final class ImportedDocument
             $this->copier,
             $this->file->page($number),
             $box,
+            $this->hidden,
         );
     }
 
