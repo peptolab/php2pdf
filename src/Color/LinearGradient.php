@@ -22,13 +22,25 @@ final readonly class LinearGradient extends AbstractGradient
         public float $y1,
         array $stops,
         bool $extend = true,
+        GradientSpread $spread = GradientSpread::Pad,
+        float $from = 0.0,
+        float $to = 1.0,
     ) {
-        parent::__construct($stops, $extend);
+        parent::__construct($stops, $extend, $spread, $from, $to);
     }
 
     #[Override]
     public function toShading(): Dictionary
     {
-        return $this->baseShading(2)->set('Coords', [$this->x0, $this->y0, $this->x1, $this->y1]);
+        [$from, $to] = $this->domain();
+        $dx = $this->x1 - $this->x0;
+        $dy = $this->y1 - $this->y0;
+
+        return $this->baseShading(2)->set('Coords', [
+            $this->x0 + ($from * $dx),
+            $this->y0 + ($from * $dy),
+            $this->x0 + ($to * $dx),
+            $this->y0 + ($to * $dy),
+        ]);
     }
 }

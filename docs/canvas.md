@@ -65,6 +65,14 @@ colour at the first and last stop instead of padding. A matrix passed as the sec
 `setFillGradient()` maps gradient coordinates into user space, which is how the SVG converter
 places gradients in object bounding box units.
 
+A gradient can also repeat or reflect beyond its vector, as SVG's `spreadMethod` does. PDF
+shadings only pad, so give the stretch of the vector to cover, in lengths of the vector:
+
+```php
+// The 200-point vector repeated from one length before its start to three lengths past it.
+$g = new LinearGradient(0, 0, 200, 0, $stops, spread: GradientSpread::Repeat, from: -1, to: 4);
+```
+
 ## Text at a position
 
 ```php

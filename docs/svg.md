@@ -21,7 +21,7 @@ Pure PHP, no extensions. It supports:
   `fill-opacity`, `stroke-opacity`,
   line width, caps, joins, miter limit, dashes;
 - linear and radial gradients in object bounding box or user space units, `gradientTransform`,
-  `href` inheritance, `spreadMethod` pad;
+  `href` inheritance, `spreadMethod` pad, repeat and reflect;
 - clip paths (user space and object bounding box), including nested ones;
 - group `opacity` through transparency groups; `display` and `visibility`;
 - presentation attributes, `style` attributes and `<style>` sheets with type, class, id and

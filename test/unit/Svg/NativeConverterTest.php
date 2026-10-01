@@ -41,6 +41,23 @@ final class NativeConverterTest extends TestCase
     }
 
     #[Test]
+    public function colourAlphaBecomesOpacity(): void
+    {
+        $svg = SvgFile::fromData(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
+                . '<rect width="10" height="10" fill="#ff000080" fill-opacity="0.5" stroke="rgba(0,0,255,0.25)"/></svg>',
+        );
+        $this->doc->addPage(PageSize::A4)->place($this->doc->svg($svg), new Box(0.0, 0.0, 100.0, 100.0));
+        $this->doc->close();
+
+        self::assertSame(
+            1,
+            preg_match('#/ca 0\.25\d*/CA 0\.25#', $this->out->contents()),
+            'Fill 0.5 x 0.502, stroke 0.25.',
+        );
+    }
+
+    #[Test]
     public function convertsShapesIntoAFormXObjectWithRealPaths(): void
     {
         $svg = SvgFile::fromData(<<<'SVG'
@@ -183,19 +200,6 @@ final class NativeConverterTest extends TestCase
         self::assertStringContainsString('DejaVuSans-Bold', $pdf);
         self::assertSame([], $converter->warnings());
         self::assertFalse(str_contains($pdf, '(Hello SVG)'), 'Text goes out as glyph ids, not literal strings.');
-    }
-
-    #[Test]
-    public function colourAlphaBecomesOpacity(): void
-    {
-        $svg = SvgFile::fromData(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
-                . '<rect width="10" height="10" fill="#ff000080" fill-opacity="0.5" stroke="rgba(0,0,255,0.25)"/></svg>',
-        );
-        $this->doc->addPage(PageSize::A4)->place($this->doc->svg($svg), new Box(0.0, 0.0, 100.0, 100.0));
-        $this->doc->close();
-
-        self::assertSame(1, preg_match('#/ca 0\.25\d*/CA 0\.25#', $this->out->contents()), 'Fill 0.5 x 0.502, stroke 0.25.');
     }
 
     protected function setUp(): void

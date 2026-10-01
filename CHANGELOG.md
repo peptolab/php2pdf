@@ -49,6 +49,7 @@ The first release.
 - Baseline TIFF natively, keeping CMYK, palettes and ICC profiles, on any page.
 - Photoshop clipping paths in JPEG and TIFF files.
 - Other formats through ext-imagick or ext-gd.
+- Gradients that repeat or reflect beyond their vector; SVG colours with alpha, `hsl()` and `spreadMethod`.
 - The fit engine: `meet`, `slice`, `entire`, `clip`, `noFit`, `auto`, with positions and rotation.
 - Templates; pages of PDF and AI files imported as artwork, with their layers kept or removed.
 - SVG converted natively (paths, gradients, clip paths, text, images) or through rsvg-convert.

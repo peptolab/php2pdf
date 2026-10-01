@@ -11,7 +11,10 @@ use PhpPdf\Exception\InvalidArgumentException;
 use function array_push;
 use function array_values;
 use function count;
+use function floor;
+use function max;
 use function md5;
+use function min;
 use function serialize;
 use function usort;
 
@@ -26,10 +29,20 @@ abstract readonly class AbstractGradient
     /** @var list<GradientStop> */
     public array $stops;
 
-    /** @param list<GradientStop> $stops */
+    /**
+     * @param list<GradientStop> $stops
+     * @param GradientSpread     $spread what the gradient does beyond its end points
+     * @param float              $from   with repeat or reflect, the start of the stretch of the
+     *                                   gradient vector to cover, in lengths of the vector
+     *                                   (negative is before its start)
+     * @param float              $to     the end of that stretch (above 1 is beyond its end)
+     */
     public function __construct(
         array $stops,
         public bool $extend = true,
+        public GradientSpread $spread = GradientSpread::Pad,
+        public float $from = 0.0,
+        public float $to = 1.0,
     ) {
         if (count($stops) < 2) {
             throw new InvalidArgumentException('A gradient needs at least two stops.');
@@ -67,12 +80,38 @@ abstract readonly class AbstractGradient
 
     protected function baseShading(int $type): Dictionary
     {
+        if (GradientSpread::Pad === $this->spread) {
+            return Dictionary::of([
+                'ShadingType' => $type,
+                'ColorSpace'  => $this->colorSpaceName(),
+                'Function'    => $this->function(),
+                'Extend'      => [$this->extend, $this->extend],
+            ]);
+        }
+        [$from, $to] = $this->domain();
+
         return Dictionary::of([
             'ShadingType' => $type,
             'ColorSpace'  => $this->colorSpaceName(),
-            'Function'    => $this->function(),
-            'Extend'      => [$this->extend, $this->extend],
+            'Domain'      => [$from, $to],
+            'Function'    => $this->spreadFunction($from, $to),
+            'Extend'      => [true, true],
         ]);
+    }
+
+    /**
+     * The stretch of the gradient vector the shading covers, in lengths of the vector: 0 to 1
+     * when padded, the requested stretch when repeated or reflected.
+     *
+     * @return array{0: float, 1: float}
+     */
+    protected function domain(): array
+    {
+        if (GradientSpread::Pad === $this->spread) {
+            return [0.0, 1.0];
+        }
+
+        return [min(0.0, $this->from), max(1.0, $this->to)];
     }
 
     /** A Type 2 (exponential) function for two stops, or a Type 3 stitching function otherwise. */
@@ -112,6 +151,36 @@ abstract readonly class AbstractGradient
         return Dictionary::of([
             'FunctionType' => 3,
             'Domain'       => [0, 1],
+            'Functions'    => $functions,
+            'Bounds'       => $bounds,
+            'Encode'       => $encode,
+        ]);
+    }
+
+    /**
+     * The gradient's colours repeated over $from to $to: one copy per length of the vector,
+     * every other one running backwards when reflected.
+     */
+    private function spreadFunction(float $from, float $to): Dictionary
+    {
+        $base      = $this->function();
+        $functions = [];
+        $bounds    = [];
+        $encode    = [];
+        for ($period = (int) floor($from); $period < $to; ++$period) {
+            $start = max($from, (float) $period) - $period;
+            $end   = min($to, (float) ($period + 1)) - $period;
+            $back  = GradientSpread::Reflect === $this->spread && 0 !== ($period & 1);
+            array_push($encode, $back ? 1.0 - $start : $start, $back ? 1.0 - $end : $end);
+            $functions[] = $base;
+            if (($period + 1) < $to) {
+                $bounds[] = (float) ($period + 1);
+            }
+        }
+
+        return Dictionary::of([
+            'FunctionType' => 3,
+            'Domain'       => [$from, $to],
             'Functions'    => $functions,
             'Bounds'       => $bounds,
             'Encode'       => $encode,

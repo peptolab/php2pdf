@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Svg;
 
 use PhpPdf\Color\AbstractGradient;
+use PhpPdf\Color\GradientSpread;
 use PhpPdf\Color\GradientStop;
 use PhpPdf\Color\LinearGradient;
 use PhpPdf\Color\RadialGradient;
@@ -13,6 +14,7 @@ use PhpPdf\Geometry\Matrix;
 
 use function array_key_exists;
 use function count;
+use function hypot;
 use function ltrim;
 use function max;
 use function min;
@@ -32,6 +34,27 @@ final class PaintServers
     ) {}
 
     /**
+     * The corners of the painted box in the gradient's own space.
+     *
+     * @return list<array{0: float, 1: float}>
+     */
+    private static function corners(Box $bounds, Matrix $matrix): array
+    {
+        $inverse = $matrix->inverse();
+        $corners = [];
+        foreach ([
+            [$bounds->x, $bounds->y],
+            [$bounds->right(), $bounds->y],
+            [$bounds->x, $bounds->far()],
+            [$bounds->right(), $bounds->far()],
+        ] as [$x, $y]) {
+            $corners[] = $inverse->apply($x, $y);
+        }
+
+        return $corners;
+    }
+
+    /**
      * @param array<string, string> $attrs
      * @param list<GradientStop>    $stops
      */
@@ -40,7 +63,6 @@ final class PaintServers
         float $size,
         float $reference,
         array $stops,
-        bool $extend,
     ): LinearGradient {
         return new LinearGradient(
             Length::parse($attrs['x1'] ?? '0%', $size) ?? 0.0,
@@ -48,7 +70,6 @@ final class PaintServers
             Length::parse($attrs['x2'] ?? '100%', $size) ?? $reference,
             Length::parse($attrs['y2'] ?? '0%', $size) ?? 0.0,
             $stops,
-            $extend,
         );
     }
 
@@ -56,7 +77,7 @@ final class PaintServers
      * @param array<string, string> $attrs
      * @param list<GradientStop>    $stops
      */
-    private static function radial(array $attrs, float $size, array $stops, bool $extend): RadialGradient
+    private static function radial(array $attrs, float $size, array $stops): RadialGradient
     {
         $cx = Length::parse($attrs['cx'] ?? '50%', $size) ?? 0.5;
         $cy = Length::parse($attrs['cy'] ?? '50%', $size) ?? 0.5;
@@ -65,7 +86,66 @@ final class PaintServers
         $fy = Length::parse($attrs['fy'] ?? null, $size) ?? $cy;
         $fr = Length::parse($attrs['fr'] ?? '0', $size) ?? 0.0;
 
-        return new RadialGradient($fx, $fy, $fr, $cx, $cy, max(0.0, $r), $stops, $extend);
+        return new RadialGradient($fx, $fy, $fr, $cx, $cy, max(0.0, $r), $stops);
+    }
+
+    /**
+     * A repeating or reflecting gradient covering the painted box: from the vector's start (or
+     * before it) to as many lengths of the vector as the box's corners reach.
+     *
+     * @param list<array{0: float, 1: float}> $corners
+     */
+    private static function spread(
+        LinearGradient|RadialGradient $gradient,
+        GradientSpread $spread,
+        array $corners,
+    ): LinearGradient|RadialGradient {
+        if ($gradient instanceof LinearGradient) {
+            $dx     = $gradient->x1 - $gradient->x0;
+            $dy     = $gradient->y1 - $gradient->y0;
+            $length = ($dx * $dx) + ($dy * $dy);
+            $ts     = [];
+            foreach ($corners as [$x, $y]) {
+                $ts[] = $length > 0.0 ? ((($x - $gradient->x0) * $dx) + (($y - $gradient->y0) * $dy)) / $length : 0.0;
+            }
+
+            return new LinearGradient(
+                $gradient->x0,
+                $gradient->y0,
+                $gradient->x1,
+                $gradient->y1,
+                $gradient->stops,
+                true,
+                $spread,
+                min($ts),
+                max($ts),
+            );
+        }
+        $growth = $gradient->r1 - $gradient->r0;
+        $offset = hypot($gradient->x1 - $gradient->x0, $gradient->y1 - $gradient->y0);
+        $reach  = 1.0;
+        foreach ($corners as [$x, $y]) {
+            $distance =
+                max(
+                    hypot($x - $gradient->x1, $y - $gradient->y1),
+                    hypot($x - $gradient->x0, $y - $gradient->y0),
+                ) + $offset;
+            $reach = max($reach, $growth > 0.0 ? ($distance - $gradient->r0) / $growth : 1.0);
+        }
+
+        return new RadialGradient(
+            $gradient->x0,
+            $gradient->y0,
+            $gradient->r0,
+            $gradient->x1,
+            $gradient->y1,
+            $gradient->r1,
+            $gradient->stops,
+            true,
+            $spread,
+            0.0,
+            $reach,
+        );
     }
 
     /**
@@ -94,7 +174,11 @@ final class PaintServers
         if (1 === count($stops)) {
             $stops[] = new GradientStop(1.0, $stops[0]->color);
         }
-        $extend    = 'pad' === strtolower(trim($attrs['spreadMethod'] ?? 'pad'));
+        $spread = match (strtolower(trim($attrs['spreadMethod'] ?? 'pad'))) {
+            'repeat'  => GradientSpread::Repeat,
+            'reflect' => GradientSpread::Reflect,
+            default   => GradientSpread::Pad,
+        };
         $objectBox = 'userSpaceOnUse' !== trim($attrs['gradientUnits'] ?? 'objectBoundingBox');
         $matrix    = TransformParser::parse($attrs['gradientTransform'] ?? null);
         $reference = $objectBox ? 1.0 : 0.0;
@@ -105,8 +189,11 @@ final class PaintServers
         }
         $size     = $objectBox ? 1.0 : 100.0;
         $gradient = 'linearGradient' === $element->name
-            ? self::linear($attrs, $size, $reference, $stops, $extend)
-            : self::radial($attrs, $size, $stops, $extend);
+            ? self::linear($attrs, $size, $reference, $stops)
+            : self::radial($attrs, $size, $stops);
+        if (GradientSpread::Pad !== $spread) {
+            $gradient = self::spread($gradient, $spread, self::corners($bounds, $matrix));
+        }
 
         return [$gradient, $matrix];
     }
