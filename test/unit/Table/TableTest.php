@@ -61,6 +61,19 @@ final class TableTest extends TestCase
     }
 
     #[Test]
+    public function anUngroupedRowspanCellGetsTheHeightItNeeds(): void
+    {
+        $table = new Table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $table->addRow([Cell::text(str_repeat('tall spanning text ', times: 8))->spanning(1, 3), 'a']);
+        $table->addRow(['b']);
+        $table->addRow(['c']);
+        $measured = $table->measure($this->doc, 160.0);
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 160.0, 500.0));
+
+        self::assertEqualsWithDelta($measured, $table->lastFit()->height ?? 0.0, 1.0e-6);
+    }
+
+    #[Test]
     public function autoColumnsKeepTheirWidthsInEveryBox(): void
     {
         $table = new Table([Column::auto(), Column::auto()], null, $this->body);
@@ -293,6 +306,25 @@ final class TableTest extends TestCase
         $table->addRow(['a']);
         $expected = $this->firstBaselineOffset($mode) - $this->bodyFont()->descender(10.0) + 2.0;
         self::assertEqualsWithDelta($expected, $table->measure($this->doc, 200.0), 1.0e-6);
+    }
+
+    #[Test]
+    public function rowsASpanningCellCoversMoveToTheNextBoxTogether(): void
+    {
+        $table = new Table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $table->addRow(['first', 'row']);
+        $table->addRow([Cell::text('span')->spanning(1, 3), 'b']);
+        $table->addRow(['c']);
+        $table->addRow(['d']);
+        $line = $table->measure($this->doc, 160.0) / 4.0;
+        $page = $this->doc->addPage(PageSize::A4);
+        $page->fitTable($table, new Box(0.0, 0.0, 160.0, $line * 2.5));
+
+        self::assertSame(
+            1,
+            $table->lastFit()?->rowsPlaced,
+            'The spanned rows do not fit, so only the first row is placed.',
+        );
     }
 
     #[Test]

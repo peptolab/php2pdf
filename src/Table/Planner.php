@@ -7,6 +7,8 @@ namespace PhpPdf\Table;
 use PhpPdf\Text\FlowResult;
 
 use function array_sum;
+use function max;
+use function min;
 
 /**
  * Decides which rows go into a box of a given height: headers first, then body rows from the
@@ -90,17 +92,22 @@ final class Planner
         $this->add($plan, $row, $available, $available);
     }
 
-    /** The last row of the group starting at $row, or $row itself when it is not grouped. */
+    /**
+     * The last row that has to be placed with $row: rows sharing its group id, and every row a
+     * cell in those rows spans into, followed until nothing more is reached.
+     */
     private function groupEnd(int $row): int
     {
-        $group = $this->body->sources[$row]->group ?? null;
-        if (null === $group) {
-            return $row;
-        }
-        $end   = $row;
-        $count = $this->body->count();
-        while (($end + 1) < $count && ($this->body->sources[$end + 1]->group ?? null) === $group) {
-            ++$end;
+        $last = $this->body->count() - 1;
+        $end  = $row;
+        for ($r = $row; $r <= $end; ++$r) {
+            $group = $this->body->sources[$r]->group ?? null;
+            while (null !== $group && $end < $last && ($this->body->sources[$end + 1]->group ?? null) === $group) {
+                ++$end;
+            }
+            foreach ($this->body->rows[$r] ?? [] as $placed) {
+                $end = max($end, min($last, $placed->lastRow()));
+            }
         }
 
         return $end;
