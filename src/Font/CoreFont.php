@@ -52,7 +52,7 @@ final class CoreFont implements FontInterface, DeferredInterface
 
     /** @internal */
     public function __construct(
-        Document $document,
+        private readonly Document $document,
         private readonly StandardFont $font,
     ) {
         $pdfx = $document->options()->pdfx;
@@ -95,6 +95,13 @@ final class CoreFont implements FontInterface, DeferredInterface
     public function descender(float $size): float
     {
         return self::scale($this->metrics->descender, $size);
+    }
+
+    /** @internal */
+    #[Override]
+    public function document(): Document
+    {
+        return $this->document;
     }
 
     /**

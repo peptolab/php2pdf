@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PhpPdf\Font;
 
 use PhpPdf\Core\Object\Reference;
+use PhpPdf\Document\Document;
 
 /**
  * A font text can be shaped, measured and shown with: an embedded font program (Font) or one of
@@ -25,6 +26,13 @@ interface FontInterface
 
     /** Negative: distance below the baseline. */
     public function descender(float $size): float;
+
+    /**
+     * The document the font is embedded in.
+     *
+     * @internal
+     */
+    public function document(): Document;
 
     /**
      * The bytes that select these glyphs in a content stream string.

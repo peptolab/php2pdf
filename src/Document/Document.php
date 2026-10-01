@@ -238,6 +238,22 @@ final class Document
     }
 
     /**
+     * Refuses a resource made by another document, which would refer to objects this one never
+     * writes.
+     *
+     * @internal
+     */
+    public function assertOwns(self $owner, string $what): void
+    {
+        if ($owner !== $this) {
+            throw new InvalidArgumentException(sprintf(
+                '%s belongs to the document that created it and cannot be drawn into another.',
+                $what,
+            ));
+        }
+    }
+
+    /**
      * The colour space transparency groups blend in: the output intent's space under PDF/X,
      * otherwise RGB.
      *

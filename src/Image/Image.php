@@ -28,7 +28,7 @@ final class Image implements PlaceableInterface
 
     /** @internal */
     public function __construct(
-        Document $document,
+        private readonly Document $document,
         private readonly ImageData $data,
     ) {
         $this->reference = $this->write($document);
@@ -47,9 +47,10 @@ final class Image implements PlaceableInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
-        $canvas->document()->assertOutputIntent();
+        $canvas->document()->assertOwns($this->document, 'An image');
+        $this->document->assertOutputIntent();
         if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
-            $canvas->document()->assertDeviceColour($this->data->colorSpace->device, 'images');
+            $this->document->assertDeviceColour($this->data->colorSpace->device, 'images');
         }
         $canvas->drawXObject($this->reference, Matrix::scaling($size->width, $size->height)->then($matrix));
     }

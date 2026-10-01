@@ -40,7 +40,7 @@ final class Template implements PlaceableInterface, DeferredInterface
      * @param Box|null $bbox the form's bounding box when it differs from [0 0 width height]
      */
     public function __construct(
-        Document $document,
+        private readonly Document $document,
         private readonly Dimensions $size,
         private readonly Origin $origin,
         private readonly ?Box $bbox = null,
@@ -76,6 +76,7 @@ final class Template implements PlaceableInterface, DeferredInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
+        $canvas->document()->assertOwns($this->document, 'A template');
         $canvas->drawXObject($this->reference, $matrix);
     }
 

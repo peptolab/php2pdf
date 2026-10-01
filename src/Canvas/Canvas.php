@@ -720,6 +720,7 @@ final class Canvas
         if ($run->isEmpty()) {
             return $this;
         }
+        $this->document->assertOwns($font->document(), 'A font');
         $font->markUsed($run);
         $ops = 'BT';
         $tf  = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
