@@ -795,7 +795,10 @@ final class Canvas
             $color instanceof Cmyk => "{$components} {$ops[2]}",
             $color instanceof Spot => $this->colorSpaceOps($this->spotColorSpace($color), $components, $ops),
             $color instanceof IccColor => $this->colorSpaceOps($this->iccColorSpace($color), $components, $ops),
-            default => throw new InvalidArgumentException('Unsupported colour type ' . $color::class),
+            default => throw new InvalidArgumentException(sprintf(
+                'Colours must be Gray, Rgb, Cmyk, Spot or IccColor; %s is not one of them.',
+                $color::class,
+            )),
         };
     }
 
