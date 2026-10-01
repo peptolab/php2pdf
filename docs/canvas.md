@@ -73,6 +73,24 @@ shadings only pad, so give the stretch of the vector to cover, in lengths of the
 $g = new LinearGradient(0, 0, 200, 0, $stops, spread: GradientSpread::Repeat, from: -1, to: 4);
 ```
 
+## Tiling patterns
+
+A template can fill or stroke as a repeating tile: its artwork is drawn in cells stepped apart
+in pattern space, which the optional matrix maps into the current user space (so a pattern can
+be shifted, scaled or rotated). The template's bounding box clips each cell.
+
+```php
+$dot = $doc->template(new Dimensions(10, 10));
+$dot->canvas()->setFillColor(Rgb::fromHex('#1a237e'))->circle(5, 5, 3)->fill();
+
+$c->setFillPattern($dot, 10, 10)->rect(0, 0, 200, 100)->fill();
+$c->setStrokePattern($dot, 12, 12, Matrix::rotation(45))->setLineWidth(8)->rect(0, 0, 200, 100)->stroke();
+```
+
+poppler's default renderer (pdftoppm) rounds the step to whole device pixels, so tiles can drift
+by a pixel per cell at some scales; Acrobat, Ghostscript, macOS Preview and poppler's Cairo
+renderer place them exactly.
+
 ## Soft masks
 
 A template's artwork can mask what is drawn after it, until `restore()`: by its luminosity, so

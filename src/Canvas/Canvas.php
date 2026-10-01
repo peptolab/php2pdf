@@ -557,6 +557,19 @@ final class Canvas
         return $this;
     }
 
+    /**
+     * Fills with a tiling pattern: the template repeated $xStep and $yStep apart.
+     *
+     * @param Matrix|null $matrix maps pattern coordinates into the current user space
+     */
+    public function setFillPattern(Template $tile, float $xStep, float $yStep, ?Matrix $matrix = null): self
+    {
+        $this->ops          .= "/Pattern cs /{$this->tileName($tile, $xStep, $yStep, $matrix)} scn\n";
+        $this->text['fill'] = null;
+
+        return $this;
+    }
+
     public function setLineCap(LineCap $cap): self
     {
         $this->ops .= "{$cap->value} J\n";
@@ -671,6 +684,18 @@ final class Canvas
     public function setStrokeGradient(AbstractGradient $gradient, ?Matrix $matrix = null): self
     {
         $this->ops .= "/Pattern CS /{$this->patternName($gradient, $matrix)} SCN\n";
+
+        return $this;
+    }
+
+    /**
+     * Strokes with a tiling pattern: the template repeated $xStep and $yStep apart.
+     *
+     * @param Matrix|null $matrix maps pattern coordinates into the current user space
+     */
+    public function setStrokePattern(Template $tile, float $xStep, float $yStep, ?Matrix $matrix = null): self
+    {
+        $this->ops .= "/Pattern CS /{$this->tileName($tile, $xStep, $yStep, $matrix)} SCN\n";
 
         return $this;
     }
@@ -833,5 +858,12 @@ final class Canvas
             "{$ops} {$position} "
             . TextOperators::show($run, $font, $size, $options, $hidden, $this->text['Tr'] ?? '0 Tr')
             . " ET\n";
+    }
+
+    private function tileName(Template $tile, float $xStep, float $yStep, ?Matrix $matrix): string
+    {
+        $matrix = null === $matrix ? $this->ctm : $matrix->then($this->ctm);
+
+        return $this->resources->pattern($this->colours->tilingPattern($tile, $xStep, $yStep, $matrix));
     }
 }

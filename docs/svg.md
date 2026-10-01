@@ -36,8 +36,10 @@ Pure PHP, no extensions. It supports:
 
 Masks (`<mask>`, by luminance or `mask-type="alpha"`, with `maskUnits` and `maskContentUnits`)
 become soft masks; macOS Preview draws them in the wrong place in placed artwork (see
-[canvas.md](canvas.md)). Filters, patterns, markers, `<textPath>`, `<foreignObject>` and stroked text
-are skipped. `NativeConverter::warnings()` lists what the last conversion left out.
+[canvas.md](canvas.md)). Patterns (`<pattern>`, with `patternUnits`, `patternContentUnits`,
+`viewBox`, `patternTransform` and attributes and children inherited through `href`) become
+tiling patterns for fills and strokes. Filters, markers, `<textPath>`, `<foreignObject>` and
+stroked text are skipped. `NativeConverter::warnings()` lists what the last conversion left out.
 
 ## The rsvg-convert adapter
 

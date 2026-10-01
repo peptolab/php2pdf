@@ -149,6 +149,41 @@ final class PaintServers
     }
 
     /**
+     * The element followed by the paint servers it references, nearest first.
+     *
+     * @return list<Element>
+     */
+    public function chain(Element $element): array
+    {
+        $chain = [$element];
+        $seen  = [];
+        $id    = $element->id();
+        if (null !== $id) {
+            $seen[$id] = true;
+        }
+        $current = $element;
+        while (count($chain) < 16) {
+            $href = $current->href();
+            if (null === $href) {
+                break;
+            }
+            $target = ltrim(trim($href), characters: '#');
+            if (array_key_exists($target, $seen)) {
+                break;
+            }
+            $next = $this->file->byId($target);
+            if (null === $next) {
+                break;
+            }
+            $seen[$target] = true;
+            $chain[]       = $next;
+            $current       = $next;
+        }
+
+        return $chain;
+    }
+
+    /**
      * The gradient for a paint server id and the box it is painted over, or null when the id is
      * not a usable gradient.
      *
@@ -196,41 +231,6 @@ final class PaintServers
         }
 
         return [$gradient, $matrix];
-    }
-
-    /**
-     * The element followed by the gradients it references, nearest first.
-     *
-     * @return list<Element>
-     */
-    private function chain(Element $element): array
-    {
-        $chain = [$element];
-        $seen  = [];
-        $id    = $element->id();
-        if (null !== $id) {
-            $seen[$id] = true;
-        }
-        $current = $element;
-        while (count($chain) < 16) {
-            $href = $current->href();
-            if (null === $href) {
-                break;
-            }
-            $target = ltrim(trim($href), characters: '#');
-            if (array_key_exists($target, $seen)) {
-                break;
-            }
-            $next = $this->file->byId($target);
-            if (null === $next) {
-                break;
-            }
-            $seen[$target] = true;
-            $chain[]       = $next;
-            $current       = $next;
-        }
-
-        return $chain;
     }
 
     /**

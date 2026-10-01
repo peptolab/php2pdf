@@ -9,8 +9,8 @@ use PhpPdf\Canvas\FillRule;
 use PhpPdf\Geometry\Box;
 
 /**
- * Fills and strokes path data with a computed style, resolving gradients against the path's
- * bounds.
+ * Fills and strokes path data with a computed style, resolving gradients and patterns against
+ * the path's bounds.
  *
  * @internal
  */
@@ -18,6 +18,7 @@ final class Painter
 {
     public function __construct(
         private readonly Context $context,
+        private readonly PatternBuilder $patterns,
     ) {}
 
     /** Clips to a path with the given rule. */
@@ -27,7 +28,7 @@ final class Painter
         $canvas->clip($rule);
     }
 
-    /** Sets the fill colour or gradient; returns whether there is anything to fill. */
+    /** Sets the fill colour, gradient or pattern; returns whether there is anything to fill. */
     public function fill(Canvas $canvas, Style $style, Box $bounds): bool
     {
         $paint = $style->fill();
@@ -35,6 +36,15 @@ final class Painter
             return false;
         }
         if (null !== $paint->serverId) {
+            $tile = $this->patterns->tile($paint->serverId, $bounds);
+            if (false === $tile) {
+                return false;
+            }
+            if (null !== $tile) {
+                $canvas->setFillPattern(...$tile);
+
+                return true;
+            }
             $gradient = $this->context->servers->gradient($paint->serverId, $bounds, $style, $this->context->sheet);
             if (null !== $gradient) {
                 $canvas->setFillGradient($gradient[0], $gradient[1]);
@@ -75,7 +85,7 @@ final class Painter
         };
     }
 
-    /** Sets the stroke colour, gradient and line style; returns whether there is anything to stroke. */
+    /** Sets the stroke colour, gradient or pattern and line style; returns whether there is anything to stroke. */
     public function stroke(Canvas $canvas, Style $style, Box $bounds): bool
     {
         $paint = $style->stroke();
@@ -83,13 +93,21 @@ final class Painter
         if ($paint->isNone() || $width <= 0.0) {
             return false;
         }
-        $gradient = null === $paint->serverId
-            ? null
-            : $this->context->servers->gradient($paint->serverId, $bounds, $style, $this->context->sheet);
+        $tile = null === $paint->serverId ? null : $this->patterns->tile($paint->serverId, $bounds);
+        if (false === $tile) {
+            return false;
+        }
+        $gradient =
+            null !== $tile || null === $paint->serverId
+                ? null
+                : $this->context->servers->gradient($paint->serverId, $bounds, $style, $this->context->sheet);
+        if (null !== $tile) {
+            $canvas->setStrokePattern(...$tile);
+        }
         if (null !== $gradient) {
             $canvas->setStrokeGradient($gradient[0], $gradient[1]);
         }
-        if (null === $gradient) {
+        if (null === $gradient && null === $tile) {
             if (null === $paint->color) {
                 return false;
             }

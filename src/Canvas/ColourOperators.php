@@ -19,6 +19,8 @@ use PhpPdf\Core\Object\Stream;
 use PhpPdf\Document\Document;
 use PhpPdf\Document\Resources;
 use PhpPdf\Exception\InvalidArgumentException;
+use PhpPdf\Geometry\Matrix;
+use PhpPdf\Template\Template;
 
 use function sprintf;
 
@@ -73,6 +75,37 @@ final readonly class ColourOperators
         $this->document->pdfx()->assertOutputIntent();
         $this->document->pdfx()->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
         return $this->document->objects()->shared("sh:{$gradient->key()}", $gradient->toShading(...));
+    }
+
+    /**
+     * A coloured tiling pattern whose cell draws the template, stepped $xStep and $yStep apart in
+     * pattern space; the matrix maps pattern space to the default space of the page or form.
+     */
+    public function tilingPattern(Template $tile, float $xStep, float $yStep, Matrix $matrix): Reference
+    {
+        if (0.0 === $xStep || 0.0 === $yStep) {
+            throw new InvalidArgumentException(sprintf(
+                'A tiling pattern needs non-zero steps, not %s by %s.',
+                Num::format($xStep),
+                Num::format($yStep),
+            ));
+        }
+        $this->document->assertOwns($tile->document(), 'A template');
+        $ref = $tile->reference();
+
+        return $this->document->objects()->shared(
+            "tile:{$ref->id}:" . Num::format($xStep) . ':' . Num::format($yStep) . ":{$matrix->toPdf()}",
+            static fn(): Stream => new Stream(Dictionary::of([
+                'PatternType' => 1,
+                'PaintType'   => 1,
+                'TilingType'  => 1,
+                'BBox'        => $tile->boundingBox(),
+                'XStep'       => $xStep,
+                'YStep'       => $yStep,
+                'Resources'   => Dictionary::of(['XObject' => Dictionary::of(['T0' => $ref])]),
+                'Matrix'      => $matrix->toArray(),
+            ]), "/T0 Do\n"),
+        );
     }
 
     /** @param array{string, string, string, string, string} $ops */

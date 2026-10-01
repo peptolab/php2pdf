@@ -68,6 +68,18 @@ final class Template implements PlaceableInterface, DeferredInterface
         return $this;
     }
 
+    /**
+     * The form's bounding box, [llx lly urx ury] in its own space.
+     *
+     * @internal
+     *
+     * @return list<float>
+     */
+    public function boundingBox(): array
+    {
+        return $this->bbox?->toRect() ?? [0.0, 0.0, $this->size->width, $this->size->height];
+    }
+
     public function canvas(): Canvas
     {
         return $this->canvas;
@@ -94,7 +106,7 @@ final class Template implements PlaceableInterface, DeferredInterface
             'Type'      => new Name('XObject'),
             'Subtype'   => new Name('Form'),
             'FormType'  => 1,
-            'BBox'      => $this->bbox?->toRect() ?? [0, 0, $this->size->width, $this->size->height],
+            'BBox'      => $this->boundingBox(),
             'Resources' => $this->resources->toDictionary(),
         ]);
         if ($this->transparencyGroup) {
