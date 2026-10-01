@@ -138,7 +138,7 @@ final class BrochureTest extends TestCase
                 );
         } while (FlowResult::Done !== $result && $pages < 6);
 
-        $footer = $doc->textflow('<p>Copy fitted into a fixed box, vertically centred.</p>', new TextStyle(
+        $footer = $doc->textflow('Copy fitted into a fixed box, vertically centred.', new TextStyle(
             font: 'SourceSans3-Regular',
             size: 20.0,
             alignment: Alignment::Center,

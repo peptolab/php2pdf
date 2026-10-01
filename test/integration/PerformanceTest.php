@@ -76,7 +76,7 @@ final class PerformanceTest extends TestCase
             $page->place($template, $page->mediaBox(), Fit::entire());
             $page->place($photo, Box::fromMm(150.0, 270.0, 45.0, 20.0), Fit::meet());
             $page->fitTextflow(
-                $doc->textflow("<p style=\"h2\">Page {$pages}</p>", 'body'),
+                $doc->textflow("<p style=\"h2\">Page {$pages}</p>", 'body', TextFormat::Markup),
                 Box::fromMm(15.0, 268.0, 100.0, 12.0),
             );
             $table = new Table([Column::mm(30.0), Column::auto(), Column::mm(25.0)], null, 'body');

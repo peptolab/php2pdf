@@ -83,7 +83,7 @@ For two columns on each page, drive the loop yourself: fit the left box, and whe
 
 ```php
 $page = $doc->addPage(PageSize::A4);
-$page->fitTextflow($doc->textflow('<p style="h1">Quarterly report</p>'), Box::fromMm(20, 260, 170, 20));
+$page->fitTextflow($doc->textflow('<p style="h1">Quarterly report</p>', null, TextFormat::Markup), Box::fromMm(20, 260, 170, 20));
 $page->place($doc->svg('chart.svg'), Box::fromMm(20, 180, 170, 70), Fit::meet(Position::topLeft()));
 $page->fitTable($table, Box::fromMm(20, 20, 170, 150));
 if (! $table->isDone()) {

@@ -454,21 +454,22 @@ final class Document
     }
 
     /**
-     * Creates a Textflow from marked-up text (see MarkupParser) or plain text.
+     * Creates a Textflow from plain text (the default) or from marked-up text (see TextFormat and
+     * Markup::escape() for interpolating data into markup).
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
      */
     public function textflow(
         string $text,
         TextStyle|string|null $style = null,
-        TextFormat $format = TextFormat::Markup,
+        TextFormat $format = TextFormat::Plain,
         array $hyphenators = [],
     ): Textflow {
         $this->assertOpen();
 
-        return TextFormat::Markup === $format
-            ? Textflow::fromMarkup($this, $text, $style, $hyphenators)
-            : Textflow::fromText($this, $text, $style, $hyphenators);
+        return TextFormat::Plain === $format
+            ? Textflow::fromText($this, $text, $style, $hyphenators)
+            : Textflow::fromMarkup($this, $text, $style, $hyphenators, $format);
     }
 
     /** @internal */

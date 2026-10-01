@@ -77,10 +77,11 @@ final class Textflow implements FlowableInterface
         string $markup,
         TextStyle|string|null $style = null,
         array $hyphenators = [],
+        TextFormat $format = TextFormat::Markup,
     ): self {
         $resolver = new StyleResolver($document);
         $base     = $resolver->named($style) ?? new TextStyle();
-        $parser   = new MarkupParser($resolver, $base);
+        $parser   = new MarkupParser($resolver, $base, $format);
         $parsed   = $parser->parse($markup);
 
         return self::fromParagraphs($resolver, $base, new Itemiser($hyphenators), $parsed);

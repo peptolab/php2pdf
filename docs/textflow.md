@@ -5,8 +5,8 @@ and remembers where it stopped; you decide where the rest goes: another column, 
 a different template.
 
 ```php
-$flow = $doc->textflow($markup, 'body');                 // markup (default)
-$flow = $doc->textflow($plain, 'body', TextFormat::Plain);
+$flow = $doc->textflow($plain, 'body');                       // plain text (default)
+$flow = $doc->textflow($markup, 'body', TextFormat::Markup);   // inline markup
 do {
     $page   = $doc->addPage(PageSize::A4);
     $result = $page->fitTextflow($flow, Box::fromMm(15, 20, 85, 250));
@@ -18,6 +18,14 @@ do {
 
 `Document::flow($flow, $boxes, $makePage)` runs that loop for you (see
 [tables.md](tables.md)).
+
+Plain text is printed exactly as given. Markup is opt-in: put application data into markup with
+`Markup::escape()`, so a name like `Tom <Jerry>` or `R&amp;D` is not read as a tag or an entity.
+`TextFormat::Markup` drops tags it does not know; `TextFormat::StrictMarkup` throws instead.
+
+```php
+$flow = $doc->textflow('<p style="h2">' . Markup::escape($client->name) . '</p>', 'body', TextFormat::Markup);
+```
 
 ## Styles
 

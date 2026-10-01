@@ -6,12 +6,15 @@ namespace PhpPdf\Text\Flow;
 
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Text\Style\TextStyle;
+use PhpPdf\Text\TextFormat;
 
 use function array_splice;
 use function count;
 use function html_entity_decode;
+use function in_array;
 use function preg_match;
 use function preg_split;
+use function sprintf;
 use function str_contains;
 use function str_ends_with;
 use function str_replace;
@@ -33,6 +36,8 @@ use const PREG_SPLIT_DELIM_CAPTURE;
  */
 final class MarkupParser
 {
+    private const array TAGS = ['p', 'br', 'tab', 'columnbreak', 'pagebreak', 'span', 'b', 'i', 'u', 's', 'sup', 'sub'];
+
     /** @var list<array{style: ?TextStyle, spans: list<array{0: string, 1: TextStyle}>, breaks: list<array{0: int, 1: ItemKind}>}> */
     private array $paragraphs = [];
 
@@ -51,9 +56,11 @@ final class MarkupParser
 
     private bool $inParagraph = false;
 
+    /** @param TextFormat $format StrictMarkup makes an unknown tag an error */
     public function __construct(
         private readonly StyleResolver $resolver,
         private readonly TextStyle $base,
+        private readonly TextFormat $format = TextFormat::Markup,
     ) {
         $this->current = $resolver->resolve($base);
     }
@@ -197,19 +204,23 @@ final class MarkupParser
         $m       = [];
         $style   = preg_match('/style\s*=\s*["\']([^"\']*)["\']/i', $inner, $m) === 1 ? $m[1] ?? null : null;
 
+        if (! in_array($name, self::TAGS, strict: true)) {
+            $this->unknown($tag);
+
+            return;
+        }
         if ($closing) {
             $this->close($name);
 
             return;
         }
         match ($name) {
-            'p'                                      => $this->openParagraph($style),
-            'br'                                     => $this->break(ItemKind::LineBreak),
-            'tab'                                    => $this->break(ItemKind::Tab),
-            'columnbreak'                            => $this->break(ItemKind::ColumnBreak),
-            'pagebreak'                              => $this->break(ItemKind::PageBreak),
-            'span', 'b', 'i', 'u', 's', 'sup', 'sub' => $this->open($name, $style),
-            default                                  => null,
+            'p'           => $this->openParagraph($style),
+            'br'          => $this->break(ItemKind::LineBreak),
+            'tab'         => $this->break(ItemKind::Tab),
+            'columnbreak' => $this->break(ItemKind::ColumnBreak),
+            'pagebreak'   => $this->break(ItemKind::PageBreak),
+            default       => $this->open($name, $style),
         };
     }
 
@@ -233,5 +244,13 @@ final class MarkupParser
             return;
         }
         $this->spans[] = [str_replace("\n", replace: ' ', subject: $text), $this->current];
+    }
+
+    /** An unknown tag is dropped, or an error in strict markup. */
+    private function unknown(string $tag): void
+    {
+        if (TextFormat::StrictMarkup === $this->format) {
+            throw new PdfException(sprintf('Unknown tag %s in text markup; escape text with Markup::escape().', $tag));
+        }
     }
 }

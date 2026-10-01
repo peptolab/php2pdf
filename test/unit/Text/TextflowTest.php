@@ -15,6 +15,7 @@ use PhpPdf\Geometry\Box;
 use PhpPdf\Text\FlowOptions;
 use PhpPdf\Text\FlowResult;
 use PhpPdf\Text\Hyphenation\Hyphenator;
+use PhpPdf\Text\Markup;
 use PhpPdf\Text\Style\Alignment;
 use PhpPdf\Text\Style\Leading;
 use PhpPdf\Text\Style\TabStop;
@@ -22,6 +23,7 @@ use PhpPdf\Text\Style\TextStyle;
 use PhpPdf\Text\Textflow;
 use PhpPdf\Text\TextFormat;
 use PhpPdfTest\Support\PdfTools;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -37,6 +39,15 @@ final class TextflowTest extends TestCase
 {
     private MemoryOutput $out;
     private Document $doc;
+
+    /** @return array<string, array{0: string}> */
+    public static function unknownTagProvider(): array
+    {
+        return [
+            'opening' => ['<p>Tom <Jerry></p>'],
+            'closing' => ['<p>Tom </jerry></p>'],
+        ];
+    }
 
     private static function num(float $v): string
     {
@@ -103,10 +114,27 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function documentTextflowsTakePlainTextByDefault(): void
+    {
+        $flow = $this->doc->textflow('Tom <Jerry> & R&amp;D Ltd', 'body');
+
+        self::assertSame('Tom <Jerry> & R&amp;D Ltd', $flow->remainingText());
+    }
+
+    #[Test]
+    public function escapedDataRoundTripsThroughMarkup(): void
+    {
+        $data = 'Tom <Jerry> & R&amp;D Ltd';
+        $flow = $this->doc->textflow('<p>' . Markup::escape($data) . '</p>', 'body', TextFormat::Markup);
+
+        self::assertSame($data, $flow->remainingText());
+    }
+
+    #[Test]
     public function flowsAcrossBoxesAndReportsState(): void
     {
         $text = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 12);
-        $flow = $this->doc->textflow("<p>{$text}</p><p>Second paragraph.</p>", 'body');
+        $flow = $this->doc->textflow("<p>{$text}</p><p>Second paragraph.</p>", 'body', TextFormat::Markup);
         $page = $this->doc->addPage();
 
         $first = $page->fitTextflow($flow, new Box(50.0, 500.0, 200.0, 50.0));
@@ -137,7 +165,11 @@ final class TextflowTest extends TestCase
             alignment: Alignment::Justify,
             lastLineAlignment: Alignment::Right,
         );
-        $flow = $this->doc->textflow('<p>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn</p>', $style);
+        $flow = $this->doc->textflow(
+            '<p>aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn</p>',
+            $style,
+            TextFormat::Markup,
+        );
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 120.0, 200.0));
         $this->doc->close();
         $pdf = $this->out->contents();
@@ -158,9 +190,17 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function markupDropsUnknownTags(): void
+    {
+        $flow = $this->doc->textflow('<p>Tom <jerry>and</jerry> friends</p>', 'body', TextFormat::Markup);
+
+        self::assertSame('Tom and friends', $flow->remainingText());
+    }
+
+    #[Test]
     public function measuresWithoutPlacing(): void
     {
-        $flow   = $this->doc->textflow('<p>Line one</p><p>Line two</p>', 'body');
+        $flow   = $this->doc->textflow('<p>Line one</p><p>Line two</p>', 'body', TextFormat::Markup);
         $height = $flow->measure(300.0);
 
         self::assertEqualsWithDelta(
@@ -180,7 +220,7 @@ final class TextflowTest extends TestCase
             size: 10.0,
             tabs: [TabStop::right(100.0), TabStop::decimal(180.0)],
         );
-        $flow = $this->doc->textflow('<p>a<tab>bb<tab>12.5</p>', $style);
+        $flow = $this->doc->textflow('<p>a<tab>bb<tab>12.5</p>', $style, TextFormat::Markup);
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 300.0, 100.0));
         $this->doc->close();
         $pdf = $this->out->contents();
@@ -218,7 +258,7 @@ final class TextflowTest extends TestCase
     #[Test]
     public function reportsEmptyBoxesAndPageBreaks(): void
     {
-        $flow = $this->doc->textflow('<p>One</p><pagebreak><p>Two</p>', 'body');
+        $flow = $this->doc->textflow('<p>One</p><pagebreak><p>Two</p>', 'body', TextFormat::Markup);
         $page = $this->doc->addPage();
 
         self::assertSame(FlowResult::BoxEmpty, $page->fitTextflow($flow, new Box(0.0, 0.0, 100.0, 3.0)));
@@ -232,7 +272,7 @@ final class TextflowTest extends TestCase
     public function requiresAFont(): void
     {
         $this->expectException(PdfException::class);
-        $this->doc->textflow('<p>No font</p>')->measure(100.0);
+        $this->doc->textflow('<p>No font</p>', null, TextFormat::Markup)->measure(100.0);
     }
 
     #[Test]
@@ -256,7 +296,7 @@ final class TextflowTest extends TestCase
     #[Test]
     public function shrinksToFit(): void
     {
-        $flow = $this->doc->textflow('<p>' . str_repeat('word ', times: 60) . '</p>', 'body');
+        $flow = $this->doc->textflow('<p>' . str_repeat('word ', times: 60) . '</p>', 'body', TextFormat::Markup);
         $box  = new Box(0.0, 0.0, 200.0, 60.0);
         self::assertSame(FlowResult::Done, $this->doc->addPage()->fitTextflow(
             $flow,
@@ -267,6 +307,24 @@ final class TextflowTest extends TestCase
         self::assertLessThan(1.0, $scale);
         self::assertGreaterThan(0.3, $scale);
         $this->doc->close();
+    }
+
+    #[Test]
+    public function strictMarkupAcceptsEveryKnownTag(): void
+    {
+        $markup = '<p>a <b>b</b> <i>i</i> <u>u</u> <s>s</s> x<sup>2</sup> H<sub>2</sub>O <span>s</span><br><tab>t</p><columnbreak><pagebreak>';
+        $flow   = $this->doc->textflow($markup, 'body', TextFormat::StrictMarkup);
+
+        self::assertStringStartsWith('a b i u s x2 H2O s', $flow->remainingText());
+    }
+
+    #[Test]
+    #[DataProvider('unknownTagProvider')]
+    public function strictMarkupRejectsUnknownTags(string $markup): void
+    {
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('Unknown tag');
+        $this->doc->textflow($markup, 'body', TextFormat::StrictMarkup);
     }
 
     #[Test]
