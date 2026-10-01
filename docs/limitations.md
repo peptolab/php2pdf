@@ -8,6 +8,8 @@ Known gaps, in rough order of how often they matter.
   Arabic, Indic and CJK vertical text are not supported.
 - **Variable fonts** draw their default instance only; named instances and axis values are not
   supported.
+- **Soft masks** (and SVG masks) are placed wrongly by macOS Preview inside artwork placed scaled or
+  moved; other readers follow the specification.
 - **Colour fonts**: COLR version 0 layers are drawn in colour; COLR version 1 paint graphs
   (gradients, transforms) are drawn in one colour, SVG glyphs from their outlines, and fonts with
   only bitmap glyphs (sbix, CBDT) cannot be used.

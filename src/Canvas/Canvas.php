@@ -31,6 +31,7 @@ use PhpPdf\Geometry\Box;
 use PhpPdf\Geometry\Matrix;
 use PhpPdf\Geometry\Origin;
 use PhpPdf\Table\Table;
+use PhpPdf\Template\Template;
 use PhpPdf\Text\FlowOptions;
 use PhpPdf\Text\Textflow;
 use PhpPdf\Text\TextlineOptions;
@@ -639,6 +640,24 @@ final class Canvas
     public function setOpacity(float $fill, ?float $stroke = null): self
     {
         return $this->extGState(['ca' => $fill, 'CA' => $stroke ?? $fill]);
+    }
+
+    /**
+     * Masks what is drawn next by a template's artwork, until restore(): by its luminosity, so
+     * white shows what is under it and black hides it, or by its opacity. The template is placed
+     * in the current user space, as if drawn with the identity matrix, and is made a
+     * transparency group; outside it everything is hidden.
+     */
+    public function setSoftMask(Template $mask, SoftMaskType $type = SoftMaskType::Luminosity): self
+    {
+        $this->document->assertOwns($mask->document(), 'A template');
+        $mask->asTransparencyGroup();
+
+        return $this->extGState(['SMask' => Dictionary::of([
+            'Type' => new Name('Mask'),
+            'S'    => new Name(SoftMaskType::Luminosity === $type ? 'Luminosity' : 'Alpha'),
+            'G'    => $mask->reference(),
+        ])]);
     }
 
     public function setStrokeColor(ColorInterface $color): self

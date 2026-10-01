@@ -65,6 +65,7 @@ final class Style
         'stop-opacity',
         'overflow',
         'mask',
+        'mask-type',
         'filter',
         'marker-start',
         'marker-mid',
@@ -315,6 +316,23 @@ final class Style
         };
     }
 
+    /** Whether a <mask> masks by alpha (mask-type="alpha") rather than luminance. */
+    public function maskAlpha(): bool
+    {
+        return 'alpha' === strtolower(trim($this->properties['mask-type'] ?? ''));
+    }
+
+    /** The id of the mask the element is drawn through, from mask: url(#id). */
+    public function maskId(): ?string
+    {
+        $m = [];
+        if (preg_match('/url\(\s*["\']?#([^"\')]+)["\']?\s*\)/', $this->properties['mask'] ?? '', $m) !== 1) {
+            return null;
+        }
+
+        return $m[1] ?? null;
+    }
+
     public function miterLimit(): float
     {
         $value = $this->properties['stroke-miterlimit'] ?? '4';
@@ -375,12 +393,12 @@ final class Style
         };
     }
 
-    /** Whether a feature this converter does not support is requested (mask, filter, markers). */
+    /** Whether a feature this converter does not support is requested (filter, markers). */
     /** @return list<string> */
     public function unsupported(): array
     {
         $out = [];
-        foreach (['mask', 'filter', 'marker-start', 'marker-mid', 'marker-end'] as $name) {
+        foreach (['filter', 'marker-start', 'marker-mid', 'marker-end'] as $name) {
             $value = strtolower(trim($this->properties[$name] ?? 'none'));
             if ('none' === $value || '' === $value) {
                 continue;

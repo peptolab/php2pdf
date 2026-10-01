@@ -34,8 +34,10 @@ Pure PHP, no extensions. It supports:
   in the document's registry (`$doc->fonts()->addSearchPath(...)`); generic and unknown families
   use the converter's fallback font, and without one such text is skipped.
 
-Masks, filters, patterns, markers, `<textPath>`, `<foreignObject>` and stroked text are
-skipped. `NativeConverter::warnings()` lists what the last conversion left out.
+Masks (`<mask>`, by luminance or `mask-type="alpha"`, with `maskUnits` and `maskContentUnits`)
+become soft masks; macOS Preview draws them in the wrong place in placed artwork (see
+[canvas.md](canvas.md)). Filters, patterns, markers, `<textPath>`, `<foreignObject>` and stroked text
+are skipped. `NativeConverter::warnings()` lists what the last conversion left out.
 
 ## The rsvg-convert adapter
 

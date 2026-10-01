@@ -73,6 +73,12 @@ final class Template implements PlaceableInterface, DeferredInterface
         return $this->canvas;
     }
 
+    /** @internal */
+    public function document(): Document
+    {
+        return $this->document;
+    }
+
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {

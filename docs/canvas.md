@@ -73,6 +73,23 @@ shadings only pad, so give the stretch of the vector to cover, in lengths of the
 $g = new LinearGradient(0, 0, 200, 0, $stops, spread: GradientSpread::Repeat, from: -1, to: 4);
 ```
 
+## Soft masks
+
+A template's artwork can mask what is drawn after it, until `restore()`: by its luminosity, so
+white shows and black hides, or by its opacity. The template lies in the current user space and
+is made a transparency group; outside its artwork everything is hidden.
+
+```php
+$fade = $doc->template(new Dimensions(200, 100));
+$fade->canvas()->setFillGradient(new LinearGradient(0, 0, 200, 0, [new GradientStop(0, Gray::white()), new GradientStop(1, Gray::black())]))->rect(0, 0, 200, 100)->fill();
+
+$c->save()->setSoftMask($fade)->place($photo, new Box(0, 0, 200, 100), Fit::slice());
+$c->restore();
+```
+
+macOS Preview places soft masks wrongly inside artwork that is itself placed scaled or moved (it
+applies that placement twice); Acrobat, poppler and Ghostscript follow the PDF specification.
+
 ## Text at a position
 
 ```php

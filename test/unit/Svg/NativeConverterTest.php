@@ -117,7 +117,7 @@ final class NativeConverterTest extends TestCase
         self::assertStringContainsString('W n', $pdf);
         self::assertSame(2, substr_count($pdf, needle: '0 0.502 0 rg'));
         self::assertStringContainsString('1 0.6471 0 rg', $pdf);
-        self::assertSame(['mask'], $converter->warnings());
+        self::assertSame([], $converter->warnings(), 'A mask that does not exist is ignored, as browsers do.');
     }
 
     /** A 64×48 image meets a 200×100 viewport at 133.3×100, leaving 66.7 to place it in. */

@@ -38,7 +38,6 @@ final class Renderer
         'metadata'       => true,
         'symbol'         => true,
         'marker'         => true,
-        'mask'           => true,
         'pattern'        => true,
         'filter'         => true,
         'script'         => true,
@@ -52,6 +51,8 @@ final class Renderer
     private readonly Painter $painter;
     private readonly TextRenderer $text;
     private readonly ClipBuilder $clips;
+
+    private readonly MaskBuilder $masks;
     private readonly ImageRenderer $images;
     private int $depth = 0;
 
@@ -67,6 +68,7 @@ final class Renderer
         $this->painter = new Painter($context);
         $this->text    = new TextRenderer($context, $this->painter);
         $this->clips   = new ClipBuilder($context);
+        $this->masks   = new MaskBuilder($context, $this->clips, $this->children(...));
         $this->images  = new ImageRenderer($context);
     }
 
@@ -143,6 +145,10 @@ final class Renderer
         if (! $transform->isIdentity()) {
             $canvas->concat($transform);
         }
+        $maskId = $style->maskId();
+        if (null !== $maskId) {
+            $this->masks->apply($canvas, $maskId, $element, $style);
+        }
         $opacity = $style->opacity();
         if ($opacity < 1.0) {
             $this->group($canvas, $element, $style, $opacity);
@@ -157,14 +163,7 @@ final class Renderer
     /** Draws the element's content into a transparency group and composites it with group opacity. */
     private function group(Canvas $canvas, Element $element, Style $style, float $opacity): void
     {
-        $group = $this->context
-            ->document
-            ->template(
-                new Dimensions(1.0, 1.0),
-                Origin::BottomLeft,
-                new Box(-self::HUGE, -self::HUGE, 2.0 * self::HUGE, 2.0 * self::HUGE),
-            )
-            ->asTransparencyGroup();
+        $group = $this->unboundedTemplate()->asTransparencyGroup();
         $this->content($group->canvas(), $element, $style);
         $canvas->setOpacity($opacity);
         $canvas->drawXObject($group->reference(), Matrix::identity());
@@ -199,6 +198,16 @@ final class Renderer
 
             return;
         }
+    }
+
+    /** A template drawn in the current user space, with room for anything drawn in it. */
+    private function unboundedTemplate(): Template
+    {
+        return $this->context->document->template(
+            new Dimensions(1.0, 1.0),
+            Origin::BottomLeft,
+            new Box(-self::HUGE, -self::HUGE, 2.0 * self::HUGE, 2.0 * self::HUGE),
+        );
     }
 
     private function use(Canvas $canvas, Element $use, Style $style): void
