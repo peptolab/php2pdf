@@ -8,16 +8,22 @@ use PhpPdf\Document\Dimensions;
 use PhpPdf\Geometry\Matrix;
 
 /**
- * Something the fit engine can place: an image, a template, an imported page.
+ * Something the fit engine can place: an image, a template, an imported page, SVG artwork, or
+ * artwork of your own. Implement it to draw with the canvas directly wherever boxes and fit
+ * methods are accepted (Canvas::place(), table cells, Textflow inline artwork).
  *
  * @api
  */
 interface PlaceableInterface
 {
     /**
-     * Draws the object so that its own space (origin bottom-left, y up, points) maps through $matrix.
+     * Draws the object so that its own space (origin bottom-left, y up, points, from 0,0 to the
+     * natural size) maps through $matrix. Wrap the drawing in save() and restore() and apply the
+     * matrix with concat():
      *
-     * @internal
+     *     $canvas->save()->concat($matrix);
+     *     $canvas->fillRect(0, 0, $size->width, $size->height);
+     *     $canvas->restore();
      *
      * @param Dimensions $size the natural size the placement was computed for
      */

@@ -40,3 +40,30 @@ orientations).
 
 Use `FitEngine::place($width, $height, $box, $fit, $origin)` directly to compute a placement
 without drawing.
+
+## Artwork of your own
+
+Anything implementing `PlaceableInterface` can be placed like an image or a template, in a box,
+a table cell or a line of text. `naturalSize()` gives its size in points and `drawAt()` draws it
+in its own space (origin bottom-left, y up) through the placement matrix:
+
+```php
+final class Swatch implements PlaceableInterface
+{
+    public function __construct(private ColorInterface $color) {}
+
+    public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
+    {
+        $canvas->save()->concat($matrix);
+        $canvas->setFillColor($this->color)->fillRect(0, 0, $size->width, $size->height);
+        $canvas->restore();
+    }
+
+    public function naturalSize(?float $dpi = null): Dimensions
+    {
+        return new Dimensions(20, 10);
+    }
+}
+
+$page->place(new Swatch(Cmyk::fromPercent(0, 60, 100, 0)), $box, Fit::meet());
+```
