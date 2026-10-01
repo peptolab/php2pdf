@@ -28,7 +28,8 @@ Under construction. See the build plan for phases; the current state is:
 
 The guides in [`docs/`](docs/README.md) cover installation, documents and pages, the canvas,
 fonts and text, images, the fit engine, templates and PDF import, SVG, Textflow, tables, links
-and PDF/X-4, a cookbook, limitations and development.
+and PDF/X-4, a cookbook, limitations and development. Moving from PDFlib? See
+[Coming from PDFlib](docs/coming-from-pdflib.md).
 
 ## Quick look
 
