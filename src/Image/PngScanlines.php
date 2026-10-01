@@ -7,17 +7,20 @@ namespace PhpPdf\Image;
 use PhpPdf\Exception\PdfException;
 
 use function abs;
+use function array_fill;
 use function chr;
 use function count;
+use function implode;
 use function intdiv;
+use function ksort;
 use function max;
 use function ord;
 use function pack;
 use function sprintf;
-use function str_repeat;
+use function str_split;
 use function strlen;
+use function strtr;
 use function substr;
-use function substr_replace;
 use function unpack;
 
 /**
@@ -65,7 +68,7 @@ final class PngScanlines
         }
 
         $pixelBytes = max(1, $channels * ($bitDepth > 8 ? 2 : 1));
-        $image      = str_repeat("\0", max(0, $width * $height * $pixelBytes));
+        $slots      = array_fill(0, max(0, $height), value: []);
         $offset     = 0;
         foreach (self::PASSES as [$x0, $y0, $dx, $dy]) {
             if ($x0 >= $width || $y0 >= $height) {
@@ -84,18 +87,18 @@ final class PngScanlines
             );
             $rows   = self::expand($rows, $passWidth, $passHeight, $bitDepth, $channels, $factor);
             $offset += $passLength;
+            $stride = $passWidth * $pixelBytes;
             for ($y = 0; $y < $passHeight; ++$y) {
-                $target = ($y0 + ($y * $dy)) * $width;
-                $source = $y * $passWidth * $pixelBytes;
-                for ($x = 0; $x < $passWidth; ++$x) {
-                    $image = substr_replace(
-                        $image,
-                        substr($rows, $source + ($x * $pixelBytes), $pixelBytes),
-                        ($target + $x0 + ($x * $dx)) * $pixelBytes,
-                        $pixelBytes,
-                    );
+                $target = $y0 + ($y * $dy);
+                foreach (str_split(substr($rows, $y * $stride, $stride), $pixelBytes) as $x => $pixel) {
+                    $slots[$target][$x0 + ($x * $dx)] = $pixel;
                 }
             }
+        }
+        $image = '';
+        foreach ($slots as $row) {
+            ksort($row);
+            $image .= implode('', $row);
         }
 
         return $image;
@@ -169,19 +172,34 @@ final class PngScanlines
         }
         $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
         $samples  = $width * $channels;
-        $perByte  = intdiv(8, $bitDepth);
-        $mask     = (1 << $bitDepth) - 1;
+        $table    = self::expansionTable($bitDepth, $factor);
         $out      = '';
         for ($y = 0; $y < $height; ++$y) {
-            $row = substr($rows, $y * $rowBytes, $rowBytes);
-            for ($i = 0; $i < $samples; ++$i) {
-                $byte  = ord($row[intdiv($i, $perByte)]);
-                $shift = 8 - ($bitDepth * (($i % $perByte) + 1));
-                $out   .= chr((($byte >> $shift) & $mask) * $factor);
-            }
+            $out .= substr(strtr(substr($rows, $y * $rowBytes, $rowBytes), $table), offset: 0, length: $samples);
         }
 
         return $out;
+    }
+
+    /**
+     * Each possible byte mapped to its sub-byte samples, one byte per sample, multiplied by $factor.
+     *
+     * @return array<string, string>
+     */
+    private static function expansionTable(int $bitDepth, int $factor): array
+    {
+        $perByte = intdiv(8, $bitDepth);
+        $mask    = (1 << $bitDepth) - 1;
+        $table   = [];
+        for ($byte = 0; $byte < 256; ++$byte) {
+            $samples = '';
+            for ($i = 0; $i < $perByte; ++$i) {
+                $samples .= chr((($byte >> (8 - ($bitDepth * ($i + 1)))) & $mask) * $factor);
+            }
+            $table[chr($byte)] = $samples;
+        }
+
+        return $table;
     }
 
     /**

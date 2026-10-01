@@ -17,8 +17,10 @@ use function in_array;
 use function intdiv;
 use function max;
 use function ord;
+use function preg_replace;
 use function sprintf;
 use function str_pad;
+use function str_repeat;
 use function str_split;
 use function str_starts_with;
 use function strlen;
@@ -266,7 +268,8 @@ final class PngDecoder
 
     /**
      * Separates colour samples from alpha. Returns the colour bytes (8-bit when alpha is present,
-     * otherwise the native depth) and the 8-bit alpha mask when there is one.
+     * otherwise the native depth) and the 8-bit alpha mask when there is one. Interleaved samples
+     * are split with one regular expression per output, keeping the high byte of 16-bit samples.
      *
      * @return array{0: string, 1: string|null}
      */
@@ -279,18 +282,17 @@ final class PngDecoder
             return [$samples, null];
         }
 
-        // Interleaved colour and alpha; keep the high byte of 16-bit samples.
         $colorChannels = $channels - 1;
-        $pixelBytes    = $channels * $bytes;
-        $color         = '';
-        $alpha         = '';
-        $count         = intdiv(strlen($samples), $pixelBytes);
-        for ($i = 0; $i < $count; ++$i) {
-            $base = $i * $pixelBytes;
-            for ($c = 0; $c < $colorChannels; ++$c) {
-                $color .= $samples[$base + ($c * $bytes)];
-            }
-            $alpha .= $samples[$base + ($colorChannels * $bytes)];
+        $sample        = '(.)' . str_repeat('.', max(0, $bytes - 1));
+        $pixel         = '/' . str_repeat($sample, max(1, $channels)) . '/s';
+        $colorGroups   = '';
+        for ($c = 1; $c <= $colorChannels; ++$c) {
+            $colorGroups .= "\${$c}";
+        }
+        $color = preg_replace($pixel, $colorGroups, $samples);
+        $alpha = preg_replace($pixel, "\${$channels}", $samples);
+        if (null === $color || null === $alpha) {
+            throw new PdfException('PNG alpha channel could not be separated.');
         }
 
         return [$color, $alpha];

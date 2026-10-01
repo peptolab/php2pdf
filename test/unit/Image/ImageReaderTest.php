@@ -15,14 +15,37 @@ use PHPUnit\Framework\TestCase;
 
 use function abs;
 use function chr;
+use function extension_loaded;
+use function gzcompress;
+use function imagealphablending;
+use function imagecolorallocatealpha;
+use function imagecreatetruecolor;
+use function imageinterlace;
+use function imagepng;
+use function imagesavealpha;
+use function imagesetpixel;
 use function intdiv;
+use function ob_get_clean;
+use function ob_start;
 use function ord;
+use function pack;
 use function str_repeat;
 use function strlen;
 use function substr;
 
 final class ImageReaderTest extends TestCase
 {
+    /** @return array<string, array{0: int, 1: int}> */
+    public static function interlaceSizeProvider(): array
+    {
+        return [
+            'one pixel'        => [1, 1],
+            'three by two'     => [3, 2],
+            'odd width'        => [97, 61],
+            'taller than wide' => [9, 40],
+        ];
+    }
+
     /** @return iterable<string, array{0: string, 1: string, 2: int, 3: int, 4: string, 5: string}> */
     public static function pngs(): iterable
     {
@@ -39,6 +62,21 @@ final class ImageReaderTest extends TestCase
         yield 'interlaced-rgb' => ['interlaced-rgb.png', 'DeviceRGB', 8, 3, 'opaque', 'decoded'];
         yield 'interlaced-rgba' => ['interlaced-rgba.png', 'DeviceRGB', 8, 3, 'smask', 'decoded'];
         yield 'interlaced-gray1' => ['interlaced-gray1.png', 'DeviceGray', 8, 1, 'opaque', 'decoded'];
+    }
+
+    /** A PNG from raw, already filtered scanlines. */
+    private static function png(int $width, int $height, int $depth, int $type, string $rows): string
+    {
+        $chunk = static fn(string $name, string $data): string => (
+            pack('N', strlen($data)) . $name . $data . pack('N', 0)
+        );
+
+        return (
+            "\x89PNG\r\n\x1A\n"
+                . $chunk('IHDR', pack('NNCCCCC', $width, $height, $depth, $type, 0, 0, 0))
+                . $chunk('IDAT', (string) gzcompress($rows))
+                . $chunk('IEND', data: '')
+        );
     }
 
     private static function read(string $name): ImageData
@@ -93,6 +131,42 @@ final class ImageReaderTest extends TestCase
         $reference  = self::unfilterReference(Flate::decode($plain->data), 64, 48, 3);
 
         self::assertSame($reference, $decoded);
+    }
+
+    #[Test]
+    #[DataProvider('interlaceSizeProvider')]
+    public function interlacedImagesDecodeLikeTheirNonInterlacedTwins(int $width, int $height): void
+    {
+        if (! extension_loaded('gd')) {
+            self::markTestSkipped('ext-gd is needed to write interlaced test images.');
+        }
+        $image = imagecreatetruecolor($width, $height);
+        self::assertNotFalse($image);
+        imagealphablending($image, enable: false);
+        imagesavealpha($image, enable: true);
+        for ($y = 0; $y < $height; ++$y) {
+            for ($x = 0; $x < $width; ++$x) {
+                $color = imagecolorallocatealpha(
+                    $image,
+                    ($x * 7) % 256,
+                    ($y * 11) % 256,
+                    ($x + $y) % 256,
+                    ($x + $y) % 128,
+                );
+                imagesetpixel($image, $x, $y, (int) $color);
+            }
+        }
+        $png = static function (bool $interlace) use ($image): string {
+            imageinterlace($image, $interlace);
+            ob_start();
+            imagepng($image);
+
+            return (string) ob_get_clean();
+        };
+        $interlaced = ImageReader::read($png(true));
+        $plain      = ImageReader::read($png(false));
+
+        self::assertSame([$plain->data, $plain->softMask], [$interlaced->data, $interlaced->softMask]);
     }
 
     #[Test]
@@ -168,5 +242,17 @@ final class ImageReaderTest extends TestCase
     {
         $this->expectException(PdfException::class);
         ImageReader::read("\xFF\xD8\xFF\xE0garbage");
+    }
+
+    #[Test]
+    public function sixteenBitAlphaKeepsTheHighBytes(): void
+    {
+        $row  = "\0\x12\x34\x56\x78\x9A\xBC\xDE\xF0\x01\x02\x03\x04\x05\x06\x07\x08";
+        $data = ImageReader::read(self::png(2, 1, 16, 6, $row));
+
+        self::assertSame(
+            ["\x12\x56\x9A\x01\x03\x05", "\xDE\x07"],
+            [Flate::decode($data->data), $data->softMask],
+        );
     }
 }
