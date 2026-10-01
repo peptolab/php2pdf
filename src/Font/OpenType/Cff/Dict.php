@@ -8,12 +8,18 @@ use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\BinaryReader;
 
+use function abs;
 use function chr;
 use function count;
+use function floor;
+use function hex2bin;
 use function implode;
+use function is_int;
 use function is_numeric;
 use function pack;
+use function rtrim;
 use function sprintf;
+use function str_split;
 use function strlen;
 use function substr;
 
@@ -88,6 +94,29 @@ final class Dict
         return "\x1D" . pack('N', $value & 0xFFFF_FFFF);
     }
 
+    /** A number in the shortest DICT encoding: an integer, or a real as packed nibbles. */
+    public static function number(int|float $value): string
+    {
+        if (is_int($value) || (floor($value) === $value && abs($value) < 2_147_483_648)) {
+            return self::int((int) $value);
+        }
+        $text    = rtrim(rtrim(sprintf('%.8F', $value), characters: '0'), characters: '.');
+        $nibbles = '';
+        foreach (str_split($text) as $char) {
+            $nibbles .= match ($char) {
+                '.'     => 'a',
+                '-'     => 'e',
+                default => $char,
+            };
+        }
+        $nibbles .= 'f';
+        if (0 !== (strlen($nibbles) % 2)) {
+            $nibbles .= 'f';
+        }
+
+        return '' . (string) hex2bin($nibbles);
+    }
+
     /**
      * Parses DICT data.
      *
@@ -126,6 +155,42 @@ final class Dict
         }
 
         return $dict;
+    }
+
+    /**
+     * Splits DICT data into numbers and operators (escaped operators as 1200 + x), accepting the
+     * CFF2 operators vsindex (22), blend (23) and vstore (24).
+     *
+     * @return list<array{0: bool, 1: int|float}> whether the token is an operator, and its value
+     *
+     * @throws PdfException when the data is malformed
+     */
+    public static function tokens(string $data): array
+    {
+        $reader = new BinaryReader($data);
+        $tokens = [];
+        $i      = 0;
+        while ($i < $reader->length) {
+            $b0 = $reader->u8($i);
+            if ($b0 <= 24) {
+                $tokens[] = [true, 12 === $b0 ? 1200 + $reader->u8($i + 1) : $b0];
+                $i        += 12 === $b0 ? 2 : 1;
+                continue;
+            }
+            [$value, $length] = match (true) {
+                28 === $b0 => [$reader->i16($i + 1), 3],
+                29 === $b0 => [$reader->i32($i + 1), 5],
+                30 === $b0 => self::readReal($reader, $i + 1),
+                $b0 >= 32 && $b0 <= 246 => [$b0 - 139, 1],
+                $b0 >= 247 && $b0 <= 250 => [(($b0 - 247) * 256) + $reader->u8($i + 1) + 108, 2],
+                $b0 >= 251 && $b0 <= 254 => [(-($b0 - 251) * 256) - $reader->u8($i + 1) - 108, 2],
+                default => throw new ParseException(sprintf('Invalid CFF DICT byte %d.', $b0)),
+            };
+            $tokens[] = [false, $value];
+            $i        += $length;
+        }
+
+        return $tokens;
     }
 
     /** A real-number nibble: 0-9, ".", "E", "E-" or "-". */

@@ -19,6 +19,11 @@ need, name-keyed and CID-keyed alike, and written as a bare CID-keyed CFF progra
 written as a Type0 font with Identity-H encoding and a ToUnicode map, so text copies and searches
 correctly.
 
+Variable fonts draw their default instance. TrueType ones (glyf outlines) carry it as their
+outlines already; for CFF2 ones the default instance is worked out from the blended outlines and
+embedded as an ordinary CFF subset, so every reader draws it. Other instances along the font's
+axes are not available yet.
+
 If a CFF font cannot be subset (for example, it builds accented glyphs with the deprecated
 `seac` form of `endchar`), it is embedded whole instead and a warning is recorded:
 

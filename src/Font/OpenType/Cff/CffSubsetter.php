@@ -41,7 +41,18 @@ final class CffSubsetter
      */
     public static function subset(string $cff, array $glyphIds): string
     {
-        $table = CffTable::parse($cff);
+        return self::subsetTable(CffTable::parse($cff), $glyphIds);
+    }
+
+    /**
+     * Subsets an already parsed table, such as a CFF2 font's default instance.
+     *
+     * @param array<int, true> $glyphIds the glyphs to keep; .notdef is always kept
+     *
+     * @throws PdfException when the CFF data cannot be subset
+     */
+    public static function subsetTable(CffTable $table, array $glyphIds): string
+    {
         $total = count($table->charStrings);
         $keep  = [0 => true];
         foreach (array_keys($glyphIds) as $gid) {

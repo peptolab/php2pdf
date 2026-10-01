@@ -14,6 +14,7 @@ use PhpPdf\Document\Document;
 use PhpPdf\Exception\ParseException;
 use PhpPdf\Exception\PdfException;
 use PhpPdf\Font\OpenType\Cff\CffSubsetter;
+use PhpPdf\Font\OpenType\Cff\CffTable;
 use PhpPdf\Font\OpenType\OpenTypeFont;
 use PhpPdf\Font\OpenType\TrueTypeSubsetter;
 
@@ -323,15 +324,23 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     /**
      * The CFF outlines subset to the glyphs used, or the whole font program when they cannot be
-     * subset; the font registry then records a warning.
+     * subset; the font registry then records a warning. A variable font's CFF2 outlines are
+     * converted to CFF at their default instance first; when that fails the font cannot be used,
+     * since few readers draw CFF2.
      */
     private function cffStream(Document $document): Reference
     {
         try {
-            $cff     = $this->program->table('CFF ') ?? throw new ParseException('The font has no CFF table.');
-            $data    = CffSubsetter::subset($cff, $this->used);
+            $data    = CffSubsetter::subsetTable($this->cffTable(), $this->used);
             $subtype = 'CIDFontType0C';
         } catch (PdfException $e) {
+            if (null === $this->program->table('CFF ')) {
+                throw new ParseException(sprintf(
+                    'Variable font "%s" cannot be embedded: its CFF2 outlines could not be converted: %s',
+                    $this->program->postScriptName(),
+                    $e->getMessage(),
+                ), previous: $e);
+            }
             $document->fonts()
                 ->warn(sprintf(
                     'Font "%s" is embedded whole because its CFF outlines could not be subset: %s',
@@ -343,6 +352,21 @@ final class Font implements PdfFontInterface, DeferredInterface
         }
 
         return $document->writer()->add(new Stream(Dictionary::of(['Subtype' => new Name($subtype)]), $data));
+    }
+
+    /**
+     * The font's CFF outlines: the CFF table, or a variable font's CFF2 outlines at their default
+     * instance.
+     */
+    private function cffTable(): CffTable
+    {
+        $cff = $this->program->table('CFF ');
+        if (null !== $cff) {
+            return CffTable::parse($cff);
+        }
+        $cff2 = $this->program->table('CFF2') ?? throw new ParseException('The font has no CFF or CFF2 table.');
+
+        return CffTable::fromCff2($cff2, $this->program->postScriptName());
     }
 
     private function flags(): int

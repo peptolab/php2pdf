@@ -59,7 +59,7 @@ final readonly class TableDirectory
             $tables[$name] = ['offset' => $offset, 'length' => $length];
         }
         $this->tables = $tables;
-        $this->isCff  = array_key_exists('CFF ', $tables);
+        $this->isCff  = array_key_exists('CFF ', $tables) || array_key_exists('CFF2', $tables);
     }
 
     /** @return array{offset: int, length: int} */

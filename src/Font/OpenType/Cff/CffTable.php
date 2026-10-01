@@ -51,6 +51,18 @@ final readonly class CffTable
         public bool $cidKeyed,
     ) {}
 
+    /**
+     * The default instance of a CFF2 table (a variable font's outlines), as a CID-keyed CFF font.
+     *
+     * @throws PdfException when the table is malformed
+     */
+    public static function fromCff2(string $data, string $name): self
+    {
+        [$top, $globalSubrs, $charStrings, $fonts, $fdSelect] = (new Cff2Reader($data))->read();
+
+        return new self($name, $top, $globalSubrs, $charStrings, $fonts, $fdSelect, true);
+    }
+
     /** @throws PdfException when the table is malformed or not a Type 2 charstring font */
     public static function parse(string $data): self
     {
