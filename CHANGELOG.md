@@ -47,7 +47,8 @@ The first release.
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and
   fixed-width Unicode spaces.
 - Justified paragraphs are composed whole (Knuth–Plass), evening their word spacing; `composer`
-  chooses per style.
+  chooses per style, and `justification` sets how far word spaces may shrink and stretch. A
+  justified line's spaces change in proportion to their own widths.
 - Links over Textflow text (`<a href>`, `->link()`), and matchboxes: the areas of marked text after a fit.
 - `fitTextline()` for single lines with fit methods.
 

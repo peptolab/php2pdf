@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Justification;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_pop;
@@ -16,7 +17,9 @@ use function preg_match;
 
 /**
  * Sets the items of a line: drops the spaces it ends with, adds the hyphen it breaks at, puts
- * the items in visual order, aligns or justifies them, and merges them into a run per style.
+ * the items in visual order, aligns or justifies them (its word spaces stretched or shrunk within
+ * their Justification limits, as the paragraph composer scored them), and merges them into a
+ * run per style.
  *
  * @internal
  */
@@ -58,18 +61,14 @@ final class LineAssembler
         [$alignment, $paragraphLevel] = $direction;
         $items   = BidiLine::visual($items, $paragraphLevel);
         $natural = 0.0;
-        $glues   = 0;
         $hasTab  = self::containsTab($items);
         foreach ($items as $item) {
             $natural += $item->width;
-            if (ItemKind::Glue === $item->kind) {
-                ++$glues;
-            }
         }
 
-        $justify      = ! $hasTab && Alignment::Justify === $alignment && $glues > 0;
-        $extraPerGlue = $justify ? ($available - $natural) / $glues : 0.0;
-        $shift        = $hasTab || $justify
+        $extras  = ! $hasTab && Alignment::Justify === $alignment ? self::spread($items, $available - $natural) : [];
+        $justify = [] !== $extras;
+        $shift   = $hasTab || $justify
             ? 0.0
             : match ($alignment) {
                 Alignment::Right  => $available - $natural,
@@ -77,7 +76,7 @@ final class LineAssembler
                 default           => 0.0,
             };
 
-        [$segments, $width, $inlines] = self::segments($items, $style, $extraPerGlue);
+        [$segments, $width, $inlines] = self::segments($items, $style, $extras);
         $metrics = LineMetrics::of($items, $style);
 
         return new Line(
@@ -152,11 +151,12 @@ final class LineAssembler
      * Merges consecutive items of one style into runs, folding justification into the space glyphs
      * and resolving tab positions.
      *
-     * @param list<Item> $items
+     * @param list<Item>        $items
+     * @param array<int, float> $extras the width each word space at an index gains (or loses)
      *
      * @return array{0: list<Segment>, 1: float, 2: list<array{0: float, 1: InlineObject}>}
      */
-    private static function segments(array $items, TextStyle $style, float $extraPerGlue): array
+    private static function segments(array $items, TextStyle $style, array $extras): array
     {
         $segments = [];
         $inlines  = [];
@@ -184,7 +184,6 @@ final class LineAssembler
                 ++$i;
                 continue;
             }
-            // Gather a run of items sharing this item's style.
             $runStyle = $item->style;
             $glyphs   = [];
             $width    = 0.0;
@@ -197,14 +196,15 @@ final class LineAssembler
                     $glyphs[] = $glyph;
                 }
                 $width += $current->width;
-                if (ItemKind::Glue === $current->kind && 0.0 !== $extraPerGlue) {
+                $extra = $extras[$i] ?? 0.0;
+                if (ItemKind::Glue === $current->kind && 0.0 !== $extra) {
                     $space = array_pop($glyphs);
                     if ($space instanceof Glyph) {
                         $scale    = ($runStyle->horizontalScale ?? 100.0) / 100.0;
-                        $adjust   = (($extraPerGlue / $scale) / $runStyle->fontSize()) * 1000.0;
+                        $adjust   = (($extra / $scale) / $runStyle->fontSize()) * 1000.0;
                         $glyphs[] = $space->withKerning($space->kerning + $adjust);
                     }
-                    $width += $extraPerGlue;
+                    $width += $extra;
                 }
                 ++$i;
             }
@@ -215,6 +215,41 @@ final class LineAssembler
         }
 
         return [$segments, $x, $inlines];
+    }
+
+    /**
+     * How a justified line shares its slack among its word spaces: each gains (or, on a line set
+     * tight, loses) in proportion to how far its style lets it stretch (or shrink), as the
+     * paragraph composer scored the line. None when the line has no space that may change.
+     *
+     * @param list<Item> $items
+     *
+     * @return array<int, float> the change to the word space at each index
+     */
+    private static function spread(array $items, float $missing): array
+    {
+        $flexibility = [];
+        $total       = 0.0;
+        foreach ($items as $k => $item) {
+            if (ItemKind::Glue !== $item->kind) {
+                continue;
+            }
+            $justification = $item->style->justification;
+            $fraction      = $missing >= 0.0
+                ? Justification::stretchOf($justification)
+                : Justification::shrinkOf($justification);
+            $flexibility[$k] = $item->spaceWidth() * $fraction;
+            $total           += $flexibility[$k];
+        }
+        if ($total <= 0.0) {
+            return [];
+        }
+        $extras = [];
+        foreach ($flexibility as $k => $flex) {
+            $extras[$k] = ($missing * $flex) / $total;
+        }
+
+        return $extras;
     }
 
     /**

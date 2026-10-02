@@ -40,6 +40,8 @@ final readonly class TextStyle
      * @param Composer|null                   $composer how a paragraph is broken into lines: the
      *                                                  paragraph composer for justified text and
      *                                                  line by line otherwise, unless set
+     * @param Justification|null              $justification how far justification may change
+     *                                                  word spaces: 80% to 133% unless set
      * @param TextDirection|null              $direction a paragraph's direction (Auto takes it
      *                                                   from its first letter with one); a
      *                                                   right-to-left paragraph aligns right
@@ -88,6 +90,7 @@ final readonly class TextStyle
         public ?string $match = null,
         public ?TextDirection $direction = null,
         public ?Composer $composer = null,
+        public ?Justification $justification = null,
     ) {}
 
     public function fontSize(): float

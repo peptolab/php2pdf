@@ -9,8 +9,11 @@ use Php2Pdf\Font\Glyph;
 use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\Line;
+use Php2Pdf\Text\Flow\LineAssembler;
 use Php2Pdf\Text\Flow\LineBreaker;
 use Php2Pdf\Text\Flow\Paragraph;
+use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\TextStyle;
 use Php2PdfTest\Trait\KerningFixtureTrait;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -126,6 +129,31 @@ final class LineBreakerTest extends TestCase
         self::assertSame(
             [$word, true, true],
             [implode('', $lines), count($lines) > 2, $items === $paragraph->items],
+        );
+    }
+
+    #[Test]
+    public function justificationStretchesEachSpaceByItsOwnWidth(): void
+    {
+        $large = $this->style->merge(new TextStyle(size: 20.0));
+        $items = (new Itemiser())->itemise([['aa bb ', $this->style], ['cc dd', $large]]);
+        $line  = LineAssembler::line($items, null, $this->style, [Alignment::Justify, 0], 0.0, 300.0, [0, 0], false);
+        $added = [];
+        foreach ($line->segments as $segment) {
+            foreach ($segment->run->glyphs as $glyph) {
+                if (0x20 !== $glyph->codePoint) {
+                    continue;
+                }
+                $added[] = $glyph->kerning;
+            }
+        }
+
+        self::assertSame(3, count($added));
+        self::assertEqualsWithDelta(
+            [$added[0] ?? 0.0, $added[0] ?? 0.0],
+            [$added[1] ?? 0.0, $added[2] ?? 0.0],
+            1.0e-9,
+            'Each space gains the same share of its own width, in thousandths of an em, whatever its size.',
         );
     }
 

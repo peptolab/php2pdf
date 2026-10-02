@@ -55,6 +55,23 @@ final readonly class Item
         );
     }
 
+    /**
+     * The width of a word space's glyphs at its size, without the kerning towards the word after
+     * it: what justification stretches and shrinks it by. The item's width for other items.
+     */
+    public function spaceWidth(): float
+    {
+        if (ItemKind::Glue !== $this->kind || null === $this->run) {
+            return $this->width;
+        }
+        $advance = 0;
+        foreach ($this->run->glyphs as $glyph) {
+            $advance += $glyph->advance;
+        }
+
+        return (($advance / 1000.0) * $this->style->fontSize() * ($this->style->horizontalScale ?? 100.0)) / 100.0;
+    }
+
     /** The same item at a bidi level. */
     public function withLevel(int $level): self
     {

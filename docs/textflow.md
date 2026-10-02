@@ -56,7 +56,10 @@ into lines).
 Justified paragraphs are composed whole, as InDesign's Paragraph Composer and TeX compose them:
 the breaks are chosen together so that no line's spaces are much wider or narrower than the
 others', rather than filling each line in turn. Word spaces may stretch to 133% and shrink to 80%
-of their width; hyphens, consecutive hyphens and a loose line next to a tight one cost more. Other
+of their width, or within a style's own `justification: new Justification(minWordSpacing: 85,
+maxWordSpacing: 120)`; hyphens, consecutive hyphens and a loose line next to a tight one cost
+more. A justified line shares its slack among its spaces in proportion to how far each may go,
+so with type of several sizes each space changes by the same share of its own width. Other
 alignments are set line by line. `composer: Composer::SingleLine` sets a justified paragraph line
 by line, and `Composer::Paragraph` composes ragged text too, which evens its rag. A paragraph with
 tabs, or a word wider than its lines, is set line by line.

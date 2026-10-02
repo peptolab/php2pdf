@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Text\Style\Justification;
+
 use function abs;
 use function array_reverse;
 use function min;
@@ -11,8 +13,8 @@ use function min;
 /**
  * Knuth and Plass's line breaking: chooses the breaks of a paragraph (up to its next forced
  * break) together, so that no line is much looser or tighter than the others, rather than filling
- * each line in turn. Word spaces stretch to 133% and shrink to 80% of their width, as InDesign's
- * default word spacing allows; lines are scored by how far their spaces are stretched or shrunk,
+ * each line in turn. Word spaces stretch and shrink within their style's Justification limits
+ * (133% and 80% of their width unless set, as InDesign's defaults); lines are scored by how far their spaces are stretched or shrunk,
  * with penalties for hyphens, consecutive hyphens and a loose line next to a tight one, as TeX
  * scores them. The last line is set at its natural width.
  *
@@ -20,10 +22,6 @@ use function min;
  */
 final class ParagraphComposer
 {
-    /** Word spaces' stretch and shrink, as fractions of their width. */
-    private const float STRETCH = 0.33;
-    private const float SHRINK  = 0.2;
-
     /** The tolerance of the first pass; the second accepts any line that is not too long. */
     private const float TOLERANCE = 200.0;
 
@@ -63,8 +61,8 @@ final class ParagraphComposer
             }
             $natural += $item->width;
             if (ItemKind::Glue === $item->kind) {
-                $stretch += $item->width * self::STRETCH;
-                $shrink  += $item->width * self::SHRINK;
+                $stretch += $item->spaceWidth() * Justification::stretchOf($item->style->justification);
+                $shrink  += $item->spaceWidth() * Justification::shrinkOf($item->style->justification);
             }
         }
     }
