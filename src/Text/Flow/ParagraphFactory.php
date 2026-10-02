@@ -8,7 +8,7 @@ use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\Bidi\Bidi;
 use Php2Pdf\Font\Bidi\BidiRuns;
-use Php2Pdf\Font\TextDirection;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_slice;
@@ -46,7 +46,7 @@ final readonly class ParagraphFactory
         foreach ($spans as [$spanText]) {
             $text .= $spanText;
         }
-        $direction = $style->direction ?? TextDirection::Auto;
+        $direction = ParagraphFormat::of($style)->direction;
         if (! BidiRuns::needed($text, $direction)) {
             return [[], 0];
         }

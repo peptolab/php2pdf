@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Text\FirstBaseline;
 use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Style\ParagraphFormat;
 
 use function array_slice;
 use function count;
@@ -99,7 +100,7 @@ final class Layout
         if ([] === $lines) {
             return [];
         }
-        $widows = $paragraph->style->widows ?? 2;
+        $widows = ParagraphFormat::of($paragraph->style)->widows;
         [$placed, $carry] = self::advance($lines, $this->carry);
         $remaining = $this->countRemainingLines($paragraph, $this->itemIndex + $placed, $carry, $widows);
         $keep      = count($lines) - max(0, $widows - $remaining);
@@ -201,7 +202,7 @@ final class Layout
         if (null === $line) {
             return true;
         }
-        $baseline = $this->y + ($next->style->spaceBefore ?? 0.0) + $line->lineHeight;
+        $baseline = $this->y + ParagraphFormat::of($next->style)->spaceBefore + $line->lineHeight;
 
         return ($baseline + $line->descent) <= ($this->boxHeight + 1.0e-6);
     }
@@ -217,7 +218,7 @@ final class Layout
         $atTop    = [] === $this->lines;
         $yStart   = $this->y;
         if ($starting && ! $atTop) {
-            $this->y += $style->spaceBefore ?? 0.0;
+            $this->y += ParagraphFormat::of($style)->spaceBefore;
         }
         $run = $this->breakLines($paragraph);
         if (null !== $run->stop) {
@@ -229,12 +230,12 @@ final class Layout
         if (count($paragraph->items) === ($this->itemIndex + $run->consumed)) {
             return $this->placeWhole($paragraph, $run, $yStart, $carry);
         }
-        $keepAll = ! $atTop && $starting && true === $style->keepTogether;
+        $keepAll = ! $atTop && $starting && ParagraphFormat::of($style)->keepTogether;
 
         return $this->placePart(
             $paragraph,
             $keepAll ? [] : $run->lines,
-            $starting && ! $atTop ? $style->orphans ?? 2 : 0,
+            $starting && ! $atTop ? ParagraphFormat::of($style)->orphans : 0,
             $yStart,
         );
     }
@@ -268,11 +269,11 @@ final class Layout
         $style = $paragraph->style;
         $atTop = [] === $this->lines;
         $this->commit($run->lines);
-        $this->y += $style->spaceAfter ?? 0.0;
+        $this->y += ParagraphFormat::of($style)->spaceAfter;
         ++$this->paragraphIndex;
         $this->itemIndex = 0;
         $this->carry     = 0;
-        if (true === $style->keepWithNext && ! $atTop && ! $this->nextParagraphStarts()) {
+        if (ParagraphFormat::of($style)->keepWithNext && ! $atTop && ! $this->nextParagraphStarts()) {
             $this->rollBack($paragraph, $run, $yStart, $carry);
 
             return FlowResult::BoxFull;

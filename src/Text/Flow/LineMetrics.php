@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function max;
@@ -26,13 +27,14 @@ final class LineMetrics
     public static function of(array $items, TextStyle $style): array
     {
         $font    = StyleResolver::fontOf($style);
-        $size    = $style->fontSize();
+        $format  = CharFormat::of($style);
+        $size    = $format->size;
         $metrics = [
             'ascent'     => $font->ascender($size),
             'descent'    => -$font->descender($size),
             'capHeight'  => $font->capHeight($size),
             'xHeight'    => $font->xHeight($size),
-            'lineHeight' => $style->lineHeight(),
+            'lineHeight' => $format->lineHeight,
         ];
         $measured  = null;
         $artTop    = 0.0;
@@ -48,11 +50,12 @@ final class LineMetrics
             }
             $measured              = $item->style;
             $f                     = StyleResolver::fontOf($item->style);
-            $s                     = $item->style->fontSize();
-            $rise                  = $item->style->rise ?? 0.0;
+            $itemFormat            = $item->format;
+            $s                     = $itemFormat->size;
+            $rise                  = $itemFormat->rise;
             $metrics['ascent']     = max($metrics['ascent'], $f->ascender($s) + $rise);
             $metrics['descent']    = max($metrics['descent'], -$f->descender($s) - $rise);
-            $metrics['lineHeight'] = max($metrics['lineHeight'], $item->style->lineHeight());
+            $metrics['lineHeight'] = max($metrics['lineHeight'], $itemFormat->lineHeight);
         }
 
         $above                 = max(0.0, $artTop - $metrics['ascent']);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function mb_ord;
@@ -32,7 +33,7 @@ final class FontRuns
     {
         $out = [];
         foreach ($spans as [$text, $style]) {
-            $fallback = $style->fallback ?? [];
+            $fallback = CharFormat::of($style)->fallback;
             if ([] === $fallback) {
                 $out[] = [$text, $style];
                 continue;

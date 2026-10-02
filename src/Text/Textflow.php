@@ -27,6 +27,7 @@ use Php2Pdf\Text\Flow\ParagraphSource;
 use Php2Pdf\Text\Flow\StyleResolver;
 use Php2Pdf\Text\Flow\TextflowBuilder;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Style\VerticalAlignment;
 
@@ -81,7 +82,7 @@ final class Textflow implements FlowableInterface
         TextStyle|string|null $style = null,
         array $hyphenators = [],
     ): TextflowBuilder {
-        $resolver = new StyleResolver($context);
+        $resolver = StyleResolver::for($context);
 
         return new TextflowBuilder($resolver, $resolver->named($style) ?? new TextStyle(), new Itemiser($hyphenators));
     }
@@ -101,7 +102,7 @@ final class Textflow implements FlowableInterface
         array $hyphenators = [],
         TextFormat $format = TextFormat::Markup,
     ): self {
-        $resolver = new StyleResolver($context);
+        $resolver = StyleResolver::for($context);
         $base     = $resolver->named($style) ?? new TextStyle();
         $parser   = new MarkupParser($resolver, $base, $format);
         $parsed   = $parser->parse($markup);
@@ -231,7 +232,7 @@ final class Textflow implements FlowableInterface
     {
         $max = 0.0;
         foreach ($this->remainingParagraphs() as $paragraph) {
-            $line = $paragraph->style->leftIndent ?? 0.0;
+            $line = ParagraphFormat::of($paragraph->style)->leftIndent;
             foreach ($paragraph->items as $item) {
                 if ($item->isForcedBreak()) {
                     $max  = max($max, $line);
@@ -240,7 +241,7 @@ final class Textflow implements FlowableInterface
                 }
                 $line += $item->width;
             }
-            $max = max($max, $line + ($paragraph->style->rightIndent ?? 0.0));
+            $max = max($max, $line + ParagraphFormat::of($paragraph->style)->rightIndent);
         }
 
         return $max;
@@ -267,7 +268,8 @@ final class Textflow implements FlowableInterface
     {
         $min = 0.0;
         foreach ($this->remainingParagraphs() as $paragraph) {
-            $indent = ($paragraph->style->leftIndent ?? 0.0) + ($paragraph->style->rightIndent ?? 0.0);
+            $format = ParagraphFormat::of($paragraph->style);
+            $indent = $format->leftIndent + $format->rightIndent;
             $word   = 0.0;
             foreach ($paragraph->items as $item) {
                 if (ItemKind::Box === $item->kind || ItemKind::Inline === $item->kind) {

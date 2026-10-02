@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\FlowOptions;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 use WeakMap;
 
@@ -78,8 +79,9 @@ final class CopyFitter
     private static function scaledItem(Item $item, TextStyle $style): Item
     {
         $font    = StyleResolver::fontOf($style);
-        $size    = $style->fontSize();
-        $options = $style->textOptions();
+        $format  = CharFormat::of($style);
+        $size    = $format->size;
+        $options = $format->textOptions;
         $hyphen  = $item->hyphenRun;
 
         $scaled = match (true) {
@@ -91,7 +93,7 @@ final class CopyFitter
                 $font->width($item->run, $size, $options),
             ),
             null !== $item->inline => Item::inline(
-                $item->inline->scaled($style->fontSize() / $item->style->fontSize()),
+                $item->inline->scaled($size / CharFormat::of($item->style)->size),
                 $style,
             ),
             null !== $hyphen => new Item(

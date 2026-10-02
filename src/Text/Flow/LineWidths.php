@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function max;
@@ -25,7 +26,7 @@ final readonly class LineWidths
     /** The width line $line has for its items. */
     public function available(int $line): float
     {
-        return max(1.0, $this->frameWidth - $this->left($line) - ($this->style->rightIndent ?? 0.0));
+        return max(1.0, $this->frameWidth - $this->left($line) - ParagraphFormat::of($this->style)->rightIndent);
     }
 
     /** What the widths depend on beyond the paragraph's own style: the frame's width. */
@@ -37,6 +38,8 @@ final readonly class LineWidths
     /** How far line $line starts from the frame's left edge. */
     public function left(int $line): float
     {
-        return ($this->style->leftIndent ?? 0.0) + (0 === $line ? $this->style->firstLineIndent ?? 0.0 : 0.0);
+        $format = ParagraphFormat::of($this->style);
+
+        return $format->leftIndent + (0 === $line ? $format->firstLineIndent : 0.0);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_values;
@@ -106,11 +107,12 @@ final readonly class WordBreaks
      */
     private function patternPieces(string $word, TextStyle $style): array
     {
-        $hyphenator = $this->hyphenators[$style->language ?? ''] ?? null;
+        $format     = ParagraphFormat::of($style);
+        $hyphenator = $this->hyphenators[$format->language ?? ''] ?? null;
         $parts      = [];
         if (
             null === $hyphenator
-            || true !== $style->hyphenate
+            || ! $format->hyphenate
             || preg_match('/^([^\p{L}]*)(\p{L}+)([^\p{L}]*)$/u', $word, $parts) !== 1
         ) {
             return [$word];
@@ -118,10 +120,10 @@ final readonly class WordBreaks
         $lead    = $parts[1] ?? '';
         $letters = $parts[2] ?? '';
         $trail   = $parts[3] ?? '';
-        if (mb_strlen($letters, encoding: 'UTF-8') < ($style->minHyphenatedWordLength ?? 6)) {
+        if (mb_strlen($letters, encoding: 'UTF-8') < $format->minHyphenatedWordLength) {
             return [$word];
         }
-        $syllables        = $hyphenator->syllables($letters, $style->hyphenLeftMin ?? 2, $style->hyphenRightMin ?? 2);
+        $syllables        = $hyphenator->syllables($letters, $format->hyphenLeftMin, $format->hyphenRightMin);
         $syllables[0]     = $lead . ($syllables[0] ?? '');
         $last             = count($syllables) - 1;
         $syllables[$last] = ($syllables[$last] ?? '') . $trail;

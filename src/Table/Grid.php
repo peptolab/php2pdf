@@ -8,6 +8,7 @@ use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Text\Flow\StyleResolver;
+use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextContext;
 use Php2Pdf\Text\Textflow;
@@ -16,6 +17,7 @@ use Php2Pdf\Text\TextFormat;
 use function array_key_exists;
 use function count;
 use function is_string;
+use function spl_object_id;
 use function sprintf;
 
 /**
@@ -33,6 +35,14 @@ final class Grid
     public readonly array $sources;
 
     /**
+     * Text styles with a cell's alignment laid over them, by style and alignment: the style kept
+     * with its result, so cells aligned alike share one style.
+     *
+     * @var array<string, array{0: TextStyle, 1: TextStyle}>
+     */
+    private array $aligned = [];
+
+    /**
      * @param list<Row>    $rows
      * @param list<Column> $columns
      *
@@ -47,7 +57,7 @@ final class Grid
         TextContext $context,
     ) {
         $this->sources = $rows;
-        $resolver      = new StyleResolver($context);
+        $resolver      = StyleResolver::for($context);
         $base          = $resolver->resolve(null, $tableText);
         $occupied      = [];
         foreach ($rows as $r => $row) {
@@ -102,6 +112,20 @@ final class Grid
         }
     }
 
+    /** A text style with an alignment laid over it, made once for each style and alignment. */
+    private function aligned(TextStyle $text, Alignment $alignment): TextStyle
+    {
+        $key = spl_object_id($text) . "|{$alignment->name}";
+        $hit = $this->aligned[$key] ?? null;
+        if (null !== $hit && $hit[0] === $text) {
+            return $hit[1];
+        }
+        $aligned             = $text->merge(new TextStyle(alignment: $alignment));
+        $this->aligned[$key] = [$text, $aligned];
+
+        return $aligned;
+    }
+
     /**
      * @throws IoException
      * @throws ParseException
@@ -128,7 +152,7 @@ final class Grid
         }
         $text = $resolver->resolve($text, $cell->text);
         if (null !== $style->alignment) {
-            $text = $text->merge(new TextStyle(alignment: $style->alignment));
+            $text = $this->aligned($text, $style->alignment);
         }
         $content = $cell->content;
         $flow    = match (true) {

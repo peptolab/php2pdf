@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextDirection;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function count;
@@ -23,9 +24,10 @@ final class ItemFactory
     public static function box(string $text, TextStyle $style, int $level = 0): Item
     {
         $font    = StyleResolver::fontOf($style);
+        $format  = CharFormat::of($style);
         $options = 1 === ($level & 1)
-            ? $style->textOptions()->withDirection(TextDirection::RightToLeft)
-            : $style->textOptions();
+            ? $format->textOptions->withDirection(TextDirection::RightToLeft)
+            : $format->textOptions;
         $run = $font->shape($text, $options);
 
         return new Item(
@@ -33,7 +35,7 @@ final class ItemFactory
             $style,
             $text,
             $run,
-            $font->width($run, $style->fontSize(), $style->textOptions()),
+            $font->width($run, $format->size, $format->textOptions),
             level: $level,
         );
     }
@@ -45,30 +47,28 @@ final class ItemFactory
      */
     public static function cut(ItemKind $kind, TextStyle $style, string $text, array $glyphs): Item
     {
-        $font = StyleResolver::fontOf($style);
-        $run  = new GlyphRun($glyphs);
+        $font   = StyleResolver::fontOf($style);
+        $run    = new GlyphRun($glyphs);
+        $format = CharFormat::of($style);
 
-        return new Item($kind, $style, $text, $run, $font->width($run, $style->fontSize(), $style->textOptions()));
+        return new Item($kind, $style, $text, $run, $font->width($run, $format->size, $format->textOptions));
     }
 
     public static function glue(TextStyle $style): Item
     {
-        $font = StyleResolver::fontOf($style);
-        $run  = $font->shape(' ', $style->textOptions());
+        $font   = StyleResolver::fontOf($style);
+        $format = CharFormat::of($style);
+        $run    = $font->shape(' ', $format->textOptions);
 
-        return new Item(
-            ItemKind::Glue,
-            $style,
-            ' ',
-            $run,
-            $font->width($run, $style->fontSize(), $style->textOptions()),
-        );
+        return new Item(ItemKind::Glue, $style, ' ', $run, $font->width($run, $format->size, $format->textOptions));
     }
 
     /** The width in points of a kerning change of $kerning thousandths of an em. */
     public static function kerningWidth(float $kerning, TextStyle $style): float
     {
-        return (($kerning / 1000.0) * $style->fontSize() * ($style->horizontalScale ?? 100.0)) / 100.0;
+        $format = CharFormat::of($style);
+
+        return (($kerning / 1000.0) * $format->size * $format->horizontalScale) / 100.0;
     }
 
     /**
@@ -83,7 +83,7 @@ final class ItemFactory
         $last   = $before[count($before) - 1] ?? null;
         $change = 0.0;
         if (null !== $last) {
-            $pair   = StyleResolver::fontOf($style)->shape("{$last->text()}-", $style->textOptions());
+            $pair   = StyleResolver::fontOf($style)->shape("{$last->text()}-", CharFormat::of($style)->textOptions);
             $first  = $pair->glyphs[count($pair->glyphs) - 2] ?? null;
             $change = (null === $first ? 0.0 : $first->kerning) - $last->kerning;
         }

@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_key_exists;
@@ -152,7 +153,7 @@ final class Itemiser
             $boundaries[$at] = true;
         }
         $font    = StyleResolver::fontOf($style);
-        $options = $style->textOptions()->withLigatures(false);
+        $options = CharFormat::of($style)->textOptions->withLigatures(false);
         $chars   = mb_str_split($shaped, length: 1, encoding: 'UTF-8');
         $out     = [];
         foreach ($glyphs as $glyph) {
@@ -191,7 +192,7 @@ final class Itemiser
         $rtl  = 1 === ($level & 1);
         $font = StyleResolver::fontOf($style);
         [$pieces, $shaped] = $this->breaks->pieces($text, $style, $level);
-        $options = $style->textOptions()
+        $options = CharFormat::of($style)->textOptions
             ->withDirection($rtl ? TextDirection::RightToLeft : TextDirection::LeftToRight);
         $shapedRun = $font->shape($shaped, $options)->glyphs;
         $glyphs    = $rtl ? array_reverse($shapedRun) : $this->splitLigatures($shapedRun, $pieces, $shaped, $style);

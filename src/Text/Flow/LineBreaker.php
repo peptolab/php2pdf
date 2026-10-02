@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\ParagraphFormat;
 
 use function array_slice;
 use function count;
@@ -31,13 +32,9 @@ final readonly class LineBreaker
      */
     private static function alignments(Paragraph $paragraph): array
     {
-        $start     = 1 === ($paragraph->level & 1) ? Alignment::Right : Alignment::Left;
-        $alignment = $paragraph->style->alignment ?? $start;
+        $format = ParagraphFormat::of($paragraph->style);
 
-        return [
-            $alignment,
-            Alignment::Justify === $alignment ? $paragraph->style->lastLineAlignment ?? $start : $alignment,
-        ];
+        return [$format->alignment($paragraph->level), $format->lastLineAlignment($paragraph->level)];
     }
 
     /**

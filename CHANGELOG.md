@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/); before 1.0, minor versions may change the API.
 
+## [Unreleased]
+
+### Changed
+
+- Text styles are resolved once, and the cells of a table share their resolved styles rather than
+  each making its own: a 2,000-row table takes about a quarter less time and memory.
+
 ## [0.1.0] - 2026-10-02
 
 The first release.
@@ -86,4 +93,5 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.0...HEAD
 [0.1.0]: https://github.com/peptolab/php2pdf/releases/tag/0.1.0

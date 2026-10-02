@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 /**
@@ -14,6 +15,9 @@ use Php2Pdf\Text\Style\TextStyle;
  */
 final readonly class Item
 {
+    /** The item's style, resolved. */
+    public CharFormat $format;
+
     public function __construct(
         public ItemKind $kind,
         public TextStyle $style,
@@ -33,7 +37,9 @@ final readonly class Item
         public ?InlineObject $inline = null,
         /** The bidi embedding level: even left to right, odd right to left. */
         public int $level = 0,
-    ) {}
+    ) {
+        $this->format = CharFormat::of($style);
+    }
 
     /** An item that sets artwork in the line. */
     public static function inline(InlineObject $inline, TextStyle $style): self
@@ -69,7 +75,7 @@ final readonly class Item
             $advance += $glyph->advance;
         }
 
-        return (($advance / 1000.0) * $this->style->fontSize() * ($this->style->horizontalScale ?? 100.0)) / 100.0;
+        return (($advance / 1000.0) * $this->format->size * $this->format->horizontalScale) / 100.0;
     }
 
     /** The same item at a bidi level. */

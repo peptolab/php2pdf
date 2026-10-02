@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
-use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\Composer;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use WeakMap;
 
 use function array_key_exists;
@@ -53,8 +53,7 @@ final class BreakPlanner
     public function lineEnd(Paragraph $paragraph, int $start, LineWidths $widths, int $lineNumber): ?LineEnd
     {
         $style    = $paragraph->style;
-        $composer = $style->composer
-            ?? (Alignment::Justify === $style->alignment ? Composer::Paragraph : Composer::SingleLine);
+        $composer = ParagraphFormat::of($style)->composer;
         if (Composer::SingleLine === $composer) {
             return null;
         }

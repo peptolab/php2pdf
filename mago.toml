@@ -117,6 +117,8 @@ too-many-properties = { threshold = 12, exclude = [
     "src/Table/Table.php",
 ] }
 cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
+    # Honest: a default for every setting a style leaves unset.
+    "src/Text/Style/ParagraphFormat.php",
     # Honest: format readers, branch by branch.
     "src/Font/FontInfo.php",
     "src/Font/OpenType/Cff/Cff2CharStrings.php",
@@ -146,11 +148,10 @@ cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
     "src/Text/Flow/ParagraphComposer.php",
 ] }
 excessive-parameter-list = { threshold = 8, constructor-threshold = 16, exclude = [
-    # Honest: sheets of named, optional settings.
+    # Honest: sheets of named, optional settings, and the same sheets resolved.
     "src/Font/OpenType/Metrics.php",
+    "src/Text/Style/ParagraphFormat.php",
     "src/Text/Style/TextStyle.php",
-    # Ratchet: a raster and its soft mask separate.
-    "src/Image/ImageData.php",
 ] }
 halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 10000, exclude = [
     # Honest: the formulas of curves, arcs and charstrings.

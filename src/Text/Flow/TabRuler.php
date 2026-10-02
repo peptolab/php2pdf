@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TabAlignment;
 use Php2Pdf\Text\Style\TabStop;
 use Php2Pdf\Text\Style\TextStyle;
@@ -35,7 +36,7 @@ final class TabRuler
     private function __construct(
         private readonly TextStyle $style,
     ) {
-        $stops = $style->tabs ?? [];
+        $stops = ParagraphFormat::of($style)->tabs;
         usort($stops, static fn(TabStop $a, TabStop $b): int => $a->position <=> $b->position);
         $this->stops = $stops;
     }
@@ -122,7 +123,7 @@ final class TabRuler
                 return $tab->position;
             }
         }
-        $step = max(1.0, $this->style->defaultTabWidth ?? 36.0);
+        $step = max(1.0, ParagraphFormat::of($this->style)->defaultTabWidth);
 
         return (floor(($x / $step) + 1.0e-6) + 1.0) * $step;
     }

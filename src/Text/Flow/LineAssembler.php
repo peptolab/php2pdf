@@ -7,7 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Style\Alignment;
-use Php2Pdf\Text\Style\Justification;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_pop;
@@ -200,9 +200,10 @@ final class LineAssembler
                 if (ItemKind::Glue === $current->kind && 0.0 !== $extra) {
                     $space = array_pop($glyphs);
                     if ($space instanceof Glyph) {
-                        $scale    = ($runStyle->horizontalScale ?? 100.0) / 100.0;
-                        $adjust   = (($extra / $scale) / $runStyle->fontSize()) * 1000.0;
-                        $glyphs[] = $space->withKerning($space->kerning + $adjust);
+                        $runFormat = CharFormat::of($runStyle);
+                        $scale     = $runFormat->horizontalScale / 100.0;
+                        $adjust    = (($extra / $scale) / $runFormat->size) * 1000.0;
+                        $glyphs[]  = $space->withKerning($space->kerning + $adjust);
                     }
                     $width += $extra;
                 }
@@ -234,10 +235,8 @@ final class LineAssembler
             if (ItemKind::Glue !== $item->kind) {
                 continue;
             }
-            $justification = $item->style->justification;
-            $fraction      = $missing >= 0.0
-                ? Justification::stretchOf($justification)
-                : Justification::shrinkOf($justification);
+            $format          = $item->format;
+            $fraction        = $missing >= 0.0 ? $format->stretch : $format->shrink;
             $flexibility[$k] = $item->spaceWidth() * $fraction;
             $total           += $flexibility[$k];
         }

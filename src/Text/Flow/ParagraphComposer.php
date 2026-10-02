@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
-use Php2Pdf\Text\Style\Justification;
-
 use function abs;
 use function array_reverse;
 use function min;
@@ -67,8 +65,9 @@ final class ParagraphComposer
             }
             $natural += $item->width;
             if (ItemKind::Glue === $item->kind) {
-                $stretch += $item->spaceWidth() * Justification::stretchOf($item->style->justification);
-                $shrink  += $item->spaceWidth() * Justification::shrinkOf($item->style->justification);
+                $format  = $item->format;
+                $stretch += $item->spaceWidth() * $format->stretch;
+                $shrink  += $item->spaceWidth() * $format->shrink;
             }
         }
         for ($i = $start; $i <= $end; ++$i) {

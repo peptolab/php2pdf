@@ -10,6 +10,7 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function abs;
@@ -52,15 +53,16 @@ final class LinePainter
                 );
             }
             foreach ($line->segments as $segment) {
-                $style = $segment->style;
-                $font  = StyleResolver::fontOf($style);
-                $size  = $style->fontSize();
-                $x     = $x0 + $segment->x;
+                $style  = $segment->style;
+                $font   = StyleResolver::fontOf($style);
+                $format = CharFormat::of($style);
+                $size   = $format->size;
+                $x      = $x0 + $segment->x;
                 if (null !== $style->color) {
                     $canvas->setFillColor($style->color);
                 }
                 $matrix = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
-                $canvas->showRun($segment->run, $font, $size, $matrix, $style->textOptions());
+                $canvas->showRun($segment->run, $font, $size, $matrix, $format->textOptions);
                 $sign = $topDown ? -1.0 : 1.0;
                 if (true === $style->underline) {
                     $t = $font->underlineThickness($size);
@@ -187,8 +189,9 @@ final class LinePainter
                 continue;
             }
             $font    = StyleResolver::fontOf($style);
-            $size    = $style->fontSize();
-            $rise    = $style->rise ?? 0.0;
+            $format  = CharFormat::of($style);
+            $size    = $format->size;
+            $rise    = $format->rise;
             $ascent  = $font->ascender($size) + $rise;
             $descent = -$font->descender($size) - $rise;
             $right   = $segment->x + $segment->width;
