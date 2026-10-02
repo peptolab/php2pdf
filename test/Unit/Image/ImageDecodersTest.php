@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Php2PdfTest\Unit\Image;
 
 use Php2Pdf\Core\Limits;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Geometry\Box;
 use Php2Pdf\Image\ImageColorSpace;
 use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageDecoders;
@@ -43,6 +47,31 @@ final class ImageDecodersTest extends TestCase
     }
 
     #[Test]
+    public function aDecoderAddedIsTriedBeforeTheOnesThatReadItsFormat(): void
+    {
+        $image    = self::image();
+        $decoders = ImageDecoders::default()->with(new FakeImageDecoder($image, prefix: "\x89PNG"));
+
+        self::assertSame($image, $decoders->read("\x89PNG\r\n\x1A\n", Limits::default(), new ImageOptions()));
+    }
+
+    #[Test]
+    public function aDecoderAddedReadsItsFormatAndTheOthersStillRead(): void
+    {
+        $image    = self::image();
+        $decoders = ImageDecoders::default()->with(new FakeImageDecoder($image));
+        $tiff     = (new TiffFixture(1, 1, 1, 8, 1, "\x7F"))->bytes();
+
+        self::assertSame(
+            [$image, "\x7F"],
+            [
+                $decoders->read('FAKE', Limits::default(), new ImageOptions()),
+                $decoders->read($tiff, Limits::default(), new ImageOptions())->raster->data,
+            ],
+        );
+    }
+
+    #[Test]
     public function aDecoderReadsTheFormatsItAccepts(): void
     {
         $image = self::image();
@@ -51,6 +80,19 @@ final class ImageDecodersTest extends TestCase
             $image,
             (new ImageDecoders([new FakeImageDecoder($image)]))->read('FAKE', Limits::default(), new ImageOptions()),
         );
+    }
+
+    #[Test]
+    public function aDocumentReadsItsImagesWithItsDecoders(): void
+    {
+        $out = new MemoryOutput();
+        $doc = new Document($out, new DocumentOptions(
+            imageDecoders: ImageDecoders::default()->with(new FakeImageDecoder(self::image())),
+        ));
+        $doc->addPage()->place($doc->imageFromData('FAKE'), new Box(0.0, 0.0, 10.0, 10.0));
+        $doc->close();
+
+        self::assertStringContainsString('/Subtype/Image/Width 1/Height 1', $out->contents());
     }
 
     #[Test]

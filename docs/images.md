@@ -61,6 +61,56 @@ are kept as far as PNG allows. Under PDF/X, an image converted to RGB without a 
 refused when it is placed if the output intent is CMYK; converting the file to a layout read
 natively, such as a stripped, contiguous TIFF, keeps its colour exactly.
 
+## Decoders of your own
+
+A decoder of your own reads a format natively, or takes over one the library reads. Implement
+`ImageDecoderInterface` and add it with `ImageDecoders::with()`, which tries it before the
+built-in decoders; the document reads every image through `DocumentOptions::$imageDecoders`,
+images in SVGs included. Check `$limits` as soon as the size is known, before decoding samples.
+A decoder that recognises a file but not its layout returns `ImageTraits` saying what a
+conversion would have to keep, and the file is converted to PNG as above.
+
+```php
+final class PgmDecoder implements ImageDecoderInterface
+{
+    public function accepts(string $data): bool
+    {
+        return str_starts_with($data, 'P5');
+    }
+
+    public function hasPages(): bool
+    {
+        return false;
+    }
+
+    public function name(): string
+    {
+        return 'PGM';
+    }
+
+    public function decode(string $data, Limits $limits, ImageOptions $options): ImageData|ImageTraits
+    {
+        $m = [];
+        if (1 !== preg_match('/^P5\s+(\d+)\s+(\d+)\s+255\s/', $data, $m)) {
+            throw new ParseException('Only 8-bit binary PGM files are read.');
+        }
+        $width  = (int) $m[1];
+        $height = (int) $m[2];
+        $limits->assertImagePixels($width, $height);
+
+        return new ImageData(new Raster($width, $height, 8, ImageColorSpace::gray(), substr($data, strlen($m[0]))));
+    }
+}
+
+$doc = new Document('out.pdf', new DocumentOptions(
+    imageDecoders: ImageDecoders::default()->with(new PgmDecoder()),
+));
+$page->place($doc->image('scan.pgm'), Box::fromMm(20, 20, 80, 60));
+```
+
+`Raster` takes the samples as they are, or encoded with a PDF filter (`DCTDecode`, `JPXDecode`,
+`FlateDecode` with its `decodeParms`, `CCITTFaxDecode`); an alpha channel goes in a `SoftMask`.
+
 ## Resolution and natural size
 
 The natural size in points comes from the pixel size and the resolution stored in the file

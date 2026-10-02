@@ -13,9 +13,11 @@ use function substr;
 
 /**
  * What a converted image could lose: what is known of its source's colour model, ICC profile,
- * bit depth and alpha channel, from the file's own header or from ext-imagick.
+ * bit depth and alpha channel, from the file's own header or from ext-imagick. A decoder that
+ * recognises a file but not its layout returns these, and the file is converted to PNG only when
+ * nothing they name would be lost.
  *
- * @internal
+ * @api
  */
 final readonly class ImageTraits
 {

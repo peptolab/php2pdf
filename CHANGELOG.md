@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Image decoders of your own: `ImageDecoderInterface`, added with `ImageDecoders::with()` and set
+  as `DocumentOptions::$imageDecoders`, for formats the library does not read or in place of one
+  it does. `ImageTraits` is public, for a decoder that leaves a layout to the converter.
+
 ### Changed
 
 - Text styles are resolved once, and the cells of a table share their resolved styles rather than

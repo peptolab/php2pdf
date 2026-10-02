@@ -211,7 +211,13 @@ final class Assets implements CatalogContributorInterface
         $key    = self::rasterKey($hash, $options);
         $raster = $this->rasters[$key] ?? null;
         if (null === $raster) {
-            $read                = ImageReader::read($data, $this->options->limits, $options, $name);
+            $read = ImageReader::read(
+                $data,
+                $this->options->limits,
+                $options,
+                $name,
+                $this->options->imageDecoders,
+            );
             $raster              = [$read, Image::write($this->objects, $read)];
             $this->rasters[$key] = $raster;
         }

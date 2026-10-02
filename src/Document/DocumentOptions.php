@@ -11,6 +11,7 @@ use Php2Pdf\Core\SystemClock;
 use Php2Pdf\Font\ExternalShaperInterface;
 use Php2Pdf\Font\GlyphCheck;
 use Php2Pdf\Font\ScriptCheck;
+use Php2Pdf\Image\ImageDecoders;
 
 /**
  * Options fixed for the lifetime of a document.
@@ -24,6 +25,9 @@ final readonly class DocumentOptions
     public GlyphCheck $glyphCheck;
     public ScriptCheck $scriptCheck;
     public Limits $limits;
+
+    /** The decoders the document reads images with: ImageDecoders::default() unless set. */
+    public ImageDecoders $imageDecoders;
 
     /**
      * @param PdfX|null       $pdfx       write to a PDF/X conformance level: sets the PDF version and
@@ -53,11 +57,13 @@ final readonly class DocumentOptions
         ?ScriptCheck $scriptCheck = null,
         /** Shapes the scripts the font engine does not (Indic, South East Asian, Tibetan...); see HarfBuzz::detect(). */
         public ?ExternalShaperInterface $complexShaper = null,
+        ?ImageDecoders $imageDecoders = null,
     ) {
-        $this->limits      = $limits ?? Limits::default();
-        $this->clock       = $clock ?? new SystemClock();
-        $this->version     = null === $pdfx ? $version : $pdfx->version();
-        $this->glyphCheck  = $glyphCheck ?? (null === $pdfx ? GlyphCheck::Warn : GlyphCheck::Error);
-        $this->scriptCheck = $scriptCheck ?? ScriptCheck::Error;
+        $this->imageDecoders = $imageDecoders ?? ImageDecoders::default();
+        $this->limits        = $limits ?? Limits::default();
+        $this->clock         = $clock ?? new SystemClock();
+        $this->version       = null === $pdfx ? $version : $pdfx->version();
+        $this->glyphCheck    = $glyphCheck ?? (null === $pdfx ? GlyphCheck::Warn : GlyphCheck::Error);
+        $this->scriptCheck   = $scriptCheck ?? ScriptCheck::Error;
     }
 }

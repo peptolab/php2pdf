@@ -17,6 +17,11 @@ use function sprintf;
  * reads, or whose layout its decoder does not read, is converted to PNG (through ext-imagick or
  * ext-gd); a conversion that would lose data is refused unless the options accept it.
  *
+ * A document reads its images with DocumentOptions::$imageDecoders; add a decoder of your own
+ * with with():
+ *
+ *     new DocumentOptions(imageDecoders: ImageDecoders::default()->with(new WebpDecoder()))
+ *
  * @api
  */
 final readonly class ImageDecoders
@@ -64,6 +69,15 @@ final readonly class ImageDecoders
         }
 
         return $this->converted($data, $limits, $options, $traits, $name);
+    }
+
+    /**
+     * These decoders with another tried first: for a format they do not read, or in place of
+     * the one that reads it.
+     */
+    public function with(ImageDecoderInterface $decoder): self
+    {
+        return new self([$decoder, ...$this->decoders], $this->png);
     }
 
     /**

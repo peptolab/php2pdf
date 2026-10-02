@@ -13,18 +13,19 @@ use Php2Pdf\Image\ImageTraits;
 
 use function str_starts_with;
 
-/** A decoder for data starting "FAKE": it gives back what it was made with. */
+/** A decoder for data starting with a prefix ("FAKE" unless set): it gives back what it was made with. */
 final readonly class FakeImageDecoder implements ImageDecoderInterface
 {
     public function __construct(
         private ImageData|ImageTraits $result,
         private bool $pages = false,
+        private string $prefix = 'FAKE',
     ) {}
 
     #[Override]
     public function accepts(string $data): bool
     {
-        return str_starts_with($data, 'FAKE');
+        return str_starts_with($data, $this->prefix);
     }
 
     #[Override]
