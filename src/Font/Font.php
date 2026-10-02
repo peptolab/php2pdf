@@ -28,6 +28,7 @@ use function chr;
 use function count;
 use function implode;
 use function max;
+use function mb_chr;
 use function md5;
 use function ord;
 use function pack;
@@ -48,12 +49,13 @@ use function strlen;
 final class Font implements PdfFontInterface, DeferredInterface
 {
     /** Shaped runs kept for reuse; cleared when full so free text cannot grow it without bound. */
-    private const int SHAPE_CACHE_SIZE = 10_000;
+    /** How many texts a font remembers having checked for missing glyphs and scripts. */
+    private const int CHECKED_TEXTS = 10_000;
 
     private readonly Reference $reference;
 
-    /** @var array<string, GlyphRun> kerning flag and text => shaped run */
-    private array $shapes = [];
+    /** @var array<string, true> the shaping keys of texts already checked in this document */
+    private array $checked = [];
 
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
@@ -297,25 +299,27 @@ final class Font implements PdfFontInterface, DeferredInterface
         $options  ??= TextOptions::default();
         $rtl      = TextDirection::RightToLeft === $options->direction;
         $features = [...$options->activeFeatures(), ...($rtl ? ['rtla', 'rtlm'] : ['ltra', 'ltrm'])];
-        $key      = ($options->kerning ? 'k' : '-') . implode(',', $features) . '|' . $text;
-        $cached   = $this->shapes[$key] ?? null;
-        if (null !== $cached) {
-            return $cached;
+        $engine   = null === $this->options->complexShaper ? '' : $this->options->complexShaper::class;
+        $key      = "{$engine}|" . ($options->kerning ? 'k' : '-') . implode(',', $features) . "|{$text}";
+        $first    = ! array_key_exists($key, $this->checked);
+        if ($first) {
+            $this->checkScript($text);
         }
-        $this->checkScript($text);
-        $this->shaper ??= new OpenTypeShaper(
-            $this->program,
-            $this->advance(...),
-            $this->missingGlyph(...),
-            $this->options->complexShaper,
-        );
-        $glyphs = $this->shaper->shape($text, $options, $features);
-
-        if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
-            $this->shapes = [];
+        $run = $this->program->shapedRun($key);
+        if (null === $run) {
+            $this->shaper ??= new OpenTypeShaper($this->program, $this->advance(...), $this->options->complexShaper);
+            $run          = new GlyphRun($this->shaper->shape($text, $options, $features));
+            $this->program->keepShapedRun($key, $run);
+        }
+        if ($first) {
+            if (count($this->checked) >= self::CHECKED_TEXTS) {
+                $this->checked = [];
+            }
+            $this->checked[$key] = true;
+            $this->reportMissing($run);
         }
 
-        return $this->shapes[$key] = new GlyphRun($glyphs);
+        return $run;
     }
 
     #[Override]
@@ -480,6 +484,21 @@ final class Font implements PdfFontInterface, DeferredInterface
         }
         $this->missing[$codePoint] = true;
         $this->registry->warn("{$what}; it is drawn as .notdef.");
+    }
+
+    /**
+     * Reports the characters a run shows with the missing glyph, as the glyph check says.
+     *
+     * @throws PdfException when the glyph check is Error
+     */
+    private function reportMissing(GlyphRun $run): void
+    {
+        foreach ($run->glyphs as $glyph) {
+            if (0 !== $glyph->id || $glyph->codePoint < 0) {
+                continue;
+            }
+            $this->missingGlyph((string) mb_chr($glyph->codePoint, encoding: 'UTF-8'), $glyph->codePoint);
+        }
     }
 
     private function stemV(): int

@@ -57,13 +57,11 @@ final readonly class OpenTypeShaper
     /**
      * @param Closure(int): int          $advance a glyph's advance in thousandths of an em, as the
      *                                            font's widths carry it
-     * @param Closure(string, int): void $missing reports a character the font has no glyph for
      * @param ExternalShaperInterface|null $external shapes the scripts the engine does not
      */
     public function __construct(
         private OpenTypeFont $program,
         private Closure $advance,
-        private Closure $missing,
         private ?ExternalShaperInterface $external = null,
     ) {
         $this->scale = 1000.0 / $program->unitsPerEm;
@@ -142,12 +140,8 @@ final readonly class OpenTypeShaper
         [$codePoints, $sources] = $this->codePoints($text);
         $sequence = [];
         foreach ($codePoints as $codePoint) {
-            $shown = $rtl ? $this->mirrored($codePoint) : $codePoint;
-            $id    = $this->program->glyphId($shown);
-            if (0 === $id) {
-                ($this->missing)((string) mb_chr($codePoint, encoding: 'UTF-8'), $codePoint);
-            }
-            $sequence[] = [$id, [$shown]];
+            $shown      = $rtl ? $this->mirrored($codePoint) : $codePoint;
+            $sequence[] = [$this->program->glyphId($shown), [$shown]];
         }
         $gsub   = $this->program->gsub();
         $glyphs = [];

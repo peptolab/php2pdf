@@ -7,6 +7,7 @@ namespace Php2Pdf\Font\OpenType;
 use Php2Pdf\Core\Lru;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\GlyphRun;
 
 use function array_key_exists;
 use function count;
@@ -39,6 +40,12 @@ final class OpenTypeFont
 
     /** @var Lru<array{0: int, 1: self}>|null path#face => modification time and program */
     private static ?Lru $cache = null;
+
+    /** How many shaped runs a font keeps for reuse. */
+    private const int RUN_CACHE_ENTRIES = 10_000;
+
+    /** @var Lru<GlyphRun>|null shaping key => run, shared by every document using the font */
+    private ?Lru $runs = null;
 
     public readonly TableDirectory $tables;
     public readonly Metrics $metrics;
@@ -351,6 +358,17 @@ final class OpenTypeFont
     }
 
     /**
+     * Keeps a shaped run for documents that shape the same text with the same options.
+     *
+     * @internal
+     */
+    public function keepShapedRun(string $key, GlyphRun $run): void
+    {
+        $this->runs ??= new Lru(self::RUN_CACHE_ENTRIES);
+        $this->runs->set($key, $run);
+    }
+
+    /**
      * Kerning adjustment between two glyphs in font units (negative moves them closer).
      *
      * @throws ParseException
@@ -419,6 +437,16 @@ final class OpenTypeFont
         }
 
         return preg_replace('/[^!-~]|[\[\](){}<>\/%]/', replacement: '', subject: $name) ?? 'Font';
+    }
+
+    /**
+     * A run shaped from this font before, by any document, or null.
+     *
+     * @internal
+     */
+    public function shapedRun(string $key): ?GlyphRun
+    {
+        return $this->runs?->get($key);
     }
 
     public function subfamilyName(): string
