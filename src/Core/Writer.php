@@ -30,6 +30,9 @@ use function strlen;
  */
 final class Writer
 {
+    /** Streams of this many bytes or more are written in pieces rather than copied into one. */
+    private const int LARGE_STREAM = 65_536;
+
     private int $nextId = 1;
 
     /** @var array<int, int> object number => byte offset */
@@ -136,8 +139,9 @@ final class Writer
 
     /**
      * Writes a stream object, its /Filter and /Length worked out on a copy of the dictionary, so
-     * the caller's Stream is left as it was and can be written again. The data goes to the output
-     * as it is, not joined to the rest, so a large stream is not copied on the way.
+     * the caller's Stream is left as it was and can be written again. Large data goes to the output
+     * as it is, not joined to the rest, so it is not copied on the way; small data is written with
+     * the rest in one piece.
      */
     private function writeStream(Reference $ref, Stream $stream): void
     {
@@ -148,7 +152,13 @@ final class Writer
             $dict->set('Filter', new Name('FlateDecode'));
         }
         $dict->set('Length', strlen($data));
-        $this->emit("{$ref->id} 0 obj\n" . Serializer::serialize($dict) . "\nstream\n");
+        $head = "{$ref->id} 0 obj\n" . Serializer::serialize($dict) . "\nstream\n";
+        if (strlen($data) < self::LARGE_STREAM) {
+            $this->emit("{$head}{$data}\nendstream\nendobj\n");
+
+            return;
+        }
+        $this->emit($head);
         $this->emit($data);
         $this->emit("\nendstream\nendobj\n");
     }
