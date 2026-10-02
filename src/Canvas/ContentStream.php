@@ -1,0 +1,220 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Php2Pdf\Canvas;
+
+use Php2Pdf\Core\Num;
+use Php2Pdf\Exception\StateException;
+use Php2Pdf\Geometry\Matrix;
+
+use function array_pop;
+use function count;
+use function sprintf;
+
+/**
+ * A content stream being written, with the graphics state its operators leave: the current
+ * transformation, saved and restored with q and Q, whether a path is open, and the text state and
+ * fill colour last set, so they are written again only when they change.
+ *
+ * @internal
+ */
+final class ContentStream
+{
+    /** The text state and fill colour every page starts with. */
+    private const array PAGE_STATE = [
+        'Tf'   => null,
+        'Tc'   => '0 Tc',
+        'Tz'   => '100 Tz',
+        'Ts'   => '0 Ts',
+        'Tr'   => '0 Tr',
+        'fill' => '0 g',
+    ];
+
+    /** A state not known: content drawn inside other content, or after raw operators. */
+    private const array UNKNOWN_STATE = [
+        'Tf'   => null,
+        'Tc'   => null,
+        'Tz'   => null,
+        'Ts'   => null,
+        'Tr'   => null,
+        'fill' => null,
+    ];
+
+    private string $ops = '';
+    private Matrix $ctm;
+
+    /** @var list<Matrix> */
+    private array $ctmStack = [];
+
+    /**
+     * The text state and fill colour last written, as the operations that set them. Null is
+     * unknown.
+     *
+     * @var array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}
+     */
+    private array $state;
+
+    /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}> */
+    private array $stateStack = [];
+
+    private bool $hasCurrentPoint = false;
+    private bool $finished        = false;
+
+    /**
+     * @param bool $inheritsState whether the content is drawn inside other content, as a form
+     *                            XObject is, so its state starts unknown
+     */
+    public function __construct(float $height, bool $topDown, bool $inheritsState)
+    {
+        $this->state = $inheritsState ? self::UNKNOWN_STATE : self::PAGE_STATE;
+        $this->ctm   = Matrix::identity();
+        if ($topDown) {
+            $this->ctm = new Matrix(1.0, 0.0, 0.0, -1.0, 0.0, $height);
+            $this->ops = '1 0 0 -1 0 ' . Num::format($height) . " cm\n";
+        }
+    }
+
+    /** Appends operators and a newline. */
+    public function append(string $operators): void
+    {
+        $this->ops .= "{$operators}\n";
+    }
+
+    /**
+     * Whether setting a piece of state to the operation changes it, recording it when it does.
+     *
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     */
+    public function changes(string $key, string $operation): bool
+    {
+        if ($operation === ($this->state[$key] ?? null)) {
+            return false;
+        }
+        $this->state[$key] = $operation;
+
+        return true;
+    }
+
+    public function closePath(): void
+    {
+        $this->append('h');
+    }
+
+    public function concat(Matrix $matrix): void
+    {
+        if ($matrix->isIdentity()) {
+            return;
+        }
+        $this->ctm = $matrix->then($this->ctm);
+        $this->append("{$matrix->toPdf()} cm");
+    }
+
+    public function ctm(): Matrix
+    {
+        return $this->ctm;
+    }
+
+    /**
+     * The operation that last set a piece of state, or null when it is not known.
+     *
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     */
+    public function current(string $key): ?string
+    {
+        return $this->state[$key] ?? null;
+    }
+
+    public function curveTo(float $x1, float $y1, float $x2, float $y2, float $x3, float $y3): void
+    {
+        $this->path(Num::list([$x1, $y1, $x2, $y2, $x3, $y3]) . ' c');
+    }
+
+    /**
+     * The content stream, sealed.
+     *
+     * @throws StateException when it was finished already, or a save() was not restored
+     */
+    public function finish(): string
+    {
+        if ($this->finished) {
+            throw new StateException('Canvas has already been finished.');
+        }
+        if ([] !== $this->ctmStack) {
+            throw new StateException(sprintf('Unbalanced save(): %d state(s) not restored.', count($this->ctmStack)));
+        }
+        $this->finished = true;
+
+        return $this->ops;
+    }
+
+    /**
+     * Forgets a piece of state, so it is written next time.
+     *
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     */
+    public function forget(string $key): void
+    {
+        $this->state[$key] = null;
+    }
+
+    public function hasCurrentPoint(): bool
+    {
+        return $this->hasCurrentPoint;
+    }
+
+    public function lineTo(float $x, float $y): void
+    {
+        $this->path(Num::list([$x, $y]) . ' l');
+    }
+
+    public function moveTo(float $x, float $y): void
+    {
+        $this->path(Num::list([$x, $y]) . ' m');
+    }
+
+    /** Appends a painting or path-ending operator, which closes the open path. */
+    public function paint(string $operator): void
+    {
+        $this->append($operator);
+        $this->hasCurrentPoint = false;
+    }
+
+    /** Appends a path-construction operator, which leaves a path open. */
+    public function path(string $operators): void
+    {
+        $this->append($operators);
+        $this->hasCurrentPoint = true;
+    }
+
+    /** Appends operators the state cannot follow, so all of it becomes unknown. */
+    public function raw(string $operators): void
+    {
+        $this->append($operators);
+        $this->state = self::UNKNOWN_STATE;
+    }
+
+    public function rect(float $x, float $y, float $width, float $height): void
+    {
+        $this->path(Num::list([$x, $y, $width, $height]) . ' re');
+    }
+
+    /** @throws StateException without a matching save() */
+    public function restore(): void
+    {
+        $ctm = array_pop($this->ctmStack) ?? throw new StateException(
+            'restore() without a matching save().',
+        );
+        $this->ctm             = $ctm;
+        $this->state           = array_pop($this->stateStack) ?? self::UNKNOWN_STATE;
+        $this->hasCurrentPoint = false;
+        $this->append('Q');
+    }
+
+    public function save(): void
+    {
+        $this->ctmStack[]   = $this->ctm;
+        $this->stateStack[] = $this->state;
+        $this->append('q');
+    }
+}

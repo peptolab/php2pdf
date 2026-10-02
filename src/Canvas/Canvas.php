@@ -13,39 +13,21 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
-use Php2Pdf\Core\Serializer;
-use Php2Pdf\Exception\InvalidArgumentException;
-use Php2Pdf\Exception\StateException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitEngine;
-use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Fit\Placement;
 use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Font\FontInterface;
-use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
-use Php2Pdf\Font\PdfFontInterface;
 use Php2Pdf\Font\TextOptions;
-use Php2Pdf\Font\TextRenderMode;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Template\Template;
 
-use function abs;
-use function array_keys;
-use function array_pop;
-use function array_slice;
-use function ceil;
-use function cos;
-use function count;
-use function deg2rad;
 use function max;
 use function min;
-use function sin;
-use function sprintf;
-use function tan;
 
 /**
  * Builds a content stream: graphics state, transforms, paths, painting and colour. Shared by
@@ -69,20 +51,16 @@ final class Canvas
      */
     public function __construct(
         private readonly Objects $objects,
-        private readonly ColourPolicyInterface $colour,
+        ColourPolicyInterface $colour,
         private readonly Resources $resources,
         private readonly float $height,
         private readonly bool $topDown,
         bool $inheritsState = false,
         private readonly ?Closure $links = null,
     ) {
-        $this->colours = new ColourOperators($this->objects, $this->colour, $this->resources);
-        $this->text    = $inheritsState ? self::UNKNOWN_STATE : self::PAGE_STATE;
-        $this->ctm     = Matrix::identity();
-        if ($topDown) {
-            $this->ctm = new Matrix(1.0, 0.0, 0.0, -1.0, 0.0, $height);
-            $this->ops = '1 0 0 -1 0 ' . Num::format($height) . " cm\n";
-        }
+        $this->stream = new ContentStream($height, $topDown, $inheritsState);
+        $this->paint  = new Paint($objects, $resources, new ColourOperators($objects, $colour, $resources));
+        $this->text   = new TextPainter($this->stream, $resources, $objects);
     }
 
     /**
@@ -91,36 +69,7 @@ final class Canvas
      */
     public function arc(float $cx, float $cy, float $radius, float $startDegrees, float $endDegrees): self
     {
-        $sweep = $endDegrees - $startDegrees;
-        if (abs($sweep) > 360.0) {
-            $sweep = $sweep < 0.0 ? -360.0 : 360.0;
-        }
-        $segments = max(1, (int) ceil(abs($sweep) / 90.0));
-        $step     = deg2rad($sweep / $segments);
-        $angle    = deg2rad($startDegrees);
-
-        $x                     = $cx + ($radius * cos($angle));
-        $y                     = $cy + ($radius * sin($angle));
-        $this->ops             .= Num::list([$x, $y]) . ($this->hasCurrentPoint ? " l\n" : " m\n");
-        $this->hasCurrentPoint = true;
-
-        $k = (4.0 / 3.0) * tan($step / 4.0);
-        for ($i = 0; $i < $segments; ++$i) {
-            $next = $angle + $step;
-            $cos1 = cos($angle);
-            $sin1 = sin($angle);
-            $cos2 = cos($next);
-            $sin2 = sin($next);
-            $this->curveTo(
-                $cx + ($radius * ($cos1 - ($k * $sin1))),
-                $cy + ($radius * ($sin1 + ($k * $cos1))),
-                $cx + ($radius * ($cos2 + ($k * $sin2))),
-                $cy + ($radius * ($sin2 - ($k * $cos2))),
-                $cx + ($radius * $cos2),
-                $cy + ($radius * $sin2),
-            );
-            $angle = $next;
-        }
+        Shapes::arc($this->stream, $cx, $cy, $radius, $startDegrees, $endDegrees);
 
         return $this;
     }
@@ -138,28 +87,28 @@ final class Canvas
     /** Intersects the clip region with the current path and discards the path. */
     public function clip(FillRule $rule = FillRule::NonZero): self
     {
-        return $this->paint(FillRule::EvenOdd === $rule ? 'W* n' : 'W n');
+        $this->stream->paint(FillRule::EvenOdd === $rule ? 'W* n' : 'W n');
+
+        return $this;
     }
 
     public function closeAndStroke(): self
     {
-        return $this->paint('s');
+        $this->stream->paint('s');
+
+        return $this;
     }
 
     public function closePath(): self
     {
-        $this->ops .= "h\n";
+        $this->stream->closePath();
 
         return $this;
     }
 
     public function concat(Matrix $matrix): self
     {
-        if ($matrix->isIdentity()) {
-            return $this;
-        }
-        $this->ctm = $matrix->then($this->ctm);
-        $this->ops .= "{$matrix->toPdf()} cm\n";
+        $this->stream->concat($matrix);
 
         return $this;
     }
@@ -167,20 +116,19 @@ final class Canvas
     /** The current transformation matrix, from user space to the canvas's default space. */
     public function ctm(): Matrix
     {
-        return $this->ctm;
+        return $this->stream->ctm();
     }
 
     public function curveTo(float $x1, float $y1, float $x2, float $y2, float $x3, float $y3): self
     {
-        $this->ops             .= Num::list([$x1, $y1, $x2, $y2, $x3, $y3]) . " c\n";
-        $this->hasCurrentPoint = true;
+        $this->stream->curveTo($x1, $y1, $x2, $y2, $x3, $y3);
 
         return $this;
     }
 
     public function disableOverprint(): self
     {
-        return $this->extGState(['op' => false, 'OP' => false]);
+        return $this->setGraphicsState(['op' => false, 'OP' => false]);
     }
 
     /**
@@ -207,23 +155,16 @@ final class Canvas
      */
     public function drawXObject(Reference $ref, Matrix $matrix): self
     {
-        $name      = $this->resources->xObject($ref);
-        $this->ops .= "q {$matrix->toPdf()} cm /{$name} Do Q\n";
+        $this->stream->append("q {$matrix->toPdf()} cm /{$this->resources->xObject($ref)} Do Q");
 
         return $this;
     }
 
     public function ellipse(float $cx, float $cy, float $rx, float $ry): self
     {
-        $kx = self::KAPPA * $rx;
-        $ky = self::KAPPA * $ry;
+        Shapes::ellipse($this->stream, $cx, $cy, $rx, $ry);
 
-        return $this->moveTo($cx + $rx, $cy)
-            ->curveTo($cx + $rx, $cy + $ky, $cx + $kx, $cy + $ry, $cx, $cy + $ry)
-            ->curveTo($cx - $kx, $cy + $ry, $cx - $rx, $cy + $ky, $cx - $rx, $cy)
-            ->curveTo($cx - $rx, $cy - $ky, $cx - $kx, $cy - $ry, $cx, $cy - $ry)
-            ->curveTo($cx + $kx, $cy - $ry, $cx + $rx, $cy - $ky, $cx + $rx, $cy)
-            ->closePath();
+        return $this;
     }
 
     /**
@@ -233,23 +174,29 @@ final class Canvas
      */
     public function enableOverprint(int $mode = 1): self
     {
-        return $this->extGState(['op' => true, 'OP' => true, 'OPM' => $mode]);
+        return $this->setGraphicsState(['op' => true, 'OP' => true, 'OPM' => $mode]);
     }
 
     /** Ends the path without painting it. */
     public function endPath(): self
     {
-        return $this->paint('n');
+        $this->stream->paint('n');
+
+        return $this;
     }
 
     public function fill(FillRule $rule = FillRule::NonZero): self
     {
-        return $this->paint(FillRule::EvenOdd === $rule ? 'f*' : 'f');
+        $this->stream->paint(FillRule::EvenOdd === $rule ? 'f*' : 'f');
+
+        return $this;
     }
 
     public function fillAndStroke(FillRule $rule = FillRule::NonZero): self
     {
-        return $this->paint(FillRule::EvenOdd === $rule ? 'B*' : 'B');
+        $this->stream->paint(FillRule::EvenOdd === $rule ? 'B*' : 'B');
+
+        return $this;
     }
 
     public function fillRect(float $x, float $y, float $width, float $height): self
@@ -264,15 +211,7 @@ final class Canvas
      */
     public function finish(): string
     {
-        if ($this->finished) {
-            throw new StateException('Canvas has already been finished.');
-        }
-        if ([] !== $this->ctmStack) {
-            throw new StateException(sprintf('Unbalanced save(): %d state(s) not restored.', count($this->ctmStack)));
-        }
-        $this->finished = true;
-
-        return $this->ops;
+        return $this->stream->finish();
     }
 
     /**
@@ -286,61 +225,7 @@ final class Canvas
         Box $box,
         ?TextlineOptions $options = null,
     ): TextlinePlacement {
-        $options ??= new TextlineOptions();
-        $run     = BidiRuns::shape($font, $text, $options->text);
-        $width   = max(0.01, $font->width($run, $size, $options->text));
-        $ascent  = $font->ascender($size);
-        $descent = $font->descender($size);
-        $height  = max(0.01, $ascent - $descent);
-
-        $fit = new Fit($options->method, $options->position, $options->rotate);
-        if (FitMethod::Auto === $options->method) {
-            $rotated = Matrix::rotation($options->rotate)->applyToBox(new Box(0.0, 0.0, $width, $height));
-            $scale   = min(1.0, $box->width / $rotated->width, $box->height / $rotated->height);
-            $fit     = new Fit(
-                FitMethod::NoFit,
-                $options->position,
-                $options->rotate,
-                max($scale, $options->shrinkLimit),
-            );
-        }
-        $placement = FitEngine::place($width, $height, $box, $fit, $this->origin());
-        $matrix    = $placement->matrix;
-
-        $this->save();
-        if (null !== $placement->clip) {
-            $this->box($placement->clip)->clip();
-        }
-        // Object space: the line's box spans 0..width by 0..height with the baseline at -descent.
-        $this->showRun($run, $font, $size, Matrix::translation(0.0, -$descent)->then($matrix), $options->text);
-        if ($options->underline) {
-            $this->decorationRect(
-                $matrix,
-                $width,
-                -$descent + $font->underlinePosition($size),
-                $font->underlineThickness($size),
-            );
-        }
-        if ($options->strikeout) {
-            $this->decorationRect(
-                $matrix,
-                $width,
-                -$descent + $font->strikeoutPosition($size),
-                $font->strikeoutSize($size),
-            );
-        }
-        $this->restore();
-
-        [$baselineX, $baselineY] = $matrix->apply(0.0, -$descent);
-
-        return new TextlinePlacement(
-            $placement->bounds,
-            $baselineX,
-            $baselineY,
-            $size * $placement->scaleX,
-            $width * $placement->scaleX,
-            ! $placement->overflows($box),
-        );
+        return $this->text->fitLine($this, $text, $font, $size, $box, $options ?? new TextlineOptions());
     }
 
     public function height(): float
@@ -360,8 +245,7 @@ final class Canvas
 
     public function lineTo(float $x, float $y): self
     {
-        $this->ops             .= Num::list([$x, $y]) . " l\n";
-        $this->hasCurrentPoint = true;
+        $this->stream->lineTo($x, $y);
 
         return $this;
     }
@@ -385,7 +269,7 @@ final class Canvas
             [$area->x, $area->far()],
             [$area->right(), $area->far()],
         ] as [$x, $y]) {
-            [$xs[], $ys[]] = $this->ctm->apply($x, $y);
+            [$xs[], $ys[]] = $this->stream->ctm()->apply($x, $y);
         }
         ($this->links)(new Box(min($xs), min($ys), max($xs) - min($xs), max($ys) - min($ys)), $target, $tooltip);
 
@@ -394,8 +278,7 @@ final class Canvas
 
     public function moveTo(float $x, float $y): self
     {
-        $this->ops             .= Num::list([$x, $y]) . " m\n";
-        $this->hasCurrentPoint = true;
+        $this->stream->moveTo($x, $y);
 
         return $this;
     }
@@ -420,8 +303,7 @@ final class Canvas
      */
     public function paintGradient(AbstractGradient $gradient): self
     {
-        $name      = $this->resources->shading($this->colours->shading($gradient));
-        $this->ops .= "/{$name} sh\n";
+        $this->stream->append("/{$this->paint->shading($gradient)} sh");
 
         return $this;
     }
@@ -447,16 +329,14 @@ final class Canvas
     /** Appends raw content-stream syntax. A newline is added. */
     public function raw(string $syntax): self
     {
-        $this->ops  .= "{$syntax}\n";
-        $this->text = self::UNKNOWN_STATE;
+        $this->stream->raw($syntax);
 
         return $this;
     }
 
     public function rect(float $x, float $y, float $width, float $height): self
     {
-        $this->ops             .= Num::list([$x, $y, $width, $height]) . " re\n";
-        $this->hasCurrentPoint = true;
+        $this->stream->rect($x, $y, $width, $height);
 
         return $this;
     }
@@ -469,13 +349,7 @@ final class Canvas
 
     public function restore(): self
     {
-        if ([] === $this->ctmStack) {
-            throw new StateException('restore() without a matching save().');
-        }
-        $this->ctm             = array_pop($this->ctmStack);
-        $this->text            = array_pop($this->textStack) ?? self::UNKNOWN_STATE;
-        $this->ops             .= "Q\n";
-        $this->hasCurrentPoint = false;
+        $this->stream->restore();
 
         return $this;
     }
@@ -487,31 +361,14 @@ final class Canvas
 
     public function roundedRect(float $x, float $y, float $width, float $height, float $radius): self
     {
-        $r = min($radius, $width / 2.0, $height / 2.0);
-        if ($r <= 0.0) {
-            return $this->rect($x, $y, $width, $height);
-        }
-        $k  = self::KAPPA * $r;
-        $x2 = $x + $width;
-        $y2 = $y + $height;
+        Shapes::roundedRect($this->stream, $x, $y, $width, $height, $radius);
 
-        return $this->moveTo($x + $r, $y)
-            ->lineTo($x2 - $r, $y)
-            ->curveTo($x2 - $r + $k, $y, $x2, $y + $r - $k, $x2, $y + $r)
-            ->lineTo($x2, $y2 - $r)
-            ->curveTo($x2, $y2 - $r + $k, $x2 - $r + $k, $y2, $x2 - $r, $y2)
-            ->lineTo($x + $r, $y2)
-            ->curveTo($x + $r - $k, $y2, $x, $y2 - $r + $k, $x, $y2 - $r)
-            ->lineTo($x, $y + $r)
-            ->curveTo($x, $y + $r - $k, $x + $r - $k, $y, $x + $r, $y)
-            ->closePath();
+        return $this;
     }
 
     public function save(): self
     {
-        $this->ctmStack[]  = $this->ctm;
-        $this->textStack[] = $this->text;
-        $this->ops         .= "q\n";
+        $this->stream->save();
 
         return $this;
     }
@@ -521,11 +378,9 @@ final class Canvas
         return $this->concat(Matrix::scaling($sx, $sy));
     }
 
-    private readonly ColourOperators $colours;
-
     public function setBlendMode(BlendMode $mode): self
     {
-        return $this->extGState(['BM' => new Name($mode->value)]);
+        return $this->setGraphicsState(['BM' => new Name($mode->value)]);
     }
 
     /** Sets both fill and stroke colour. */
@@ -539,17 +394,16 @@ final class Canvas
      */
     public function setDash(array $pattern, float $phase = 0.0): self
     {
-        $this->ops .= '[' . Num::list($pattern) . '] ' . Num::format($phase) . " d\n";
+        $this->stream->append('[' . Num::list($pattern) . '] ' . Num::format($phase) . ' d');
 
         return $this;
     }
 
     public function setFillColor(ColorInterface $color): self
     {
-        $operation = $this->colours->ops($color, self::FILL_OPS);
-        if ($operation !== $this->text['fill']) {
-            $this->ops          .= "{$operation}\n";
-            $this->text['fill'] = $operation;
+        $operation = $this->paint->colour($color, self::FILL_OPS);
+        if ($this->stream->changes('fill', $operation)) {
+            $this->stream->append($operation);
         }
 
         return $this;
@@ -561,8 +415,10 @@ final class Canvas
      */
     public function setFillGradient(AbstractGradient $gradient, ?Matrix $matrix = null): self
     {
-        $this->ops          .= "/Pattern cs /{$this->patternName($gradient, $matrix)} scn\n";
-        $this->text['fill'] = null;
+        $this->stream->append(
+            "/Pattern cs /{$this->paint->gradientPattern($gradient, $this->patternMatrix($matrix))} scn",
+        );
+        $this->stream->forget('fill');
 
         return $this;
     }
@@ -574,87 +430,45 @@ final class Canvas
      */
     public function setFillPattern(Template $tile, float $xStep, float $yStep, ?Matrix $matrix = null): self
     {
-        $this->ops          .= "/Pattern cs /{$this->tileName($tile, $xStep, $yStep, $matrix)} scn\n";
-        $this->text['fill'] = null;
+        $this->stream->append(
+            "/Pattern cs /{$this->paint->tilePattern($tile, $xStep, $yStep, $this->patternMatrix($matrix))} scn",
+        );
+        $this->stream->forget('fill');
 
         return $this;
     }
 
     public function setLineCap(LineCap $cap): self
     {
-        $this->ops .= "{$cap->value} J\n";
+        $this->stream->append("{$cap->value} J");
 
         return $this;
     }
 
-    /** Bézier control-point factor for a quarter circle. */
-    private const float KAPPA = 0.552_284_749_830_793_6;
-
-    private const array INITIAL_STATE = [
-        'Tf'   => null,
-        'Tc'   => '0 Tc',
-        'Tz'   => '100 Tz',
-        'Ts'   => '0 Ts',
-        'Tr'   => '0 Tr',
-        'fill' => null,
-    ];
-    private const array PAGE_STATE    = [
-        'Tf'   => null,
-        'Tc'   => '0 Tc',
-        'Tz'   => '100 Tz',
-        'Ts'   => '0 Ts',
-        'Tr'   => '0 Tr',
-        'fill' => '0 g',
-    ];
-    private const array UNKNOWN_STATE = [
-        'Tf'   => null,
-        'Tc'   => null,
-        'Tz'   => null,
-        'Ts'   => null,
-        'Tr'   => null,
-        'fill' => null,
-    ];
+    private readonly ContentStream $stream;
+    private readonly Paint $paint;
+    private readonly TextPainter $text;
 
     private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
     private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];
 
-    private string $ops = '';
-    private Matrix $ctm;
-
-    /** @var list<Matrix> */
-    private array $ctmStack = [];
-
-    /**
-     * The text state and fill colour last written, as the operations that set them, so they are
-     * written again only when they change. Null is unknown.
-     *
-     * @var array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}
-     */
-    private array $text;
-
-    /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}> */
-    private array $textStack = [];
-
-    private bool $hasCurrentPoint = false;
-    private bool $finished        = false;
-
     public function setLineJoin(LineJoin $join): self
     {
-        $this->ops .= "{$join->value} j\n";
+        $this->stream->append("{$join->value} j");
 
         return $this;
     }
 
     public function setLineWidth(float $width): self
     {
-        $this->ops .= Num::format($width) . " w\n";
+        $this->stream->append(Num::format($width) . ' w');
 
         return $this;
     }
 
     public function setMiterLimit(float $limit): self
     {
-        $this->ops .= Num::format($limit) . " M\n";
+        $this->stream->append(Num::format($limit) . ' M');
 
         return $this;
     }
@@ -662,7 +476,7 @@ final class Canvas
     /** Constant alpha from 0.0 (transparent) to 1.0 (opaque). */
     public function setOpacity(float $fill, ?float $stroke = null): self
     {
-        return $this->extGState(['ca' => $fill, 'CA' => $stroke ?? $fill]);
+        return $this->setGraphicsState(['ca' => $fill, 'CA' => $stroke ?? $fill]);
     }
 
     /**
@@ -676,7 +490,7 @@ final class Canvas
         $this->objects->assertOwns($mask->objects(), 'A template');
         $mask->asTransparencyGroup();
 
-        return $this->extGState(['SMask' => Dictionary::of([
+        return $this->setGraphicsState(['SMask' => Dictionary::of([
             'Type' => new Name('Mask'),
             'S'    => new Name(SoftMaskType::Luminosity === $type ? 'Luminosity' : 'Alpha'),
             'G'    => $mask->reference(),
@@ -685,7 +499,7 @@ final class Canvas
 
     public function setStrokeColor(ColorInterface $color): self
     {
-        $this->ops .= "{$this->colours->ops($color, self::STROKE_OPS)}\n";
+        $this->stream->append($this->paint->colour($color, self::STROKE_OPS));
 
         return $this;
     }
@@ -693,7 +507,9 @@ final class Canvas
     /** @param Matrix|null $matrix maps gradient coordinates into the current user space */
     public function setStrokeGradient(AbstractGradient $gradient, ?Matrix $matrix = null): self
     {
-        $this->ops .= "/Pattern CS /{$this->patternName($gradient, $matrix)} SCN\n";
+        $this->stream->append(
+            "/Pattern CS /{$this->paint->gradientPattern($gradient, $this->patternMatrix($matrix))} SCN",
+        );
 
         return $this;
     }
@@ -705,7 +521,9 @@ final class Canvas
      */
     public function setStrokePattern(Template $tile, float $xStep, float $yStep, ?Matrix $matrix = null): self
     {
-        $this->ops .= "/Pattern CS /{$this->tileName($tile, $xStep, $yStep, $matrix)} SCN\n";
+        $this->stream->append(
+            "/Pattern CS /{$this->paint->tilePattern($tile, $xStep, $yStep, $this->patternMatrix($matrix))} SCN",
+        );
 
         return $this;
     }
@@ -722,35 +540,7 @@ final class Canvas
         Matrix $textMatrix,
         TextOptions $options,
     ): self {
-        if ($run->isEmpty()) {
-            return $this;
-        }
-        $font = $font instanceof PdfFontInterface
-            ? $font
-            : throw new InvalidArgumentException(sprintf(
-                'Text can only be drawn with fonts from the document\'s FontRegistry, not %s.',
-                $font::class,
-            ));
-        $layers = TextRenderMode::Invisible === $options->renderMode ? [] : $font->colourLayers($run);
-        $this->showText($run, $font, $size, $textMatrix, $options, array_keys($layers));
-        foreach ($layers as $index => $list) {
-            $origin = Matrix::translation(
-                $font->width(new GlyphRun(array_slice($run->glyphs, offset: 0, length: $index)), $size, $options),
-                0.0,
-            )->then($textMatrix);
-            foreach ($list as [$glyph, $colour, $opacity]) {
-                $this->save();
-                if (null !== $colour) {
-                    $this->setFillColor($colour);
-                }
-                if ($opacity < 1.0) {
-                    $this->setOpacity($opacity);
-                }
-                $layer = new GlyphRun([new Glyph($glyph, -1, $font->advance($glyph))]);
-                $this->showText($layer, $font, $size, $origin, $options, []);
-                $this->restore();
-            }
-        }
+        $this->text->run($this, $run, $font, $size, $textMatrix, $options);
 
         return $this;
     }
@@ -762,7 +552,9 @@ final class Canvas
 
     public function stroke(): self
     {
-        return $this->paint('S');
+        $this->stream->paint('S');
+
+        return $this;
     }
 
     public function strokeRect(float $x, float $y, float $width, float $height): self
@@ -775,106 +567,19 @@ final class Canvas
         return $this->concat(Matrix::translation($tx, $ty));
     }
 
-    /** A filled bar in the object space of a fitted text line (underline, strikeout). */
-    private function decorationRect(Matrix $matrix, float $width, float $y, float $thickness): void
+    /** Maps pattern coordinates into the canvas's default space, through the current transform. */
+    private function patternMatrix(?Matrix $matrix): Matrix
     {
-        $this->ops .=
-            "q {$matrix->toPdf()} cm 0 "
-            . Num::format($y - ($thickness / 2.0))
-            . ' '
-            . Num::format($width)
-            . ' '
-            . Num::format($thickness)
-            . " re f Q\n";
+        $ctm = $this->stream->ctm();
+
+        return null === $matrix ? $ctm : $matrix->then($ctm);
     }
 
     /** @param array<string, mixed> $entries */
-    private function extGState(array $entries): self
+    private function setGraphicsState(array $entries): self
     {
-        $dict = Dictionary::of(['Type' => new Name('ExtGState'), ...$entries]);
-        $ref  = $this->objects->shared(
-            'gs:' . Serializer::serialize($dict),
-            static fn(): Dictionary => $dict,
-        );
-        $this->ops .= "/{$this->resources->extGState($ref)} gs\n";
+        $this->stream->append("/{$this->paint->extGState($entries)} gs");
 
         return $this;
-    }
-
-    private function paint(string $operator): self
-    {
-        $this->ops             .= "{$operator}\n";
-        $this->hasCurrentPoint = false;
-
-        return $this;
-    }
-
-    private function patternName(AbstractGradient $gradient, ?Matrix $matrix): string
-    {
-        $shading = $this->colours->shading($gradient);
-        $matrix  = null === $matrix ? $this->ctm : $matrix->then($this->ctm);
-        $pattern = $this->objects->shared(
-            "pat:{$gradient->key()}:{$matrix->toPdf()}",
-            static fn(): Dictionary => Dictionary::of([
-                'PatternType' => 2,
-                'Shading'     => $shading,
-                'Matrix'      => $matrix->toArray(),
-            ]),
-        );
-
-        return $this->resources->pattern($pattern);
-    }
-
-    /**
-     * Shows a run in one text object. Glyphs at the $hidden positions (colour glyphs, whose layers
-     * are drawn over them) are shown invisibly, so they keep their place and their text.
-     *
-     * @param list<int> $hidden
-     */
-    private function showText(
-        GlyphRun $run,
-        PdfFontInterface $font,
-        float $size,
-        Matrix $textMatrix,
-        TextOptions $options,
-        array $hidden,
-    ): void {
-        $this->objects->assertOwns($font->objects(), 'A font');
-        $faithful = $font->markUsed($run);
-        $ops      = 'BT';
-        $tf       = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
-        if ($tf !== $this->text['Tf']) {
-            $ops              .= " {$tf}";
-            $this->text['Tf'] = $tf;
-        }
-        $state = [
-            'Tc' => Num::format($options->charSpacing) . ' Tc',
-            'Tz' => Num::format($options->horizontalScale) . ' Tz',
-            'Ts' => Num::format($options->rise) . ' Ts',
-            'Tr' => "{$options->renderMode->value} Tr",
-        ];
-        foreach ($state as $operator => $operation) {
-            if ($operation === ($this->text[$operator] ?? null)) {
-                continue;
-            }
-            $ops                   .= " {$operation}";
-            $this->text[$operator] = $operation;
-        }
-        $m        = $textMatrix;
-        $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
-            ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
-            : "{$m->toPdf()} Tm";
-        $text =
-            "{$ops} {$position} "
-            . TextOperators::show($run, $font, $size, $options, $hidden, $this->text['Tr'] ?? '0 Tr')
-            . ' ET';
-        $this->ops .= ($faithful ? $text : TextOperators::actualText($run, $options, $text)) . "\n";
-    }
-
-    private function tileName(Template $tile, float $xStep, float $yStep, ?Matrix $matrix): string
-    {
-        $matrix = null === $matrix ? $this->ctm : $matrix->then($this->ctm);
-
-        return $this->resources->pattern($this->colours->tilingPattern($tile, $xStep, $yStep, $matrix));
     }
 }

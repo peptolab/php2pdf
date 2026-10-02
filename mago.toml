@@ -13,7 +13,8 @@ includes = ["vendor"]
 # - A ratchet: classes the restructuring phases split up. Remove a file from its list when it
 #   passes, and never add one to make new code pass.
 too-many-methods = { threshold = 30, exclude = [
-    # Ratchet: split into a content stream, graphics state, paint and text painters.
+    # Honest: the drawing vocabulary (paths, painting, state, colour, text), each method a line or
+    # two delegating to the content stream, shapes, paint and text painter.
     "src/Canvas/Canvas.php",
     # Ratchet: catalog contributors and an asset loader take its jobs.
     "src/Document/Document.php",
