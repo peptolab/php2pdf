@@ -26,8 +26,11 @@ use function filesize;
 use function hrtime;
 use function memory_get_peak_usage;
 use function microtime;
+use function min;
 use function sprintf;
 use function str_repeat;
+
+use const INF;
 
 /**
  * A 500-page document: flowing text, a table on every page, a template and an image, written
@@ -38,8 +41,10 @@ use function str_repeat;
 final class PerformanceTest extends TestCase
 {
     /**
-     * Shaping keeps one buffer for a run and changes it in place, so four times the text takes
-     * about four times as long; a copy per substitution made it sixteen.
+     * Shaping changes one buffer in place, and a ligature leaves placeholders rather than moving
+     * the glyphs after it, so sixteen times the text takes about sixteen times as long, ligatures
+     * and all; moving the glyphs made it nearly a hundred. Each length is timed at its fastest of
+     * three runs, so a busy machine does not decide the result.
      */
     #[Test]
     #[Group('performance')]
@@ -48,21 +53,20 @@ final class PerformanceTest extends TestCase
         $document = new Document(new MemoryOutput());
         $font     = $document->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
         $text     = str_repeat('The quick brown fox affirms fluffy waffles, officially. ', times: 40);
-        $time     = static function (string $text) use ($font): float {
-            $start = hrtime(true);
-            $font->shape($text);
+        $fastest  = static function (string $text) use ($font): float {
+            $best = INF;
+            for ($run = 0; $run < 3; ++$run) {
+                $start = hrtime(true);
+                $font->shape("{$text}{$run}");
+                $best = min($best, (float) (hrtime(true) - $start));
+            }
 
-            return (float) (hrtime(true) - $start);
+            return $best;
         };
-        $time("{$text}warm");
-        $short = $time("{$text}a");
-        $long  = $time(str_repeat($text, times: 4) . 'b');
+        $fastest("{$text}warm");
+        $ratio = $fastest(str_repeat($text, times: 16)) / $fastest($text);
 
-        self::assertLessThan(
-            8.0,
-            $long / $short,
-            sprintf('Four times the text took %.1f times as long.', $long / $short),
-        );
+        self::assertLessThan(32.0, $ratio, sprintf('Sixteen times the text took %.1f times as long.', $ratio));
     }
 
     #[Test]

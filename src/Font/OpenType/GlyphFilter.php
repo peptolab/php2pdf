@@ -25,8 +25,12 @@ final readonly class GlyphFilter
         private int $markFilteringSet = 0,
     ) {}
 
+    /** Whether the lookup passes over a glyph; it always passes over a GlyphBuffer placeholder. */
     public function ignores(int $glyph): bool
     {
+        if (GlyphBuffer::REMOVED === $glyph) {
+            return true;
+        }
         if (null === $this->gdef || 0 === ($this->flag & 0xFF1E)) {
             return false;
         }

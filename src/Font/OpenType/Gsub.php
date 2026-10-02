@@ -51,9 +51,9 @@ final class Gsub
     }
 
     /**
-     * The input positions after a nested lookup at one of them changed the sequence's length by
-     * $delta: glyphs a ligature took are dropped, glyphs a multiple substitution added follow it,
-     * and later positions move by $delta.
+     * The input positions after a nested lookup at one of them changed the number of live glyphs
+     * by $delta. Glyphs a ligature took are dropped; they left placeholders, so later positions
+     * stay. Glyphs a multiple substitution added follow it, and later positions move by $delta.
      *
      * @param list<int> $positions
      *
@@ -80,7 +80,7 @@ final class Gsub
 
         return [
             ...array_slice($positions, offset: 0, length: $next),
-            ...array_map(static fn(int $p): int => $p + $delta, array_slice($positions, $next - $delta)),
+            ...array_slice($positions, $next - $delta),
         ];
     }
 
@@ -212,6 +212,7 @@ final class Gsub
                 }
                 $this->applyAt($lookup, $glyphs, $i, depth: 0);
             }
+            $glyphs->compact();
 
             return;
         }
@@ -229,6 +230,7 @@ final class Gsub
             }
             $i = $this->applyAt($lookup, $glyphs, $i, depth: 0) ?? ($i + 1);
         }
+        $glyphs->compact();
     }
 
     /**
@@ -250,15 +252,15 @@ final class Gsub
             if (null === $position) {
                 continue;
             }
-            $before = $glyphs->count();
+            $before = $glyphs->length();
             if (null === $this->applyAt($lookupIndex, $glyphs, $position, $depth + 1)) {
                 continue;
             }
-            $delta = $glyphs->count() - $before;
+            $delta = $glyphs->length() - $before;
             if (0 === $delta) {
                 continue;
             }
-            $end       += $delta;
+            $end       += max(0, $delta);
             $positions = self::shiftPositions($positions, $sequenceIndex, $delta);
         }
 
@@ -273,7 +275,50 @@ final class Gsub
      */
     private function ligature(int $offset, GlyphBuffer $glyphs, int $i, GlyphFilter $filter): ?int
     {
-        $ids = $glyphs->ids();
+        $match = $this->ligatureAt($offset, $glyphs->ids(), $i, $filter);
+        if (null === $match) {
+            return null;
+        }
+        [$ligature, $positions] = $match;
+        $last       = $positions[count($positions) - 1] ?? $i;
+        $id         = $glyphs->nextLigature();
+        $codePoints = [];
+        $component  = 0;
+        $form       = $glyphs->entry($i)[4] ?? '';
+        for ($position = $i; $position <= $last; ++$position) {
+            $entry = $glyphs->entry($position);
+            if (null === $entry || GlyphBuffer::REMOVED === $entry[0]) {
+                continue;
+            }
+            if (in_array($position, $positions, strict: true)) {
+                ++$component;
+                foreach ($entry[1] as $point) {
+                    $codePoints[] = $point;
+                }
+                if ($position !== $i) {
+                    $glyphs->remove($position);
+                }
+                continue;
+            }
+            $glyphs->set($position, [$entry[0], $entry[1], $id, $component, $entry[4] ?? '']);
+        }
+        $glyphs->set($i, [$ligature, $codePoints, $id, 0, $form]);
+
+        return $i + 1;
+    }
+
+    /**
+     * The first ligature in the set whose components follow the glyph at $i: its glyph and the
+     * components' positions, the first glyph's included.
+     *
+     * @param list<int> $ids
+     *
+     * @return array{0: int, 1: non-empty-list<int>}|null
+     *
+     * @throws ParseException
+     */
+    private function ligatureAt(int $offset, array $ids, int $i, GlyphFilter $filter): ?array
+    {
         foreach ($this->tables->ligatureSet($offset)[$ids[$i] ?? -1] ?? [] as [$components, $ligature]) {
             $positions = [$i];
             $p         = $i;
@@ -284,28 +329,8 @@ final class Gsub
                 }
                 $positions[] = $p;
             }
-            $id         = $glyphs->nextLigature();
-            $codePoints = [];
-            $kept       = [];
-            $component  = 0;
-            for ($position = $i; $position <= $p; ++$position) {
-                $entry = $glyphs->entry($position);
-                if (null === $entry) {
-                    continue;
-                }
-                if (in_array($position, $positions, strict: true)) {
-                    ++$component;
-                    foreach ($entry[1] as $point) {
-                        $codePoints[] = $point;
-                    }
-                    continue;
-                }
-                $kept[] = [$entry[0], $entry[1], $id, $component, $entry[4] ?? ''];
-            }
-            $form = $glyphs->entry($i)[4] ?? '';
-            $glyphs->splice($i, $p - $i + 1, [[$ligature, $codePoints, $id, 0, $form], ...$kept]);
 
-            return $i + 1;
+            return [$ligature, $positions];
         }
 
         return null;
@@ -329,9 +354,14 @@ final class Gsub
         foreach ($r->u16List($sequence + 2, $r->u16($sequence)) as $k => $glyph) {
             $replacement[] = [$glyph, 0 === $k ? $entry[1] : [], $entry[2] ?? 0, $entry[3] ?? 0, $entry[4] ?? ''];
         }
-        $glyphs->splice($i, 1, $replacement);
+        $first = $replacement[0] ?? null;
+        match (true) {
+            null === $first => $glyphs->remove($i),
+            1 === count($replacement) => $glyphs->set($i, $first),
+            default => $glyphs->splice($i, $replacement),
+        };
 
-        return $i + count($replacement);
+        return $i + max(1, count($replacement));
     }
 
     /**

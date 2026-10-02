@@ -165,6 +165,48 @@ final class GsubTest extends TestCase
     }
 
     #[Test]
+    public function aBacktrackPassesOverWhatALigatureTookEarlierInTheSameLookup(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [
+            [
+                6,
+                [
+                    GsubBuilder::chain1([5 => [[[], [6], [], [[0, 1]]]]]),
+                    GsubBuilder::chain3([[50]], [[9]], [], [[0, 2]]),
+                ],
+            ],
+            [4, [GsubBuilder::ligature([5 => [[[6], 50]]])]],
+            [1, [GsubBuilder::single2([9 => 99])]],
+        ]);
+
+        self::assertSame([50, 99], self::ids($gsub->apply(self::glyphs([5, 6, 9]), ['liga'])));
+    }
+
+    #[Test]
+    public function aLigatureFormsAcrossAGlyphDeletedEarlierInTheSameContext(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [
+            [5, [GsubBuilder::context1([5 => [[[6, 9], [[1, 1], [0, 2]]]]])]],
+            [2, [GsubBuilder::multiple([6 => []])]],
+            [4, [GsubBuilder::ligature([5 => [[[9], 70]]])]],
+        ]);
+
+        self::assertSame([70, 8], self::ids($gsub->apply(self::glyphs([5, 6, 9, 8]), ['liga'])));
+    }
+
+    #[Test]
+    public function aLigatureInsideAContextLeavesTheLaterRecordsOnTheirGlyphs(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [
+            [5, [GsubBuilder::context1([5 => [[[6, 9], [[0, 1], [1, 2]]]]])]],
+            [4, [GsubBuilder::ligature([5 => [[[6], 50]]])]],
+            [1, [GsubBuilder::single2([6 => 66, 9 => 99])]],
+        ]);
+
+        self::assertSame([50, 99, 8], self::ids($gsub->apply(self::glyphs([5, 6, 9, 8]), ['liga'])));
+    }
+
+    #[Test]
     public function aLigatureStandsForAllItsCharacters(): void
     {
         $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]]);
@@ -206,6 +248,18 @@ final class GsubTest extends TestCase
         self::assertSame([205, 20, 9, 8], self::ids($gsub->apply(self::glyphs([5, 20, 9, 8]), ['test'])));
     }
 
+    #[Test]
+    public function glyphsAMultipleSubstitutionAddsInsideAContextJoinItsInput(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [
+            [5, [GsubBuilder::context1([5 => [[[9], [[0, 1], [1, 2]]]]])]],
+            [2, [GsubBuilder::multiple([5 => [50, 51]])]],
+            [1, [GsubBuilder::single2([9 => 99, 51 => 151])]],
+        ]);
+
+        self::assertSame([50, 151, 9, 8], self::ids($gsub->apply(self::glyphs([5, 9, 8]), ['liga'])));
+    }
+
     /**
      * @param list<int> $input
      * @param list<int> $expected
@@ -228,6 +282,14 @@ final class GsubTest extends TestCase
         ]);
 
         self::assertSame([20], self::ids($gsub->apply(self::glyphs([1, 1, 2]), ['liga'])));
+    }
+
+    #[Test]
+    public function multipleSubstitutionIntoNothingDeletesTheGlyph(): void
+    {
+        $gsub = self::gsub(['ccmp' => [0]], [[2, [GsubBuilder::multiple([4 => []])]]]);
+
+        self::assertSame([1, 2], self::ids($gsub->apply(self::glyphs([1, 4, 2]), ['ccmp'])));
     }
 
     #[Test]
