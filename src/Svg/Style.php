@@ -192,7 +192,9 @@ final class Style
             }
             $properties[$name] = $value;
         }
-        foreach ([$sheet->match($element), StyleSheet::declarations($element->attribute('style') ?? '')] as $rules) {
+        $sheetRules = $sheet->match($element);
+        $inline     = Declarations::parse($element->attribute('style') ?? '');
+        foreach ([$sheetRules->normal, $inline->normal, $sheetRules->important, $inline->important] as $rules) {
             foreach ($rules as $name => $value) {
                 foreach ('marker' === $name ? self::MARKERS : [$name] as $longhand) {
                     $properties[$longhand] = $value;

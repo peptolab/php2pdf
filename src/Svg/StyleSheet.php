@@ -30,33 +30,8 @@ use const PREG_SPLIT_NO_EMPTY;
  */
 final class StyleSheet
 {
-    /** @var list<array{0: string, 1: list<string>, 2: ?string, 3: int, 4: int, 5: array<string, string>}> tag, classes, id, specificity, order, declarations */
+    /** @var list<array{0: string, 1: list<string>, 2: ?string, 3: int, 4: int, 5: Declarations}> tag, classes, id, specificity, order, declarations */
     private array $rules = [];
-
-    /**
-     * Parses "name: value; name: value" into a map of lower-case names.
-     *
-     * @return array<string, string>
-     */
-    public static function declarations(string $text): array
-    {
-        $out = [];
-        foreach (explode(';', $text) as $declaration) {
-            $colon = strpos($declaration, needle: ':');
-            if (false === $colon) {
-                continue;
-            }
-            $name  = strtolower(trim(substr($declaration, offset: 0, length: $colon)));
-            $value = trim(substr($declaration, offset: $colon + 1));
-            $value = preg_replace('/\s*!important\s*$/i', replacement: '', subject: $value) ?? $value;
-            if ('' === $name || '' === $value) {
-                continue;
-            }
-            $out[$name] = $value;
-        }
-
-        return $out;
-    }
 
     public static function fromCss(string $css): self
     {
@@ -70,7 +45,7 @@ final class StyleSheet
         }
         $bodies = $m[2] ?? [];
         foreach ($m[1] ?? [] as $i => $selectors) {
-            $declarations = self::declarations($bodies[$i] ?? '');
+            $declarations = Declarations::parse($bodies[$i] ?? '');
             foreach (explode(',', $selectors) as $selector) {
                 $sheet->addRule(trim($selector), $declarations);
             }
@@ -186,11 +161,10 @@ final class StyleSheet
     }
 
     /**
-     * The declarations that apply to an element, lowest specificity first so later entries win.
-     *
-     * @return array<string, string>
+     * The declarations that apply to an element, by specificity and then order: later ones win
+     * over earlier ones of their kind.
      */
-    public function match(Element $element): array
+    public function match(Element $element): Declarations
     {
         $classes = preg_split('/\s+/', trim($element->attribute('class') ?? ''), flags: PREG_SPLIT_NO_EMPTY);
         $have    = [];
@@ -209,26 +183,23 @@ final class StyleSheet
         usort(
             $matched,
             /**
-             * @param array{0: int, 1: int, 2: array<string, string>} $a
-             * @param array{0: int, 1: int, 2: array<string, string>} $b
+             * @param array{0: int, 1: int, 2: Declarations} $a
+             * @param array{0: int, 1: int, 2: Declarations} $b
              */
             static fn(array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]],
         );
-        $out = [];
+        $out = new Declarations();
         foreach ($matched as [, , $declarations]) {
-            foreach ($declarations as $property => $value) {
-                $out[$property] = $value;
-            }
+            $out = $out->then($declarations);
         }
 
         return $out;
     }
 
-    /** @param array<string, string> $declarations */
-    private function addRule(string $selector, array $declarations): void
+    private function addRule(string $selector, Declarations $declarations): void
     {
         $parsed = self::simpleSelector($selector);
-        if (null === $parsed || [] === $declarations) {
+        if (null === $parsed || $declarations->isEmpty()) {
             return;
         }
         [$tag, $classes, $id] = $parsed;

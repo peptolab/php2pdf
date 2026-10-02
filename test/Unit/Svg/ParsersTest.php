@@ -6,6 +6,7 @@ namespace Php2PdfTest\Unit\Svg;
 
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Svg\ColorParser;
+use Php2Pdf\Svg\Declarations;
 use Php2Pdf\Svg\Length;
 use Php2Pdf\Svg\PathParser;
 use Php2Pdf\Svg\StyleSheet;
@@ -21,6 +22,37 @@ use function count;
 final class ParsersTest extends TestCase
 {
     #[Test]
+    public function anIdSelectorMatchesOnlyThatId(): void
+    {
+        $rect = XmlParser::parse('<svg><rect id="mine"/></svg>')->child('rect');
+        self::assertNotNull($rect);
+
+        self::assertTrue(StyleSheet::fromCss('#other { fill: red }')->match($rect)->isEmpty());
+    }
+
+    #[Test]
+    public function anImportantDeclarationBeatsAMoreSpecificSelector(): void
+    {
+        $sheet = StyleSheet::fromCss('.a { fill: green !important } #id { fill: black }');
+        $byId  = XmlParser::parse('<svg><rect id="id" class="a"/></svg>')->child('rect');
+        self::assertNotNull($byId);
+
+        self::assertSame([['fill' => 'black'], ['fill' => 'green']], [
+            $sheet->match($byId)->normal,
+            $sheet->match($byId)->important,
+        ]);
+    }
+
+    #[Test]
+    public function anImportantDeclarationWinsWithinItsBlock(): void
+    {
+        self::assertEquals(
+            new Declarations(['stroke' => 'blue'], ['fill' => 'red']),
+            Declarations::parse('fill: red ! important; fill: green; stroke: blue'),
+        );
+    }
+
+    #[Test]
     public function arcsBecomeCubicsAndCurveBoundsAreExact(): void
     {
         // A full circle of radius 10 as two arcs.
@@ -32,6 +64,34 @@ final class ParsersTest extends TestCase
         self::assertEqualsWithDelta(20.0, $bounds->width, 1.0e-3);
         self::assertEqualsWithDelta(20.0, $bounds->height, 1.0e-3);
         self::assertGreaterThanOrEqual(5, count($path->commands));
+    }
+
+    #[Test]
+    public function aSheetWithoutRulesIsEmpty(): void
+    {
+        self::assertSame(
+            [true, false],
+            [StyleSheet::fromCss('/* nothing */')->isEmpty(), StyleSheet::fromCss('rect { fill: red }')->isEmpty()],
+        );
+    }
+
+    #[Test]
+    public function atRulesAreSkippedWhereverTheyEnd(): void
+    {
+        $sheet = StyleSheet::fromCss('@import url(more.css); rect { fill: red } @media print { rect { fill: blue }');
+        $rect  = XmlParser::parse('<svg><rect/></svg>')->child('rect');
+        self::assertNotNull($rect);
+
+        self::assertSame(['fill' => 'red'], $sheet->match($rect)->normal);
+    }
+
+    #[Test]
+    public function aTypeSelectorMatchesOnlyThatElement(): void
+    {
+        $rect = XmlParser::parse('<svg><rect/></svg>')->child('rect');
+        self::assertNotNull($rect);
+
+        self::assertTrue(StyleSheet::fromCss('circle { fill: red }')->match($rect)->isEmpty());
     }
 
     #[Test]
@@ -53,6 +113,15 @@ final class ParsersTest extends TestCase
         self::assertSame('grad', $paint->serverId);
         self::assertSame([0.0, 0.0, 1.0], $paint->color?->components());
         self::assertTrue(ColorParser::paint('none')?->isNone());
+    }
+
+    #[Test]
+    public function declarationsAreReadByLowerCaseName(): void
+    {
+        self::assertEquals(
+            new Declarations(['fill' => 'red', 'font-size' => '12px']),
+            Declarations::parse('fill:red; FONT-SIZE : 12px;; : blue; stroke: ; opacity'),
+        );
     }
 
     #[Test]
@@ -100,18 +169,13 @@ final class ParsersTest extends TestCase
             CSS);
         $plain = XmlParser::parse('<svg><rect/></svg>')->child('rect');
         self::assertNotNull($plain);
-        self::assertSame(['fill' => 'red', 'stroke' => 'blue'], $sheet->match($plain));
+        self::assertSame(['fill' => 'red', 'stroke' => 'blue'], $sheet->match($plain)->normal);
 
         $classed = XmlParser::parse('<svg><rect class="b a"/></svg>')->child('rect');
         self::assertNotNull($classed);
-        self::assertSame(['fill' => 'green', 'stroke' => 'purple'], $sheet->match($classed));
-
-        $byId = XmlParser::parse('<svg><rect id="id" class="a"/></svg>')->child('rect');
-        self::assertNotNull($byId);
-        self::assertSame('black', $sheet->match($byId)['fill'] ?? null);
         self::assertSame(
-            ['fill' => 'red', 'font-size' => '12px'],
-            StyleSheet::declarations('fill:red; font-size : 12px;;'),
+            [['fill' => 'red', 'stroke' => 'purple'], ['fill' => 'green']],
+            [$sheet->match($classed)->normal, $sheet->match($classed)->important],
         );
     }
 
