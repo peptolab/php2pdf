@@ -7,17 +7,17 @@ namespace Php2Pdf\Font\HarfBuzz;
 use FFI;
 use FFI\CData;
 use Override;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\ExternalShaperInterface;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2Pdf\Font\TextDirection;
 use Throwable;
+use WeakMap;
 
-use function array_key_exists;
 use function count;
 use function explode;
 use function implode;
-use function spl_object_id;
 use function sprintf;
 use function strlen;
 use function trim;
@@ -26,7 +26,7 @@ use const PHP_OS_FAMILY;
 
 /**
  * HarfBuzz through PHP's FFI extension: the library is loaded once, and each font's HarfBuzz face
- * is made once and kept while the shaper lives. FFI must be enabled for the process (ffi.enable);
+ * is made once and kept while both the font and the shaper live. FFI must be enabled for the process (ffi.enable);
  * web servers often allow it only for preloaded code, where HarfBuzzCli serves instead.
  *
  * @api
@@ -81,8 +81,8 @@ final class HarfBuzzFfi implements ExternalShaperInterface
 
     private readonly FFI $ffi;
 
-    /** @var array<int, array{0: OpenTypeFont, 1: CData, 2: CData, 3: CData}> font object id => font, blob, face and HarfBuzz font */
-    private array $fonts = [];
+    /** @var WeakMap<OpenTypeFont, array{0: CData, 1: HarfBuzzHandles}> each font program's HarfBuzz font, and what frees it */
+    private WeakMap $faces;
 
     /**
      * @param string|null $library the HarfBuzz library: a path, or a name the system's loader
@@ -108,6 +108,7 @@ final class HarfBuzzFfi implements ExternalShaperInterface
             implode(', ', $candidates),
             trim($failure),
         ));
+        $this->faces = new WeakMap();
     }
 
     #[Override]
@@ -177,6 +178,8 @@ final class HarfBuzzFfi implements ExternalShaperInterface
      * The features as HarfBuzz feature records, or null for none.
      *
      * @param list<string> $features
+     *
+     * @throws InvalidArgumentException for a feature HarfBuzz cannot read
      */
     private function features(array $features): ?CData
     {
@@ -187,32 +190,45 @@ final class HarfBuzzFfi implements ExternalShaperInterface
             'HarfBuzz: cannot allocate features.',
         );
         foreach ($features as $k => $feature) {
-            $this->call('hb_feature_from_string', $feature, strlen($feature), FFI::addr($list[$k]));
+            if (0 !== $this->call('hb_feature_from_string', $feature, strlen($feature), FFI::addr($list[$k]))) {
+                continue;
+            }
+
+            throw new InvalidArgumentException(sprintf('HarfBuzz cannot read the feature "%s".', $feature));
         }
 
         return $list;
     }
 
-    /** The HarfBuzz font for a font program, made the first time it is shaped. */
+    /**
+     * The HarfBuzz font for a font program, made the first time it is shaped.
+     *
+     * @throws PdfException when HarfBuzz cannot make it
+     */
     private function font(OpenTypeFont $font): CData
     {
-        $id = spl_object_id($font);
-        if (! array_key_exists($id, $this->fonts) || $this->fonts[$id][0] !== $font) {
-            $data             = $font->data();
-            $blob             = $this->call('hb_blob_create', $data, strlen($data), self::DUPLICATE, null, null);
-            $face             = $this->call('hb_face_create', $blob, $font->faceIndex);
-            $this->fonts[$id] = [$font, $blob, $face, $this->call('hb_font_create', $face)];
+        $face = $this->faces[$font] ?? null;
+        if (null === $face) {
+            $ffi    = $this->ffi;
+            $data   = $font->data();
+            $blob   = $this->call('hb_blob_create', $data, strlen($data), self::DUPLICATE, null, null);
+            $hbFace = $this->call('hb_face_create', $blob, $font->faceIndex);
+            $hbFont = $this->call('hb_font_create', $hbFace);
+            $face   = [
+                $hbFont instanceof CData ? $hbFont : throw new PdfException('HarfBuzz: cannot create a font.'),
+                new HarfBuzzHandles(static function () use ($ffi, $blob, $hbFace, $hbFont): void {
+                    foreach ([
+                        'hb_font_destroy' => $hbFont,
+                        'hb_face_destroy' => $hbFace,
+                        'hb_blob_destroy' => $blob,
+                    ] as $function => $handle) {
+                        $ffi->{$function}($handle);
+                    }
+                }),
+            ];
+            $this->faces[$font] = $face;
         }
 
-        return $this->fonts[$id][3];
-    }
-
-    public function __destruct()
-    {
-        foreach ($this->fonts as [, $blob, $face, $font]) {
-            $this->call('hb_font_destroy', $font);
-            $this->call('hb_face_destroy', $face);
-            $this->call('hb_blob_destroy', $blob);
-        }
+        return $face[0];
     }
 }

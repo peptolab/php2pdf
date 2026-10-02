@@ -238,4 +238,5 @@ ignore = [
     { code = "possibly-undefined-int-array-index", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
     { code = "invalid-array-index", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
     { code = "no-value", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "non-existent-method", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
 ]
