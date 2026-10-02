@@ -45,4 +45,10 @@ final readonly class TabStop
     {
         return new self($position, TabAlignment::Right, leader: $leader);
     }
+
+    /** The same stop with its position multiplied, for copy fitting. */
+    public function scaled(float $factor): self
+    {
+        return new self($this->position * $factor, $this->alignment, $this->decimalSeparator, $this->leader);
+    }
 }

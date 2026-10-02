@@ -118,7 +118,8 @@ remains), `BoxEmpty` (not even one line fitted) or `NextPage` (a page break was 
 `FlowOptions` sets the first baseline (`FirstBaseline::Ascender` by default; `CapHeight`,
 `XHeight` or `Leading`), the vertical alignment of a flow that fits entirely (`Top`, `Center`,
 `Bottom`), and copy fitting: `FlowOptions::shrinkToFit(0.6)` reduces the type size (with leading,
-indents and spacing) uniformly, down to 60 % of the original, until the remaining text fits.
+indents, tab stops and the space before and after paragraphs) uniformly, down to 60 % of the
+original, until the remaining text fits.
 
 Widows and orphans, `keepWithNext` and `keepTogether` decide where a paragraph may be cut
 between boxes.

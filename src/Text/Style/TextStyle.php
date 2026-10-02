@@ -11,6 +11,7 @@ use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
 
+use function array_map;
 use function get_object_vars;
 
 /**
@@ -118,7 +119,10 @@ final readonly class TextStyle
         return new self(...$base);
     }
 
-    /** Multiplies size, leading, indents and spacing, for copy fitting. */
+    /**
+     * Multiplies size, leading, indents, tab stops, the default tab width and paragraph spacing,
+     * for copy fitting.
+     */
     public function scaled(float $factor): self
     {
         return $this->merge(new self(
@@ -127,8 +131,14 @@ final readonly class TextStyle
                 ? null
                 : Leading::pt($this->leading->value * $factor),
             firstLineIndent: null === $this->firstLineIndent ? null : $this->firstLineIndent * $factor,
+            leftIndent: null === $this->leftIndent ? null : $this->leftIndent * $factor,
+            rightIndent: null === $this->rightIndent ? null : $this->rightIndent * $factor,
             spaceBefore: null === $this->spaceBefore ? null : $this->spaceBefore * $factor,
             spaceAfter: null === $this->spaceAfter ? null : $this->spaceAfter * $factor,
+            tabs: null === $this->tabs
+                ? null
+                : array_map(static fn(TabStop $tab): TabStop => $tab->scaled($factor), $this->tabs),
+            defaultTabWidth: null === $this->defaultTabWidth ? null : $this->defaultTabWidth * $factor,
         ));
     }
 
