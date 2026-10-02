@@ -7,8 +7,8 @@ composer require peptolab/php2pdf
 ```
 
 Php2Pdf needs PHP 8.3 or later with `ext-zlib` (stream compression) and `ext-mbstring` (text).
-`ext-imagick` or `ext-gd` are optional: they let images in formats other than JPEG and PNG be
-placed by transcoding them.
+`ext-imagick` or `ext-gd` are optional: they let images in formats other than JPEG, JPEG 2000,
+PNG and baseline TIFF be placed by transcoding them.
 
 ## A first document
 

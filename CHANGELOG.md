@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/); before 1.0, minor versions may change the API.
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-02
 
 The first release.
 
@@ -44,6 +44,12 @@ The first release.
   feature stages, presentation-form fallback, cursive attachment and modifier mark ordering, as
   HarfBuzz does them.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`), and a policy for scripts the engine cannot shape yet (`ScriptCheck`, refusing them by default).
+- Scripts the engine does not shape (Indic, South East Asian, Tibetan and others) can be handed to
+  HarfBuzz through FFI or the `hb-shape` command: `DocumentOptions::$complexShaper`, found by
+  `HarfBuzz::detect()`.
+- Shaped text is shared by every document using a font, and shaping time grows in step with the
+  text, ligatures and all.
+- Colour glyphs copy and search as their characters once, not once per layer.
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and
   fixed-width Unicode spaces.
@@ -76,5 +82,8 @@ The first release.
 - The fit engine: `meet`, `slice`, `entire`, `clip`, `noFit`, `auto`, with positions and rotation.
 - Templates; pages of PDF and AI files imported as artwork, with their layers kept or removed.
 - SVG converted natively (paths, gradients, clip paths, text, images) or through rsvg-convert.
+- Images, imported PDFs and SVGs are read, converted and written once however often they are
+  placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
+  image file is read again only when it changes.
 
 [0.1.0]: https://github.com/peptolab/php2pdf/releases/tag/0.1.0

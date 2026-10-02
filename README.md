@@ -8,21 +8,16 @@ Requires PHP 8.3+ with `ext-zlib` and `ext-mbstring`. No other runtime dependenc
 
 ## Status
 
-Under construction. See the build plan for phases; the current state is:
+0.1.0 is the first release: the features listed in the [changelog](CHANGELOG.md) work and are
+tested, but the API is not settled. Until 1.0, a minor version may change it.
 
-| Phase | Area | State |
-|------:|------|-------|
-| 0 | Foundations: Mago QA, PHPUnit, CI, test harness | done |
-| 1 | Writer core: objects, xref, streams, pages, boxes, metadata | done |
-| 2 | Canvas and colour | done |
-| 3 | Fonts | done |
-| 4 | Images and fit engine | done |
-| 5 | Textline and templates (v0.1) | done |
-| 6 | PDF/AI import | done |
-| 7 | Textflow | done |
-| 8 | SVG: native converter and rsvg-convert adapter | done |
-| 9 | Tables | done |
-| 10 | Hardening: links, bookmarks, PDF/X-4, CFF fonts, 500-page performance | done |
+The library is plain PHP, with no extensions beyond zlib and mbstring, so it is slower than a C
+library and uses more memory. On a 2018 laptop, flowing two columns of text takes about 5 ms a
+page; justified text, set by the whole-paragraph composer, about 7 ms. A 2,000-row table takes
+2.4 s. With opcache and its JIT enabled (`opcache.jit_buffer_size`), long documents take about 40%
+less time. `tools/bench` runs the scenarios these numbers come from.
+
+Known gaps are listed in [Limitations](docs/limitations.md).
 
 ## Documentation
 
@@ -128,7 +123,8 @@ composer check            # mago format --check, mago lint, mago analyze, unit t
 composer test-integration # needs qpdf and poppler-utils
 ```
 
-QA configuration is inherited from [php-db/phpdb-qa-tools](https://github.com/php-db/phpdb-qa-tools).
+QA configuration follows [php-db/phpdb-qa-tools](https://github.com/php-db/phpdb-qa-tools); see
+[Development](docs/development.md).
 
 ## Licence
 

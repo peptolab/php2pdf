@@ -132,6 +132,18 @@ need shaping the font engine does not do yet: set as they are, they would come o
 font and script; `ScriptCheck::Ignore` sets it silently. Latin, Greek, Cyrillic, Hebrew, Arabic and
 the other right-to-left scripts, CJK and precomposed Hangul are not affected.
 
+Where HarfBuzz is installed, those runs can be shaped by it instead: `HarfBuzz::detect()` finds it
+through PHP's FFI extension (with `ffi.enable` allowing it) or, failing that, the `hb-shape`
+command, and returns null when neither is available.
+
+```php
+$doc = new Document('out.pdf', new DocumentOptions(complexShaper: HarfBuzz::detect()));
+```
+
+The engine still shapes the scripts it knows; only runs in the others go to HarfBuzz, with the
+style's features and language. Output in those scripts is HarfBuzz's and has not been checked
+against reference renderings here.
+
 ### Fallback fonts
 
 A text style can name fonts to try, in order, for characters its font lacks, as PDFlib's

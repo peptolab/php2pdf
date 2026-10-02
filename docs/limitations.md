@@ -5,8 +5,10 @@ Known gaps, in rough order of how often they matter.
 - **Scripts.** Latin, Greek, Cyrillic, Hebrew, Arabic and the other joining scripts are shaped
   with all of the font's substitutions and positioning, matching HarfBuzz, and right-to-left text
   is ordered by the Unicode bidi algorithm. Indic and South East Asian scripts, Tibetan, Mongolian,
-  conjoining Hangul jamo and CJK vertical text are not supported yet; text in those scripts is
-  refused unless `DocumentOptions::$scriptCheck` says otherwise. Tab stops measure from the left in
+  conjoining Hangul jamo and CJK vertical text are not shaped by the library itself; text in those
+  scripts is refused unless HarfBuzz is set as `DocumentOptions::$complexShaper` (see
+  [Complex scripts](fonts-and-text.md#complex-scripts)) or `DocumentOptions::$scriptCheck` says
+  otherwise. CJK vertical text is not supported. Tab stops measure from the left in
   right-to-left lines, right-to-left words are not hyphenated, Arabic justification does not
   stretch letters with kashida, and Syriac abbreviation marks (`stch`) are not stretched.
 - **Variable fonts** draw their default instance only; named instances and axis values are not
@@ -35,6 +37,7 @@ Known gaps, in rough order of how often they matter.
 - **PDF/X-4** output follows ISO 15930-7 structurally; no validator ships with the library, so
   check files with Acrobat Preflight or callas pdfToolbox. Imported pages are checked for device
   colour spaces but not converted.
-- **Images** in formats other than JPEG and PNG need `ext-imagick` or `ext-gd`.
+- **Images** in formats other than JPEG, JPEG 2000, PNG and baseline TIFF (GIF, WebP, BMP, and
+  TIFF layouts such as tiles or YCbCr) need `ext-imagick` or `ext-gd`.
 - **Not in scope**: forms and annotations other than links, JavaScript, multimedia, tagged PDF,
   encryption, HTML or CSS rendering, editing PDFs in place.
