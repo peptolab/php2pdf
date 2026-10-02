@@ -28,6 +28,12 @@ final readonly class LineWidths
         return max(1.0, $this->frameWidth - $this->left($line) - ($this->style->rightIndent ?? 0.0));
     }
 
+    /** What the widths depend on beyond the paragraph's own style: the frame's width. */
+    public function key(): string
+    {
+        return (string) $this->frameWidth;
+    }
+
     /** How far line $line starts from the frame's left edge. */
     public function left(int $line): float
     {

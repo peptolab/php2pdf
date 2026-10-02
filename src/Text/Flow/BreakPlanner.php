@@ -44,8 +44,8 @@ final class BreakPlanner
 
     /**
      * Where the line starting at $start ends by the paragraph composer, when the paragraph uses
-     * it: from the plan of its breaks, made again when the line does not start at a planned break
-     * or the widths differ. Null when the paragraph is set line by line, or the composer cannot
+     * it: from the plan of its breaks, made from the line it starts at, and made again when a line
+     * does not start at a planned break or the frame's width differs. Null when the paragraph is set line by line, or the composer cannot
      * set it.
      */
     public function lineEnd(Paragraph $paragraph, int $start, LineWidths $widths, int $lineNumber): ?LineEnd
@@ -56,7 +56,7 @@ final class BreakPlanner
         if (Composer::SingleLine === $composer) {
             return null;
         }
-        $key  = "{$widths->available($lineNumber)}:{$widths->available($lineNumber + 1)}";
+        $key  = $widths->key();
         $plan = $this->plans[$paragraph] ?? null;
         if (null === $plan || $key !== $plan[0] || ! array_key_exists($start, $plan[1])) {
             $ends = ParagraphComposer::breaks($paragraph, $start, $widths, $lineNumber);
