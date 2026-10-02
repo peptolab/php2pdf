@@ -18,8 +18,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function array_keys;
-
 /** Copying follows references, except to pages, which would copy the whole source. */
 #[Group('unit')]
 final class ObjectCopierTest extends TestCase
@@ -46,11 +44,12 @@ final class ObjectCopierTest extends TestCase
     #[Test]
     public function aPageInAnArrayBecomesNullSoTheRestKeepTheirPlaces(): void
     {
-        $copy = $this->copier->copy([new Reference(2), new Reference(4)]);
+        $copy = $this->copier->copyDictionary(Dictionary::of(['Kids' => [new Reference(2), new Reference(4)]]));
 
-        self::assertIsArray($copy);
-        self::assertSame([0, 1], array_keys($copy));
-        self::assertSame([null, true], [$copy[0], $copy[1] instanceof Reference]);
+        self::assertEquals(
+            [null, $this->copier->copyDictionary(Dictionary::of(['Font' => new Reference(4)]))->get('Font')],
+            $copy->get('Kids'),
+        );
     }
 
     #[Test]

@@ -13,13 +13,11 @@ use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
-use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_keys;
 use function count;
 use function file_get_contents;
-use function is_array;
 use function is_file;
 use function preg_match;
 use function sprintf;
@@ -201,11 +199,7 @@ final class PdfReader
         if (null === $root) {
             throw new ParseException('PDF has no page tree.');
         }
-        $pages   = [];
-        $visited = [];
-        $this->walkPages($root, new Dictionary(), $pages, $visited, 0);
-
-        return $pages;
+        return (new PageTree($this))->pages($root);
     }
 
     /**
@@ -402,68 +396,5 @@ final class PdfReader
         }
 
         return $out;
-    }
-
-    /**
-     * Collects the page dictionaries under $node. Every tree node is visited once, however many
-     * parents refer to it, so a page tree that shares nodes cannot multiply into millions of pages.
-     *
-     * @param list<Dictionary> $pages
-     * @param array<int, true> $visited object numbers of the nodes already walked
-     *
-     * @throws PdfException when the document has more pages than the limit allows
-     */
-    private function walkPages(
-        Dictionary $node,
-        Dictionary $inherited,
-        array &$pages,
-        array &$visited,
-        int $depth,
-    ): void {
-        if ($depth > $this->limits->maxObjectNesting) {
-            return;
-        }
-        $merged = new Dictionary($inherited->all());
-        foreach (['Resources', 'MediaBox', 'CropBox', 'Rotate'] as $key) {
-            if (! $node->has($key)) {
-                continue;
-            }
-            $merged->set($key, $node->get($key));
-        }
-        $kids   = $this->get($node, 'Kids');
-        $type   = $node->get('Type');
-        $isPage = ($type instanceof Name && 'Page' === $type->value) || (! is_array($kids) && $node->has('Contents'));
-        if ($isPage) {
-            if (count($pages) >= $this->limits->maxPages) {
-                throw new ParseException(sprintf('The PDF has more than %d pages.', $this->limits->maxPages));
-            }
-            $page = new Dictionary($node->all());
-            foreach ($merged->all() as $key => $value) {
-                if ($page->has($key)) {
-                    continue;
-                }
-                $page->set($key, $value);
-            }
-            $pages[] = $page;
-
-            return;
-        }
-        if (! is_array($kids)) {
-            return;
-        }
-        foreach ($kids as $kid) {
-            $id = $kid instanceof Reference ? $kid->id : null;
-            if (null !== $id && array_key_exists($id, $visited)) {
-                continue;
-            }
-            $child = $this->resolve($kid);
-            if (! $child instanceof Dictionary) {
-                continue;
-            }
-            if (null !== $id) {
-                $visited[$id] = true;
-            }
-            $this->walkPages($child, $merged, $pages, $visited, $depth + 1);
-        }
     }
 }

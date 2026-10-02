@@ -105,7 +105,11 @@ final class ContentStreamParserTest extends TestCase
                 ['TJ', [['A', -20, 'B']]],
                 ['Q', []],
             ],
-            array_map(static fn(ContentOperation $o): array => [$o->operator, $o->operands], $operations),
+            array_map(
+                /** @return array{0: string, 1: list<mixed>} */
+                static fn(ContentOperation $o): array => [$o->operator, $o->operands],
+                $operations,
+            ),
         );
     }
 
