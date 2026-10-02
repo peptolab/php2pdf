@@ -7,26 +7,28 @@ namespace Php2Pdf\Font\OpenType;
 use function array_key_exists;
 use function array_keys;
 use function count;
-use function in_array;
 use function ksort;
 use function max;
 use function usort;
 
 /**
- * The parts of a GSUB table substitution reads, parsed on first use and kept: the lookups of each
- * feature in the Latin script's default language system (the default script's when the font has
- * no Latin entry), each lookup's subtables through extensions, coverage tables, class definitions
- * and ligature sets.
+ * The parts of a GSUB or GPOS table that applying lookups reads, parsed on first use and kept:
+ * the lookups of each feature in a script's default language system (the default script's, then
+ * Latin's, when the font has no entry for the script), the required feature, each lookup's flag
+ * and subtables through extensions, coverage tables, class definitions and ligature sets.
  *
  * @internal
  */
-final class GsubTables
+final class LayoutTables
 {
-    /** @var array<string, list<int>> feature tag => lookup indices */
+    /** @var array<string, array<string, list<int>>> script => feature tag => lookup indices; '' holds the required feature */
     private array $features = [];
 
     /** @var array<int, list<array{0: int, 1: int}>> lookup index => (type, subtable offset) */
     private array $subtables = [];
+
+    /** @var array<int, GlyphFilter> lookup index => the glyphs it passes over */
+    private array $filters = [];
 
     /** @var array<int, array<int, int>> lookup index => glyphs a match can start at (as keys) */
     private array $starts = [];
@@ -40,19 +42,27 @@ final class GsubTables
     /** @var array<int, array<int, list<array{0: list<int>, 1: int}>>> ligature subtable offset => first glyph => ligatures, longest first */
     private array $ligatureSets = [];
 
-    public function __construct(
+    private function __construct(
         public readonly BinaryReader $reader,
-    ) {
-        $this->readFeatures();
+        public readonly ?Gdef $gdef,
+        public readonly int $contextType,
+        public readonly int $chainType,
+        private readonly int $extensionType,
+    ) {}
+
+    public static function gpos(BinaryReader $gpos, ?Gdef $gdef): self
+    {
+        return new self($gpos, $gdef, contextType: 7, chainType: 8, extensionType: 9);
+    }
+
+    public static function gsub(BinaryReader $gsub, ?Gdef $gdef): self
+    {
+        return new self($gsub, $gdef, contextType: 5, chainType: 6, extensionType: 7);
     }
 
     /** @return array<int, int> glyph => class */
-    public function classDef(int $offset): array
+    public static function readClassDef(BinaryReader $r, int $offset): array
     {
-        if (array_key_exists($offset, $this->classDefs)) {
-            return $this->classDefs[$offset];
-        }
-        $r   = $this->reader;
         $map = [];
         if (1 === $r->u16($offset)) {
             $start = $r->u16($offset + 2);
@@ -71,16 +81,12 @@ final class GsubTables
             }
         }
 
-        return $this->classDefs[$offset] = $map;
+        return $map;
     }
 
     /** @return array<int, int> glyph => coverage index */
-    public function coverage(int $offset): array
+    public static function readCoverage(BinaryReader $r, int $offset): array
     {
-        if (array_key_exists($offset, $this->coverages)) {
-            return $this->coverages[$offset];
-        }
-        $r     = $this->reader;
         $count = $r->u16($offset + 2);
         $map   = [];
         if (1 === $r->u16($offset)) {
@@ -99,7 +105,40 @@ final class GsubTables
             }
         }
 
-        return $this->coverages[$offset] = $map;
+        return $map;
+    }
+
+    /** @return array<int, int> glyph => class */
+    public function classDef(int $offset): array
+    {
+        return $this->classDefs[$offset] ??= self::readClassDef($this->reader, $offset);
+    }
+
+    /** @return array<int, int> glyph => coverage index */
+    public function coverage(int $offset): array
+    {
+        return $this->coverages[$offset] ??= self::readCoverage($this->reader, $offset);
+    }
+
+    /** The glyphs a lookup passes over, from its flag and mark filtering set. */
+    public function filter(int $lookup): GlyphFilter
+    {
+        if (array_key_exists($lookup, $this->filters)) {
+            return $this->filters[$lookup];
+        }
+        $r          = $this->reader;
+        $lookupList = $r->u16(8);
+        $flag       = 0;
+        $set        = 0;
+        if ($lookup < $r->u16($lookupList)) {
+            $offset = $lookupList + $r->u16($lookupList + 2 + (2 * $lookup));
+            $flag   = $r->u16($offset + 2);
+            if (0 !== ($flag & GlyphFilter::USE_MARK_FILTERING_SET)) {
+                $set = $r->u16($offset + 6 + (2 * $r->u16($offset + 4)));
+            }
+        }
+
+        return $this->filters[$lookup] = new GlyphFilter($this->gdef, $flag, $set);
     }
 
     /** @return array<int, list<array{0: list<int>, 1: int}>> */
@@ -137,18 +176,35 @@ final class GsubTables
         return $this->ligatureSets[$offset] = $map;
     }
 
+    /** @return list<array{0: int, 1: int}> sequence index and lookup index */
+    public function lookupRecords(int $at, int $count): array
+    {
+        $r       = $this->reader;
+        $records = [];
+        for ($k = 0; $k < $count; ++$k) {
+            $records[] = [$r->u16($at + (4 * $k)), $r->u16($at + 2 + (4 * $k))];
+        }
+
+        return $records;
+    }
+
     /**
-     * Lookup indices of the features, in lookup list order.
+     * Lookup indices of the features in a script, with the script's required feature, in lookup
+     * list order.
      *
      * @param list<string> $features
      *
      * @return list<int>
      */
-    public function lookupsFor(array $features): array
+    public function lookupsFor(array $features, string $script = 'latn'): array
     {
-        $indices = [];
-        foreach ($features as $feature) {
-            foreach ($this->features[$feature] ?? [] as $index) {
+        if (! array_key_exists($script, $this->features)) {
+            $this->features[$script] = $this->readFeatures($script);
+        }
+        $byFeature = $this->features[$script];
+        $indices   = [];
+        foreach (['', ...$features] as $feature) {
+            foreach ($byFeature[$feature] ?? [] as $index) {
                 $indices[$index] = true;
             }
         }
@@ -158,8 +214,9 @@ final class GsubTables
     }
 
     /**
-     * The glyphs a lookup's subtables can match at, as keys: their coverage, or for chained
-     * context by coverage (format 3) the first input position's coverage.
+     * The glyphs a lookup's subtables can match at, as keys: their coverage (for mark attachment,
+     * the mark coverage), or for context and chained context by coverage (format 3) the first
+     * input position's coverage. Reverse chaining starts at its coverage too.
      *
      * @return array<int, int>
      */
@@ -172,7 +229,10 @@ final class GsubTables
         $starts = [];
         foreach ($this->subtables($lookup) as [$type, $offset]) {
             $coverage = $offset + $r->u16($offset + 2);
-            if (6 === $type && 3 === $r->u16($offset)) {
+            if ($this->contextType === $type && 3 === $r->u16($offset)) {
+                $coverage = $offset + $r->u16($offset + 6);
+            }
+            if ($this->chainType === $type && 3 === $r->u16($offset)) {
                 $backtrack = $r->u16($offset + 2);
                 $input     = $offset + 4 + (2 * $backtrack);
                 if (0 === $r->u16($input)) {
@@ -184,18 +244,6 @@ final class GsubTables
         }
 
         return $this->starts[$lookup] = $starts;
-    }
-
-    /** @return list<array{0: int, 1: int}> sequence index and lookup index */
-    public function substRecords(int $at): array
-    {
-        $r       = $this->reader;
-        $records = [];
-        for ($k = 0, $count = $r->u16($at); $k < $count; ++$k) {
-            $records[] = [$r->u16($at + 2 + (4 * $k)), $r->u16($at + 4 + (4 * $k))];
-        }
-
-        return $records;
     }
 
     /** @return list<array{0: int, 1: int}> */
@@ -213,41 +261,54 @@ final class GsubTables
             foreach ($r->u16List($offset + 6, $r->u16($offset + 4)) as $subtableOffset) {
                 $subtable = $offset + $subtableOffset;
                 $realType = $type;
-                if (7 === $type) {
+                if ($this->extensionType === $type) {
                     $realType = $r->u16($subtable + 2);
                     $subtable += $r->u32($subtable + 4);
                 }
-                if (in_array($realType, [1, 3, 4, 6], strict: true)) {
-                    $subtables[] = [$realType, $subtable];
-                }
+                $subtables[] = [$realType, $subtable];
             }
         }
 
         return $this->subtables[$lookup] = $subtables;
     }
 
-    /** Reads the features of the Latin script's default language system, else the default script's. */
-    private function readFeatures(): void
+    /**
+     * The features of a script's default language system, by tag, with the required feature
+     * under ''.
+     *
+     * @return array<string, list<int>>
+     */
+    private function readFeatures(string $tag): array
     {
         $r          = $this->reader;
         $scriptList = $r->u16(4);
         $scripts    = [];
-        for ($k = 0, $count = $r->u16($scriptList); $k < $count; ++$k) {
+        $count      = $r->u16($scriptList);
+        for ($k = 0; $k < $count; ++$k) {
             $record                    = $scriptList + 2 + (6 * $k);
             $scripts[$r->tag($record)] = $scriptList + $r->u16($record + 4);
         }
-        $script = $scripts['latn'] ?? $scripts['DFLT'] ?? null;
+        $script = $scripts[$tag] ?? $scripts['DFLT'] ?? $scripts['dflt'] ?? $scripts['latn'] ?? null;
         if (null === $script || 0 === $r->u16($script)) {
-            return;
+            return [];
         }
         $lang        = $script + $r->u16($script);
         $featureList = $r->u16(6);
-        foreach ($r->u16List($lang + 6, $r->u16($lang + 4)) as $featureIndex) {
+        $features    = [];
+        $required    = $r->u16($lang + 2);
+        $indices     = $r->u16List($lang + 6, $r->u16($lang + 4));
+        if (0xFFFF !== $required) {
+            $indices[] = $required;
+        }
+        foreach ($indices as $position => $featureIndex) {
             $record  = $featureList + 2 + (6 * $featureIndex);
             $feature = $featureList + $r->u16($record + 4);
+            $name    = 0xFFFF !== $required && $position === (count($indices) - 1) ? '' : $r->tag($record);
             foreach ($r->u16List($feature + 4, $r->u16($feature + 2)) as $lookup) {
-                $this->features[$r->tag($record)][] = $lookup;
+                $features[$name][] = $lookup;
             }
         }
+
+        return $features;
     }
 }

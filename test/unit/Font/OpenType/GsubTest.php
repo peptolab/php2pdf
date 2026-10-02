@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Unit\Font\OpenType;
 
 use Php2Pdf\Font\OpenType\BinaryReader;
+use Php2Pdf\Font\OpenType\Gdef;
 use Php2Pdf\Font\OpenType\Gsub;
 use Php2PdfTest\Support\GsubBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -16,8 +17,9 @@ use function array_column;
 use function array_map;
 
 /**
- * Glyph substitution from GSUB: standard ligatures (#5) and other features (#32). Glyphs: f 1,
- * i 2, l 3, o 4, digits 5 to 8 (one to four), slash 9.
+ * Glyph substitution from GSUB: standard ligatures (#5), other features (#32), and the lookup
+ * types and flags complex scripts use (#33). Glyphs: f 1, i 2, l 3, o 4, digits 5 to 8 (one to
+ * four), slash 9; 20 and 21 are marks (20 in attachment class 1 and mark set 0, 21 in class 2).
  */
 #[Group('unit')]
 final class GsubTest extends TestCase
@@ -29,6 +31,19 @@ final class GsubTest extends TestCase
     public static function extensionProvider(): array
     {
         return ['a plain lookup' => [false], 'an extension lookup' => [true]];
+    }
+
+    /** @return array<string, array{0: int, 1: list<int>, 2: list<int>}> */
+    public static function flagProvider(): array
+    {
+        return [
+            'no flag: a mark breaks the ligature'          => [0, [1, 20, 2], [1, 20, 2]],
+            'ignoring marks'                               => [0x0008, [1, 20, 2], [13, 20]],
+            'a mark filtering set keeps its own marks'     => [0x0010, [1, 20, 2], [1, 20, 2]],
+            'a mark filtering set passes over other marks' => [0x0010, [1, 21, 2], [13, 21]],
+            'a mark attachment class keeps its own marks'  => [0x0100, [1, 20, 2], [1, 20, 2]],
+            'a mark attachment class passes over the rest' => [0x0100, [1, 21, 2], [13, 21]],
+        ];
     }
 
     /** @return array<string, array{0: list<array{0: int, 1: list<string>, 2?: bool}>, 1: list<int>}> */
@@ -55,6 +70,14 @@ final class GsubTest extends TestCase
             'chained, by coverage: digit after a slash'  => [
                 [[6, [GsubBuilder::chain3([[9]], [[5, 6, 7, 8]], [], [[0, 1]])]], [1, $toDenominator]],
                 [5, 9, 308],
+            ],
+            'context, by glyph'                          => [
+                [[5, [GsubBuilder::context1([5 => [[[9], [[0, 1]]]]])]], [1, $toNumerator]],
+                [205, 9, 8],
+            ],
+            'context, by coverage'                       => [
+                [[5, [GsubBuilder::context3([[5, 6, 7, 8], [9]], [[0, 1]])]], [1, $toNumerator]],
+                [205, 9, 8],
             ],
             'chained, by glyph'                          => [
                 [
@@ -107,12 +130,19 @@ final class GsubTest extends TestCase
     }
 
     /**
-     * @param array<string, list<int>>                       $features
-     * @param list<array{0: int, 1: list<string>, 2?: bool}> $lookups
+     * @param array<string, list<int>>                                         $features
+     * @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int, 4?: int}> $lookups
      */
-    private static function gsub(array $features, array $lookups, string $script = 'latn'): Gsub
-    {
-        return new Gsub(new BinaryReader(GsubBuilder::build($script, $features, $lookups)));
+    private static function gsub(
+        array $features,
+        array $lookups,
+        string $script = 'latn',
+        ?string $required = null,
+    ): Gsub {
+        return new Gsub(
+            new BinaryReader(GsubBuilder::build($script, $features, $lookups, $required)),
+            new Gdef(new BinaryReader(GsubBuilder::gdef([20 => 3, 21 => 3], [20 => 1, 21 => 2], [[20]]))),
+        );
     }
 
     /**
@@ -137,6 +167,50 @@ final class GsubTest extends TestCase
     }
 
     #[Test]
+    public function aMarkInsideALigatureFollowsItWithItsComponent(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature([1 => [[[2], 13]]])], false, 0x0008]]);
+        $out  = $gsub->apply([[1, [0x66]], [20, [0x301]], [2, [0x69]]], ['liga']);
+
+        self::assertSame([[13, [0x66, 0x69], 1, 0], [20, [0x301], 1, 1]], $out);
+    }
+
+    #[Test]
+    public function aScriptIsChosenByTag(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]], 'arab');
+
+        self::assertSame([[1, 2], [13]], [
+            self::ids($gsub->apply(self::glyphs([1, 2]), ['liga'], 'cyrl')),
+            self::ids($gsub->apply(self::glyphs([1, 2]), ['liga'], 'arab')),
+        ]);
+    }
+
+    #[Test]
+    public function chainedContextPassesOverIgnoredMarks(): void
+    {
+        $gsub = self::gsub(['test' => [0]], [
+            [6, [GsubBuilder::chain3([], [[5, 6, 7, 8]], [[9]], [[0, 1]])], false, 0x0008],
+            [1, [GsubBuilder::single1([5, 6, 7, 8], 200)]],
+        ]);
+
+        self::assertSame([205, 20, 9, 8], self::ids($gsub->apply(self::glyphs([5, 20, 9, 8]), ['test'])));
+    }
+
+    /**
+     * @param list<int> $input
+     * @param list<int> $expected
+     */
+    #[Test]
+    #[DataProvider('flagProvider')]
+    public function lookupFlagsDecideWhichMarksALigaturePassesOver(int $flag, array $input, array $expected): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature([1 => [[[2], 13]]])], false, $flag, 0]]);
+
+        self::assertSame($expected, self::ids($gsub->apply(self::glyphs($input), ['liga'])));
+    }
+
+    #[Test]
     public function lookupsApplyInLookupOrder(): void
     {
         $gsub = self::gsub(['liga' => [0, 1]], [
@@ -145,6 +219,17 @@ final class GsubTest extends TestCase
         ]);
 
         self::assertSame([20], self::ids($gsub->apply(self::glyphs([1, 1, 2]), ['liga'])));
+    }
+
+    #[Test]
+    public function multipleSubstitutionKeepsTheTextOnTheFirstGlyph(): void
+    {
+        $gsub = self::gsub(['ccmp' => [0]], [[2, [GsubBuilder::multiple([4 => [40, 41]])]]]);
+
+        self::assertSame(
+            [[1, [0x66]], [40, [0x6F], 0, 0], [41, [], 0, 0]],
+            $gsub->apply(self::glyphs([1, 4]), ['ccmp']),
+        );
     }
 
     #[Test]
@@ -171,6 +256,14 @@ final class GsubTest extends TestCase
         self::assertFalse(self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]], 'cyrl')->has([
             'liga',
         ]));
+    }
+
+    #[Test]
+    public function reverseChainingRunsFromTheEnd(): void
+    {
+        $gsub = self::gsub(['rclt' => [0]], [[8, [GsubBuilder::reverse([5 => 55, 6 => 66], [], [[66, 9]])]]]);
+
+        self::assertSame([55, 66, 9], self::ids($gsub->apply(self::glyphs([5, 6, 9]), ['rclt'])));
     }
 
     /**
@@ -203,5 +296,17 @@ final class GsubTest extends TestCase
         self::assertTrue(self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]], 'DFLT')->has([
             'liga',
         ]));
+    }
+
+    #[Test]
+    public function theRequiredFeatureAlwaysApplies(): void
+    {
+        $gsub = self::gsub(
+            ['rqd ' => [0], 'onum' => [1]],
+            [[1, [GsubBuilder::single1([1], 100)]], [1, [GsubBuilder::single1([5, 6, 7, 8], 100)]]],
+            required: 'rqd ',
+        );
+
+        self::assertSame([101, 5], self::ids($gsub->apply(self::glyphs([1, 5]), [])));
     }
 }

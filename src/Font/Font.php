@@ -321,7 +321,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             }
             $prev = new Glyph(
                 $id,
-                $codePoints[0] ?? 0,
+                $codePoints[0] ?? -1,
                 $this->advance($id),
                 0.0,
                 count($codePoints) > 1 ? $codePoints : [],

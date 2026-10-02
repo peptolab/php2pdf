@@ -66,6 +66,9 @@ final class OpenTypeFont
     private ?Gsub $gsub        = null;
     private bool  $gsubChecked = false;
 
+    private ?Gdef $gdef        = null;
+    private bool  $gdefChecked = false;
+
     /** @var list<int>|null glyph offsets into glyf (numGlyphs + 1 entries) */
     private ?array $loca = null;
 
@@ -211,6 +214,18 @@ final class OpenTypeFont
         return $this->names[NameTable::FULL_NAME] ?? trim("{$this->familyName()} {$this->subfamilyName()}");
     }
 
+    /** The font's glyph definitions (GDEF), or null when it has none. */
+    public function gdef(): ?Gdef
+    {
+        if (! $this->gdefChecked) {
+            $this->gdefChecked = true;
+            $reader            = $this->tableReader('GDEF');
+            $this->gdef        = null === $reader ? null : new Gdef($reader);
+        }
+
+        return $this->gdef;
+    }
+
     /** Raw glyf data for a glyph (empty for glyphs without outlines). */
     public function glyphData(int $glyphId): string
     {
@@ -237,7 +252,7 @@ final class OpenTypeFont
         if (! $this->gsubChecked) {
             $this->gsubChecked = true;
             $reader            = $this->tableReader('GSUB');
-            $this->gsub        = null === $reader ? null : new Gsub($reader);
+            $this->gsub        = null === $reader ? null : new Gsub($reader, $this->gdef());
         }
 
         return $this->gsub;
