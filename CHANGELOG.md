@@ -19,8 +19,9 @@ The first release.
 - PDF/X-4: output intents, colour checks against the intent, imported artwork checks, page box rules,
   links allowed only outside the printed area.
 - Resource limits (`Limits`) for hostile PDFs, images and SVG, covering object nesting, SVG drawing
-  depth and reference expansion; circular SVG references refused; exception subtypes for parse,
-  conformance and layout failures.
+  depth and reference expansion, and the pixel limit checked from every image format's header
+  before decoding; circular SVG references refused; exception subtypes for parse, conformance and
+  layout failures.
 
 ### Text
 
@@ -59,10 +60,11 @@ The first release.
 ### Images and artwork
 
 - JPEG (with EXIF orientation and resolution), JPEG 2000 and CCITT fax passed through untouched.
-- PNG in every colour type and depth, interlaced files included.
-- Baseline TIFF natively, keeping CMYK, palettes and ICC profiles, on any page.
+- PNG in every colour type and depth, interlaced files included; 16-bit alpha stays a 16-bit soft mask.
+- Baseline TIFF natively, keeping CMYK, palettes, ICC profiles and 16-bit alpha, on any page.
 - Photoshop clipping paths in JPEG and TIFF files.
-- Other formats through ext-imagick or ext-gd.
+- Other formats through ext-imagick or ext-gd, refused when the conversion would lose data (CMYK or
+  CIELab turned to RGB, an ICC profile, bit depth or alpha) unless `allowLossyConversion` accepts it.
 - DeviceN colours: several inks in one fill, mixed like overprinted inks where they are not printed.
 - Lab colours and Lab spot alternates; `SpotLibrary` loads spot colours from ASE swatch files or CSV tables.
 - Soft masks (luminosity and alpha) on the canvas, and SVG `<mask>`.

@@ -22,15 +22,44 @@ content.
   honour it, but poppler ignores it and macOS Preview blends it unreliably.
 - **PNG**: every colour type and bit depth, palettes, transparency (tRNS as a colour key or a
   soft mask), alpha channels split into a soft mask, interlaced files, resolution and ICC chunks.
-  Pixel data stays Flate-compressed with PNG predictors, so nothing is re-encoded.
+  Opaque pixel data stays Flate-compressed with PNG predictors, so nothing is re-encoded; 16-bit
+  images with alpha keep 16-bit colour and a 16-bit soft mask.
 - **TIFF**: baseline files are read natively, every page: strips uncompressed or compressed with
   LZW, Deflate or PackBits (with the horizontal predictor), grey, RGB, palette and CMYK at 1 to 16
-  bits, an unassociated alpha channel as a soft mask, and the embedded ICC profile, resolution
-  and orientation. CMYK stays CMYK. Single-strip CCITT Group 3 and 4 fax images pass through
-  untouched (CCITTFaxDecode). Tiled, JPEG-compressed, YCbCr and premultiplied-alpha TIFFs go to
-  the transcoder below.
+  bits, an unassociated alpha channel as a soft mask (16-bit when the samples are), and the
+  embedded ICC profile, resolution and orientation. CMYK stays CMYK. Single-strip CCITT Group 3
+  and 4 fax images pass through untouched (CCITTFaxDecode). Tiled, separate-plane,
+  JPEG-compressed, YCbCr, premultiplied-alpha and mixed-depth TIFFs go to the transcoder below.
 - **Other formats** (GIF, WebP, BMP...) are transcoded to PNG with `ext-imagick` when it is
   loaded, else `ext-gd`. Without either, loading them throws.
+
+## Conversions that would lose data
+
+Transcoding is refused, with a `ParseException` naming the file and each loss, when the PNG would
+not keep everything known of the source:
+
+- a colour model PNG cannot hold: CMYK, other ink separations, CIELab or LogLuv, which would
+  become RGB;
+- an embedded ICC profile, which is not carried through;
+- samples deeper than the PNG produced (more than 16 bits, or more than 8 through `ext-gd`);
+- an alpha channel or transparency the PNG does not keep.
+
+What is known comes from the file itself before any conversion (a TIFF's directory, the ICC
+flags of WebP, AVIF and HEIF headers, an AVIF's depth) and from `ext-imagick` when it reads the
+file; the PNG produced is checked against it afterwards. `ext-imagick` is asked for 16-bit
+samples and an alpha channel when the source has them. So a GIF, a BMP, or a tiled 8 or 16-bit
+grey or RGB TIFF without a profile converts as before, and a CMYK TIFF does not:
+
+```php
+$doc->image('tiled-cmyk.tif');                                              // ParseException
+$doc->image('tiled-cmyk.tif', new ImageOptions(allowLossyConversion: true)); // RGB, profile dropped
+```
+
+`allowLossyConversion: true` accepts the loss: CMYK and CIELab are converted to sRGB by
+`ext-imagick` (with their profile removed, since it no longer describes the samples), and the rest
+are kept as far as PNG allows. Under PDF/X, an image converted to RGB without a profile is still
+refused when it is placed if the output intent is CMYK; converting the file to a layout read
+natively, such as a stripped, contiguous TIFF, keeps its colour exactly.
 
 ## Resolution and natural size
 
@@ -45,13 +74,15 @@ $doc->image('scan.tif', new ImageOptions(dpi: 300, page: 2, orientation: false))
 ```
 
 `dpi` replaces the file's resolution for its natural size, `page` picks a page of a multi-page
-TIFF or GIF (TIFF natively, others through ext-imagick), and `orientation: false` ignores a
-JPEG's EXIF orientation. `clippingPath: true` clips the image to the path Photoshop marks as its
+TIFF or GIF (TIFF natively, others through ext-imagick), `orientation: false` ignores a JPEG's
+EXIF orientation, and `allowLossyConversion: true` accepts a transcode that loses data (see
+above). `clippingPath: true` clips the image to the path Photoshop marks as its
 clipping path, in a JPEG or TIFF file, and `clippingPath: 'Outline'` to the path of that name; an
 image without the path asked for is an error. Clipping paths are not applied unless asked for.
 The same file loaded with different options is a different image.
 
 ## Transparency
 
-Images with alpha get an `/SMask`; colour-keyed PNGs get a `/Mask` array. Group opacity and
+Images with alpha get an `/SMask`, at 16 bits per sample when the image has 16-bit samples;
+colour-keyed PNGs get a `/Mask` array. Group opacity and
 blend modes from the canvas apply to images like any other content.
