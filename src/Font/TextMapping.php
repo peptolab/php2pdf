@@ -23,6 +23,9 @@ final class TextMapping
     /** @var array<int, list<int>> glyph id (or code) => the code points it stands for */
     private array $map = [];
 
+    /** @var array<int, int> glyph id (or code) => the one code point it stands for, to check fast */
+    private array $single = [];
+
     /**
      * Whether the text is one invisible character (a joiner, a bidi mark, a variation selector),
      * which is shown with a glyph that stands for other text.
@@ -65,22 +68,35 @@ final class TextMapping
     {
         $faithful = true;
         foreach ($run->glyphs as $glyph) {
-            if ($glyph->codePoint < 0 && [] === $glyph->components) {
+            $single = [] === $glyph->components;
+            if ($single && ($glyph->codePoint < 0 || $glyph->codePoint === ($this->single[$glyph->id] ?? null))) {
                 continue;
             }
-            $text = $glyph->codePoints();
-            if (0 === $glyph->id || self::isIgnorable($text)) {
-                $faithful = false;
-                continue;
-            }
-            $mapped = $this->map[$glyph->id] ?? null;
-            if (null === $mapped) {
-                $this->map[$glyph->id] = $text;
-                continue;
-            }
-            $faithful = $faithful && self::same($mapped, $text);
+            $faithful = $this->recordGlyph($glyph) && $faithful;
         }
 
         return $faithful;
+    }
+
+    /**
+     * Maps a glyph not mapped yet, and whether the map gives back its text: a glyph mapped to
+     * other text, an invisible character's glyph and the missing glyph do not.
+     */
+    private function recordGlyph(Glyph $glyph): bool
+    {
+        $text   = $glyph->codePoints();
+        $mapped = $this->map[$glyph->id] ?? null;
+        if (null !== $mapped) {
+            return self::same($mapped, $text);
+        }
+        if (0 === $glyph->id || self::isIgnorable($text)) {
+            return false;
+        }
+        $this->map[$glyph->id] = $text;
+        if ([] === $glyph->components) {
+            $this->single[$glyph->id] = $glyph->codePoint;
+        }
+
+        return true;
     }
 }
