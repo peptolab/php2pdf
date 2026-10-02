@@ -94,9 +94,9 @@ final class Gsub
      *
      * @throws ParseException
      */
-    public function apply(array $glyphs, array $features, string $script = 'latn'): array
+    public function apply(array $glyphs, array $features, string $script = 'latn', ?string $language = null): array
     {
-        return $this->applyStages($glyphs, [$features], $script);
+        return $this->applyStages($glyphs, [$features], $script, $language);
     }
 
     /**
@@ -111,14 +111,18 @@ final class Gsub
      *
      * @throws ParseException
      */
-    public function applyStages(array $glyphs, array $stages, string $script = 'latn'): array
-    {
+    public function applyStages(
+        array $glyphs,
+        array $stages,
+        string $script = 'latn',
+        ?string $language = null,
+    ): array {
         $buffer = new GlyphBuffer($glyphs);
         foreach ($stages as $features) {
             $form = 1 === count($features) && in_array($features[0], ArabicJoining::FEATURES, strict: true)
                 ? $features[0]
                 : null;
-            foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
+            foreach ($this->tables->lookupsFor($features, $script, $language) as $lookup) {
                 $this->applyLookup($lookup, $buffer, $form);
             }
         }
@@ -131,9 +135,9 @@ final class Gsub
      *
      * @throws ParseException
      */
-    public function has(array $features, string $script = 'latn'): bool
+    public function has(array $features, string $script = 'latn', ?string $language = null): bool
     {
-        return [] !== $this->tables->lookupsFor($features, $script);
+        return [] !== $this->tables->lookupsFor($features, $script, $language);
     }
 
     /** @throws ParseException */

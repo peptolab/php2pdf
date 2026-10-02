@@ -25,6 +25,8 @@ final readonly class TextOptions
      * @param TextDirection $direction the direction of the line, whose text in either direction is
      *                                 ordered by the Unicode bidi algorithm; a font shapes a run
      *                                 right to left when it is RightToLeft
+     * @param string|null   $language  the text's language as a BCP 47 tag ("tr", "nl-BE"): the
+     *                                 font's forms for it are used where it has them
      */
     public function __construct(
         public float $charSpacing = 0.0,
@@ -37,6 +39,7 @@ final readonly class TextOptions
         public bool $ligatures = true,
         public array $features = [],
         public TextDirection $direction = TextDirection::Auto,
+        public ?string $language = null,
     ) {}
 
     public static function default(): self
@@ -98,6 +101,7 @@ final readonly class TextOptions
             $this->ligatures,
             $this->features,
             $direction,
+            $this->language,
         );
     }
 
@@ -115,6 +119,7 @@ final readonly class TextOptions
             $ligatures,
             $this->features,
             $this->direction,
+            $this->language,
         );
     }
 }

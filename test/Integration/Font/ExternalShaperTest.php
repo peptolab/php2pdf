@@ -110,6 +110,7 @@ final class ExternalShaperTest extends TestCase
                 string $script,
                 TextDirection $direction,
                 array $features,
+                ?string $language = null,
             ): array {
                 $this->calls[] = [$text, $script, $direction, $features];
                 $lao           = [

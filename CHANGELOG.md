@@ -32,7 +32,8 @@ The first release.
 - Colour fonts with COLR version 0 layers, in their palette colours; bitmap-only fonts refused with a clear error.
 - OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others), with
   HarfBuzz's default features; every GSUB and GPOS lookup type but cursive attachment, with lookup
-  flags and the font's features for each script.
+  flags and the font's features for each script and language (localised forms for the style's
+  `language`).
 - Mark positioning: accents placed on their letters by the font's anchors, glyph offsets in `Glyph`,
   and Unicode normalisation for the font as HarfBuzz does it. Each glyph's `cluster` is the
   character of the text it stands for, so normalised text keeps its word boundaries.

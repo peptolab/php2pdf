@@ -26,6 +26,25 @@ use function round;
 #[Group('integration')]
 final class HarfBuzzParityTest extends TestCase
 {
+    /** @return array<string, array{string, string, string, string}> */
+    public static function languageProvider(): array
+    {
+        return [
+            'Source Serif: Turkish keeps the dot on i' => [
+                'SourceSerif4-Regular.ttf',
+                'fi ilk',
+                'tr',
+                '[33+384|298+298|1+233|298+298|39+298|38+547]',
+            ],
+            'Source Serif: without a language, fi'     => [
+                'SourceSerif4-Regular.ttf',
+                'fi ilk',
+                'en',
+                '[417+607|1+233|36+298|39+298|38+547]',
+            ],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: string, 2: string}> */
     public static function rightToLeftProvider(): array
     {
@@ -171,6 +190,13 @@ final class HarfBuzzParityTest extends TestCase
         }
 
         return '[' . implode('|', $out) . ']';
+    }
+
+    #[Test]
+    #[DataProvider('languageProvider')]
+    public function languageShapingMatchesHarfBuzz(string $font, string $text, string $language, string $expected): void
+    {
+        self::assertSame($expected, self::shaped($font, $text, new TextOptions(language: $language)));
     }
 
     #[Test]

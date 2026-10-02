@@ -161,6 +161,7 @@ final readonly class TextStyle
             kerning: $this->kerning ?? true,
             ligatures: $this->ligatures ?? true,
             features: $this->features ?? [],
+            language: $this->language,
         );
     }
 }

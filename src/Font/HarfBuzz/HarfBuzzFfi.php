@@ -55,6 +55,8 @@ final class HarfBuzzFfi implements ExternalShaperInterface
         void hb_buffer_set_script(hb_buffer_t *buffer, uint32_t script);
         void hb_buffer_guess_segment_properties(hb_buffer_t *buffer);
         uint32_t hb_script_from_string(const char *str, int len);
+        const void *hb_language_from_string(const char *str, int len);
+        void hb_buffer_set_language(hb_buffer_t *buffer, const void *language);
         int hb_feature_from_string(const char *str, int len, hb_feature_t *feature);
         void hb_shape(hb_font_t *font, hb_buffer_t *buffer, const hb_feature_t *features, unsigned int num_features);
         hb_glyph_info_t *hb_buffer_get_glyph_infos(hb_buffer_t *buffer, unsigned int *length);
@@ -115,6 +117,7 @@ final class HarfBuzzFfi implements ExternalShaperInterface
         string $script,
         TextDirection $direction,
         array $features,
+        ?string $language = null,
     ): array {
         $buffer = $this->call('hb_buffer_create');
         try {
@@ -129,6 +132,13 @@ final class HarfBuzzFfi implements ExternalShaperInterface
                 $buffer,
                 $this->call('hb_script_from_string', $script, strlen($script)),
             );
+            if (null !== $language) {
+                $this->call(
+                    'hb_buffer_set_language',
+                    $buffer,
+                    $this->call('hb_language_from_string', $language, strlen($language)),
+                );
+            }
             $this->call('hb_buffer_guess_segment_properties', $buffer);
             $list = $this->features($features);
             $this->call('hb_shape', $this->font($font), $buffer, $list, count($features));

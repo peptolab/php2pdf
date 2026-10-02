@@ -7,6 +7,7 @@ namespace Php2Pdf\Font;
 use Closure;
 use IntlChar;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Font\OpenType\LanguageSystems;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function array_diff;
@@ -143,8 +144,9 @@ final readonly class OpenTypeShaper
             $shown      = $rtl ? $this->mirrored($codePoint) : $codePoint;
             $sequence[] = [$this->program->glyphId($shown), [$shown]];
         }
-        $gsub   = $this->program->gsub();
-        $glyphs = [];
+        $gsub     = $this->program->gsub();
+        $language = LanguageSystems::forLanguage($options->language);
+        $glyphs   = [];
         foreach (ScriptRuns::of($codePoints) as [$script, $start, $length]) {
             $runCodePoints = array_slice($codePoints, $start, $length);
             if (null !== $this->external && null !== ComplexScripts::find(self::text($runCodePoints))) {
@@ -155,8 +157,8 @@ final readonly class OpenTypeShaper
             }
             $run = array_slice($sequence, $start, $length);
             $run = $this->joins($script)
-                ? $this->joined($run, array_slice($codePoints, $start, $length), $features, $script)
-                : $gsub?->apply($run, $features, $script) ?? $run;
+                ? $this->joined($run, array_slice($codePoints, $start, $length), $features, $script, $language)
+                : $gsub?->apply($run, $features, $script, $language) ?? $run;
             foreach ($this->positioned($run, $options, $features, $script) as $glyph) {
                 $glyphs[] = $glyph;
             }
@@ -222,6 +224,7 @@ final readonly class OpenTypeShaper
             ScriptRuns::iso($script),
             $options->direction,
             $features,
+            $options->language,
         ) ?? [];
         if (TextDirection::RightToLeft === $options->direction) {
             $shaped = array_reverse($shaped);
@@ -295,8 +298,13 @@ final readonly class OpenTypeShaper
      *
      * @throws ParseException
      */
-    private function joined(array $run, array $codePoints, array $features, string $script): array
-    {
+    private function joined(
+        array $run,
+        array $codePoints,
+        array $features,
+        string $script,
+        ?string $language,
+    ): array {
         foreach (ArabicJoining::forms($codePoints) as $k => $form) {
             $run[$k][4] = $form;
         }
@@ -318,7 +326,7 @@ final readonly class OpenTypeShaper
         $stages[] = self::present($features, ['rclt', 'calt']);
         $stages[] = ['mset', ...array_values(array_diff($features, self::STAGED))];
 
-        return $gsub->applyStages($run, $stages, $script);
+        return $gsub->applyStages($run, $stages, $script, $language);
     }
 
     /**
@@ -390,6 +398,7 @@ final readonly class OpenTypeShaper
      */
     private function positioned(array $sequence, TextOptions $options, array $features, string $script): array
     {
+        $language     = LanguageSystems::forLanguage($options->language);
         $gpos         = $this->program->gpos();
         $gposFeatures = [
             ...($options->kerning ? ['kern'] : []),
@@ -402,7 +411,7 @@ final readonly class OpenTypeShaper
             ...$features,
         ];
         $positions = null;
-        if (null !== $gpos && $gpos->has($gposFeatures, $script)) {
+        if (null !== $gpos && $gpos->has($gposFeatures, $script, $language)) {
             $advances = [];
             foreach ($sequence as [$id]) {
                 $advances[] = $this->program->advance($id);
@@ -413,11 +422,12 @@ final readonly class OpenTypeShaper
                 $gposFeatures,
                 $script,
                 $options->direction,
+                $language,
             );
         }
         $legacyKern =
             $options->kerning
-            && (null === $positions || ! ($gpos?->has(['kern'], $script) ?? false))
+            && (null === $positions || ! ($gpos?->has(['kern'], $script, $language) ?? false))
             && $this->program->hasKerning();
         $glyphs = [];
         foreach ($sequence as $k => [$id, $codePoints]) {

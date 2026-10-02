@@ -122,9 +122,9 @@ final class Gpos
      *
      * @throws ParseException
      */
-    public function has(array $features, string $script = 'latn'): bool
+    public function has(array $features, string $script = 'latn', ?string $language = null): bool
     {
-        return [] !== $this->tables->lookupsFor($features, $script);
+        return [] !== $this->tables->lookupsFor($features, $script, $language);
     }
 
     /**
@@ -144,6 +144,7 @@ final class Gpos
         array $features,
         string $script = 'latn',
         TextDirection $direction = TextDirection::LeftToRight,
+        ?string $language = null,
     ): array {
         $ids     = [];
         $initial = [];
@@ -152,7 +153,7 @@ final class Gpos
             $initial[] = [$advances[$k] ?? 0, 0, 0, 0, 0, 0];
         }
         $positions = new GlyphPositions($initial);
-        foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
+        foreach ($this->tables->lookupsFor($features, $script, $language) as $lookup) {
             $this->applyLookup($lookup, $glyphs, $ids, $positions, $direction);
         }
         $out = [];

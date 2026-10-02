@@ -55,6 +55,7 @@ final class HarfBuzzCli implements ExternalShaperInterface
         string $script,
         TextDirection $direction,
         array $features,
+        ?string $language = null,
     ): array {
         $command = [
             $this->binary,
@@ -67,6 +68,9 @@ final class HarfBuzzCli implements ExternalShaperInterface
             '--direction=' . (TextDirection::RightToLeft === $direction ? 'rtl' : 'ltr'),
             "--text={$text}",
         ];
+        if (null !== $language) {
+            $command[] = "--language={$language}";
+        }
         if ([] !== $features) {
             $command[] = '--features=' . implode(',', $features);
         }

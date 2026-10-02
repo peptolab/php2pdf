@@ -242,17 +242,20 @@ final class LayoutTables
      * list order.
      *
      * @param list<string> $features
+     * @param string|null  $language an OpenType language system tag ("TRK "); the script's
+     *                               default when the font has none for it
      *
      * @return list<int>
      *
      * @throws ParseException
      */
-    public function lookupsFor(array $features, string $script = 'latn'): array
+    public function lookupsFor(array $features, string $script = 'latn', ?string $language = null): array
     {
-        if (! array_key_exists($script, $this->features)) {
-            $this->features[$script] = $this->readFeatures($script);
+        $key = "{$script}|{$language}";
+        if (! array_key_exists($key, $this->features)) {
+            $this->features[$key] = $this->readFeatures($script, $language);
         }
-        $byFeature = $this->features[$script];
+        $byFeature = $this->features[$key];
         $indices   = [];
         foreach (['', ...$features] as $feature) {
             foreach ($byFeature[$feature] ?? [] as $index) {
@@ -345,6 +348,28 @@ final class LayoutTables
     }
 
     /**
+     * Where a script's language system for a language starts: the language's own when the font
+     * has one, otherwise the script's default; null when there is neither.
+     *
+     * @throws ParseException
+     */
+    private function languageSystem(int $script, ?string $language): ?int
+    {
+        $r = $this->reader;
+        if (null !== $language) {
+            for ($k = 0, $count = $r->u16($script + 2); $k < $count; ++$k) {
+                $record = $script + 4 + (6 * $k);
+                if ($language === $r->tag($record)) {
+                    return $script + $r->u16($record + 4);
+                }
+            }
+        }
+        $default = $r->u16($script);
+
+        return 0 === $default ? null : $script + $default;
+    }
+
+    /**
      * The features of a script's default language system, by tag, with the required feature
      * under ''.
      *
@@ -352,7 +377,7 @@ final class LayoutTables
      *
      * @throws ParseException
      */
-    private function readFeatures(string $tag): array
+    private function readFeatures(string $tag, ?string $language): array
     {
         $r          = $this->reader;
         $scriptList = $r->u16(4);
@@ -363,10 +388,10 @@ final class LayoutTables
             $scripts[$r->tag($record)] = $scriptList + $r->u16($record + 4);
         }
         $script = $scripts[$tag] ?? $scripts['DFLT'] ?? $scripts['dflt'] ?? $scripts['latn'] ?? null;
-        if (null === $script || 0 === $r->u16($script)) {
+        $lang   = null === $script ? null : $this->languageSystem($script, $language);
+        if (null === $lang) {
             return [];
         }
-        $lang        = $script + $r->u16($script);
         $featureList = $r->u16(6);
         $features    = [];
         $required    = $r->u16($lang + 2);

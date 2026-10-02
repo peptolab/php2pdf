@@ -300,8 +300,11 @@ final class Font implements PdfFontInterface, DeferredInterface
         $rtl      = TextDirection::RightToLeft === $options->direction;
         $features = [...$options->activeFeatures(), ...($rtl ? ['rtla', 'rtlm'] : ['ltra', 'ltrm'])];
         $engine   = null === $this->options->complexShaper ? '' : $this->options->complexShaper::class;
-        $key      = "{$engine}|" . ($options->kerning ? 'k' : '-') . implode(',', $features) . "|{$text}";
-        $first    = ! array_key_exists($key, $this->checked);
+        $key      = "{$engine}|{$options->language}|"
+        . ($options->kerning ? 'k' : '-')
+        . implode(',', $features)
+        . "|{$text}";
+        $first = ! array_key_exists($key, $this->checked);
         if ($first) {
             $this->checkScript($text);
         }

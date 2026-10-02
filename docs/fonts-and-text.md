@@ -75,8 +75,10 @@ glyph composition (`ccmp`), localised forms (`locl`), required ligatures (`rlig`
 alternates (`calt`, `rclt`) and contextual ligatures (`clig`, with the standard ones) apply by
 default; `'-calt'` in the list turns a default off. Every substitution and positioning lookup type
 is applied in the font's lookup order with its lookup flags, using the font's features for the
-text's script (Greek text gets the font's Greek features, for example), matching HarfBuzz. A small-cap or other substituted glyph
-copies as the character it stands for. Tracking and character spacing turn off ligatures only.
+text's script (Greek text gets the font's Greek features, for example), matching HarfBuzz. A
+style's `language` (a BCP 47 tag such as `tr` or `nl-BE`) also picks the font's forms for that
+language where it has them: in Turkish, Source Serif keeps the dot on i and sets "fi" without the
+ligature. A small-cap or other substituted glyph copies as the character it stands for. Tracking and character spacing turn off ligatures only.
 
 ### Missing glyphs
 

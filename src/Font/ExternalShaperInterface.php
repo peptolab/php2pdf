@@ -20,6 +20,8 @@ interface ExternalShaperInterface
      *
      * @param string       $script   the ISO 15924 code of the script, in lower case ("deva")
      * @param list<string> $features features to change, in HarfBuzz's syntax ("smcp", "-liga")
+     * @param string|null  $language the text's language as a BCP 47 tag ("tr"), for the font's
+     *                               forms for it
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int, 4: int, 5: int}> per glyph, in visual
      *         order: glyph id, cluster (the byte offset in $text of the first character the glyph
@@ -31,5 +33,6 @@ interface ExternalShaperInterface
         string $script,
         TextDirection $direction,
         array $features,
+        ?string $language = null,
     ): array;
 }
