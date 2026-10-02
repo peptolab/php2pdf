@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Closure;
-use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
@@ -30,16 +29,16 @@ final class PatternBuilder
     /** @var array<string, PatternTile|null> */
     private array $tiles = [];
 
-    /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
     public function __construct(
         private readonly Context $context,
-        private readonly Closure $children,
+        private readonly ChildrenDrawerInterface $children,
     ) {}
 
     /**
      * The tile for a <pattern> painted over a box, or null when the pattern paints nothing (an
      * empty tile).
      *
+     * @throws IoException    for an image in the pattern that cannot be read
      * @throws ParseException for a pattern that paints itself, directly or through other references,
      *                        or a circular href chain
      */
@@ -100,6 +99,9 @@ final class PatternBuilder
      *
      * @param list<Element>         $chain
      * @param array<string, string> $attrs
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     private function draw(Element $pattern, array $chain, array $attrs, Box $bounds): ?PatternTile
     {
@@ -121,7 +123,7 @@ final class PatternBuilder
         );
         $canvas = $template->canvas();
         $canvas->concat($this->contentMatrix($attrs, $tile, $bounds));
-        ($this->children)($canvas, $source, Style::root()->derive($source, $this->context->sheet));
+        $this->children->drawChildren($canvas, $source, Style::root()->derive($source, $this->context->sheet));
         $matrix = Matrix::translation($tile->x, $tile->y)->then(
             TransformParser::parse($attrs['patternTransform'] ?? null),
         );

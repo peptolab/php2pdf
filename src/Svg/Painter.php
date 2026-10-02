@@ -6,6 +6,7 @@ namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Path;
@@ -33,6 +34,7 @@ final class Painter
     /**
      * Sets the fill colour, gradient or pattern; returns whether there is anything to fill.
      *
+     * @throws IoException
      * @throws ParseException
      */
     public function fill(Canvas $canvas, Style $style, Box $bounds): bool
@@ -40,7 +42,10 @@ final class Painter
         return $this->paints->resolve($style->fill(), $bounds, $style)->fill($canvas);
     }
 
-    /** @throws ParseException */
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function paint(Canvas $canvas, Path $path, Style $style, ?Box $bounds = null): void
     {
         if (! $style->isVisible()) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 
@@ -24,6 +25,7 @@ final readonly class PaintResolver
     /**
      * @param Box $bounds the box the paint covers, for paint servers in bounding-box units
      *
+     * @throws IoException
      * @throws ParseException
      */
     public function resolve(Paint $paint, Box $bounds, Style $style): ResolvedPaint

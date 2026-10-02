@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -24,7 +25,7 @@ use function array_key_exists;
  *
  * @internal
  */
-final class Renderer
+final class Renderer implements ChildrenDrawerInterface
 {
     private const array SKIPPED = [
         'defs'           => true,
@@ -60,13 +61,25 @@ final class Renderer
     ) {
         $this->painter = new Painter(
             $context,
-            new PaintResolver($context, new PatternBuilder($context, $this->children(...))),
+            new PaintResolver($context, new PatternBuilder($context, $this)),
         );
         $this->text    = new TextRenderer($context, $this->painter);
         $this->clips   = new ClipBuilder($context);
-        $this->masks   = new MaskBuilder($context, $this->clips, $this->children(...));
-        $this->markers = new MarkerBuilder($context, $this->children(...));
+        $this->masks   = new MaskBuilder($context, $this->clips, $this);
+        $this->markers = new MarkerBuilder($context, $this);
         $this->images  = new ImageRenderer($context);
+    }
+
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
+    #[Override]
+    public function drawChildren(Canvas $canvas, Element $element, Style $style): void
+    {
+        foreach ($element->elements() as $child) {
+            $this->element($canvas, $child, $style);
+        }
     }
 
     /**
@@ -91,17 +104,6 @@ final class Renderer
         $canvas->restore();
 
         return $template;
-    }
-
-    /**
-     * @throws IoException
-     * @throws ParseException
-     */
-    private function children(Canvas $canvas, Element $element, Style $style): void
-    {
-        foreach ($element->elements() as $child) {
-            $this->element($canvas, $child, $style);
-        }
     }
 
     private function clipViewport(Canvas $canvas, Style $style, float $x, float $y, float $width, float $height): void
@@ -131,7 +133,7 @@ final class Renderer
             'use' === $element->name => $this->use($canvas, $element, $style),
             'svg' === $element->name => $this->nestedSvg($canvas, $element, $style),
             'switch' === $element->name => $this->switch($canvas, $element, $style),
-            'g' === $element->name, 'a' === $element->name => $this->children($canvas, $element, $style),
+            'g' === $element->name, 'a' === $element->name => $this->drawChildren($canvas, $element, $style),
             default => $this->context->warn("<{$element->name}>"),
         };
     }
@@ -203,7 +205,10 @@ final class Renderer
         $this->viewport($canvas, $element, $style, $x, $y, $width, $height);
     }
 
-    /** @throws ParseException */
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function shape(Canvas $canvas, Element $element, Style $style): void
     {
         $path = Shapes::path($element, $style, $this->context);
@@ -348,7 +353,7 @@ final class Renderer
         $canvas->concat(Matrix::translation($x, $y)->after($mapping));
         $this->context->viewportWidth  = null === $viewBox ? $width : $viewBox[2];
         $this->context->viewportHeight = null === $viewBox ? $height : $viewBox[3];
-        $this->children($canvas, $element, $style);
+        $this->drawChildren($canvas, $element, $style);
         $canvas->restore();
         $this->context->viewportWidth  = $savedWidth;
         $this->context->viewportHeight = $savedHeight;

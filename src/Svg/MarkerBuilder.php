@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Path;
@@ -33,10 +33,9 @@ final readonly class MarkerBuilder
     /** Elements that take markers. */
     public const array MARKABLE = ['path' => true, 'line' => true, 'polyline' => true, 'polygon' => true];
 
-    /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
     public function __construct(
         private Context $context,
-        private Closure $children,
+        private ChildrenDrawerInterface $children,
     ) {}
 
     /** An orient angle in degrees: a number with an optional deg, rad, grad or turn unit. */
@@ -125,9 +124,17 @@ final readonly class MarkerBuilder
             Painter::clipTo($canvas, Path::rect(0.0, 0.0, $width, $height), FillRule::NonZero);
         }
         $canvas->concat($mapping);
-        $this->context->guard->within('marker', $id, function () use ($canvas, $marker, $markerStyle): void {
-            ($this->children)($canvas, $marker, $markerStyle);
-        });
+        $this->context->guard->within(
+            'marker',
+            $id,
+            /**
+             * @throws IoException
+             * @throws ParseException
+             */
+            function () use ($canvas, $marker, $markerStyle): void {
+                $this->children->drawChildren($canvas, $marker, $markerStyle);
+            },
+        );
         $canvas->restore();
     }
 }

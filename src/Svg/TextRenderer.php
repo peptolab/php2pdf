@@ -235,6 +235,7 @@ final class TextRenderer
     /**
      * @param list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}> $chunk
      *
+     * @throws IoException
      * @throws ParseException
      */
     private function drawChunk(Canvas $canvas, array $chunk): void

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
 use Php2Pdf\Canvas\SoftMaskType;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
@@ -27,14 +27,16 @@ final readonly class MaskBuilder
 {
     private const float HUGE = 100_000.0;
 
-    /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
     public function __construct(
         private Context $context,
         private ClipBuilder $clips,
-        private Closure $children,
+        private ChildrenDrawerInterface $children,
     ) {}
 
-    /** @throws ParseException for a mask that masks itself, directly or through other references */
+    /**
+     * @throws IoException    for an image in the mask that cannot be read
+     * @throws ParseException for a mask that masks itself, directly or through other references
+     */
     public function apply(Canvas $canvas, string $id, Element $element, Style $style): void
     {
         $mask = $this->context->file->byId($id);
@@ -42,12 +44,25 @@ final readonly class MaskBuilder
             return;
         }
         $bounds = $this->clips->bounds($element, $style) ?? new Box(0.0, 0.0, 0.0, 0.0);
-        $this->context->guard->within('mask', $id, function () use ($canvas, $mask, $bounds): void {
-            $this->draw($canvas, $mask, $bounds);
-        });
+        $this->context->guard->within(
+            'mask',
+            $id,
+            /**
+             * @throws IoException
+             * @throws ParseException
+             */
+            function () use ($canvas, $mask, $bounds): void {
+                $this->draw($canvas, $mask, $bounds);
+            },
+        );
     }
 
-    /** Draws a mask already entered in the guard and sets it as the soft mask. */
+    /**
+     * Draws a mask already entered in the guard and sets it as the soft mask.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function draw(Canvas $canvas, Element $mask, Box $bounds): void
     {
         $region   = $this->region($mask, $bounds);
@@ -64,7 +79,7 @@ final readonly class MaskBuilder
         );
         $content->concat(Units::of($mask->attribute('maskContentUnits'), Units::UserSpaceOnUse)->boxMatrix($bounds));
         $maskStyle = Style::root()->derive($mask, $this->context->sheet);
-        ($this->children)($content, $mask, $maskStyle);
+        $this->children->drawChildren($content, $mask, $maskStyle);
         $canvas->setSoftMask($template, $maskStyle->maskAlpha() ? SoftMaskType::Alpha : SoftMaskType::Luminosity);
     }
 
