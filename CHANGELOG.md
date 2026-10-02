@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Letter spacing and glyph scaling in justification, as in InDesign:
+  `Justification::$minLetterSpacing` and `$maxLetterSpacing` (percentages of a word space) and
+  `$minGlyphScaling` and `$maxGlyphScaling` (percentages of the glyphs' width). The paragraph
+  composer weighs breaks by them, and a justified line takes its slack in word spaces first, then
+  between letters, then in the width of its glyphs. By default neither changes, and text is set
+  as before.
+
 ## [0.1.1] - 2026-10-02
 
 ### Added

@@ -8,7 +8,8 @@ use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Style\TextStyle;
 
 /**
- * A positioned run of one style on a line, x measured from the line's left edge.
+ * A positioned run of one style on a line, x measured from the line's left edge, its glyphs
+ * scaled horizontally by $scale on top of the style's own scale when justification scales them.
  *
  * @internal
  */
@@ -19,5 +20,6 @@ final readonly class Segment
         public float $width,
         public TextStyle $style,
         public GlyphRun $run,
+        public float $scale = 1.0,
     ) {}
 }

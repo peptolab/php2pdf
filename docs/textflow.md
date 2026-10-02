@@ -59,7 +59,25 @@ others', rather than filling each line in turn. Word spaces may stretch to 133% 
 of their width, or within a style's own `justification: new Justification(minWordSpacing: 85,
 maxWordSpacing: 120)`; hyphens, consecutive hyphens and a loose line next to a tight one cost
 more. A justified line shares its slack among its spaces in proportion to how far each may go,
-so with type of several sizes each space changes by the same share of its own width. Other
+so with type of several sizes each space changes by the same share of its own width.
+
+As in InDesign, a `Justification` can also let the space between letters change, as a
+percentage of a word space, and the width of the glyphs, as a percentage of their own:
+
+```php
+new Justification(
+    minWordSpacing: 85, maxWordSpacing: 120,
+    minLetterSpacing: -2, maxLetterSpacing: 5,
+    minGlyphScaling: 98, maxGlyphScaling: 102,
+)
+```
+
+The composer weighs breaks by all three. A justified line takes its slack in its word spaces
+first, as far as they may go; then between its letters (after every glyph but the line's last);
+then in the width of its glyphs, as far as the style on the line that allows least lets them; and
+whatever is left goes to its word spaces past their limit (or, on a line without any, between its
+letters). By default letters and glyphs do not change. Images and other inline objects keep their
+width. Other
 alignments are set line by line. `composer: Composer::SingleLine` sets a justified paragraph line
 by line, and `Composer::Paragraph` composes ragged text too, which evens its rag. A paragraph with
 tabs, or a word wider than its lines, is set line by line.

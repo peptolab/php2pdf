@@ -18,6 +18,7 @@ use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Markup;
 use Php2Pdf\Text\Style\Alignment;
+use Php2Pdf\Text\Style\Justification;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TabStop;
 use Php2Pdf\Text\Style\TextStyle;
@@ -198,6 +199,29 @@ final class TextflowTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString('BT /F1 10 Tf', $this->out->contents());
+    }
+
+    #[Test]
+    public function justificationScalesGlyphsWithTheirHorizontalScale(): void
+    {
+        $style = new TextStyle(
+            font: 'DejaVuSans',
+            size: 10.0,
+            alignment: Alignment::Justify,
+            justification: new Justification(100.0, 100.0, maxGlyphScaling: 120.0),
+        );
+        $flow = $this->doc->textflow('aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn', $style);
+        $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 120.0, 200.0));
+        $this->doc->close();
+
+        self::assertSame(
+            [1, 1],
+            [
+                preg_match('/\b1[01][0-9](\.[0-9]+)? Tz\b/', $this->out->contents()),
+                preg_match('/\b100 Tz\b/', $this->out->contents()),
+            ],
+            'A justified line is set wider, and the unjustified last line back at 100%.',
+        );
     }
 
     #[Test]

@@ -105,6 +105,24 @@ final readonly class TextOptions
         );
     }
 
+    /** The same options at another horizontal scale, in percent. */
+    public function withHorizontalScale(float $horizontalScale): self
+    {
+        return new self(
+            $this->charSpacing,
+            $this->wordSpacing,
+            $this->tracking,
+            $horizontalScale,
+            $this->rise,
+            $this->renderMode,
+            $this->kerning,
+            $this->ligatures,
+            $this->features,
+            $this->direction,
+            $this->language,
+        );
+    }
+
     /** The same options with ligatures on or off. */
     public function withLigatures(bool $ligatures): self
     {

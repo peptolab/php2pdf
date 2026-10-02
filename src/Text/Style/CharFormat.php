@@ -12,7 +12,7 @@ use WeakMap;
 /**
  * A character style with every setting layout measures by resolved: the size and line height,
  * the shaping and showing options (made once), the horizontal scale and rise, how far its word
- * spaces stretch and shrink, and its fallback fonts. Built once for each style and kept while the
+ * spaces, letter spacing and glyph widths may change in justification, and its fallback fonts. Built once for each style and kept while the
  * style lives.
  *
  * @internal
@@ -29,8 +29,12 @@ final class CharFormat
     private static ?Lru $shared = null;
 
     /**
-     * @param float                            $stretch how far a word space may stretch, as a fraction of its width
-     * @param float                            $shrink  how far it may shrink, as a fraction of its width
+     * @param float                            $stretch       how far a word space may stretch, as a fraction of its width
+     * @param float                            $shrink        how far it may shrink, as a fraction of its width
+     * @param float                            $letterStretch how far the space after a letter may open up, as a fraction of a word space
+     * @param float                            $letterShrink  how far it may close up, as a fraction of a word space
+     * @param float                            $glyphStretch  how far glyphs may widen, as a fraction of their width
+     * @param float                            $glyphShrink   how far they may narrow, as a fraction of their width
      * @param list<FontInterface|string>       $fallback
      */
     private function __construct(
@@ -42,6 +46,10 @@ final class CharFormat
         public readonly float $stretch,
         public readonly float $shrink,
         public readonly array $fallback,
+        public readonly float $letterStretch = 0.0,
+        public readonly float $letterShrink = 0.0,
+        public readonly float $glyphStretch = 0.0,
+        public readonly float $glyphShrink = 0.0,
     ) {}
 
     /**
@@ -78,6 +86,10 @@ final class CharFormat
             Justification::stretchOf($style->justification),
             Justification::shrinkOf($style->justification),
             $style->fallback ?? [],
+            $style->justification?->letterStretch() ?? 0.0,
+            $style->justification?->letterShrink() ?? 0.0,
+            $style->justification?->glyphStretch() ?? 0.0,
+            $style->justification?->glyphShrink() ?? 0.0,
         );
     }
 
@@ -93,6 +105,10 @@ final class CharFormat
             $this->stretch,
             $this->shrink,
             $this->fallback,
+            $this->letterStretch,
+            $this->letterShrink,
+            $this->glyphStretch,
+            $this->glyphShrink,
         ]);
     }
 }

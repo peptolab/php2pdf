@@ -9,6 +9,7 @@ use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
+use WeakMap;
 
 use function count;
 
@@ -20,6 +21,9 @@ use function count;
  */
 final class ItemFactory
 {
+    /** @var WeakMap<TextStyle, float>|null each style's word space width */
+    private static ?WeakMap $spaces = null;
+
     /** A box of text at a bidi level, shaped right to left when the level is odd. */
     public static function box(string $text, TextStyle $style, int $level = 0): Item
     {
@@ -98,5 +102,27 @@ final class ItemFactory
             $hyphen->width + ItemFactory::kerningWidth($change, $style),
             $change,
         );
+    }
+
+    /**
+     * The width of a style's word space, without kerning: what its letter spacing is a percentage
+     * of in justification. Worked out once for each style.
+     */
+    public static function spaceWidth(TextStyle $style): float
+    {
+        self::$spaces ??= new WeakMap();
+        $width        = self::$spaces[$style] ?? null;
+        if (null !== $width) {
+            return $width;
+        }
+        $format  = CharFormat::of($style);
+        $advance = 0;
+        foreach (StyleResolver::fontOf($style)->shape(' ', $format->textOptions)->glyphs as $glyph) {
+            $advance += $glyph->advance;
+        }
+        $width                = (($advance / 1000.0) * $format->size * $format->horizontalScale) / 100.0;
+        self::$spaces[$style] = $width;
+
+        return $width;
     }
 }

@@ -8,6 +8,8 @@ use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
+use function count;
+
 /**
  * One element of an itemised paragraph. Widths are in points at the item's style.
  *
@@ -47,6 +49,12 @@ final readonly class Item
         return new self(ItemKind::Inline, $style, width: $inline->width, inline: $inline);
     }
 
+    /** How many glyphs the item shows: each takes letter spacing after it in justification. */
+    public function glyphCount(): int
+    {
+        return null === $this->run ? 0 : count($this->run->glyphs);
+    }
+
     public function isBreakOpportunity(): bool
     {
         return ItemKind::Glue === $this->kind || ItemKind::Penalty === $this->kind;
@@ -59,6 +67,22 @@ final readonly class Item
                 || ItemKind::ColumnBreak === $this->kind
                 || ItemKind::PageBreak === $this->kind
         );
+    }
+
+    /** How far the space after each of the item's glyphs may close up in justification, in points. */
+    public function letterShrink(): float
+    {
+        return 0.0 === $this->format->letterShrink
+            ? 0.0
+            : $this->format->letterShrink * ItemFactory::spaceWidth($this->style);
+    }
+
+    /** How far the space after each of the item's glyphs may open up in justification, in points. */
+    public function letterStretch(): float
+    {
+        return 0.0 === $this->format->letterStretch
+            ? 0.0
+            : $this->format->letterStretch * ItemFactory::spaceWidth($this->style);
     }
 
     /**

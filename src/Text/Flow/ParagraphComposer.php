@@ -41,6 +41,12 @@ final class ParagraphComposer
     /** @var list<int> the positions a line may end at, in order */
     private array $breaks = [];
 
+    /**
+     * @var array<int, array{0: float, 1: float}> by break, the letter spacing the line's last glyph
+     *      would take, which a line ending there leaves out: how far it opens up and closes up
+     */
+    private array $lastGap = [];
+
     /** @var array<int, float> the width of each line, by its number from $firstLine, as it is needed */
     private array $lineWidths = [];
 
@@ -64,17 +70,24 @@ final class ParagraphComposer
                 continue;
             }
             $natural += $item->width;
+            $format  = $item->format;
             if (ItemKind::Glue === $item->kind) {
-                $format  = $item->format;
                 $stretch += $item->spaceWidth() * $format->stretch;
                 $shrink  += $item->spaceWidth() * $format->shrink;
             }
+            $glyphs = $item->glyphCount();
+            if (0 === $glyphs) {
+                continue;
+            }
+            $stretch += ($glyphs * $item->letterStretch()) + ($item->width * $format->glyphStretch);
+            $shrink  += ($glyphs * $item->letterShrink()) + ($item->width * $format->glyphShrink);
         }
         for ($i = $start; $i <= $end; ++$i) {
             if (! $this->isBreak($i)) {
                 continue;
             }
-            $this->breaks[] = $i;
+            $this->breaks[]    = $i;
+            $this->lastGap[$i] = $this->lastGap($i);
         }
     }
 
@@ -196,6 +209,29 @@ final class ParagraphComposer
         );
     }
 
+    /**
+     * The letter spacing after the last glyph of a line ending at $i, which no glyph follows: none
+     * for a line ending at a hyphen, whose hyphen is shown after it.
+     *
+     * @return array{0: float, 1: float} how far it would open up and close up
+     */
+    private function lastGap(int $i): array
+    {
+        if ($i !== $this->end && ItemKind::Penalty === ($this->items[$i] ?? null)?->kind) {
+            return [0.0, 0.0];
+        }
+        for ($k = $i - 1; $k >= $this->start; --$k) {
+            $item = $this->items[$k] ?? null;
+            if (null === $item || ItemKind::Glue === $item->kind || 0 === $item->glyphCount()) {
+                continue;
+            }
+
+            return [$item->letterStretch(), $item->letterShrink()];
+        }
+
+        return [0.0, 0.0];
+    }
+
     /** Where a line after a break starts: past the glue it broke at. */
     private function lineStart(int $position): int
     {
@@ -233,13 +269,14 @@ final class ParagraphComposer
         $natural  = $this->natural[$i] ?? 0.0;
         $stretchI = $this->stretch[$i] ?? 0.0;
         $shrinkI  = $this->shrink[$i] ?? 0.0;
+        [$lastStretch, $lastShrink] = $this->lastGap[$i] ?? [0.0, 0.0];
         $survivor = [];
         $best     = [];
         foreach ($active as $node) {
             $lineWidth = $this->lineWidths[$node->line] ?? $this->lineWidth($node->line);
             $missing   = $lineWidth - $natural + $node->natural - $extra;
-            $stretch   = $stretchI - $node->stretch;
-            $shrink    = $shrinkI - $node->shrink;
+            $stretch   = $stretchI - $node->stretch - $lastStretch;
+            $shrink    = $shrinkI - $node->shrink - $lastShrink;
             $ratio     = match (true) {
                 $last && $missing >= -1.0e-6 => 0.0,
                 $missing < 0.0 => $shrink > 0.0 ? $missing / $shrink : -2.0,

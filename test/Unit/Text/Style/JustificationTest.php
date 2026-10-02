@@ -24,6 +24,19 @@ final class JustificationTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{float, float, float, float, string}> */
+    public static function invalidRangeProvider(): array
+    {
+        return [
+            'letters closing up by a whole space' => [-100.0, 0.0, 100.0, 100.0, 'Letter spacing'],
+            'a letter minimum above 0'            => [5.0, 10.0, 100.0, 100.0, 'Letter spacing'],
+            'a letter maximum below 0'            => [-10.0, -5.0, 100.0, 100.0, 'Letter spacing'],
+            'glyphs scaled to nothing'            => [0.0, 0.0, 0.0, 100.0, 'Glyph scaling'],
+            'a glyph minimum above 100'           => [0.0, 0.0, 101.0, 105.0, 'Glyph scaling'],
+            'a glyph maximum below 100'           => [0.0, 0.0, 90.0, 99.0, 'Glyph scaling'],
+        ];
+    }
+
     #[Test]
     public function aStyleWithoutJustificationHasInDesignsDefaults(): void
     {
@@ -31,6 +44,59 @@ final class JustificationTest extends TestCase
             [(new Justification())->shrink(), (new Justification())->stretch()],
             [Justification::shrinkOf(null), Justification::stretchOf(null)],
         );
+    }
+
+    #[Test]
+    public function byDefaultLettersAndGlyphsDoNotChange(): void
+    {
+        $justification = new Justification();
+
+        self::assertSame(
+            [0.0, 0.0, 0.0, 0.0],
+            [
+                $justification->letterStretch(),
+                $justification->letterShrink(),
+                $justification->glyphStretch(),
+                $justification->glyphShrink(),
+            ],
+        );
+    }
+
+    #[Test]
+    public function letterAndGlyphLimitsAreFractions(): void
+    {
+        $justification = new Justification(
+            minLetterSpacing: -5.0,
+            maxLetterSpacing: 10.0,
+            minGlyphScaling: 97.0,
+            maxGlyphScaling: 104.0,
+        );
+
+        self::assertEqualsWithDelta(
+            [0.1, 0.05, 0.04, 0.03],
+            [
+                $justification->letterStretch(),
+                $justification->letterShrink(),
+                $justification->glyphStretch(),
+                $justification->glyphShrink(),
+            ],
+            1.0e-12,
+        );
+    }
+
+    #[Test]
+    #[DataProvider('invalidRangeProvider')]
+    public function letterAndGlyphLimitsMustBracketTheUnchangedValue(
+        float $minLetter,
+        float $maxLetter,
+        float $minGlyph,
+        float $maxGlyph,
+        string $setting,
+    ): void {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("{$setting} limits must bracket");
+
+        new Justification(100.0, 100.0, $minLetter, $maxLetter, $minGlyph, $maxGlyph);
     }
 
     #[Test]

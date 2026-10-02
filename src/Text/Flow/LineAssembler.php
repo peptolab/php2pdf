@@ -7,19 +7,21 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Style\Alignment;
-use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
+use function abs;
 use function array_pop;
 use function array_slice;
 use function count;
+use function max;
+use function min;
 use function preg_match;
 
 /**
  * Sets the items of a line: drops the spaces it ends with, adds the hyphen it breaks at, puts
  * the items in visual order, aligns or justifies them (its word spaces stretched or shrunk within
- * their Justification limits, as the paragraph composer scored them), and merges them into a
- * run per style.
+ * their Justification limits, as the paragraph composer scored them, then letter spacing and glyph scaling where the style
+ * allows them), and merges them into a run per style.
  *
  * @internal
  */
@@ -66,8 +68,10 @@ final class LineAssembler
             $natural += $item->width;
         }
 
-        $extras  = ! $hasTab && Alignment::Justify === $alignment ? self::spread($items, $available - $natural) : [];
-        $justify = [] !== $extras;
+        $spread = ! $hasTab && Alignment::Justify === $alignment
+            ? self::spread($items, $available - $natural)
+            : new LineSpread();
+        $justify = $spread->justifies();
         $shift   = $hasTab || $justify
             ? 0.0
             : match ($alignment) {
@@ -76,7 +80,7 @@ final class LineAssembler
                 default           => 0.0,
             };
 
-        [$segments, $width, $inlines] = self::segments($items, $style, $extras);
+        [$segments, $width, $inlines] = self::segments($items, $style, $spread);
         $metrics = LineMetrics::of($items, $style);
 
         return new Line(
@@ -135,6 +139,52 @@ final class LineAssembler
         return $items;
     }
 
+    /**
+     * Takes a line's slack in word spaces, then letter spacing, then glyph scaling, each as far as
+     * it may, and the rest in word spaces (or, without any, letter spacing) past their limits.
+     *
+     * @param array{0: array<int, float>, 1: float}           $words      how far each word space may change, and in all
+     * @param array{0: array<int, float>, 1: float, 2: ?int} $letters    how far the space after each item's glyphs may
+     *                                                                    change, in all, and the item with the last glyph
+     * @param float                                            $textWidth the width of the line's glyphs, which scaling changes
+     */
+    private static function byPriority(
+        float $missing,
+        array $words,
+        array $letters,
+        float $textWidth,
+        float $glyphRange,
+    ): LineSpread {
+        [$wordFlex, $wordTotal] = $words;
+        [$gapFlex, $gapTotal, $last] = $letters;
+        $sign   = $missing >= 0.0 ? 1.0 : -1.0;
+        $amount = $sign * $missing;
+        $word   = min($amount, $wordTotal);
+        $letter = min($amount - $word, $gapTotal);
+        $rest   = $amount - $word - $letter;
+        $scale  = 1.0;
+        $base   = $textWidth + ($sign * ($word + $letter));
+        if ($rest > 0.0 && $glyphRange > 0.0 && $base > 0.0) {
+            $scale = $sign > 0.0
+                ? min(1.0 + $glyphRange, ($base + $rest) / $base)
+                : max(1.0 - $glyphRange, ($base - $rest) / $base);
+            $rest = ($rest - abs(($base * $scale) - $base)) / $scale;
+        }
+        if ($rest > 0.0 && $wordTotal > 0.0) {
+            $word += $rest;
+        }
+        if ($rest > 0.0 && $wordTotal <= 0.0) {
+            $letter += $rest;
+        }
+
+        return new LineSpread(
+            $wordTotal > 0.0 ? self::share($wordFlex, $sign * $word, $wordTotal) : [],
+            $gapTotal > 0.0 ? self::share($gapFlex, $sign * $letter, $gapTotal) : [],
+            $scale,
+            $last,
+        );
+    }
+
     /** @param list<Item> $items */
     private static function containsTab(array $items): bool
     {
@@ -148,15 +198,45 @@ final class LineAssembler
     }
 
     /**
-     * Merges consecutive items of one style into runs, folding justification into the space glyphs
-     * and resolving tab positions.
+     * An item's glyphs and width with its justification: the change to a word space on the space
+     * glyph, and the letter spacing after each glyph but the line's last, as kerning.
      *
-     * @param list<Item>        $items
-     * @param array<int, float> $extras the width each word space at an index gains (or loses)
+     * @return array{0: list<Glyph>, 1: float} the glyphs, and the width before scaling
+     */
+    private static function justified(Item $item, int $index, LineSpread $spread): array
+    {
+        $glyphs = null === $item->run ? [] : $item->run->glyphs;
+        $width  = $item->width;
+        $word   = ItemKind::Glue === $item->kind ? $spread->words[$index] ?? 0.0 : 0.0;
+        $letter = $spread->letters[$index] ?? 0.0;
+        if (0.0 === $word && 0.0 === $letter) {
+            return [$glyphs, $width];
+        }
+        $format = $item->format;
+        $toEm   = 1000.0 / (($format->horizontalScale / 100.0) * $format->size);
+        $last   = $spread->last === $index ? count($glyphs) - 1 : -1;
+        foreach ($glyphs as $k => $glyph) {
+            $after = ($k === $last ? 0.0 : $letter) + ($k === (count($glyphs) - 1) ? $word : 0.0);
+            if (0.0 === $after) {
+                continue;
+            }
+            $glyphs[$k] = $glyph->withKerning($glyph->kerning + ($after * $toEm));
+            $width      += $after;
+        }
+
+        return [$glyphs, $width];
+    }
+
+    /**
+     * Merges consecutive items of one style into runs, folding justification into the glyphs (word
+     * spaces and letter spacing as kerning, glyph scaling as the runs' scale) and resolving tab
+     * positions.
+     *
+     * @param list<Item> $items
      *
      * @return array{0: list<Segment>, 1: float, 2: list<array{0: float, 1: InlineObject}>}
      */
-    private static function segments(array $items, TextStyle $style, array $extras): array
+    private static function segments(array $items, TextStyle $style, LineSpread $spread): array
     {
         $segments = [];
         $inlines  = [];
@@ -192,63 +272,90 @@ final class LineAssembler
                 && $current->style === $runStyle
                 && null !== $current->run
             ) {
-                foreach ($current->run->glyphs as $glyph) {
+                [$itemGlyphs, $itemWidth] = self::justified($current, $i, $spread);
+                foreach ($itemGlyphs as $glyph) {
                     $glyphs[] = $glyph;
                 }
-                $width += $current->width;
-                $extra = $extras[$i] ?? 0.0;
-                if (ItemKind::Glue === $current->kind && 0.0 !== $extra) {
-                    $space = array_pop($glyphs);
-                    if ($space instanceof Glyph) {
-                        $runFormat = CharFormat::of($runStyle);
-                        $scale     = $runFormat->horizontalScale / 100.0;
-                        $adjust    = (($extra / $scale) / $runFormat->size) * 1000.0;
-                        $glyphs[]  = $space->withKerning($space->kerning + $adjust);
-                    }
-                    $width += $extra;
-                }
+                $width += $itemWidth;
                 ++$i;
             }
             if ([] !== $glyphs) {
-                $segments[] = new Segment($x, $width, $runStyle, new GlyphRun($glyphs));
+                $segments[] = new Segment(
+                    $x,
+                    $width * $spread->scale,
+                    $runStyle,
+                    new GlyphRun($glyphs),
+                    $spread->scale,
+                );
             }
-            $x += $width;
+            $x += $width * $spread->scale;
         }
 
         return [$segments, $x, $inlines];
     }
 
     /**
-     * How a justified line shares its slack among its word spaces: each gains (or, on a line set
-     * tight, loses) in proportion to how far its style lets it stretch (or shrink), as the
-     * paragraph composer scored the line. None when the line has no space that may change.
+     * An amount shared in proportion to each part's flexibility.
      *
-     * @param list<Item> $items
+     * @param array<int, float> $flexibility
      *
-     * @return array<int, float> the change to the word space at each index
+     * @return array<int, float>
      */
-    private static function spread(array $items, float $missing): array
+    private static function share(array $flexibility, float $amount, float $total): array
     {
-        $flexibility = [];
-        $total       = 0.0;
-        foreach ($items as $k => $item) {
-            if (ItemKind::Glue !== $item->kind) {
-                continue;
-            }
-            $format          = $item->format;
-            $fraction        = $missing >= 0.0 ? $format->stretch : $format->shrink;
-            $flexibility[$k] = $item->spaceWidth() * $fraction;
-            $total           += $flexibility[$k];
-        }
-        if ($total <= 0.0) {
-            return [];
-        }
-        $extras = [];
+        $shares = [];
         foreach ($flexibility as $k => $flex) {
-            $extras[$k] = ($missing * $flex) / $total;
+            $shares[$k] = ($amount * $flex) / $total;
         }
 
-        return $extras;
+        return $shares;
+    }
+
+    /**
+     * How a justified line takes its slack: its word spaces first, each in proportion to how far
+     * its style lets it stretch (or, on a line set tight, shrink), as far as they may; then the
+     * letter spacing of its glyphs, likewise; then the width of its glyphs, as far as the style
+     * that allows least lets them change. Whatever is left goes to the word spaces past their
+     * limits. With no letter spacing or glyph scaling allowed, the word spaces take it all, in
+     * proportion, as the paragraph composer scored the line. Nothing changes on a line with
+     * nothing that may.
+     *
+     * @param list<Item> $items
+     */
+    private static function spread(array $items, float $missing): LineSpread
+    {
+        $stretching = $missing >= 0.0;
+        $words      = [];
+        $wordTotal  = 0.0;
+        $gaps       = [];
+        $gapTotal   = 0.0;
+        $last       = null;
+        $textWidth  = 0.0;
+        $glyphRange = null;
+        foreach ($items as $k => $item) {
+            $format = $item->format;
+            if (ItemKind::Glue === $item->kind) {
+                $words[$k] = $item->spaceWidth() * ($stretching ? $format->stretch : $format->shrink);
+                $wordTotal += $words[$k];
+            }
+            $count = $item->glyphCount();
+            if (0 === $count) {
+                continue;
+            }
+            $gaps[$k]   = $stretching ? $item->letterStretch() : $item->letterShrink();
+            $gapTotal   += $count * $gaps[$k];
+            $last       = $k;
+            $textWidth  += $item->width;
+            $range      = $stretching ? $format->glyphStretch : $format->glyphShrink;
+            $glyphRange = null === $glyphRange ? $range : min($glyphRange, $range);
+        }
+        $gapTotal   -= null === $last ? 0.0 : $gaps[$last] ?? 0.0;
+        $glyphRange ??= 0.0;
+        if ($gapTotal <= 0.0 && $glyphRange <= 0.0) {
+            return $wordTotal <= 0.0 ? new LineSpread() : new LineSpread(self::share($words, $missing, $wordTotal));
+        }
+
+        return self::byPriority($missing, [$words, $wordTotal], [$gaps, $gapTotal, $last], $textWidth, $glyphRange);
     }
 
     /**

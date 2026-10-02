@@ -64,6 +64,32 @@ final class CharFormatTest extends TestCase
     }
 
     #[Test]
+    public function letterAndGlyphLimitsResolveToFractions(): void
+    {
+        $format = CharFormat::of(new TextStyle(justification: new Justification(
+            minLetterSpacing: -5.0,
+            maxLetterSpacing: 10.0,
+            minGlyphScaling: 97.0,
+            maxGlyphScaling: 104.0,
+        )));
+
+        self::assertEqualsWithDelta(
+            [0.1, 0.05, 0.04, 0.03],
+            [$format->letterStretch, $format->letterShrink, $format->glyphStretch, $format->glyphShrink],
+            1.0e-12,
+        );
+    }
+
+    #[Test]
+    public function stylesDifferingInLetterSpacingDoNotShareAFormat(): void
+    {
+        self::assertNotSame(
+            CharFormat::of(new TextStyle(justification: new Justification(maxLetterSpacing: 5.0))),
+            CharFormat::of(new TextStyle(justification: new Justification(maxLetterSpacing: 10.0))),
+        );
+    }
+
+    #[Test]
     public function stylesResolvingAlikeShareOneFormat(): void
     {
         self::assertSame(

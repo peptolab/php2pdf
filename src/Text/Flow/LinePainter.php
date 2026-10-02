@@ -61,8 +61,11 @@ final class LinePainter
                 if (null !== $style->color) {
                     $canvas->setFillColor($style->color);
                 }
-                $matrix = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
-                $canvas->showRun($segment->run, $font, $size, $matrix, $format->textOptions);
+                $matrix  = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
+                $options = 1.0 === $segment->scale
+                    ? $format->textOptions
+                    : $format->textOptions->withHorizontalScale($format->horizontalScale * $segment->scale);
+                $canvas->showRun($segment->run, $font, $size, $matrix, $options);
                 $sign = $topDown ? -1.0 : 1.0;
                 if (true === $style->underline) {
                     $t = $font->underlineThickness($size);
