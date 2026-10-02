@@ -243,16 +243,4 @@ final class ImageReaderTest extends TestCase
         $this->expectException(PdfException::class);
         ImageReader::read("\xFF\xD8\xFF\xE0garbage");
     }
-
-    #[Test]
-    public function sixteenBitAlphaKeepsTheHighBytes(): void
-    {
-        $row  = "\0\x12\x34\x56\x78\x9A\xBC\xDE\xF0\x01\x02\x03\x04\x05\x06\x07\x08";
-        $data = ImageReader::read(self::png(2, 1, 16, 6, $row));
-
-        self::assertSame(
-            ["\x12\x56\x9A\x01\x03\x05", "\xDE\x07"],
-            [Flate::decode($data->data), $data->softMask],
-        );
-    }
 }

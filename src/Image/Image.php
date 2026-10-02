@@ -154,7 +154,7 @@ final class Image implements PlaceableInterface
                         'Width'            => $data->width,
                         'Height'           => $data->height,
                         'ColorSpace'       => new Name('DeviceGray'),
-                        'BitsPerComponent' => 8,
+                        'BitsPerComponent' => $data->softMaskBits,
                     ]), $data->softMask),
                 ),
             );

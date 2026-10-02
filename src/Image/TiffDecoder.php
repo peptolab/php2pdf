@@ -309,7 +309,6 @@ final class TiffDecoder
         $softMask = null;
         if ($alpha) {
             [$raw, $softMask] = AlphaSplit::split($raw, $samples, intdiv($bits, num2: 8));
-            $bits = 8;
         }
 
         return new ImageData(
@@ -325,6 +324,7 @@ final class TiffDecoder
             dpiY: $this->dpi(self::Y_RESOLUTION),
             orientation: $this->orientation(),
             photoshop: $this->file->raw($this->ifd, self::PHOTOSHOP),
+            softMaskBits: $bits,
         );
     }
 

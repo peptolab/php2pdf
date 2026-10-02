@@ -114,7 +114,7 @@ final class PngDecoder
         return new ImageData(
             $width,
             $height,
-            4 === $type || 6 === $type ? 8 : max(8, $depth),
+            max(8, $depth),
             $colorSpace,
             Flate::encode($color),
             'FlateDecode',
@@ -122,6 +122,7 @@ final class PngDecoder
             iccProfile: $meta['icc'],
             dpiX: $meta['dpi'][0],
             dpiY: $meta['dpi'][1],
+            softMaskBits: 3 === $type ? 8 : max(8, $depth),
         );
     }
 
@@ -259,9 +260,9 @@ final class PngDecoder
     }
 
     /**
-     * Separates colour samples from alpha. Returns the colour bytes (8-bit when alpha is present,
-     * otherwise the native depth) and the 8-bit alpha mask when there is one. Interleaved samples
-     * are split with one regular expression per output, keeping the high byte of 16-bit samples.
+     * Separates colour samples from alpha. Returns the colour bytes and the alpha mask when there
+     * is one, both at the native depth (a palette's alpha is 8-bit). Interleaved samples are split
+     * with one regular expression per output.
      *
      * @return array{0: string, 1: string|null}
      */

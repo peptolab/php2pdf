@@ -21,13 +21,14 @@ final readonly class ImageData
      * @param string|null     $filter       DCTDecode, JPXDecode, FlateDecode, or null for raw samples
      * @param Dictionary|null $decodeParms  predictor parameters for FlateDecode
      * @param list<int>|null  $decode       a /Decode array, e.g. to invert Adobe CMYK JPEGs
-     * @param string|null     $softMask     8-bit alpha samples, one byte per pixel, uncompressed
+     * @param string|null     $softMask     alpha samples at $softMaskBits, uncompressed
      * @param list<int>|null  $colorKeyMask /Mask ranges for colour-key transparency
      * @param string|null     $iccProfile   an embedded ICC profile matching the colour space
      * @param int             $orientation  the EXIF orientation (1 to 8) the image is shown in
      * @param bool            $smaskInData  whether JPEG 2000 data carries its own alpha channel
      * @param string|null     $photoshop    Photoshop image resource blocks, which may hold paths
      * @param ClippingPath|null $clip       the path the image is clipped to when drawn
+     * @param int             $softMaskBits the soft mask's bits per sample, 8 or 16
      */
     public function __construct(
         public int $width,
@@ -47,6 +48,7 @@ final readonly class ImageData
         public bool $smaskInData = false,
         public ?string $photoshop = null,
         public ?ClippingPath $clip = null,
+        public int $softMaskBits = 8,
     ) {}
 
     public function hasTransparency(): bool
@@ -92,6 +94,7 @@ final readonly class ImageData
             $this->smaskInData,
             $this->photoshop,
             $this->clippingPath($options->clippingPath),
+            $this->softMaskBits,
         );
     }
 
