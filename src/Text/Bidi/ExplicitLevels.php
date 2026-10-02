@@ -138,7 +138,11 @@ final class ExplicitLevels
     {
         if ($this->overflowIsolates > 0) {
             --$this->overflowIsolates;
-        } elseif (0 !== $this->validIsolates) {
+            $this->set($i, BidiClass::PDI);
+
+            return;
+        }
+        if (0 !== $this->validIsolates) {
             $this->overflowEmbeddings = 0;
             while (! $this->top()[2]) {
                 array_pop($this->stack);
@@ -166,9 +170,10 @@ final class ExplicitLevels
         if ($next > self::MAX_DEPTH || 0 !== $this->overflowIsolates || 0 !== $this->overflowEmbeddings) {
             if ($isolate) {
                 ++$this->overflowIsolates;
-            } elseif (0 === $this->overflowIsolates) {
-                ++$this->overflowEmbeddings;
+
+                return;
             }
+            $this->overflowEmbeddings += 0 === $this->overflowIsolates ? 1 : 0;
 
             return;
         }

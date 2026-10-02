@@ -133,9 +133,10 @@ final class ParagraphComposer
         }
         $chosen = null;
         foreach ($active as $node) {
-            if ($this->end === $node->position && (null === $chosen || $node->demerits < $chosen->demerits)) {
-                $chosen = $node;
+            if ($this->end !== $node->position || (null !== $chosen && $node->demerits >= $chosen->demerits)) {
+                continue;
             }
+            $chosen = $node;
         }
 
         return null === $chosen ? null : $this->ends($chosen);

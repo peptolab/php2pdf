@@ -38,11 +38,11 @@ final class TextOperators
         $segments   = [];
         $parts      = [];
         $ids        = [];
-        $rise       = null;
+        $rise       = [] === $run->glyphs ? 0.0 : $run->glyphs[0]->yOffset;
         $pending    = 0.0;
         foreach ($run->glyphs as $glyph) {
-            if (null !== $rise && $glyph->yOffset !== $rise) {
-                $segments[] = [$rise ?? 0.0, self::flush($parts, $ids, $font)];
+            if ($glyph->yOffset !== $rise) {
+                $segments[] = [$rise, self::flush($parts, $ids, $font)];
                 $parts      = [];
                 $ids        = [];
             }
@@ -61,7 +61,7 @@ final class TextOperators
         if (0.0 !== $pending) {
             $parts[] = Num::format(-$pending, 2);
         }
-        $segments[] = [$rise ?? 0.0, $parts];
+        $segments[] = [$rise, $parts];
         $ops        = [];
         foreach ($segments as [$offset, $segment]) {
             $show  = 1 === count($segment) ? "{$segment[0]} Tj" : '[' . implode(' ', $segment) . '] TJ';

@@ -291,12 +291,10 @@ final readonly class OpenTypeShaper
         }
         $gsub = $this->program->gsub();
         if ('arab' === $script && ! ($gsub?->has(['init', 'medi', 'fina'], $script) ?? false)) {
-            $run = ArabicFallback::apply(
-                $run,
-                $codePoints,
-                $this->program->glyphId(...),
-                ! ($gsub?->has(['rlig'], $script) ?? false),
-            );
+            $run = ArabicFallback::apply($run, $codePoints, $this->program->glyphId(...));
+            if (! ($gsub?->has(['rlig'], $script) ?? false)) {
+                $run = ArabicFallback::lamAlef($run, $codePoints, $this->program->glyphId(...));
+            }
         }
         if (null === $gsub) {
             return $run;
@@ -339,7 +337,7 @@ final readonly class OpenTypeShaper
         }
         $mirror = (int) IntlChar::charMirror($codePoint);
 
-        return 0 !== $this->program->glyphId($mirror) ? $mirror : $codePoint;
+        return 0 === $this->program->glyphId($mirror) ? $codePoint : $mirror;
     }
 
     /**
@@ -377,7 +375,7 @@ final readonly class OpenTypeShaper
                 $advances,
                 $gposFeatures,
                 $script,
-                TextDirection::RightToLeft === $options->direction,
+                $options->direction,
             );
         }
         $legacyKern =

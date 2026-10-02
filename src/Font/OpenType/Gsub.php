@@ -133,7 +133,7 @@ final class Gsub
     public function applyStages(array $glyphs, array $stages, string $script = 'latn'): array
     {
         foreach ($stages as $features) {
-            $form = 1 === count($features) && in_array($features[0] ?? '', ArabicJoining::FEATURES, strict: true)
+            $form = 1 === count($features) && in_array($features[0], ArabicJoining::FEATURES, strict: true)
                 ? $features[0]
                 : null;
             foreach ($this->tables->lookupsFor($features, $script) as $lookup) {

@@ -30,7 +30,7 @@ final readonly class DeviceN implements ColorInterface
     /** The device space the inks mix in where they are not printed. */
     private Gray|Rgb|Cmyk $space;
 
-    /** @param non-empty-list<Spot> $colorants */
+    /** @param list<Spot> $colorants */
     public function __construct(
         public array $colorants,
     ) {

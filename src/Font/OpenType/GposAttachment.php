@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Font\TextDirection;
+
 use function array_key_exists;
 use function min;
 
@@ -50,6 +52,38 @@ final readonly class GposAttachment
         ];
 
         return $positions;
+    }
+
+    /**
+     * Joins a glyph's entry to the previous glyph's exit: in right-to-left text the previous glyph
+     * moves, in left-to-right text this one does.
+     *
+     * @param Position $previous
+     * @param Position $current
+     *
+     * @return array{0: Position, 1: Position}
+     */
+    private static function join(
+        array $previous,
+        array $current,
+        int $exitX,
+        int $entryX,
+        TextDirection $direction,
+    ): array {
+        if (TextDirection::RightToLeft === $direction) {
+            $d           = $exitX + $previous[2];
+            $previous[0] -= $d;
+            $previous[2] -= $d;
+            $current[0]  = $entryX + $current[2];
+
+            return [$previous, $current];
+        }
+        $previous[0] = $exitX + $previous[2];
+        $d           = $entryX + $current[2];
+        $current[0]  -= $d;
+        $current[2]  -= $d;
+
+        return [$previous, $current];
     }
 
     /**
@@ -115,7 +149,7 @@ final readonly class GposAttachment
         array $positions,
         int $i,
         GlyphFilter $filter,
-        bool $rightToLeft,
+        TextDirection $direction,
     ): ?array {
         $r        = $this->tables->reader;
         $coverage = $this->tables->coverage($offset + $r->u16($offset + 2));
@@ -130,17 +164,7 @@ final readonly class GposAttachment
         [$entryX, $entryY] = $this->anchor($offset + $entry);
         $p = $positions[$prev] ?? [0, 0, 0, 0, 0, 0];
         $c = $positions[$i] ?? [0, 0, 0, 0, 0, 0];
-        if ($rightToLeft) {
-            $d    = $exitX + $p[2];
-            $p[0] -= $d;
-            $p[2] -= $d;
-            $c[0] = $entryX + $c[2];
-        } else {
-            $p[0] = $exitX + $p[2];
-            $d    = $entryX + $c[2];
-            $c[0] -= $d;
-            $c[2] -= $d;
-        }
+        [$p, $c] = self::join($p, $c, $exitX, $entryX, $direction);
         $positions[$prev] = $p;
         $positions[$i]    = $c;
         $rightToLeftFlag  = 0 !== ($filter->flag & GlyphFilter::RIGHT_TO_LEFT);

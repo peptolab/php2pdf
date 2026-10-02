@@ -54,10 +54,10 @@ final class Paragraph
      * from the plan of its breaks, made again when the line does not start at a planned break or
      * the width differs. Null when the paragraph is set line by line, or the composer cannot set it.
      *
-     * @param float $width     the frame's width, before the paragraph's indents
-     * @param bool  $firstLine whether this is the paragraph's first line, with its first-line indent
+     * @param float $width      the frame's width, before the paragraph's indents
+     * @param int   $lineNumber the line's number in the paragraph: the first has the first-line indent
      */
-    public function plannedEnd(int $start, float $width, bool $firstLine): ?LineEnd
+    public function plannedEnd(int $start, float $width, int $lineNumber): ?LineEnd
     {
         $style    = $this->style;
         $composer = $style->composer
@@ -66,7 +66,7 @@ final class Paragraph
             return null;
         }
         $width      = max(1.0, $width - ($style->leftIndent ?? 0.0) - ($style->rightIndent ?? 0.0));
-        $firstWidth = $firstLine ? max(1.0, $width - ($style->firstLineIndent ?? 0.0)) : $width;
+        $firstWidth = 0 === $lineNumber ? max(1.0, $width - ($style->firstLineIndent ?? 0.0)) : $width;
         $key        = "{$firstWidth}:{$width}";
         if (null === $this->plan || $key !== $this->plan[0] || ! array_key_exists($start, $this->plan[1])) {
             $ends = ParagraphComposer::breaks($this, $start, $firstWidth, $width);

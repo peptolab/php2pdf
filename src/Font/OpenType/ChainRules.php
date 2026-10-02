@@ -81,8 +81,8 @@ final readonly class ChainRules
         $chained = $this->tables->chainType === $type;
 
         return match ($this->tables->reader->u16($offset)) {
-            1       => $this->format1($offset, $ids, $i, $filter, $chained),
-            2       => $this->format2($offset, $ids, $i, $filter, $chained),
+            1       => $this->format1($offset, $ids, $i, $filter, $type),
+            2       => $this->format2($offset, $ids, $i, $filter, $type),
             3 => $chained
                 ? $this->chainFormat3($offset, $ids, $i, $filter)
                 : $this->contextFormat3($offset, $ids, $i, $filter),
@@ -210,7 +210,7 @@ final readonly class ChainRules
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
      */
-    private function format1(int $offset, array $ids, int $i, GlyphFilter $filter, bool $chained): ?array
+    private function format1(int $offset, array $ids, int $i, GlyphFilter $filter, int $type): ?array
     {
         $r     = $this->tables->reader;
         $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
@@ -219,7 +219,7 @@ final readonly class ChainRules
         }
         $set = $offset + $r->u16($offset + 6 + (2 * $index));
         foreach ($r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
-            $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, null, $chained);
+            $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, null, $type);
             if (null !== $rule) {
                 return $rule;
             }
@@ -235,13 +235,13 @@ final readonly class ChainRules
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
      */
-    private function format2(int $offset, array $ids, int $i, GlyphFilter $filter, bool $chained): ?array
+    private function format2(int $offset, array $ids, int $i, GlyphFilter $filter, int $type): ?array
     {
         $r = $this->tables->reader;
         if (null === ($this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null)) {
             return null;
         }
-        [$classes, $sets] = $chained
+        [$classes, $sets] = $this->tables->chainType === $type
             ? [
                 [
                     $this->tables->classDef($offset + $r->u16($offset + 4)),
@@ -268,7 +268,7 @@ final readonly class ChainRules
         }
         $set = $offset + $setOffset;
         foreach ($r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
-            $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, $classes, $chained);
+            $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, $classes, $type);
             if (null !== $rule) {
                 return $rule;
             }
@@ -311,10 +311,10 @@ final readonly class ChainRules
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
      */
-    private function rule(int $rule, array $ids, int $i, GlyphFilter $filter, ?array $classes, bool $chained): ?array
+    private function rule(int $rule, array $ids, int $i, GlyphFilter $filter, ?array $classes, int $type): ?array
     {
         $r = $this->tables->reader;
-        if (! $chained) {
+        if ($this->tables->chainType !== $type) {
             $inputCount = $r->u16($rule);
             $input      = $r->u16List($rule + 4, max(0, $inputCount - 1));
             $records    = $rule + 4 + (2 * max(0, $inputCount - 1));

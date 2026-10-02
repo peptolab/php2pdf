@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Font\TextDirection;
+
 use function array_key_exists;
 use function count;
 
@@ -32,7 +34,7 @@ final class Gpos
     private readonly GposAttachment $attachments;
 
     /** Whether the sequence being positioned runs right to left. */
-    private bool $rightToLeft = false;
+    private TextDirection $direction = TextDirection::LeftToRight;
 
     public function __construct(
         BinaryReader $gpos,
@@ -88,7 +90,7 @@ final class Gpos
         array $advances,
         array $features,
         string $script = 'latn',
-        bool $rightToLeft = false,
+        TextDirection $direction = TextDirection::LeftToRight,
     ): array {
         $ids       = [];
         $positions = [];
@@ -96,7 +98,7 @@ final class Gpos
             $ids[]       = $entry[0];
             $positions[] = [$advances[$k] ?? 0, 0, 0, 0, 0, 0];
         }
-        $this->rightToLeft = $rightToLeft;
+        $this->direction = $direction;
         foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
             $positions = $this->applyLookup($lookup, $glyphs, $ids, $positions);
         }
@@ -106,7 +108,7 @@ final class Gpos
             $out[] = [$mark ? 0 : $xAdvance, $mark ? 0 : $yAdvance, $xOffset, $yOffset];
         }
 
-        return $this->propagate($out, $positions, $rightToLeft);
+        return $this->propagate($out, $positions, $direction);
     }
 
     /**
@@ -128,7 +130,7 @@ final class Gpos
             $result = match ($type) {
                 1       => $this->single($offset, $ids, $positions, $i),
                 2       => $this->pair($offset, $ids, $positions, $i, $filter),
-                3       => $this->attachments->cursive($offset, $ids, $positions, $i, $filter, $this->rightToLeft),
+                3       => $this->attachments->cursive($offset, $ids, $positions, $i, $filter, $this->direction),
                 4       => $this->attachments->markToBase($offset, $glyphs, $ids, $positions, $i, $filter),
                 5       => $this->attachments->markToLigature($offset, $glyphs, $ids, $positions, $i, $filter),
                 6       => $this->attachments->markToMark($offset, $glyphs, $ids, $positions, $i, $filter),
@@ -291,11 +293,11 @@ final class Gpos
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    private function propagate(array $out, array $positions, bool $rightToLeft): array
+    private function propagate(array $out, array $positions, TextDirection $direction): array
     {
         $done = [];
         foreach ($out as $i => $_) {
-            $out = $this->propagateOne($out, $positions, $i, $done, $rightToLeft);
+            $out = $this->propagateOne($out, $positions, $i, $done, $direction);
         }
 
         return $out;
@@ -308,7 +310,7 @@ final class Gpos
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    private function propagateOne(array $out, array $positions, int $i, array &$done, bool $rightToLeft): array
+    private function propagateOne(array $out, array $positions, int $i, array &$done, TextDirection $direction): array
     {
         if (array_key_exists($i, $done)) {
             return $out;
@@ -319,7 +321,7 @@ final class Gpos
         if (0 === $chain || $j < 0 || $j >= count($out)) {
             return $out;
         }
-        $out = $this->propagateOne($out, $positions, $j, $done, $rightToLeft);
+        $out = $this->propagateOne($out, $positions, $j, $done, $direction);
         $p   = $out[$i] ?? [0, 0, 0, 0];
         if (GposAttachment::CURSIVE === ($positions[$i][5] ?? 0)) {
             $out[$i] = [$p[0], $p[1], $p[2], $p[3] + ($out[$j][3] ?? 0)];
@@ -332,8 +334,8 @@ final class Gpos
         $x = $p[2] + ($out[$j][2] ?? 0);
         $y = $p[3] + ($out[$j][3] ?? 0);
         for ($k = $j; $k < $i; ++$k) {
-            $from = $rightToLeft ? $k + 1 : $k;
-            $sign = $rightToLeft ? 1 : -1;
+            $from = TextDirection::RightToLeft === $direction ? $k + 1 : $k;
+            $sign = TextDirection::RightToLeft === $direction ? 1 : -1;
             $x    += $sign * ($out[$from][0] ?? 0);
             $y    += $sign * ($out[$from][1] ?? 0);
         }

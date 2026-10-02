@@ -126,7 +126,7 @@ final class Itemiser
         }
         $runs  = [];
         $run   = '';
-        $level = $levels[0] ?? 0;
+        $level = $levels[0];
         foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $k => $char) {
             $next = $levels[$k] ?? $level;
             if ($next !== $level && '' !== $run) {
@@ -306,7 +306,7 @@ final class Itemiser
      *
      * @return array{0: list<array{0: string, 1: ?string}>, 1: string}
      */
-    private function pieces(string $text, TextStyle $style, bool $rtl): array
+    private function pieces(string $text, TextStyle $style, int $level): array
     {
         $font    = StyleResolver::fontOf($style);
         $matches = [];
@@ -325,7 +325,7 @@ final class Itemiser
                 $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
                 continue;
             }
-            foreach ($rtl ? [[$chunk, null]] : $this->wordPieces($chunk, $style) as $piece) {
+            foreach (1 === ($level & 1) ? [[$chunk, null]] : $this->wordPieces($chunk, $style) as $piece) {
                 $pieces[] = $piece;
                 $shaped   .= $piece[0];
             }
@@ -390,7 +390,7 @@ final class Itemiser
     {
         $rtl  = 1 === ($level & 1);
         $font = StyleResolver::fontOf($style);
-        [$pieces, $shaped] = $this->pieces($text, $style, $rtl);
+        [$pieces, $shaped] = $this->pieces($text, $style, $level);
         $options = $style->textOptions()
             ->withDirection($rtl ? TextDirection::RightToLeft : TextDirection::LeftToRight);
         $shapedRun = $font->shape($shaped, $options)->glyphs;

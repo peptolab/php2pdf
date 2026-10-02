@@ -111,7 +111,9 @@ final class Normaliser
                 $out[] = $codePoint;
                 continue;
             }
-            $decomposed = self::decompose($codePoint, $hasGlyph, shortest: ! $cluster);
+            $decomposed = $cluster
+                ? self::decompose($codePoint, $hasGlyph)
+                : self::shortestDecomposition($codePoint, $hasGlyph);
             foreach ($decomposed ?? [$codePoint] as $part) {
                 $out[] = $part;
             }
@@ -122,7 +124,7 @@ final class Normaliser
             while (self::isMark($codePoints[$i + 1] ?? -1)) {
                 ++$i;
                 $mark = $codePoints[$i] ?? 0;
-                foreach (self::decompose($mark, $hasGlyph, shortest: false) ?? [$mark] as $part) {
+                foreach (self::decompose($mark, $hasGlyph) ?? [$mark] as $part) {
                     $out[] = $part;
                 }
             }
@@ -159,15 +161,37 @@ final class Normaliser
     }
 
     /**
-     * A character's canonical decomposition into characters the font has, one step at a time: the
-     * first characters the font has (shortest), or as far as it goes. Null when it does not
-     * decompose that way.
+     * A character's canonical decomposition as far as it goes, keeping the deepest characters the
+     * font has. Null when it does not decompose into characters the font has.
      *
      * @param Closure(int): bool $hasGlyph
      *
      * @return list<int>|null
      */
-    private static function decompose(int $codePoint, Closure $hasGlyph, bool $shortest): ?array
+    private static function decompose(int $codePoint, Closure $hasGlyph): ?array
+    {
+        $step = self::decompositionStep($codePoint, $hasGlyph);
+        if (null === $step) {
+            return null;
+        }
+        [$a, $tail] = $step;
+        $deeper = self::decompose($a, $hasGlyph);
+        if (null !== $deeper) {
+            return [...$deeper, ...$tail];
+        }
+
+        return $hasGlyph($a) ? [$a, ...$tail] : null;
+    }
+
+    /**
+     * One step of a character's canonical decomposition: its first character and the rest, which
+     * the font must have. Null when it does not decompose, or the font lacks the rest.
+     *
+     * @param Closure(int): bool $hasGlyph
+     *
+     * @return array{0: int, 1: list<int>}|null
+     */
+    private static function decompositionStep(int $codePoint, Closure $hasGlyph): ?array
     {
         $raw = Normalizer::getRawDecomposition(mb_chr($codePoint, encoding: 'UTF-8'), Normalizer::FORM_D);
         if (null === $raw || '' === $raw) {
@@ -177,22 +201,12 @@ final class Normaliser
         foreach (mb_str_split($raw, length: 1, encoding: 'UTF-8') as $char) {
             $parts[] = (int) mb_ord($char, encoding: 'UTF-8');
         }
-        $a = $parts[0] ?? 0;
         $b = $parts[1] ?? null;
         if (null !== $b && ! $hasGlyph($b)) {
             return null;
         }
-        $tail = null === $b ? [] : [$b];
-        $hasA = $hasGlyph($a);
-        if ($shortest && $hasA) {
-            return [$a, ...$tail];
-        }
-        $deeper = self::decompose($a, $hasGlyph, $shortest);
-        if (null !== $deeper) {
-            return [...$deeper, ...$tail];
-        }
 
-        return $hasA ? [$a, ...$tail] : null;
+        return [$parts[0] ?? 0, null === $b ? [] : [$b]];
     }
 
     private static function isMark(int $codePoint): bool
@@ -319,5 +333,28 @@ final class Normaliser
         }
 
         return $out;
+    }
+
+    /**
+     * A character's canonical decomposition into characters the font has, stopping at the first
+     * the font has. Null when it does not decompose that way.
+     *
+     * @param Closure(int): bool $hasGlyph
+     *
+     * @return list<int>|null
+     */
+    private static function shortestDecomposition(int $codePoint, Closure $hasGlyph): ?array
+    {
+        $step = self::decompositionStep($codePoint, $hasGlyph);
+        if (null === $step) {
+            return null;
+        }
+        [$a, $tail] = $step;
+        if ($hasGlyph($a)) {
+            return [$a, ...$tail];
+        }
+        $deeper = self::shortestDecomposition($a, $hasGlyph);
+
+        return null === $deeper ? null : [...$deeper, ...$tail];
     }
 }

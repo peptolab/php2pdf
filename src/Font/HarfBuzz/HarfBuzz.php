@@ -28,7 +28,7 @@ final class HarfBuzz
         }
         $output = [];
         $status = 1;
-        exec($binary . ' --version 2>/dev/null', $output, $status);
+        exec("{$binary} --version 2>/dev/null", $output, $status);
 
         return 0 === $status ? new HarfBuzzCli($binary) : null;
     }

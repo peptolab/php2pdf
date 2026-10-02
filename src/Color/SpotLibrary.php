@@ -55,7 +55,7 @@ final class SpotLibrary
     /** @var array<string, string> loose key => name as defined */
     private array $keys = [];
 
-    /** @param iterable<string, Gray|Rgb|Cmyk|Lab> $colours alternates by spot name */
+    /** @param iterable<array-key, Gray|Rgb|Cmyk|Lab> $colours alternates by spot name: a numeric name is an integer key */
     public function __construct(iterable $colours = [])
     {
         foreach ($colours as $name => $colour) {
@@ -174,15 +174,12 @@ final class SpotLibrary
                 $model,
             )),
         };
-        $v = [];
-        for ($i = 0; $i < $count; ++$i) {
-            $v[] = self::f32($body, $at + 4 + ($i * 4));
-        }
+        $v      = static fn(int $i): float => self::f32($body, $at + 4 + ($i * 4));
         $colour = match ($model) {
-            'CMYK'  => new Cmyk($v[0] ?? 0.0, $v[1] ?? 0.0, $v[2] ?? 0.0, $v[3] ?? 0.0),
-            'RGB '  => new Rgb($v[0] ?? 0.0, $v[1] ?? 0.0, $v[2] ?? 0.0),
-            'LAB '  => new Lab(($v[0] ?? 0.0) * 100.0, $v[1] ?? 0.0, $v[2] ?? 0.0),
-            default => new Gray($v[0] ?? 0.0),
+            'CMYK'  => new Cmyk($v(0), $v(1), $v(2), $v(3)),
+            'RGB '  => new Rgb($v(0), $v(1), $v(2)),
+            'LAB '  => new Lab($v(0) * 100.0, $v(1), $v(2)),
+            default => new Gray($v(0)),
         };
 
         return [$name, $colour, self::u16($body, $at + 4 + ($count * 4))];
@@ -192,7 +189,7 @@ final class SpotLibrary
      * @param 'cmyk'|'lab'|'rgb' $model
      * @param list<float>        $v
      */
-    private static function csvColour(string $model, array $v): Gray|Rgb|Cmyk|Lab
+    private static function csvColour(string $model, array $v): Rgb|Cmyk|Lab
     {
         return match ($model) {
             'cmyk'  => Cmyk::fromPercent($v[0] ?? 0.0, $v[1] ?? 0.0, $v[2] ?? 0.0, $v[3] ?? 0.0),

@@ -60,19 +60,19 @@ final class ParagraphTest extends TestCase
     public function aNewWidthPlansTheLinesAgain(): void
     {
         $paragraph = self::paragraph(new TextStyle(alignment: Alignment::Justify));
-        $paragraph->plannedEnd(0, 20.0, true);
+        $paragraph->plannedEnd(0, 20.0, 0);
 
-        self::assertSame(9, $paragraph->plannedEnd(0, 40.0, true)?->index);
+        self::assertSame(9, $paragraph->plannedEnd(0, 40.0, 0)?->index);
     }
 
     #[Test]
     public function splittingAnItemPlansTheLinesAgain(): void
     {
         $paragraph = self::paragraph(new TextStyle(alignment: Alignment::Justify));
-        $paragraph->plannedEnd(0, 20.0, true);
+        $paragraph->plannedEnd(0, 20.0, 0);
         $paragraph->split(0, [self::box(4.0), self::box(5.0)]);
 
-        self::assertSame(8, $paragraph->plannedEnd(0, 20.0, true)?->index);
+        self::assertSame(8, $paragraph->plannedEnd(0, 20.0, 0)?->index);
     }
 
     #[Test]
@@ -81,7 +81,7 @@ final class ParagraphTest extends TestCase
         $style     = new TextStyle(alignment: Alignment::Justify);
         $paragraph = new Paragraph($style, [self::box(5.0), new Item(ItemKind::Tab, $style), self::box(5.0)]);
 
-        self::assertNull($paragraph->plannedEnd(0, 20.0, true));
+        self::assertNull($paragraph->plannedEnd(0, 20.0, 0));
     }
 
     #[Test]
@@ -96,7 +96,7 @@ final class ParagraphTest extends TestCase
             composer: $composer,
         ));
 
-        self::assertSame($end, $paragraph->plannedEnd(0, 20.0, true)?->index);
+        self::assertSame($end, $paragraph->plannedEnd(0, 20.0, 0)?->index);
     }
 
     #[Test]
@@ -109,7 +109,7 @@ final class ParagraphTest extends TestCase
 
         self::assertSame(
             [3, 9],
-            [$paragraph->plannedEnd(0, 20.0, true)?->index, $paragraph->plannedEnd(4, 20.0, false)?->index],
+            [$paragraph->plannedEnd(0, 20.0, 0)?->index, $paragraph->plannedEnd(4, 20.0, 1)?->index],
         );
     }
 
@@ -122,15 +122,15 @@ final class ParagraphTest extends TestCase
             rightIndent: 4.0,
         ));
 
-        self::assertSame(7, $paragraph->plannedEnd(0, 30.0, true)?->index);
+        self::assertSame(7, $paragraph->plannedEnd(0, 30.0, 0)?->index);
     }
 
     #[Test]
     public function theNextLineComesFromThePlan(): void
     {
         $paragraph = self::paragraph(new TextStyle(alignment: Alignment::Justify));
-        $paragraph->plannedEnd(0, 20.0, true);
+        $paragraph->plannedEnd(0, 20.0, 0);
 
-        self::assertSame(9, $paragraph->plannedEnd(8, 20.0, false)?->index);
+        self::assertSame(9, $paragraph->plannedEnd(8, 20.0, 1)?->index);
     }
 }

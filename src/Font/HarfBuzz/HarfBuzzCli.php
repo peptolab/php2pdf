@@ -57,14 +57,14 @@ final class HarfBuzzCli implements ExternalShaperInterface
     ): array {
         $command = [
             $this->binary,
-            '--font-file=' . $this->file($font),
-            '--face-index=' . $font->faceIndex,
+            "--font-file={$this->file($font)}",
+            "--face-index={$font->faceIndex}",
             '--no-glyph-names',
             '--utf8-clusters',
             '--output-format=json',
-            '--script=' . $script,
+            "--script={$script}",
             '--direction=' . (TextDirection::RightToLeft === $direction ? 'rtl' : 'ltr'),
-            '--text=' . $text,
+            "--text={$text}",
         ];
         if ([] !== $features) {
             $command[] = '--features=' . implode(',', $features);
@@ -143,9 +143,10 @@ final class HarfBuzzCli implements ExternalShaperInterface
     public function __destruct()
     {
         foreach ($this->files as [, $path]) {
-            if (is_file($path)) {
-                unlink($path);
+            if (! is_file($path)) {
+                continue;
             }
+            unlink($path);
         }
     }
 }

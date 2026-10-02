@@ -41,8 +41,7 @@ final class ArabicFallback
     private static ?array $lamAlef = null;
 
     /**
-     * The sequence with presentation forms for the letters the font has them for, and lam-alef
-     * ligatures when asked for.
+     * The sequence with presentation forms for the letters the font has them for.
      *
      * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $sequence
      * @param list<int>                                                        $codePoints the characters, one per entry
@@ -50,7 +49,7 @@ final class ArabicFallback
      *
      * @return list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}>
      */
-    public static function apply(array $sequence, array $codePoints, Closure $glyphId, bool $ligatures): array
+    public static function apply(array $sequence, array $codePoints, Closure $glyphId): array
     {
         if (! class_exists(IntlChar::class)) {
             return $sequence;
@@ -65,7 +64,48 @@ final class ArabicFallback
             }
         }
 
-        return $ligatures ? self::lamAlef($sequence, $codePoints, $glyphId) : $sequence;
+        return $sequence;
+    }
+
+    /**
+     * Lam in an initial or medial form followed by a final alef becomes the lam-alef ligature,
+     * isolated or final.
+     *
+     * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $sequence
+     * @param list<int>                                                        $codePoints
+     * @param Closure(int): int                                               $glyphId
+     *
+     * @return list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}>
+     */
+    public static function lamAlef(array $sequence, array $codePoints, Closure $glyphId): array
+    {
+        if (! class_exists(IntlChar::class)) {
+            return $sequence;
+        }
+        self::forms();
+        $table = self::$lamAlef ?? [];
+        for ($k = count($sequence) - 2; $k >= 0; --$k) {
+            $lam  = $sequence[$k] ?? null;
+            $alef = $sequence[$k + 1] ?? null;
+            if (null === $lam || null === $alef || 0x0644 !== ($codePoints[$k] ?? -1) || 'fina' !== ($alef[4] ?? '')) {
+                continue;
+            }
+            $ligature = $table[$codePoints[$k + 1] ?? -1][$lam[4] ?? ''] ?? null;
+            $glyph    = null === $ligature ? 0 : $glyphId($ligature);
+            if (0 === $glyph) {
+                continue;
+            }
+            array_splice($sequence, $k, length: 2, replacement: [[
+                $glyph,
+                [...$lam[1], ...$alef[1]],
+                0,
+                0,
+                $lam[4] ?? '',
+            ]]);
+            array_splice($codePoints, $k, length: 2, replacement: [0x0644]);
+        }
+
+        return $sequence;
     }
 
     /** @return array<int, array<string, int>> */
@@ -105,43 +145,5 @@ final class ArabicFallback
         self::$lamAlef = $lamAlef;
 
         return self::$forms = $forms;
-    }
-
-    /**
-     * Lam in an initial or medial form followed by a final alef becomes the lam-alef ligature,
-     * isolated or final.
-     *
-     * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $sequence
-     * @param list<int>                                                        $codePoints
-     * @param Closure(int): int                                               $glyphId
-     *
-     * @return list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}>
-     */
-    private static function lamAlef(array $sequence, array $codePoints, Closure $glyphId): array
-    {
-        self::forms();
-        $table = self::$lamAlef ?? [];
-        for ($k = count($sequence) - 2; $k >= 0; --$k) {
-            $lam  = $sequence[$k] ?? null;
-            $alef = $sequence[$k + 1] ?? null;
-            if (null === $lam || null === $alef || 0x0644 !== ($codePoints[$k] ?? -1) || 'fina' !== ($alef[4] ?? '')) {
-                continue;
-            }
-            $ligature = $table[$codePoints[$k + 1] ?? -1][$lam[4] ?? ''] ?? null;
-            $glyph    = null === $ligature ? 0 : $glyphId($ligature);
-            if (0 === $glyph) {
-                continue;
-            }
-            array_splice($sequence, $k, length: 2, replacement: [[
-                $glyph,
-                [...$lam[1], ...$alef[1]],
-                0,
-                0,
-                $lam[4] ?? '',
-            ]]);
-            array_splice($codePoints, $k, length: 2, replacement: [0x0644]);
-        }
-
-        return $sequence;
     }
 }
