@@ -23,16 +23,19 @@ use function array_filter;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
+use function array_slice;
 use function array_values;
 use function chr;
 use function count;
 use function implode;
 use function max;
+use function mb_chr;
 use function mb_ord;
 use function mb_str_split;
 use function md5;
 use function ord;
 use function pack;
+use function preg_match;
 use function round;
 use function sort;
 use function sprintf;
@@ -286,54 +289,41 @@ final class Font implements PdfFontInterface, DeferredInterface
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
         $options  ??= TextOptions::default();
-        $kerning  = $options->kerning && $this->program->hasKerning();
         $features = $options->activeFeatures();
-        $gsub     = [] === $features ? null : $this->program->gsub();
-        $key      = ($kerning ? 'k' : '-') . implode(',', $features) . '|' . $text;
+        $key      = ($options->kerning ? 'k' : '-') . implode(',', $features) . '|' . $text;
         $cached   = $this->shapes[$key] ?? null;
         if (null !== $cached) {
             return $cached;
         }
         $this->checkScript($text);
-        $sequence = [];
-        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
-            $codePoint = mb_ord($char, encoding: 'UTF-8');
-            if (false === $codePoint) {
-                continue;
-            }
+        $gdef       = $this->program->gdef();
+        $codePoints = $this->codePoints($text);
+        $sequence   = [];
+        foreach ($codePoints as $codePoint) {
             $id = $this->program->glyphId($codePoint);
             if (0 === $id) {
-                $this->missingGlyph($char, $codePoint);
+                $this->missingGlyph(mb_chr($codePoint, encoding: 'UTF-8'), $codePoint);
             }
+            $gdef->learn($id, $codePoint);
             $sequence[] = [$id, [$codePoint]];
         }
-        if (null !== $gsub) {
-            $sequence = $gsub->apply($sequence, $features);
-        }
+        $gsub   = $this->program->gsub();
         $glyphs = [];
-        $prev   = null;
-        foreach ($sequence as [$id, $codePoints]) {
-            if ($kerning && null !== $prev) {
-                $kern = $this->program->kerning($prev->id, $id);
-                if (0 !== $kern) {
-                    $glyphs[count($glyphs) - 1] = $prev->withKerning($kern * $this->scale);
-                }
+        foreach (ScriptRuns::of($codePoints) as [$script, $start, $length]) {
+            $run = array_slice($sequence, $start, $length);
+            if (null !== $gsub) {
+                $run = $gsub->apply($run, $features, $script);
             }
-            $prev = new Glyph(
-                $id,
-                $codePoints[0] ?? -1,
-                $this->advance($id),
-                0.0,
-                count($codePoints) > 1 ? $codePoints : [],
-            );
-            $glyphs[] = $prev;
+            foreach ($this->positioned($run, $options, $features, $script) as $glyph) {
+                $glyphs[] = $glyph;
+            }
         }
 
         if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
             $this->shapes = [];
         }
 
-        return $this->shapes[$key] = new GlyphRun(array_values($glyphs));
+        return $this->shapes[$key] = new GlyphRun($glyphs);
     }
 
     #[Override]
@@ -452,6 +442,34 @@ final class Font implements PdfFontInterface, DeferredInterface
         $this->registry->warn("{$what}; it is set unshaped.");
     }
 
+    /**
+     * The text's code points, normalised for the font when it has combining marks or characters
+     * the font lacks.
+     *
+     * @return list<int>
+     */
+    private function codePoints(string $text): array
+    {
+        $codePoints = [];
+        $missing    = false;
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+            $codePoint = mb_ord($char, encoding: 'UTF-8');
+            if (false === $codePoint) {
+                continue;
+            }
+            $codePoints[] = $codePoint;
+            $missing      = $missing || 0 === $this->program->glyphId($codePoint);
+        }
+        if (! $missing && 1 !== preg_match('/\p{M}/u', $text)) {
+            return $codePoints;
+        }
+
+        return Normaliser::normalise(
+            $codePoints,
+            fn(int $codePoint): bool => 0 !== $this->program->glyphId($codePoint),
+        );
+    }
+
     private function flags(): int
     {
         $metrics = $this->program->metrics;
@@ -490,6 +508,56 @@ final class Font implements PdfFontInterface, DeferredInterface
         }
         $this->missing[$codePoint] = true;
         $this->registry->warn("{$what}; it is drawn as .notdef.");
+    }
+
+    /**
+     * Glyphs for a substituted sequence, positioned by the font's GPOS (kerning when it has a kern
+     * feature, mark attachment, and the requested features), else kerned from its kern table. A
+     * glyph's kerning carries what positioning adds to its advance; a mark positioning gives no
+     * advance takes back its whole drawn width.
+     *
+     * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int}> $sequence
+     * @param list<string>                                        $features
+     *
+     * @return list<Glyph>
+     */
+    private function positioned(array $sequence, TextOptions $options, array $features, string $script): array
+    {
+        $gpos         = $this->program->gpos();
+        $gposFeatures = [...($options->kerning ? ['kern'] : []), 'mark', 'mkmk', 'dist', 'abvm', 'blwm', ...$features];
+        $positions    = null;
+        if (null !== $gpos && $gpos->has($gposFeatures, $script)) {
+            $advances = [];
+            foreach ($sequence as [$id]) {
+                $advances[] = $this->program->advance($id);
+            }
+            $positions = $gpos->position($sequence, $advances, $gposFeatures, $script);
+        }
+        $legacyKern =
+            $options->kerning
+            && (null === $positions || ! ($gpos?->has(['kern'], $script) ?? false))
+            && $this->program->hasKerning();
+        $glyphs = [];
+        foreach ($sequence as $k => [$id, $codePoints]) {
+            $advance = $this->advance($id);
+            $glyph   = new Glyph($id, $codePoints[0] ?? -1, $advance, 0.0, count($codePoints) > 1 ? $codePoints : []);
+            if (null !== $positions) {
+                [$xAdvance, , $xOffset, $yOffset] = $positions[$k] ?? [0, 0, 0, 0];
+                $font    = $this->program->advance($id);
+                $kerning = 0 === $xAdvance && 0 !== $font ? -$advance : ($xAdvance - $font) * $this->scale;
+                $glyph   = $glyph->withKerning($kerning)->withOffset($xOffset * $this->scale, $yOffset * $this->scale);
+            }
+            $previous = $glyphs[$k - 1] ?? null;
+            if ($legacyKern && null !== $previous) {
+                $kern = $this->program->kerning($previous->id, $id);
+                if (0 !== $kern) {
+                    $glyphs[$k - 1] = $previous->withKerning($previous->kerning + ($kern * $this->scale));
+                }
+            }
+            $glyphs[] = $glyph;
+        }
+
+        return $glyphs;
     }
 
     private function stemV(): int

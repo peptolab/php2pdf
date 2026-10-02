@@ -28,8 +28,11 @@ The first release.
 - Standard ligatures (`liga`) by default, matching HarfBuzz glyph for glyph; copied text expands them.
 - Variable fonts with CFF2 outlines, at their default instance.
 - Colour fonts with COLR version 0 layers, in their palette colours; bitmap-only fonts refused with a clear error.
-- OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others) through
-  single, alternate, ligature and chained context substitution.
+- OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others), with
+  HarfBuzz's default features; every GSUB and GPOS lookup type but cursive attachment, with lookup
+  flags and the font's features for each script.
+- Mark positioning: accents placed on their letters by the font's anchors, glyph offsets in `Glyph`,
+  and Unicode normalisation for the font as HarfBuzz does it.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`), and a policy for scripts the engine cannot shape yet (`ScriptCheck`, refusing them by default).
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and

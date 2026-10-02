@@ -70,9 +70,12 @@ $canvas->drawText('1/2', $font, 12, 72, 700, new TextOptions(features: ['frac'])
 
 `tnum` and `pnum` (tabular and proportional figures), `onum` and `lnum` (old-style and lining),
 `smcp` and `c2sc` (small caps from lower and upper case), `case` (case-sensitive forms), `frac`,
-`sups`, `subs`, contextual `calt` and discretionary `dlig` ligatures all work when the font has
-them. Single, alternate (the first alternate), ligature and chained context substitutions are
-applied, in the font's lookup order, matching HarfBuzz. A small-cap or other substituted glyph
+`sups`, `subs` and discretionary `dlig` ligatures all work when the font has them. As in HarfBuzz,
+glyph composition (`ccmp`), localised forms (`locl`), required ligatures (`rlig`), contextual
+alternates (`calt`, `rclt`) and contextual ligatures (`clig`, with the standard ones) apply by
+default; `'-calt'` in the list turns a default off. Every substitution and positioning lookup type
+is applied in the font's lookup order with its lookup flags, using the font's features for the
+text's script (Greek text gets the font's Greek features, for example), matching HarfBuzz. A small-cap or other substituted glyph
 copies as the character it stands for. Tracking and character spacing turn off ligatures only.
 
 ### Missing glyphs
@@ -83,6 +86,16 @@ default) records a warning in `$doc->fonts()->warnings()` once per font and char
 `GlyphCheck::Error` throws a `PdfException`, and `GlyphCheck::Ignore` does neither. Under PDF/X the
 default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
 does not pick up a wrong character for it.
+
+### Accents and marks
+
+Combining marks sit on their letters by the font's mark positioning (GPOS `mark` and `mkmk`), so
+"q" with a dot below and a circumflex, or an accent on a ligature, are placed as the font
+designer drew them, and kerning passes over marks where the font says so. Before shaping, text
+is normalised as HarfBuzz does: a letter and a combining accent use the font's precomposed letter
+when it has one, and a precomposed letter the font lacks is set as its letter and accent. Copied
+text keeps the characters. Normalisation and script detection use ext-intl; without it text is
+shaped as given, as Latin.
 
 ### Complex scripts
 

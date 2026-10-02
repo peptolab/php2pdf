@@ -30,7 +30,7 @@ final class LayoutTables
     /** @var array<int, GlyphFilter> lookup index => the glyphs it passes over */
     private array $filters = [];
 
-    /** @var array<int, array<int, int>> lookup index => glyphs a match can start at (as keys) */
+    /** @var array<int, array<int, list<array{0: int, 1: int}>>> lookup index => glyph a match can start at => the subtables that can */
     private array $starts = [];
 
     /** @var array<int, array<int, int>> coverage offset => glyph => index */
@@ -214,11 +214,11 @@ final class LayoutTables
     }
 
     /**
-     * The glyphs a lookup's subtables can match at, as keys: their coverage (for mark attachment,
-     * the mark coverage), or for context and chained context by coverage (format 3) the first
-     * input position's coverage. Reverse chaining starts at its coverage too.
+     * The glyphs a lookup's subtables can match at, as keys, each with the subtables that can: by
+     * their coverage (for mark attachment, the mark coverage), or for context and chained context
+     * by coverage (format 3) the first input position's coverage.
      *
-     * @return array<int, int>
+     * @return array<int, list<array{0: int, 1: int}>>
      */
     public function startGlyphs(int $lookup): array
     {
@@ -227,7 +227,8 @@ final class LayoutTables
         }
         $r      = $this->reader;
         $starts = [];
-        foreach ($this->subtables($lookup) as [$type, $offset]) {
+        foreach ($this->subtables($lookup) as $subtable) {
+            [$type, $offset] = $subtable;
             $coverage = $offset + $r->u16($offset + 2);
             if ($this->contextType === $type && 3 === $r->u16($offset)) {
                 $coverage = $offset + $r->u16($offset + 6);
@@ -240,7 +241,9 @@ final class LayoutTables
                 }
                 $coverage = $offset + $r->u16($input + 2);
             }
-            $starts += $this->coverage($coverage);
+            foreach ($this->coverage($coverage) as $glyph => $_) {
+                $starts[$glyph][] = $subtable;
+            }
         }
 
         return $this->starts[$lookup] = $starts;
@@ -270,6 +273,16 @@ final class LayoutTables
         }
 
         return $this->subtables[$lookup] = $subtables;
+    }
+
+    /**
+     * The subtables of a lookup that can match at a glyph, in order.
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    public function subtablesAt(int $lookup, int $glyph): array
+    {
+        return $this->startGlyphs($lookup)[$glyph] ?? [];
     }
 
     /**

@@ -163,7 +163,7 @@ final class Gsub
         if (null === $glyph || $depth > self::MAX_NESTING || $filter->ignores($glyph)) {
             return null;
         }
-        foreach ($this->tables->subtables($lookup) as [$type, $offset]) {
+        foreach ($this->tables->subtablesAt($lookup, $glyph) as [$type, $offset]) {
             $result = match ($type) {
                 1       => $this->single($offset, $glyphs, $i),
                 2       => $this->multiple($offset, $glyphs, $i),

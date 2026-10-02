@@ -49,9 +49,15 @@ final class GsubBuilder
      *                                                                                   extensions, lookup flag, mark
      *                                                                                   filtering set
      * @param string|null                                                      $required the feature that is required
+     * @param int                                                              $extensionType 7 for GSUB, 9 for GPOS
      */
-    public static function build(string $script, array $features, array $lookups, ?string $required = null): string
-    {
+    public static function build(
+        string $script,
+        array $features,
+        array $lookups,
+        ?string $required = null,
+        int $extensionType = 7,
+    ): string {
         $scriptList  = self::scriptList($script, $features, $required);
         $featureList = self::featureList($features);
         $scriptAt    = 10;
@@ -62,7 +68,7 @@ final class GsubBuilder
             pack('nnnnn', 1, 0, $scriptAt, $featureAt, $lookupAt)
                 . $scriptList
                 . $featureList
-                . self::lookupList($lookups)
+                . self::lookupList($lookups, $extensionType)
         );
     }
 
@@ -165,6 +171,18 @@ final class GsubBuilder
         );
     }
 
+    /** @param array<int, int> $classes glyph => class */
+    public static function classDef(array $classes): string
+    {
+        ksort($classes);
+        $records = '';
+        foreach ($classes as $glyph => $class) {
+            $records .= pack('nnn', $glyph, $glyph, $class);
+        }
+
+        return pack('nn', 2, count($classes)) . $records;
+    }
+
     /**
      * Context, format 1: first glyph => rules of (rest of input, substitution records).
      *
@@ -212,6 +230,14 @@ final class GsubBuilder
                 . substr(self::records($records), offset: 2)
                 . $coverages
         );
+    }
+
+    /** @param list<int> $glyphs */
+    public static function coverage(array $glyphs): string
+    {
+        sort($glyphs);
+
+        return pack('nn', 1, count($glyphs)) . self::shorts($glyphs);
     }
 
     /**
@@ -344,26 +370,6 @@ final class GsubBuilder
         );
     }
 
-    /** @param array<int, int> $classes glyph => class */
-    private static function classDef(array $classes): string
-    {
-        ksort($classes);
-        $records = '';
-        foreach ($classes as $glyph => $class) {
-            $records .= pack('nnn', $glyph, $glyph, $class);
-        }
-
-        return pack('nn', 2, count($classes)) . $records;
-    }
-
-    /** @param list<int> $glyphs */
-    private static function coverage(array $glyphs): string
-    {
-        sort($glyphs);
-
-        return pack('nn', 1, count($glyphs)) . self::shorts($glyphs);
-    }
-
     /** @param array<string, list<int>> $features */
     private static function featureList(array $features): string
     {
@@ -379,7 +385,7 @@ final class GsubBuilder
     }
 
     /** @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int, 4?: int}> $lookups */
-    private static function lookupList(array $lookups): string
+    private static function lookupList(array $lookups, int $extensionType): string
     {
         $tables  = '';
         $offsets = [];

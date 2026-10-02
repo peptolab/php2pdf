@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use function array_filter;
+use function array_values;
 use function in_array;
+use function str_starts_with;
+use function substr;
 
 /**
  * Options for showing a line of text. Spacing values are in points, tracking in thousandths of
@@ -39,21 +43,32 @@ final readonly class TextOptions
     }
 
     /**
-     * The features shaping applies: the standard ligatures when they are used, then the others.
+     * The features shaping applies, as HarfBuzz's defaults: glyph composition and decomposition,
+     * localised forms, required ligatures, contextual alternates and required contextual
+     * alternates, the standard and contextual ligatures when ligatures are used, then the features
+     * asked for. A feature asked for as '-tag' is left out.
      *
      * @return list<string>
      */
     public function activeFeatures(): array
     {
-        $features = $this->useLigatures() ? ['liga'] : [];
+        $features = ['ccmp', 'locl', 'rlig', 'calt', 'rclt', ...($this->useLigatures() ? ['liga', 'clig'] : [])];
+        $off      = [];
         foreach ($this->features as $feature) {
+            if (str_starts_with($feature, '-')) {
+                $off[] = substr($feature, offset: 1);
+                continue;
+            }
             if ('liga' === $feature || in_array($feature, $features, strict: true)) {
                 continue;
             }
             $features[] = $feature;
         }
 
-        return $features;
+        return array_values(array_filter(
+            $features,
+            static fn(string $tag): bool => ! in_array($tag, $off, strict: true),
+        ));
     }
 
     /**

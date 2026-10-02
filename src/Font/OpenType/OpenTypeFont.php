@@ -63,11 +63,13 @@ final class OpenTypeFont
     /** @var array<int, list<array{0: int, 1: int}>>|null base glyph => layers */
     private ?array $colr = null;
 
-    private ?Gsub $gsub        = null;
-    private bool  $gsubChecked = false;
+    /** The glyph substitutions; false when the font has none, null until read. */
+    private Gsub|false|null $gsub = null;
 
-    private ?Gdef $gdef        = null;
-    private bool  $gdefChecked = false;
+    private ?Gdef $gdef = null;
+
+    /** The glyph positioning; false when the font has none, null until read. */
+    private Gpos|false|null $gposTable = null;
 
     /** @var list<int>|null glyph offsets into glyf (numGlyphs + 1 entries) */
     private ?array $loca = null;
@@ -214,16 +216,10 @@ final class OpenTypeFont
         return $this->names[NameTable::FULL_NAME] ?? trim("{$this->familyName()} {$this->subfamilyName()}");
     }
 
-    /** The font's glyph definitions (GDEF), or null when it has none. */
-    public function gdef(): ?Gdef
+    /** The font's glyph definitions (GDEF), synthesised from characters when it has none. */
+    public function gdef(): Gdef
     {
-        if (! $this->gdefChecked) {
-            $this->gdefChecked = true;
-            $reader            = $this->tableReader('GDEF');
-            $this->gdef        = null === $reader ? null : new Gdef($reader);
-        }
-
-        return $this->gdef;
+        return $this->gdef ??= new Gdef($this->tableReader('GDEF'));
     }
 
     /** Raw glyf data for a glyph (empty for glyphs without outlines). */
@@ -246,16 +242,26 @@ final class OpenTypeFont
         return $this->cmap[$codePoint] ?? 0;
     }
 
+    /** The font's glyph positioning (GPOS), or null when it has none. */
+    public function gpos(): ?Gpos
+    {
+        if (null === $this->gposTable) {
+            $reader          = $this->tableReader('GPOS');
+            $this->gposTable = null === $reader ? false : new Gpos($reader, $this->gdef());
+        }
+
+        return false === $this->gposTable ? null : $this->gposTable;
+    }
+
     /** The font's glyph substitutions (GSUB), or null when it has none. */
     public function gsub(): ?Gsub
     {
-        if (! $this->gsubChecked) {
-            $this->gsubChecked = true;
-            $reader            = $this->tableReader('GSUB');
-            $this->gsub        = null === $reader ? null : new Gsub($reader, $this->gdef());
+        if (null === $this->gsub) {
+            $reader     = $this->tableReader('GSUB');
+            $this->gsub = null === $reader ? false : new Gsub($reader, $this->gdef());
         }
 
-        return $this->gsub;
+        return false === $this->gsub ? null : $this->gsub;
     }
 
     /** Whether the font has colour glyphs drawn from layers (COLR version 0). */
