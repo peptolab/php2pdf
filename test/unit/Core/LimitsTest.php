@@ -152,6 +152,26 @@ final class LimitsTest extends TestCase
     }
 
     #[Test]
+    public function aJpegOverThePixelLimitIsRejected(): void
+    {
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('The image is 60000 by 60000 pixels, more than the 100000000 allowed.');
+        ImageReader::read(HostileFiles::jpeg(60_000, 60_000));
+    }
+
+    #[Test]
+    public function aJpegWithinThePixelLimitIsRead(): void
+    {
+        self::assertSame(
+            [300, 200],
+            [
+                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->width,
+                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->height,
+            ],
+        );
+    }
+
+    #[Test]
     public function anImageOverThePixelLimitIsRejectedBeforeDecoding(): void
     {
         $this->expectException(PdfException::class);

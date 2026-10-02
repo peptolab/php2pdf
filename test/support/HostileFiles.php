@@ -95,6 +95,12 @@ final class HostileFiles
         return 'GIF89a' . pack('vv', $width, $height) . "\x00\x00\x00;";
     }
 
+    /** A baseline JPEG frame header declaring the given size, with no scan data after it. */
+    public static function jpeg(int $width, int $height): string
+    {
+        return "\xFF\xD8\xFF\xC0" . pack('nCnnC', 11, 8, $height, $width, 1) . "\x01\x11\x00\xFF\xD9";
+    }
+
     /**
      * SVG of $levels masks, each with two children masked by the next, so drawing it expands
      * 2^$levels masks without any of them referring to itself.

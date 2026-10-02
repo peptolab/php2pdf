@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 
 use function implode;
@@ -43,14 +44,17 @@ final class JpegDecoder
 
     private function __construct() {}
 
-    public static function decode(string $data): ImageData
+    /** @throws ParseException for a malformed file or an image over the limits */
+    public static function decode(string $data, ?Limits $limits = null): ImageData
     {
+        $limits ??= Limits::default();
         if (! str_starts_with($data, "\xFF\xD8")) {
             throw new ParseException('Not a JPEG file.');
         }
         $decoder = new self();
         $decoder->scan($data);
         $frame = $decoder->frame ?? throw new ParseException('JPEG has no frame header.');
+        $limits->assertImagePixels($frame['width'], $frame['height']);
         if (8 !== $frame['precision']) {
             throw new ParseException(sprintf('Only 8-bit JPEGs are supported, %d-bit given.', $frame['precision']));
         }

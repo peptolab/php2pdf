@@ -189,14 +189,7 @@ final class PngDecoder
         if (0 !== (int) ($v['compression'] ?? 0) || 0 !== (int) ($v['filter'] ?? 0) || $interlace > 1) {
             throw new ParseException('PNG uses an unknown compression, filter or interlace method.');
         }
-        if (($width * $height) > $limits->maxImagePixels) {
-            throw new ParseException(sprintf(
-                'The image is %d by %d pixels, more than the %d allowed.',
-                $width,
-                $height,
-                $limits->maxImagePixels,
-            ));
-        }
+        $limits->assertImagePixels($width, $height);
 
         return [$width, $height, $depth, $type, $interlace];
     }

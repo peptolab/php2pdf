@@ -39,14 +39,7 @@ final class JpxDecoder
         if ($width < 1 || $height < 1) {
             throw new ParseException('JPEG 2000 image has no pixels.');
         }
-        if (($width * $height) > $limits->maxImagePixels) {
-            throw new ParseException(sprintf(
-                'The image is %d by %d pixels, more than the %d allowed.',
-                $width,
-                $height,
-                $limits->maxImagePixels,
-            ));
-        }
+        $limits->assertImagePixels($width, $height);
         $colours = $components - ($alpha ? 1 : 0);
         $space   = match (true) {
             self::GREYSCALE === $enumerated, 1 === $colours => ImageColorSpace::gray(),

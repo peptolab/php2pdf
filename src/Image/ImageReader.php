@@ -43,8 +43,33 @@ final class ImageReader
                 $page,
             ));
         }
+        $image = self::decode($data, $limits, $page);
+        $limits->assertImagePixels($image->width, $image->height);
+
+        return $image;
+    }
+
+    public static function readFile(string $path, ?Limits $limits = null): ImageData
+    {
+        if (! is_file($path) || ! is_readable($path)) {
+            throw new IoException(sprintf('Image file "%s" not found.', $path));
+        }
+        $data = file_get_contents($path);
+        if (false === $data) {
+            throw new IoException(sprintf('Cannot read image file "%s".', $path));
+        }
+
+        return self::read($data, $limits);
+    }
+
+    /**
+     * Each decoder checks the pixel limit as soon as it has read the image's header, before any
+     * pixels are decoded; read() checks the result again, so no format gets past the limit.
+     */
+    private static function decode(string $data, Limits $limits, int $page): ImageData
+    {
         if (str_starts_with($data, "\xFF\xD8")) {
-            return JpegDecoder::decode($data);
+            return JpegDecoder::decode($data, $limits);
         }
         if (str_starts_with($data, JpxDecoder::JP2_SIGNATURE) || str_starts_with($data, JpxDecoder::CODESTREAM)) {
             return JpxDecoder::decode($data, $limits);
@@ -62,28 +87,10 @@ final class ImageReader
             /** @return array{0: int, 1: int, 2: int, 3: string, bits: int, channels: int, mime: string}|false */
             static fn(): array|false => getimagesizefromstring($data),
         );
-        if (false !== $size && ($size[0] * $size[1]) > $limits->maxImagePixels) {
-            throw new ParseException(sprintf(
-                'The image is %d by %d pixels, more than the %d allowed.',
-                $size[0],
-                $size[1],
-                $limits->maxImagePixels,
-            ));
+        if (false !== $size) {
+            $limits->assertImagePixels($size[0], $size[1]);
         }
 
         return PngDecoder::decode(Transcoder::toPng($data, $page), $limits);
-    }
-
-    public static function readFile(string $path, ?Limits $limits = null): ImageData
-    {
-        if (! is_file($path) || ! is_readable($path)) {
-            throw new IoException(sprintf('Image file "%s" not found.', $path));
-        }
-        $data = file_get_contents($path);
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read image file "%s".', $path));
-        }
-
-        return self::read($data, $limits);
     }
 }

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Php2Pdf\Core;
 
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\ParseException;
+
+use function sprintf;
 
 /**
  * Resource limits for parsing files that might be hostile: PDFs to import, images and SVG. A
@@ -62,5 +65,22 @@ final readonly class Limits
         static $default = null;
 
         return $default ??= new self();
+    }
+
+    /**
+     * Checks an image's pixel size, read from its header, before any of its pixels are decoded.
+     *
+     * @throws ParseException when the image has more pixels than allowed
+     */
+    public function assertImagePixels(int $width, int $height): void
+    {
+        if (($width * $height) > $this->maxImagePixels) {
+            throw new ParseException(sprintf(
+                'The image is %d by %d pixels, more than the %d allowed.',
+                $width,
+                $height,
+                $this->maxImagePixels,
+            ));
+        }
     }
 }

@@ -275,14 +275,7 @@ final class TiffDecoder
         if ($width < 1 || $height < 1) {
             throw new ParseException('TIFF image has no pixels.');
         }
-        if (($width * $height) > $this->limits->maxImagePixels) {
-            throw new ParseException(sprintf(
-                'The image is %d by %d pixels, more than the %d allowed.',
-                $width,
-                $height,
-                $this->limits->maxImagePixels,
-            ));
-        }
+        $this->limits->assertImagePixels($width, $height);
         $bitsList = $this->file->values($this->ifd, self::BITS);
         $bitsList = array_unique([] === $bitsList ? [1] : $bitsList);
         $bits     = $bitsList[0] ?? 1;
