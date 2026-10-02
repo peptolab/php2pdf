@@ -16,8 +16,6 @@ too-many-methods = { threshold = 30, exclude = [
     # Honest: the drawing vocabulary (paths, painting, state, colour, text), each method a line or
     # two delegating to the content stream, shapes, paint and text painter.
     "src/Canvas/Canvas.php",
-    # Ratchet: catalog contributors and an asset loader take its jobs.
-    "src/Document/Document.php",
     # Ratchet: the face and its instance split; table accessors go.
     "src/Font/OpenType/OpenTypeFont.php",
     # Ratchet: a cascade and a typed computed style.
@@ -25,7 +23,6 @@ too-many-methods = { threshold = 30, exclude = [
 ] }
 too-many-properties = { threshold = 12, exclude = [
     # Ratchet, as above.
-    "src/Document/Document.php",
     "src/Font/OpenType/OpenTypeFont.php",
     # Ratchet: content and layout state separate.
     "src/Table/Table.php",

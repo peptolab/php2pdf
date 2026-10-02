@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Document;
 
+use Override;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\TextString;
-use Php2Pdf\Core\Writer;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Navigation\Destination;
@@ -26,7 +27,7 @@ use function usort;
  *
  * @internal
  */
-final class Navigation
+final class Navigation implements CatalogContributorInterface
 {
     public readonly Outline $outline;
 
@@ -37,7 +38,7 @@ final class Navigation
     private array $links = [];
 
     public function __construct(
-        private readonly Writer $writer,
+        private readonly Objects $objects,
     ) {
         $this->outline = new Outline();
     }
@@ -50,7 +51,7 @@ final class Navigation
     /** Allocates a link annotation; it is written at close. */
     public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): Reference
     {
-        $ref           = $this->writer->allocate();
+        $ref           = $this->objects->allocate();
         $this->links[] = [$ref, $area, $target, $tooltip];
 
         return $ref;
@@ -61,7 +62,8 @@ final class Navigation
      *
      * @param list<Reference> $pageRefs
      */
-    public function write(Dictionary $catalog, array $pageRefs): void
+    #[Override]
+    public function contribute(Dictionary $catalog, array $pageRefs): void
     {
         $resolve =
             /** @return list<mixed>|string */
@@ -80,13 +82,13 @@ final class Navigation
             if (is_string($target)) {
                 $annotation->set('A', Dictionary::of(['S' => new Name('URI'), 'URI' => $target]));
             }
-            $this->writer->write($ref, $annotation);
+            $this->objects->write($ref, $annotation);
         }
         if ([] !== $this->destinations) {
-            $catalog->set('Names', Dictionary::of(['Dests' => $this->writer->add($this->nameTree($resolve))]));
+            $catalog->set('Names', Dictionary::of(['Dests' => $this->objects->add($this->nameTree($resolve))]));
         }
         if (! $this->outline->isEmpty()) {
-            $catalog->set('Outlines', $this->outline->write($this->writer, $resolve));
+            $catalog->set('Outlines', $this->outline->write($this->objects, $resolve));
             $catalog->set('PageMode', new Name('UseOutlines'));
         }
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Php2Pdf\Document;
 
 use Closure;
-use DateTimeImmutable;
 use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Color\ColourPolicyInterface;
@@ -18,7 +17,6 @@ use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\Output\FileOutput;
 use Php2Pdf\Core\Output\OutputInterface;
-use Php2Pdf\Core\TextString;
 use Php2Pdf\Core\Writer;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
@@ -34,13 +32,10 @@ use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Image\Image;
 use Php2Pdf\Image\ImageOptions;
-use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\HiddenLayers;
 use Php2Pdf\Import\ImportedDocument;
-use Php2Pdf\Import\OptionalContent;
 use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Navigation\Destination;
-use Php2Pdf\Svg\NativeConverter;
 use Php2Pdf\Svg\SvgConverterInterface;
 use Php2Pdf\Svg\SvgDocumentInterface;
 use Php2Pdf\Svg\SvgFile;
@@ -60,12 +55,8 @@ use Php2Pdf\Text\TextFormat;
 
 use function array_values;
 use function count;
-use function file_get_contents;
 use function is_string;
-use function md5;
 use function min;
-use function spl_object_id;
-use function sprintf;
 
 /**
  * A PDF document being written. Pages are streamed to the output as soon as the next page starts,
@@ -77,57 +68,47 @@ use function sprintf;
 final class Document implements SvgDocumentInterface
 {
     private readonly Writer $writer;
-    private readonly Reference $pagesRef;
-    private readonly Info $info;
     private readonly DocumentOptions $options;
-    private readonly DateTimeImmutable $createdAt;
     private readonly Objects $objects;
+    private readonly PageTree $pages;
     private readonly PdfXRules $pdfx;
     private readonly DocumentColour $colour;
-
-    /** @var list<Reference> */
-    private array $pageRefs = [];
-
-    /** @var list<string> extra XMP descriptions */
-    private array $xmpDescriptions = [];
-
-    /** @var array<string, ImportedDocument> path => imported file */
-    private array $imports = [];
-
-    /** @var array<string, PlaceableInterface> svg key => converted artwork */
-    private array $svgs = [];
+    private readonly Metadata $metadata;
+    private readonly Assets $assets;
+    private readonly TextContext $text;
+    private ?Navigation $navigation = null;
 
     /** @var list<Closure(Document): void> */
     private array $closing = [];
 
-    /** @var array<string, Image> content hash => image */
-    private array $images = [];
-
-    private ?FontRegistry  $fonts  = null;
-    private ?StyleRegistry $styles = null;
-
-    private ?InlineRegistry $inlines    = null;
-    private ?Page           $current    = null;
-    private bool            $closed     = false;
-    private ?Navigation     $navigation = null;
-    private ?TextContext    $text       = null;
+    private bool $closed = false;
 
     /** @throws IoException */
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
         $this->options = $options ?? new DocumentOptions();
-        $this->info    = new Info();
         $this->writer  = new Writer(
             is_string($output) ? new FileOutput($output) : $output,
             $this->options->compress,
             $this->options->compressionLevel,
         );
-        $this->createdAt = $this->options->clock->now();
         $this->writer->writeHeader($this->options->version);
-        $this->pagesRef = $this->writer->allocate();
         $this->objects  = new Objects($this->writer);
-        $this->pdfx     = new PdfXRules($this->options);
+        $this->pages    = new PageTree($this->objects);
+        $this->pdfx     = new PdfXRules($this->options, $this->objects);
         $this->colour   = new DocumentColour($this->options, $this->pdfx, $this->objects);
+        $this->metadata = new Metadata(new Info(), $this->options, $this->options->clock->now(), $this->objects);
+        $this->assets   = new Assets($this->objects, $this->colour, $this->options);
+        $this->text     = new TextContext(
+            new FontRegistry($this->objects, new FontOptions(
+                $this->options->glyphCheck,
+                $this->options->scriptCheck,
+                $this->options->complexShaper,
+                $this->options->pdfx?->value,
+            )),
+            new StyleRegistry(),
+            new InlineRegistry(),
+        );
     }
 
     /**
@@ -183,22 +164,15 @@ final class Document implements SvgDocumentInterface
     public function addPage(PageSize|Dimensions $size = PageSize::A4, ?bool $topDown = null): Page
     {
         $this->assertOpen();
-        $this->finishCurrentPage();
+        $this->pages->finishCurrent();
+        $dimensions = $size instanceof PageSize ? $size->dimensions() : $size;
 
-        $dimensions    = $size instanceof PageSize ? $size->dimensions() : $size;
-        $this->current = new Page($this, $dimensions, $topDown ?? $this->options->topDown, count($this->pageRefs) + 1);
-
-        return $this->current;
-    }
-
-    /**
-     * Adds an RDF description to the XMP packet, for conformance declarations such as PDF/X.
-     *
-     * @internal
-     */
-    public function addXmpDescription(string $rdf): void
-    {
-        $this->xmpDescriptions[] = $rdf;
+        return $this->pages->open(new Page(
+            $this,
+            $dimensions,
+            $topDown ?? $this->options->topDown,
+            $this->pages->nextNumber(),
+        ));
     }
 
     public function clock(): ClockInterface
@@ -222,50 +196,22 @@ final class Document implements SvgDocumentInterface
             $callback($this);
         }
         $this->closing = [];
-        $this->finishCurrentPage();
-        if ([] === $this->pageRefs) {
+        $this->pages->finishCurrent();
+        if (0 === $this->pages->count()) {
             throw new StateException('A document needs at least one page.');
         }
-        foreach ($this->pdfx->complete($this->info->title()) as $description) {
-            $this->xmpDescriptions[] = $description;
+        foreach ($this->pdfx->complete($this->metadata->info->title()) as $description) {
+            $this->metadata->addDescription($description);
         }
-
         $this->objects->finalize();
 
-        $this->writer->write($this->pagesRef, Dictionary::of([
-            'Type'  => new Name('Pages'),
-            'Kids'  => $this->pageRefs,
-            'Count' => count($this->pageRefs),
-        ]));
-
-        $catalog = Dictionary::of(['Type' => new Name('Catalog'), 'Pages' => $this->pagesRef]);
-        $this->navigation?->write($catalog, $this->pageRefs);
-        $layers = new OptionalContent();
-        foreach ($this->imports as $import) {
-            $import->addOptionalContent($layers);
+        $catalog  = Dictionary::of(['Type' => new Name('Catalog'), 'Pages' => $this->pages->write()]);
+        $pageRefs = $this->pages->references();
+        foreach ([$this->navigation, $this->assets, $this->metadata, $this->pdfx] as $contributor) {
+            $contributor?->contribute($catalog, $pageRefs);
         }
-        if (null !== $this->options->pdfx) {
-            $layers->dropAutoStates();
-        }
-        $layers->write($catalog);
-        if ($this->options->xmp) {
-            $xmp = new Xmp($this->info, $this->options->producer, $this->createdAt);
-            foreach ($this->xmpDescriptions as $description) {
-                $xmp->addDescription($description);
-            }
-            $metadata = new Stream(
-                Dictionary::of(['Type' => new Name('Metadata'), 'Subtype' => new Name('XML')]),
-                $xmp->build(),
-                compress: false,
-            );
-            $catalog->set('Metadata', $this->writer->add($metadata));
-        }
-        $intent = $this->pdfx->intent();
-        if (null !== $intent) {
-            $catalog->set('OutputIntents', [$this->writer->add($intent->dictionary)]);
-        }
-        $catalogRef = $this->writer->add($catalog);
-        $infoRef    = $this->writer->add($this->infoDictionary());
+        $catalogRef = $this->objects->add($catalog);
+        $infoRef    = $this->metadata->writeInfo();
 
         $this->writer->finish(Dictionary::of(['Root' => $catalogRef, 'Info' => $infoRef]));
         $this->closed = true;
@@ -283,7 +229,7 @@ final class Document implements SvgDocumentInterface
 
     public function currentPage(): ?Page
     {
-        return $this->current;
+        return $this->pages->current();
     }
 
     /**
@@ -326,12 +272,7 @@ final class Document implements SvgDocumentInterface
     #[Override]
     public function fonts(): FontRegistry
     {
-        return $this->fonts ??= new FontRegistry($this->objects, new FontOptions(
-            $this->options->glyphCheck,
-            $this->options->scriptCheck,
-            $this->options->complexShaper,
-            $this->options->pdfx?->value,
-        ));
+        return $this->text->fonts;
     }
 
     /**
@@ -343,12 +284,8 @@ final class Document implements SvgDocumentInterface
     public function image(string $path, ?ImageOptions $options = null): Image
     {
         $this->assertOpen();
-        $data = file_get_contents($path);
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read image file "%s".', $path));
-        }
 
-        return $this->loadImage($data, $options ?? new ImageOptions(), $path);
+        return $this->assets->image($path, $options ?? new ImageOptions());
     }
 
     /** Loads an image from memory. */
@@ -357,7 +294,7 @@ final class Document implements SvgDocumentInterface
     {
         $this->assertOpen();
 
-        return $this->loadImage($data, $options ?? new ImageOptions(), name: null);
+        return $this->assets->imageFromData($data, $options ?? new ImageOptions());
     }
 
     /**
@@ -372,21 +309,19 @@ final class Document implements SvgDocumentInterface
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument
     {
         $this->assertOpen();
-        $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
-        $key  = ($file->path ?? 'object#' . spl_object_id($file)) . '#' . $hiddenLayers->name;
 
-        return $this->imports[$key] ??= new ImportedDocument($this->objects, $this->colour, $file, $hiddenLayers);
+        return $this->assets->import($source, $hiddenLayers);
     }
 
     public function info(): Info
     {
-        return $this->info;
+        return $this->metadata->info;
     }
 
     /** Named artwork that Textflow markup sets in the text with <img src="name">. */
     public function inlines(): InlineRegistry
     {
-        return $this->inlines ??= new InlineRegistry();
+        return $this->text->inlines;
     }
 
     /**
@@ -425,7 +360,7 @@ final class Document implements SvgDocumentInterface
 
     public function pageCount(): int
     {
-        return count($this->pageRefs) + (null === $this->current ? 0 : 1);
+        return $this->pages->count();
     }
 
     /**
@@ -467,7 +402,7 @@ final class Document implements SvgDocumentInterface
     /** Named text styles for Textflow. */
     public function styles(): StyleRegistry
     {
-        return $this->styles ??= new StyleRegistry();
+        return $this->text->styles;
     }
 
     /**
@@ -481,15 +416,8 @@ final class Document implements SvgDocumentInterface
     public function svg(SvgFile|string $source, ?SvgConverterInterface $converter = null): PlaceableInterface
     {
         $this->assertOpen();
-        $file      = $source instanceof SvgFile ? $source : SvgFile::open($source, $this->options->limits);
-        $converter ??= new NativeConverter();
-        $key       = ($file->path ?? 'object#' . spl_object_id($file))
-        . '|'
-        . $converter::class
-        . '#'
-        . spl_object_id($converter);
 
-        return $this->svgs[$key] ??= $converter->convert($file, $this);
+        return $this->assets->svg($source, $converter, $this);
     }
 
     /**
@@ -534,7 +462,7 @@ final class Document implements SvgDocumentInterface
      */
     public function text(): TextContext
     {
-        return $this->text ??= new TextContext($this->fonts(), $this->styles(), $this->inlines());
+        return $this->text;
     }
 
     /**
@@ -582,55 +510,8 @@ final class Document implements SvgDocumentInterface
         }
     }
 
-    private function finishCurrentPage(): void
-    {
-        if (null === $this->current) {
-            return;
-        }
-        $this->pageRefs[] = $this->current->finish($this->pagesRef);
-        $this->current    = null;
-    }
-
-    private function infoDictionary(): Dictionary
-    {
-        $date = TextString::date($this->createdAt);
-        $dict = Dictionary::of([
-            'Producer'     => TextString::encode($this->options->producer),
-            'CreationDate' => $date,
-            'ModDate'      => $date,
-        ]);
-        if (null !== $this->options->pdfx) {
-            $dict->set('GTS_PDFXVersion', $this->options->pdfx->value);
-            $dict->set('Trapped', new Name('False'));
-        }
-        foreach ([
-            'Title'    => $this->info->title(),
-            'Author'   => $this->info->author(),
-            'Subject'  => $this->info->subject(),
-            'Keywords' => $this->info->keywords(),
-            'Creator'  => $this->info->creator(),
-        ] as $key => $value) {
-            if (null === $value) {
-                continue;
-            }
-
-            $dict->set($key, TextString::encode($value));
-        }
-
-        return $dict;
-    }
-
-    private function loadImage(string $data, ImageOptions $options, ?string $name): Image
-    {
-        return $this->images[md5($data) . $options->key()] ??= new Image(
-            $this->objects,
-            $this->colour,
-            ImageReader::read($data, $this->options->limits, $options, $name)->withOptions($options),
-        );
-    }
-
     private function navigation(): Navigation
     {
-        return $this->navigation ??= new Navigation($this->writer);
+        return $this->navigation ??= new Navigation($this->objects);
     }
 }

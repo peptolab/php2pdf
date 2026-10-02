@@ -8,8 +8,8 @@ use Closure;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\TextString;
-use Php2Pdf\Core\Writer;
 use Php2Pdf\Navigation\Destination;
 
 use function count;
@@ -64,11 +64,11 @@ final class Outline
      *
      * @param Closure(Destination): (list<mixed>|string) $resolve turns a destination into its PDF form
      */
-    public function write(Writer $writer, Closure $resolve): Reference
+    public function write(Objects $objects, Closure $resolve): Reference
     {
-        $root = $writer->allocate();
-        $refs = $this->writeLevel($writer, $resolve, $this->roots, $root);
-        $writer->write($root, Dictionary::of([
+        $root = $objects->allocate();
+        $refs = $this->writeLevel($objects, $resolve, $this->roots, $root);
+        $objects->write($root, Dictionary::of([
             'Type'  => new Name('Outlines'),
             'First' => $refs[0] ?? null,
             'Last'  => $refs[count($refs) - 1] ?? null,
@@ -94,16 +94,16 @@ final class Outline
      *
      * @return list<Reference>
      */
-    private function writeLevel(Writer $writer, Closure $resolve, array $items, Reference $parent): array
+    private function writeLevel(Objects $objects, Closure $resolve, array $items, Reference $parent): array
     {
         $pairs = [];
         foreach ($items as $item) {
-            $pairs[] = [$item, $writer->allocate()];
+            $pairs[] = [$item, $objects->allocate()];
         }
         $refs = [];
         foreach ($pairs as $i => [$item, $ref]) {
-            $children = $this->writeLevel($writer, $resolve, $item->children(), $ref);
-            $writer->write($ref, Dictionary::of([
+            $children = $this->writeLevel($objects, $resolve, $item->children(), $ref);
+            $objects->write($ref, Dictionary::of([
                 'Title'  => TextString::encode($item->title),
                 'Parent' => $parent,
                 'Prev'   => ($pairs[$i - 1] ?? null)[1] ?? null,

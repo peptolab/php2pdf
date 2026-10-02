@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Document;
 
+use Override;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\ConformanceException;
 
 use function sprintf;
@@ -15,12 +18,13 @@ use function sprintf;
  *
  * @internal
  */
-final class PdfXRules
+final class PdfXRules implements CatalogContributorInterface
 {
     private ?OutputIntent $intent = null;
 
     public function __construct(
         private readonly DocumentOptions $options,
+        private readonly Objects $objects,
     ) {}
 
     /**
@@ -131,6 +135,16 @@ final class PdfXRules
                 . '<xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>'
                 . '</rdf:Description>',
         ];
+    }
+
+    /** Adds the output intent to the catalog, once one is set. */
+    #[Override]
+    public function contribute(Dictionary $catalog, array $pageRefs): void
+    {
+        if (null === $this->intent) {
+            return;
+        }
+        $catalog->set('OutputIntents', [$this->objects->add($this->intent->dictionary)]);
     }
 
     public function intent(): ?OutputIntent
