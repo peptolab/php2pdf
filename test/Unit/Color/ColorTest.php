@@ -16,6 +16,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function str_pad;
 use function str_repeat;
 
@@ -37,8 +38,10 @@ final class ColorTest extends TestCase
             new GradientStop(0, new Gray(0)),
         ]);
 
-        self::assertSame(0.0, $gradient->stops[0]->offset);
-        self::assertSame(1.0, $gradient->stops[1]->offset);
+        self::assertSame(
+            [0.0, 1.0],
+            array_map(static fn(GradientStop $stop): float => $stop->offset, $gradient->stops),
+        );
     }
 
     #[Test]

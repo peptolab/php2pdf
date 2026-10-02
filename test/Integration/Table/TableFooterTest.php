@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Table;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\Page;
@@ -55,7 +56,7 @@ final class TableFooterTest extends TestCase
     public function theCallbackIsToldWhichRowsEachBoxHolds(): void
     {
         $contexts = [];
-        $table    = $this->table(10)->onFooter(static function (FooterContext $context) use (&$contexts): ?array {
+        $table    = $this->table(10)->onFooter(static function (FooterContext $context) use (&$contexts): null {
             $contexts[] = [$context->firstRow, $context->lastRow, $context->isLastBox];
 
             return null;
@@ -68,7 +69,10 @@ final class TableFooterTest extends TestCase
     #[Test]
     public function theCallbackMustReturnOneRowPerFooterRow(): void
     {
-        $table = $this->table(2)->onFooter(static fn(FooterContext $context): array => [['a', 'b'], ['c', 'd']]);
+        $table = $this->table(2)->onFooter(
+            /** @return list<list<string>> */
+            static fn(): array => [['a', 'b'], ['c', 'd']],
+        );
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('The footer callback returned 2 rows for a table with 1 footer rows.');
@@ -92,6 +96,7 @@ final class TableFooterTest extends TestCase
         self::assertSame([4, 4, 4, 4, 4], $this->fitAll($this->table(20)));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->doc  = new Document(new MemoryOutput());

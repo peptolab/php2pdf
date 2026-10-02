@@ -48,7 +48,7 @@ final class DictTest extends TestCase
         ];
     }
 
-    /** @return array<string, array{0: int, 1: int}> */
+    /** @return array<string, array{0: non-negative-int, 1: int}> */
     public static function offsetSizeProvider(): array
     {
         return [
@@ -84,9 +84,12 @@ final class DictTest extends TestCase
     #[Test]
     public function fixedWidthIntegersRoundTrip(): void
     {
-        self::assertSame([123_456], Dict::parse(Dict::int32(123_456) . "\x11")[17]?->values);
+        $entry = Dict::parse(Dict::int32(123_456) . "\x11")[17] ?? null;
+
+        self::assertSame([123_456], $entry?->values);
     }
 
+    /** @param non-negative-int $length */
     #[Test]
     #[DataProvider('offsetSizeProvider')]
     public function indexOffsetsUseTheSmallestSizeThatFits(int $length, int $size): void
@@ -112,7 +115,7 @@ final class DictTest extends TestCase
         $operands = "\x1E\x0A\x00\x1F\x8B\x8B\x1E\x0A\x00\x1F\x8B\x8B";
         $dict     = Dict::parse("{$operands}\x0C\x07\x8C\x11");
 
-        self::assertSame([$operands, "\x8C"], [$dict[1207]?->operands, $dict[17]?->operands]);
+        self::assertSame([$operands, "\x8C"], [($dict[1207] ?? null)?->operands, ($dict[17] ?? null)?->operands]);
     }
 
     #[Test]

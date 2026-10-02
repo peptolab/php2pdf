@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Svg;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -123,6 +124,7 @@ final class PatternTest extends TestCase
         self::assertSame(1, preg_match_all('#/PatternType 1#', $pdf));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

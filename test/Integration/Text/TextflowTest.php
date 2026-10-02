@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Num;
@@ -124,6 +125,7 @@ final class TextflowTest extends TestCase
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, $width + 0.5, 100.0));
         self::assertSame(2, $flow->lastFit()?->lineCount);
         $this->doc->close();
+        $content = [];
         preg_match('/stream\n(.*?)\nendstream/s', $this->out->contents(), $content);
         self::assertSame(
             1,
@@ -216,14 +218,17 @@ final class TextflowTest extends TestCase
         $this->doc->close();
         $pdf = $this->out->contents();
 
+        $m = [];
         preg_match_all('/\[([^\]]*)\] TJ/', $pdf, $m);
-        self::assertGreaterThan(1, count($m[1]));
+        $lines = $m[1] ?? null;
+        self::assertNotNull($lines);
+        self::assertGreaterThan(1, count($lines));
         self::assertMatchesRegularExpression(
             '/\x00\x03\) -[0-9.]+ \(/',
-            $m[1][0],
+            $lines[0] ?? '',
             'Justified lines carry negative adjustments after space glyphs.',
         );
-        $lastLine = end($m[1]);
+        $lastLine = end($lines);
         self::assertStringNotContainsString(
             '> -',
             false === $lastLine ? '' : $lastLine,
@@ -404,6 +409,7 @@ final class TextflowTest extends TestCase
         self::assertSame(16.8, Leading::percent(120.0)->resolve(14.0));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

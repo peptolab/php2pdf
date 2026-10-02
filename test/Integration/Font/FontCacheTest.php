@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Font\FontRegistry;
@@ -49,12 +50,14 @@ final class FontCacheTest extends TestCase
         self::assertEquals($first, $faces());
     }
 
+    #[Override]
     protected function setUp(): void
     {
         OpenTypeFont::clearCache();
         FontRegistry::clearCache();
     }
 
+    #[Override]
     protected function tearDown(): void
     {
         OpenTypeFont::clearCache();

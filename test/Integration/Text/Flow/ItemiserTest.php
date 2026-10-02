@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text\Flow;
 
+use Override;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
@@ -44,10 +45,12 @@ final class ItemiserTest extends TestCase
     #[Test]
     public function aFixedSpaceKeepsItsOwnWidth(): void
     {
-        $thin = array_values(array_filter(
-            $this->itemise("10\u{2009}000"),
-            static fn(Item $item): bool => "\u{2009}" === $item->text,
-        ))[0];
+        $thin =
+            array_values(array_filter(
+                $this->itemise("10\u{2009}000"),
+                static fn(Item $item): bool => "\u{2009}" === $item->text,
+            ))[0] ?? null;
+        self::assertNotNull($thin);
 
         self::assertSame($this->serif->width("\u{2009}", 10.0), $thin->width);
     }
@@ -55,10 +58,12 @@ final class ItemiserTest extends TestCase
     #[Test]
     public function aPenaltyCarriesTheKerningChangeForItsHyphen(): void
     {
-        $penalty = array_values(array_filter(
-            $this->itemise('TrueType'),
-            static fn(Item $item): bool => ItemKind::Penalty === $item->kind,
-        ))[0];
+        $penalty =
+            array_values(array_filter(
+                $this->itemise('TrueType'),
+                static fn(Item $item): bool => ItemKind::Penalty === $item->kind,
+            ))[0] ?? null;
+        self::assertNotNull($penalty);
         $hyphen = Itemiser::box('-', $this->style);
 
         self::assertSame(
@@ -76,7 +81,7 @@ final class ItemiserTest extends TestCase
             static fn(Item $item): bool => ItemKind::Glue === $item->kind,
         ));
 
-        self::assertSame([1, -20.0], [count($glue), $glue[0]->run?->glyphs[0]?->kerning]);
+        self::assertSame([1, -20.0], [count($glue), $glue[0]->run?->glyphs[0]->kerning ?? null]);
     }
 
     #[Test]
@@ -84,7 +89,7 @@ final class ItemiserTest extends TestCase
     {
         $boxes = $this->boxes('AT Teams');
 
-        self::assertSame(-19.0, $boxes[0]->run?->glyphs[1]?->kerning);
+        self::assertSame(-19.0, $boxes[0]->run?->glyphs[1]->kerning ?? null);
     }
 
     /** @param list<string> $expected boxes by text, glue as a space, plain breaks as | */
@@ -134,10 +139,15 @@ final class ItemiserTest extends TestCase
     {
         $boxes = $this->boxes("True\u{00AD}Type");
 
+        $true = $boxes[0] ?? null;
+        $type = $boxes[1] ?? null;
+        self::assertNotNull($true);
+        self::assertNotNull($type);
+
         self::assertSame(['True', 'Type', -50.0], [
-            $boxes[0]->text,
-            $boxes[1]->text,
-            $boxes[0]->run?->glyphs[3]?->kerning,
+            $true->text,
+            $type->text,
+            $true->run?->glyphs[3]->kerning ?? null,
         ]);
     }
 
@@ -146,10 +156,15 @@ final class ItemiserTest extends TestCase
     {
         $boxes = $this->boxes('TrueType');
 
+        $true = $boxes[0] ?? null;
+        $type = $boxes[1] ?? null;
+        self::assertNotNull($true);
+        self::assertNotNull($type);
+
         self::assertSame(['True', 'Type', -50.0], [
-            $boxes[0]->text,
-            $boxes[1]->text,
-            $boxes[0]->run?->glyphs[3]?->kerning,
+            $true->text,
+            $type->text,
+            $true->run?->glyphs[3]->kerning ?? null,
         ]);
     }
 
@@ -164,9 +179,10 @@ final class ItemiserTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
-        $this->setUpKerning();
+        [$this->serif, $this->style, $this->hyphenators] = self::kerning();
     }
 
     /** @return list<Item> */

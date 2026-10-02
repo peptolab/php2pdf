@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Color;
 
+use Override;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -21,11 +22,13 @@ final class ForeignColorTest extends TestCase
     public function aColourFromElsewhereIsRefusedClearly(): void
     {
         $colour = new class implements ColorInterface {
+            #[Override]
             public function componentCount(): int
             {
                 return 1;
             }
 
+            #[Override]
             public function components(): array
             {
                 return [0.5];

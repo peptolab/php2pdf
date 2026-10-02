@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text\Flow;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\PdfException;
@@ -108,7 +109,7 @@ final class FontFallbackTest extends TestCase
             fallback: [$this->dejaVu],
         ));
 
-        self::assertSame(0.0, $items[0]->run?->glyphs[0]?->kerning);
+        self::assertSame(0.0, $items[0]->run?->glyphs[0]->kerning ?? null);
     }
 
     #[Test]
@@ -122,6 +123,7 @@ final class FontFallbackTest extends TestCase
         self::assertSame([['a', 'Helvetica'], ['☃', 'DejaVuSans']], self::boxes($items));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->doc       = new Document(new MemoryOutput());

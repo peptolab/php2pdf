@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 
 use function array_map;
 use function count;
+use function floatval;
 use function preg_match_all;
 use function preg_replace_callback;
 use function round;
@@ -64,7 +66,8 @@ final class TextLinkTest extends TestCase
     {
         return (string) preg_replace_callback(
             '#\d+\.\d{3,}#',
-            static fn(array $m): string => (string) round((float) $m[0], precision: 2),
+            /** @param array<array-key, string> $m */
+            static fn(array $m): string => (string) round(floatval($m[0] ?? ''), precision: 2),
             $pdf,
         );
     }
@@ -125,17 +128,20 @@ final class TextLinkTest extends TestCase
             ->build();
         $this->doc->addPage(new Dimensions(200.0, 100.0))->fitTextflow($flow, new Box(0.0, 0.0, 80.0, 100.0));
 
-        $boxes = $flow->lastFit()?->matchboxes['m'] ?? [];
+        $first  = $flow->lastFit()?->matchboxes['m'][0] ?? null;
+        $second = $flow->lastFit()?->matchboxes['m'][1] ?? null;
+        self::assertNotNull($first);
+        self::assertNotNull($second);
         self::assertSame(
             [[17.05, 88.36, 48.45, 11.64], [0.0, 76.36]],
             [
                 array_map(static fn(float $v): float => round($v, precision: 2), [
-                    $boxes[0]->x ?? 0.0,
-                    $boxes[0]->y ?? 0.0,
-                    $boxes[0]->width ?? 0.0,
-                    $boxes[0]->height ?? 0.0,
+                    $first->x,
+                    $first->y,
+                    $first->width,
+                    $first->height,
                 ]),
-                [round($boxes[1]->x ?? -1.0, precision: 2), round($boxes[1]->y ?? -1.0, precision: 2)],
+                [round($second->x, precision: 2), round($second->y, precision: 2)],
             ],
         );
     }
@@ -183,6 +189,7 @@ final class TextLinkTest extends TestCase
         ));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

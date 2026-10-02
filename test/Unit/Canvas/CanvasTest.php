@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Canvas\BlendMode;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
@@ -205,6 +206,7 @@ final class CanvasTest extends TestCase
         self::assertSame("q\n1 0 0 1 10 20 cm\n2 0 0 2 0 0 cm\n0 1 -1 0 0 0 cm\nQ\n", $this->content());
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();
@@ -221,9 +223,14 @@ final class CanvasTest extends TestCase
         $this->doc->close();
 
         // The page content stream is written last, after any shared colour-space streams.
+        $m = [];
         self::assertGreaterThan(0, preg_match_all('/stream\n(.*?)\nendstream/s', $this->out->contents(), $m));
+        $streams = $m[1] ?? null;
+        self::assertNotNull($streams);
+        $content = end($streams);
+        self::assertIsString($content);
 
-        return end($m[1]);
+        return $content;
     }
 
     private function pdf(): string

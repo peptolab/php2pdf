@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Core\Object\Dictionary;
@@ -38,6 +39,7 @@ final class CustomPlaceableTest extends TestCase
                 private readonly Document $doc,
             ) {}
 
+            #[Override]
             public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
             {
                 $form = $this->doc->objects()->shared('mark', static fn(): Stream => new Stream(
@@ -51,6 +53,7 @@ final class CustomPlaceableTest extends TestCase
                 $canvas->drawXObject($form, $matrix);
             }
 
+            #[Override]
             public function naturalSize(?float $dpi = null): Dimensions
             {
                 return new Dimensions(10.0, 10.0);
@@ -71,6 +74,7 @@ final class CustomPlaceableTest extends TestCase
         $out    = new MemoryOutput();
         $doc    = new Document($out, new DocumentOptions(compress: false));
         $swatch = new class implements PlaceableInterface {
+            #[Override]
             public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
             {
                 $canvas->save()->concat($matrix);
@@ -78,6 +82,7 @@ final class CustomPlaceableTest extends TestCase
                 $canvas->restore();
             }
 
+            #[Override]
             public function naturalSize(?float $dpi = null): Dimensions
             {
                 return new Dimensions(20.0, 10.0);

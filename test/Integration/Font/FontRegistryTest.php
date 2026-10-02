@@ -48,10 +48,12 @@ final class FontRegistryTest extends TestCase
         $infos = FontInfo::peek(PdfTools::assetPath('fonts/DejaVuSans-Bold.ttf'));
 
         self::assertCount(1, $infos);
-        self::assertSame('DejaVu Sans', $infos[0]->family);
-        self::assertSame('Bold', $infos[0]->subfamily);
-        self::assertSame('DejaVuSans-Bold', $infos[0]->postScriptName);
-        self::assertSame(FontStyle::Bold, $infos[0]->style);
+        $info = $infos[0] ?? null;
+        self::assertNotNull($info);
+        self::assertSame('DejaVu Sans', $info->family);
+        self::assertSame('Bold', $info->subfamily);
+        self::assertSame('DejaVuSans-Bold', $info->postScriptName);
+        self::assertSame(FontStyle::Bold, $info->style);
     }
 
     #[Test]

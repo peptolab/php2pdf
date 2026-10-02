@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -114,6 +115,7 @@ final class TilingPatternTest extends TestCase
         self::assertSame(1, preg_match_all('#/PatternType 1#', $this->out->contents()));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

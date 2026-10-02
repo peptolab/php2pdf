@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\TestAsset;
 
+use UnexpectedValueException;
+
 use function count;
 use function implode;
 use function mb_convert_encoding;
@@ -22,11 +24,12 @@ final class AseBuilder
 
     private static function name(string $name): string
     {
-        return (
-            pack('n', mb_strlen($name) + 1)
-                . mb_convert_encoding($name, to_encoding: 'UTF-16BE', from_encoding: 'UTF-8')
-                . "\0\0"
-        );
+        $utf16 = mb_convert_encoding($name, to_encoding: 'UTF-16BE', from_encoding: 'UTF-8');
+        if (false === $utf16) {
+            throw new UnexpectedValueException("Cannot encode the swatch name {$name} as UTF-16.");
+        }
+
+        return pack('n', mb_strlen($name) + 1) . $utf16 . "\0\0";
     }
 
     /** @param list<float> $values */

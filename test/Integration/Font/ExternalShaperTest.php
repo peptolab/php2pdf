@@ -46,7 +46,11 @@ final class ExternalShaperTest extends TestCase
                 [1578, 0x0E94, [0x0E94, 0x0EB5]],
                 [1604, -1, []],
             ],
-            array_map(static fn(Glyph $g): array => [$g->id, $g->codePoint, $g->components], $glyphs),
+            array_map(
+                /** @return array{int, int, list<int>} */
+                static fn(Glyph $g): array => [$g->id, $g->codePoint, $g->components],
+                $glyphs,
+            ),
         );
     }
 
@@ -68,6 +72,11 @@ final class ExternalShaperTest extends TestCase
         ));
 
         self::assertSame([['laoo', TextDirection::Auto, ['ss01', '-liga', '-clig', '-kern']]], array_map(
+            /**
+             * @param array{0: string, 1: string, 2: TextDirection, 3: list<string>} $call
+             *
+             * @return array{string, TextDirection, list<string>}
+             */
             static fn(array $call): array => [$call[1], $call[2], $call[3]],
             $this->calls,
         ));

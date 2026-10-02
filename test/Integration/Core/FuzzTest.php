@@ -45,7 +45,9 @@ final class FuzzTest extends TestCase
     {
         $files = [];
         foreach (['pdf/*.pdf', 'images/*.png', 'svg/*.svg'] as $pattern) {
-            foreach (glob(PdfTools::assetPath($pattern)) ?? [] as $path) {
+            $paths = glob(PdfTools::assetPath($pattern));
+            self::assertNotFalse($paths);
+            foreach ($paths as $path) {
                 $files[basename($path)] = [$path, substr($pattern, offset: 0, length: 3)];
             }
         }

@@ -23,6 +23,8 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
+use function array_values;
 use function is_array;
 use function str_pad;
 use function str_repeat;
@@ -55,6 +57,13 @@ final class OptionalContentTest extends TestCase
         ];
     }
 
+    private static function groupName(mixed $group): mixed
+    {
+        self::assertInstanceOf(Dictionary::class, $group);
+
+        return $group->get('Name');
+    }
+
     /** An entry of the output's default configuration (or the group list), with groups by name. */
     private static function layers(string $pdf, string $key): mixed
     {
@@ -70,10 +79,7 @@ final class OptionalContentTest extends TestCase
     private static function named(PdfReader $reader, mixed $value): mixed
     {
         if ($value instanceof Reference) {
-            $group = $reader->resolve($value);
-            self::assertInstanceOf(Dictionary::class, $group);
-
-            return $group->get('Name');
+            return self::groupName($reader->resolve($value));
         }
         if ($value instanceof Dictionary) {
             return [
@@ -83,12 +89,7 @@ final class OptionalContentTest extends TestCase
             ];
         }
         if (is_array($value)) {
-            $out = [];
-            foreach ($value as $item) {
-                $out[] = self::named($reader, $item);
-            }
-
-            return $out;
+            return array_values(array_map(static fn(mixed $item): mixed => self::named($reader, $item), $value));
         }
 
         return $value instanceof Name ? $value->value : $value;

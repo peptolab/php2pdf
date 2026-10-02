@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use GdImage;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -17,7 +18,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function array_map;
 use function imagecolorat;
 use function imagecreatefrompng;
 use function imagesx;
@@ -47,6 +47,24 @@ final class SvgMarkerTest extends TestCase
         return ['poppler' => ['poppler'], 'Ghostscript' => ['ghostscript'], 'CoreGraphics' => ['coregraphics']];
     }
 
+    /**
+     * Whether each point, in viewBox units, renders red.
+     *
+     * @param list<array{0: float, 1: float}> $points
+     * @return list<bool>
+     */
+    private static function red(GdImage $png, float $scale, array $points): array
+    {
+        $red = [];
+        foreach ($points as [$x, $y]) {
+            $pixel = (int) imagecolorat($png, (int) ($x * $scale), (int) ($y * $scale));
+            $alpha = ($pixel >> 24) & 0x7F;
+            $red[] = $alpha < 64 && (($pixel >> 16) & 0xFF) > 180 && (($pixel >> 8) & 0xFF) < 100;
+        }
+
+        return $red;
+    }
+
     #[Test]
     #[DataProvider('rendererProvider')]
     public function arrowheadsPointAlongTheirLines(string $renderer): void
@@ -66,18 +84,12 @@ final class SvgMarkerTest extends TestCase
         });
         self::assertNotFalse($png);
         $scale = imagesx($png) / 100;
-        $red   = static function (array $point) use ($png, $scale): bool {
-            $pixel = (int) imagecolorat($png, (int) ($point[0] * $scale), (int) ($point[1] * $scale));
-            $alpha = ($pixel >> 24) & 0x7F;
-
-            return $alpha < 64 && (($pixel >> 16) & 0xFF) > 180 && (($pixel >> 8) & 0xFF) < 100;
-        };
 
         self::assertSame(
             ['horizontal' => [true, true, false, false], 'vertical' => [true, true, false, false]],
             [
-                'horizontal' => array_map($red, [[53.0, 28.0], [56.0, 30.0], [53.0, 24.0], [64.0, 30.0]]),
-                'vertical'   => array_map($red, [[78.0, 43.0], [80.0, 46.0], [74.0, 43.0], [80.0, 54.0]]),
+                'horizontal' => self::red($png, $scale, [[53.0, 28.0], [56.0, 30.0], [53.0, 24.0], [64.0, 30.0]]),
+                'vertical'   => self::red($png, $scale, [[78.0, 43.0], [80.0, 46.0], [74.0, 43.0], [80.0, 54.0]]),
             ],
         );
     }

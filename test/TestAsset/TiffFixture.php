@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Php2PdfTest\TestAsset;
 
 use function array_fill;
-use function array_map;
 use function chr;
 use function count;
 use function get_object_vars;
 use function gzcompress;
-use function implode;
+use function is_array;
+use function is_string;
 use function ksort;
 use function pack;
 use function str_pad;
@@ -25,7 +25,10 @@ use function strlen;
  */
 final readonly class TiffFixture
 {
-    /** @param array<int, array{0: int, 1: list<int>|list<array{0: int, 1: int}>|string}> $tags */
+    /**
+     * @param non-negative-int                                                         $samples
+     * @param array<int, array{0: int, 1: list<int>|list<array{0: int, 1: int}>|string}> $tags
+     */
     public function __construct(
         private int $width,
         private int $height,
@@ -117,7 +120,7 @@ final readonly class TiffFixture
         foreach ($tags as $tag => [$type, $list]) {
             $values[$tag] = [
                 $type,
-                7 === $type ? strlen((string) $list) : count((array) $list),
+                is_string($list) ? strlen($list) : count($list),
                 $this->encode($type, $list),
             ];
         }
@@ -143,19 +146,22 @@ final readonly class TiffFixture
         return $this->u16(count($values)) . $entries . $this->u32($next) . $extra . self::padded($strip);
     }
 
-    /** @param list<int>|list<array{0: int, 1: int}>|string $list */
+    /** @param list<int|array{0: int, 1: int}>|string $list UNDEFINED bytes, RATIONAL pairs, or integers */
     private function encode(int $type, array|string $list): string
     {
-        if (7 === $type) {
-            return (string) $list;
+        if (is_string($list)) {
+            return $list;
         }
-        $pack = match ($type) {
-            3       => fn(mixed $v): string => $this->u16((int) $v),
-            5       => fn(mixed $v): string => $this->u32((int) ((array) $v)[0]) . $this->u32((int) ((array) $v)[1]),
-            default => fn(mixed $v): string => $this->u32((int) $v),
-        };
+        $bytes = '';
+        foreach ($list as $value) {
+            $bytes .= match (true) {
+                is_array($value) => $this->u32($value[0]) . $this->u32($value[1]),
+                3 === $type => $this->u16($value),
+                default => $this->u32($value),
+            };
+        }
 
-        return implode('', array_map($pack, (array) $list));
+        return $bytes;
     }
 
     private function u16(int $value): string

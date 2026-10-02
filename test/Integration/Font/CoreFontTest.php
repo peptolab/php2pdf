@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -14,6 +15,7 @@ use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\CoreFont;
+use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\StandardFont;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
@@ -25,6 +27,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+
+use function array_map;
 
 #[Group('integration')]
 final class CoreFontTest extends TestCase
@@ -153,7 +157,10 @@ final class CoreFontTest extends TestCase
         $font = $this->doc->fonts()->standard(StandardFont::Symbol);
         $run  = $font->shape('α');
 
-        self::assertSame([0x61, 631], [$run->glyphs[0]->id, $run->glyphs[0]->advance]);
+        $alpha = $run->glyphs[0] ?? null;
+
+        self::assertNotNull($alpha);
+        self::assertSame([0x61, 631], [$alpha->id, $alpha->advance]);
     }
 
     #[Test]
@@ -191,7 +198,7 @@ final class CoreFontTest extends TestCase
         $font = $this->doc->fonts()->standard(StandardFont::TimesRoman);
         $run  = $font->shape('é’€', new TextOptions(kerning: false));
 
-        self::assertSame([0xE9, 0x92, 0x80], [$run->glyphs[0]->id, $run->glyphs[1]->id, $run->glyphs[2]->id]);
+        self::assertSame([0xE9, 0x92, 0x80], array_map(static fn(Glyph $glyph): int => $glyph->id, $run->glyphs));
     }
 
     #[Test]
@@ -245,6 +252,7 @@ final class CoreFontTest extends TestCase
         self::assertEqualsWithDelta(62.004, $font->width('Hello World', 12.0, new TextOptions(kerning: false)), 1.0e-9);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

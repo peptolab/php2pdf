@@ -33,11 +33,33 @@ final class ObjectParserTest extends TestCase
         ];
     }
 
+    /** @return array<mixed> */
+    private static function array(mixed $value): array
+    {
+        self::assertIsArray($value);
+
+        return $value;
+    }
+
+    private static function dictionary(mixed $value): Dictionary
+    {
+        self::assertInstanceOf(Dictionary::class, $value);
+
+        return $value;
+    }
+
     private static function parse(string $syntax): mixed
     {
         $parser = new ObjectParser(new Lexer($syntax));
 
         return $parser->parse();
+    }
+
+    private static function stream(mixed $value): Stream
+    {
+        self::assertInstanceOf(Stream::class, $value);
+
+        return $value;
     }
 
     #[Test]
@@ -62,28 +84,25 @@ final class ObjectParserTest extends TestCase
     #[Test]
     public function parsesContainersAndReferences(): void
     {
-        $value = self::parse('[1 2 0 R /X (s) [3] << /K 4 0 R >> 5]');
-        self::assertIsArray($value);
-        self::assertSame(1, $value[0]);
-        self::assertEquals(new Reference(2, 0), $value[1]);
-        self::assertEquals(new Name('X'), $value[2]);
-        self::assertSame('s', $value[3]);
-        self::assertSame([3], $value[4]);
-        self::assertInstanceOf(Dictionary::class, $value[5]);
-        self::assertEquals(new Reference(4, 0), $value[5]->get('K'));
-        self::assertSame(5, $value[6]);
+        $value = self::array(self::parse('[1 2 0 R /X (s) [3] << /K 4 0 R >> 5]'));
+        self::assertSame(1, $value[0] ?? null);
+        self::assertEquals(new Reference(2, 0), $value[1] ?? null);
+        self::assertEquals(new Name('X'), $value[2] ?? null);
+        self::assertSame('s', $value[3] ?? null);
+        self::assertSame([3], $value[4] ?? null);
+        self::assertEquals(new Reference(4, 0), self::dictionary($value[5] ?? null)->get('K'));
+        self::assertSame(5, $value[6] ?? null);
         self::assertSame(7, self::parse('7 8')); // "7 8" is not a reference
     }
 
     #[Test]
     public function parsesIndirectObjectsAndSkipsComments(): void
     {
-        $parser = new ObjectParser(new Lexer("% comment\n12 0 obj % another\n<< /Type /Page >>\nendobj"));
-        [$number, $generation, $object] = $parser->parseIndirect();
+        $parser   = new ObjectParser(new Lexer("% comment\n12 0 obj % another\n<< /Type /Page >>\nendobj"));
+        $indirect = $parser->parseIndirect();
 
-        self::assertSame([12, 0], [$number, $generation]);
-        self::assertInstanceOf(Dictionary::class, $object);
-        self::assertEquals(new Name('Page'), $object->get('Type'));
+        self::assertSame([12, 0], [$indirect[0], $indirect[1]]);
+        self::assertEquals(new Name('Page'), self::dictionary($indirect[2])->get('Type'));
     }
 
     #[Test]
@@ -95,29 +114,24 @@ final class ObjectParserTest extends TestCase
         self::assertSame(-5.0, self::parse('--5'));
         self::assertTrue(self::parse('true'));
         self::assertNull(self::parse('null'));
-        $name = self::parse('/A#20B');
-        self::assertInstanceOf(Name::class, $name);
-        self::assertSame('A B', $name->value);
+        self::assertEquals(new Name('A B'), self::parse('/A#20B'));
     }
 
     #[Test]
     public function parsesStreamsWithGoodAndBadLengths(): void
     {
-        $good = self::parse("<< /Length 5 >>\nstream\nhello\nendstream");
-        self::assertInstanceOf(Stream::class, $good);
+        $good = self::stream(self::parse("<< /Length 5 >>\nstream\nhello\nendstream"));
         self::assertSame('hello', $good->data);
         self::assertFalse($good->dictionary->has('Length'));
 
-        $bad = self::parse("<< /Length 99 >>\r\nstream\r\nhello\r\nendstream");
-        self::assertInstanceOf(Stream::class, $bad);
+        $bad = self::stream(self::parse("<< /Length 99 >>\r\nstream\r\nhello\r\nendstream"));
         self::assertSame('hello', $bad->data);
 
         $resolving = new ObjectParser(
             new Lexer("<< /Length 9 0 R >>\nstream\nabc\nendstream"),
-            static fn(mixed $v): mixed => 3,
+            static fn(): int => 3,
         );
-        $indirect = $resolving->parse();
-        self::assertInstanceOf(Stream::class, $indirect);
+        $indirect = self::stream($resolving->parse());
         self::assertSame('abc', $indirect->data);
     }
 
@@ -150,13 +164,11 @@ final class ObjectParserTest extends TestCase
     #[Test]
     public function toleratesBrokenDictionaries(): void
     {
-        $dict = self::parse('<< /A 1 2 /B 3 >>');
-        self::assertInstanceOf(Dictionary::class, $dict);
+        $dict = self::dictionary(self::parse('<< /A 1 2 /B 3 >>'));
         self::assertSame(1, $dict->get('A'));
         self::assertSame(3, $dict->get('B'));
 
-        $array = self::parse('[1 2 endobj');
-        self::assertSame([1, 2], $array);
+        self::assertSame([1, 2], self::parse('[1 2 endobj'));
 
         $lexer = new Lexer('endobj');
         self::assertTrue($lexer->next()->is(Token::KEYWORD, 'endobj'));

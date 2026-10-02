@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Svg;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -160,6 +161,7 @@ final class MarkerTest extends TestCase
         self::assertSame(3, preg_match_all('#0 1 0 rg#', $pdf));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

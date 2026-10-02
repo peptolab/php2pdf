@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -164,6 +165,7 @@ final class InlineObjectTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out   = new MemoryOutput();

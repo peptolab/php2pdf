@@ -105,13 +105,15 @@ final class Cff2CharStringsTest extends TestCase
     #[Test]
     public function subroutinesAreConvertedAndEndWithReturn(): void
     {
-        $subr      = self::n(1) . self::n(2) . self::n(3) . self::n(1) . "\x10\x15";
-        $converter = new Cff2CharStrings([$subr], [[]], [1], [0]);
-        $glyph     = $converter->glyph(self::n(-107) . "\x1D", 0);
+        $subr       = self::n(1) . self::n(2) . self::n(3) . self::n(1) . "\x10\x15";
+        $converter  = new Cff2CharStrings([$subr], [[]], [1], [0]);
+        $glyph      = $converter->glyph(self::n(-107) . "\x1D", 0);
+        $subroutine = $converter->globalSubrs()[0] ?? null;
+        self::assertNotNull($subroutine);
 
         self::assertSame(
             [bin2hex(self::n(-107) . "\x1D\x0E"), bin2hex(self::n(1) . self::n(2) . "\x15\x0B")],
-            [bin2hex($glyph), bin2hex($converter->globalSubrs()[0])],
+            [bin2hex($glyph), bin2hex($subroutine)],
         );
     }
 }

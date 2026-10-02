@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Image;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\InvalidArgumentException;
@@ -81,6 +82,7 @@ final class ImageOptionsTest extends TestCase
         self::assertSame([64.0, 48.0], [$image->naturalSize()->width, $image->naturalSize()->height]);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->doc = new Document(new MemoryOutput());

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Num;
@@ -140,6 +141,7 @@ final class TextlineTest extends TestCase
         self::assertMatchesRegularExpression('/ 0\.9 0 0 0\.9 [0-9.]+ [0-9.]+ Tm /', $this->out->contents());
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

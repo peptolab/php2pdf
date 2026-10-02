@@ -8,6 +8,7 @@ use Closure;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\Page;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Document\PdfX;
 use Php2Pdf\Exception\ConformanceException;
@@ -15,6 +16,7 @@ use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Svg\SvgFile;
@@ -41,15 +43,15 @@ final class ExceptionTypeTest extends TestCase
 
         return [
             'a file that is not a PDF'         => [
-                static fn() => PdfFile::fromData('not a pdf'),
+                static fn(): PdfFile => PdfFile::fromData('not a pdf'),
                 ParseException::class,
             ],
             'a truncated PNG'                  => [
-                static fn() => ImageReader::read("\x89PNG\r\n\x1A\n"),
+                static fn(): ImageData => ImageReader::read("\x89PNG\r\n\x1A\n"),
                 ParseException::class,
             ],
             'data that is not SVG'             => [
-                static fn() => SvgFile::fromData('plain text'),
+                static fn(): SvgFile => SvgFile::fromData('plain text'),
                 ParseException::class,
             ],
             'an unknown tag in strict markup'  => [
@@ -73,7 +75,7 @@ final class ExceptionTypeTest extends TestCase
                     $d->flow(
                         $d->textflow('Text', $style($d)),
                         new Box(0.0, 0.0, 100.0, 1.0),
-                        static fn(Document $d) => $d->addPage(PageSize::A4),
+                        static fn(Document $d): Page => $d->addPage(PageSize::A4),
                     );
                 },
                 LayoutException::class,

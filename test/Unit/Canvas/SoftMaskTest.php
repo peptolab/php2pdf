@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Canvas\SoftMaskType;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\Output\MemoryOutput;
@@ -94,6 +95,7 @@ final class SoftMaskTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

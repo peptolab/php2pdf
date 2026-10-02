@@ -75,7 +75,7 @@ final class GposTest extends TestCase
     {
         $lookups = [[5, [GposBuilder::markToLigature([20 => [0, [0, 0]]], [10 => [[[200, 600]], [[700, 600]]]])]]];
 
-        self::assertSame([0, 0, -200, 600], self::position($lookups, [10, 20])[1]);
+        self::assertSame([0, 0, -200, 600], self::position($lookups, [10, 20])[1] ?? null);
     }
 
     #[Test]
@@ -86,8 +86,8 @@ final class GposTest extends TestCase
         self::assertSame(
             [[0, 0, -200, 600], [0, 0, -700, 600]],
             [
-                self::position($lookups, [[10, [0x66, 0x69], 1, 0], [20, [0x301], 1, 2]])[1],
-                self::position($lookups, [[10, [0x66, 0x69], 1, 0], [20, [0x301], 1, 1]])[1],
+                self::position($lookups, [[10, [0x66, 0x69], 1, 0], [20, [0x301], 1, 2]])[1] ?? null,
+                self::position($lookups, [[10, [0x66, 0x69], 1, 0], [20, [0x301], 1, 1]])[1] ?? null,
             ],
         );
     }
@@ -119,7 +119,7 @@ final class GposTest extends TestCase
     {
         $kern = [[2, [GposBuilder::pair1([1 => [2 => [[0, 0, -80], [0, 0, 0]]]])], false, 0x0008]];
 
-        self::assertSame([420, 0, 0, 0], self::position($kern, [1, 20, 2])[0]);
+        self::assertSame([420, 0, 0, 0], self::position($kern, [1, 20, 2])[0] ?? null);
     }
 
     #[Test]
@@ -181,7 +181,11 @@ final class GposTest extends TestCase
 
         self::assertSame(
             [[440, 0, 0, 0], [440, 0, 0, 0], [500, 0, 0, 0]],
-            [self::position($kern, [1, 3])[0], self::position($kern, [2, 3])[0], self::position($kern, [1, 1])[0]],
+            [
+                self::position($kern, [1, 3])[0] ?? null,
+                self::position($kern, [2, 3])[0] ?? null,
+                self::position($kern, [1, 1])[0] ?? null,
+            ],
         );
     }
 

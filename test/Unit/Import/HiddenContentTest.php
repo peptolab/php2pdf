@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Import;
 
+use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function preg_replace;
 use function str_contains;
 use function trim;
@@ -66,6 +68,21 @@ final class HiddenContentTest extends TestCase
                 '/Span << /ActualText (x) >> BDC 1 g EMC',
             ],
         ];
+    }
+
+    /** @return array<mixed> */
+    private static function array(mixed $value): array
+    {
+        self::assertIsArray($value);
+
+        return $value;
+    }
+
+    private static function dictionary(mixed $value): Dictionary
+    {
+        self::assertInstanceOf(Dictionary::class, $value);
+
+        return $value;
     }
 
     private static function normalise(string $content): string
@@ -123,12 +140,12 @@ final class HiddenContentTest extends TestCase
         $reader     = PdfFile::fromData($this->import(LayeredPdf::make()))->reader();
         $properties = $reader->dict($reader->catalog(), 'OCProperties');
         self::assertNotNull($properties);
-        $names = [];
-        foreach ((array) $reader->get($properties, 'OCGs') as $group) {
-            $names[] = $reader->resolve($group)?->get('Name');
-        }
+        $groups = self::array($reader->get($properties, 'OCGs'));
 
-        self::assertSame(['Artwork'], $names);
+        self::assertSame(['Artwork'], array_map(
+            static fn(mixed $group): mixed => self::dictionary($reader->resolve($group))->get('Name'),
+            $groups,
+        ));
     }
 
     private function import(string $source): string

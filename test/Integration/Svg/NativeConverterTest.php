@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Svg;
 
+use Override;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -217,6 +218,7 @@ final class NativeConverterTest extends TestCase
         self::assertFalse(str_contains($pdf, '(Hello SVG)'), 'Text goes out as glyph ids, not literal strings.');
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

@@ -34,18 +34,18 @@ use function trim;
 #[Group('integration')]
 final class PdfXTest extends TestCase
 {
-    /** @return array<string, array{0: Closure(Document, Canvas): mixed}> */
+    /** @return array<string, array{0: Closure(Canvas, Document): mixed}> */
     public static function colourUseProvider(): array
     {
         return [
             'fill colour'   => [
-                static fn(Document $doc, Canvas $c): Canvas => $c->setFillColor(Cmyk::fromPercent(0, 0, 0, 100)),
+                static fn(Canvas $c): Canvas => $c->setFillColor(Cmyk::fromPercent(0, 0, 0, 100)),
             ],
             'stroke colour' => [
-                static fn(Document $doc, Canvas $c): Canvas => $c->setStrokeColor(Cmyk::fromPercent(0, 0, 0, 100)),
+                static fn(Canvas $c): Canvas => $c->setStrokeColor(Cmyk::fromPercent(0, 0, 0, 100)),
             ],
             'gradient'      => [
-                static fn(Document $doc, Canvas $c): Canvas => $c->setFillGradient(new LinearGradient(
+                static fn(Canvas $c): Canvas => $c->setFillGradient(new LinearGradient(
                     0,
                     0,
                     10,
@@ -57,7 +57,7 @@ final class PdfXTest extends TestCase
                 )),
             ],
             'image'         => [
-                static fn(Document $doc, Canvas $c): Placement => $c->place(
+                static fn(Canvas $c, Document $doc): Placement => $c->place(
                     $doc->image(PdfTools::assetPath('images/cmyk.jpg')),
                     new Box(0.0, 0.0, 100.0, 100.0),
                 ),
@@ -83,7 +83,7 @@ final class PdfXTest extends TestCase
         );
     }
 
-    /** @param Closure(Document, Canvas): mixed $use */
+    /** @param Closure(Canvas, Document): mixed $use */
     #[Test]
     #[DataProvider('colourUseProvider')]
     public function colourBeforeTheOutputIntentIsRefused(Closure $use): void
@@ -93,7 +93,7 @@ final class PdfXTest extends TestCase
 
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('PDF/X-4 needs an output intent before any colour, image or gradient is drawn');
-        $use($doc, $canvas);
+        $use($canvas, $doc);
     }
 
     #[Test]

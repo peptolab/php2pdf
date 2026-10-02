@@ -99,7 +99,7 @@ final class SvgTest extends TestCase
             PdfTools::assertValid($path);
             $renders[$name] = PdfTools::render($path, 1, 72);
         }
-        $share = self::differingShare($renders['native'] ?? '', $renders['rsvg'] ?? '');
+        $share = self::differingShare($renders['native'], $renders['rsvg']);
         self::assertLessThan(
             0.02,
             $share,

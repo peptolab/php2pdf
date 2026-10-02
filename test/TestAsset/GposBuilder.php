@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Php2PdfTest\TestAsset;
 
 use function array_keys;
-use function array_map;
 use function array_values;
 use function count;
-use function implode;
 use function ksort;
 use function max;
 use function pack;
@@ -31,7 +29,7 @@ final class GposBuilder
      */
     public static function markToBase(array $marks, array $bases): string
     {
-        return self::attachment(4, $marks, self::anchorRows($bases, self::classCount($marks)), array_keys($bases));
+        return self::attachment($marks, self::anchorRows($bases, self::classCount($marks)), array_keys($bases));
     }
 
     /**
@@ -53,7 +51,7 @@ final class GposBuilder
         }
         $array = pack('n', count($ligatures)) . pack('n*', ...$offsets) . $tables;
 
-        return self::attachment(5, $marks, $array, array_keys($ligatures));
+        return self::attachment($marks, $array, array_keys($ligatures));
     }
 
     /**
@@ -64,7 +62,7 @@ final class GposBuilder
      */
     public static function markToMark(array $marks, array $targets): string
     {
-        return self::attachment(6, $marks, self::anchorRows($targets, self::classCount($marks)), array_keys($targets));
+        return self::attachment($marks, self::anchorRows($targets, self::classCount($marks)), array_keys($targets));
     }
 
     /**
@@ -165,10 +163,10 @@ final class GposBuilder
     public static function single2(array $values): string
     {
         ksort($values);
-        $records = implode('', array_map(static fn(array $v): string => self::values(
-            $v,
-            self::VALUES,
-        ), array_values($values)));
+        $records = '';
+        foreach ($values as $value) {
+            $records .= self::values($value, self::VALUES);
+        }
 
         return (
             pack('nnnn', 2, 8 + strlen($records), self::VALUES, count($values))
@@ -217,11 +215,10 @@ final class GposBuilder
      * @param array<int, array{0: int, 1: array{0: int, 1: int}}> $marks
      * @param list<int>                                           $others
      */
-    private static function attachment(int $type, array $marks, string $otherArray, array $others): string
+    private static function attachment(array $marks, string $otherArray, array $others): string
     {
         ksort($marks);
         $classes   = self::classCount($marks);
-        $header    = 12;
         $markCov   = GsubBuilder::coverage(array_keys($marks));
         $otherCov  = GsubBuilder::coverage($others);
         $records   = '';
@@ -231,16 +228,13 @@ final class GposBuilder
             $records .= pack('nn', $class, $arrayHead + strlen($anchors));
             $anchors .= self::anchor($anchor);
         }
-        $markArray = pack('n', count($marks)) . $records . $anchors;
-        $at        = $header;
-        $offsets   = [];
-        foreach ([$markCov, $otherCov, $markArray, $otherArray] as $table) {
-            $offsets[] = $at;
-            $at        += strlen($table);
-        }
+        $markArray   = pack('n', count($marks)) . $records . $anchors;
+        $markCovAt   = 12;
+        $otherCovAt  = $markCovAt + strlen($markCov);
+        $markArrayAt = $otherCovAt + strlen($otherCov);
 
         return (
-            pack('nnnnnn', 1, $offsets[0], $offsets[1], $classes, $offsets[2], $offsets[3])
+            pack('nnnnnn', 1, $markCovAt, $otherCovAt, $classes, $markArrayAt, $markArrayAt + strlen($markArray))
                 . $markCov
                 . $otherCov
                 . $markArray

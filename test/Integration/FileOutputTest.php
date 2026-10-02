@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Core\Output\FileOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -71,6 +72,7 @@ final class FileOutputTest extends TestCase
         new FileOutput("{$this->directory}/missing/out.pdf");
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->directory = PdfTools::outputDir() . '/file-output';
@@ -78,12 +80,15 @@ final class FileOutputTest extends TestCase
         mkdir($this->directory);
     }
 
+    #[Override]
     protected function tearDown(): void
     {
         if (! is_dir($this->directory)) {
             return;
         }
-        foreach (glob("{$this->directory}/*") ?? [] as $file) {
+        $files = glob("{$this->directory}/*");
+        self::assertNotFalse($files);
+        foreach ($files as $file) {
             unlink($file);
         }
         rmdir($this->directory);

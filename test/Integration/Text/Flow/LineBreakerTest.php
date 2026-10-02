@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text\Flow;
 
+use Override;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\Itemiser;
@@ -15,7 +16,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function array_slice;
 use function count;
 use function implode;
 use function mb_chr;
@@ -40,8 +40,9 @@ final class LineBreakerTest extends TestCase
     #[Test]
     public function aHyphenatedLineKernsItsLastLetterAgainstTheHyphen(): void
     {
-        $line = $this->firstLine('OpenType', $this->serif->width('Open-', 10.0) + 0.01);
-        [$n, $hyphen] = $this->lastGlyphs($line, 2);
+        $line   = $this->firstLine('OpenType', $this->serif->width('Open-', 10.0) + 0.01);
+        $n      = $this->lastGlyph($line, 2);
+        $hyphen = $this->lastGlyph($line);
 
         self::assertSame(
             [0.0, '-', $this->serif->width('Open-', 10.0)],
@@ -57,7 +58,7 @@ final class LineBreakerTest extends TestCase
 
         self::assertSame(
             ['l', $this->serif->width('Total', 10.0)],
-            [mb_chr($this->lastGlyphs($line, 1)[0]->codePoint), $line->width],
+            [mb_chr($this->lastGlyph($line)->codePoint), $line->width],
         );
     }
 
@@ -68,7 +69,7 @@ final class LineBreakerTest extends TestCase
 
         self::assertSame(
             ['-', $this->serif->width('well-', 10.0)],
-            [mb_chr($this->lastGlyphs($line, 1)[0]->codePoint), $line->width],
+            [mb_chr($this->lastGlyph($line)->codePoint), $line->width],
         );
     }
 
@@ -79,7 +80,7 @@ final class LineBreakerTest extends TestCase
 
         self::assertSame(
             [0.0, $this->serif->width('AT', 10.0)],
-            [$this->lastGlyphs($line, 1)[0]->kerning, $line->width],
+            [$this->lastGlyph($line)->kerning, $line->width],
             'T→space is −19, but the space is not drawn.',
         );
     }
@@ -91,7 +92,7 @@ final class LineBreakerTest extends TestCase
 
         self::assertSame(
             [0.0, $this->serif->width('AT', 10.0)],
-            [$this->lastGlyphs($line, 1)[0]->kerning, $line->width],
+            [$this->lastGlyph($line)->kerning, $line->width],
         );
     }
 
@@ -136,9 +137,10 @@ final class LineBreakerTest extends TestCase
         self::assertEqualsWithDelta($this->serif->width('so Teams', 10.0), $line->width, 1.0e-9);
     }
 
+    #[Override]
     protected function setUp(): void
     {
-        $this->setUpKerning();
+        [$this->serif, $this->style, $this->hyphenators] = self::kerning();
     }
 
     private function firstLine(string $text, float $width): Line
@@ -151,8 +153,8 @@ final class LineBreakerTest extends TestCase
         return $line;
     }
 
-    /** @return list<Glyph> */
-    private function lastGlyphs(Line $line, int $count): array
+    /** The glyph $fromEnd places from the end of the line, failing the test if there is none. */
+    private function lastGlyph(Line $line, int $fromEnd = 1): Glyph
     {
         $glyphs = [];
         foreach ($line->segments as $segment) {
@@ -161,6 +163,9 @@ final class LineBreakerTest extends TestCase
             }
         }
 
-        return array_slice($glyphs, -$count);
+        $glyph = $glyphs[count($glyphs) - $fromEnd] ?? null;
+        self::assertNotNull($glyph);
+
+        return $glyph;
     }
 }

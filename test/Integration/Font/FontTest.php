@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -148,11 +149,17 @@ final class FontTest extends TestCase
         $run = $this->font->shape('AV');
 
         self::assertSame(2, $run->count());
-        self::assertSame(36, $run->glyphs[0]->id);
-        self::assertSame(684, $run->glyphs[0]->advance);
-        self::assertEqualsWithDelta(-63.96, $run->glyphs[0]->kerning, 0.01);
-        self::assertSame(0.0, $run->glyphs[1]->kerning);
-        self::assertSame(0.0, $this->font->shape('AV', new TextOptions(kerning: false))->glyphs[0]->kerning);
+        $a = $run->glyphs[0] ?? null;
+        $v = $run->glyphs[1] ?? null;
+        self::assertNotNull($a);
+        self::assertNotNull($v);
+        self::assertSame(36, $a->id);
+        self::assertSame(684, $a->advance);
+        self::assertEqualsWithDelta(-63.96, $a->kerning, 0.01);
+        self::assertSame(0.0, $v->kerning);
+        $unkerned = $this->font->shape('AV', new TextOptions(kerning: false))->glyphs[0] ?? null;
+        self::assertNotNull($unkerned);
+        self::assertSame(0.0, $unkerned->kerning);
     }
 
     #[Test]
@@ -246,6 +253,7 @@ final class FontTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

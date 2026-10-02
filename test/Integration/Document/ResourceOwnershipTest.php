@@ -48,7 +48,14 @@ final class ResourceOwnershipTest extends TestCase
     /** @return array<string, array{0: Closure(Document): PlaceableInterface}> */
     public static function ownArtworkProvider(): array
     {
-        return array_map(static fn(array $case): array => [$case[0]], self::placeableProvider());
+        return array_map(
+            /**
+             * @param array{0: Closure(Document): PlaceableInterface, 1: string} $case
+             * @return array{0: Closure(Document): PlaceableInterface}
+             */
+            static fn(array $case): array => [$case[0]],
+            self::placeableProvider(),
+        );
     }
 
     /** @return array<string, array{0: Closure(Document): PlaceableInterface, 1: string}> */

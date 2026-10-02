@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Color\GradientStop;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\LinearGradient;
@@ -179,6 +180,7 @@ final class CanvasTextTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();
@@ -194,8 +196,13 @@ final class CanvasTextTest extends TestCase
     private function content(): string
     {
         $this->doc->close();
+        $m = [];
         self::assertGreaterThan(0, preg_match_all('/stream\n(.*?)\nendstream/s', $this->out->contents(), $m));
+        $streams = $m[1] ?? null;
+        self::assertNotNull($streams);
+        $content = end($streams);
+        self::assertIsString($content);
 
-        return (string) end($m[1]);
+        return $content;
     }
 }

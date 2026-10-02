@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\PageSize;
@@ -44,6 +45,7 @@ final class SvgImageLinkTest extends TestCase
         self::assertSame(['image files outside the SVG\'s directory'], $converter->warnings());
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->directory = PdfTools::outputDir() . '/svg-link';
@@ -51,6 +53,7 @@ final class SvgImageLinkTest extends TestCase
         mkdir($this->directory);
     }
 
+    #[Override]
     protected function tearDown(): void
     {
         if (is_link("{$this->directory}/linked.png")) {

@@ -18,6 +18,13 @@ use PHPUnit\Framework\TestCase;
 #[Group('unit')]
 final class GradientSpreadTest extends TestCase
 {
+    private static function dictionary(mixed $value): Dictionary
+    {
+        self::assertInstanceOf(Dictionary::class, $value);
+
+        return $value;
+    }
+
     private static function linear(GradientSpread $spread, float $from, float $to): LinearGradient
     {
         return new LinearGradient(0.0, 0.0, 10.0, 0.0, self::stops(), true, $spread, $from, $to);
@@ -60,8 +67,7 @@ final class GradientSpreadTest extends TestCase
     #[Test]
     public function aReflectingGradientRunsBackEveryOtherLength(): void
     {
-        $function = self::linear(GradientSpread::Reflect, 0.0, 3.0)->toShading()->get('Function');
-        self::assertInstanceOf(Dictionary::class, $function);
+        $function = self::dictionary(self::linear(GradientSpread::Reflect, 0.0, 3.0)->toShading()->get('Function'));
 
         self::assertSame([0.0, 1.0, 1.0, 0.0, 0.0, 1.0], $function->get('Encode'));
     }
@@ -70,8 +76,7 @@ final class GradientSpreadTest extends TestCase
     public function aRepeatingGradientCoversTheStretchAskedFor(): void
     {
         $shading  = self::linear(GradientSpread::Repeat, -0.5, 2.25)->toShading();
-        $function = $shading->get('Function');
-        self::assertInstanceOf(Dictionary::class, $function);
+        $function = self::dictionary($shading->get('Function'));
 
         self::assertSame(
             [[-5.0, 0.0, 22.5, 0.0], [-0.5, 2.25], [0.0, 1.0, 2.0], [0.5, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.25]],

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Font\FontInfo;
@@ -46,12 +47,14 @@ final class FontCacheTest extends TestCase
     #[Test]
     public function fontsAddedToASearchPathAreFound(): void
     {
-        $faces = fn(): array => array_map(
-            static fn(FontInfo $face): string => $face->postScriptName,
-            (new Document(new MemoryOutput()))->fonts()
-                ->addSearchPath($this->directory)
-                ->faces(),
-        );
+        $faces =
+            /** @return list<string> */
+            fn(): array => array_map(
+                static fn(FontInfo $face): string => $face->postScriptName,
+                (new Document(new MemoryOutput()))->fonts()
+                    ->addSearchPath($this->directory)
+                    ->faces(),
+            );
         copy(PdfTools::assetPath('fonts/DejaVuSans.ttf'), "{$this->directory}/Sans.ttf");
         touch($this->directory, mtime: 1_000_000_000);
         $before = $faces();
@@ -62,6 +65,7 @@ final class FontCacheTest extends TestCase
         self::assertSame([['DejaVuSans'], ['DejaVuSans', 'SourceSans3-Regular']], [$before, $faces()]);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->directory = PdfTools::outputDir() . '/font-cache';
@@ -69,6 +73,7 @@ final class FontCacheTest extends TestCase
         mkdir($this->directory);
     }
 
+    #[Override]
     protected function tearDown(): void
     {
         OpenTypeFont::clearCache();

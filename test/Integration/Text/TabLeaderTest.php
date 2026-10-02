@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -53,6 +54,7 @@ final class TabLeaderTest extends TestCase
         self::assertSame(2 * $repeats, strlen($leader[1]) / 2);
     }
 
+    /** @param list<array{0: string, 1: int}> $expected */
     #[Test]
     #[DataProvider('leaderProvider')]
     public function aLeaderRepeatsAcrossTheTabOnAGrid(string $text, array $expected): void
@@ -82,6 +84,7 @@ final class TabLeaderTest extends TestCase
         self::assertCount(2, $this->texts("a\tb", TabStop::left(8.0, '.')));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();
@@ -105,9 +108,13 @@ final class TabLeaderTest extends TestCase
         $this->doc->close();
         $m = [];
         preg_match_all('/BT (?:\/F1 10 Tf )?([0-9.]+) [0-9.]+ Td \((.*?)\) Tj ET/s', $this->out->contents(), $m);
+        $xs      = $m[1] ?? null;
+        $strings = $m[2] ?? null;
+        self::assertNotNull($xs);
+        self::assertNotNull($strings);
         $out = [];
-        foreach ($m[1] as $i => $x) {
-            $out[] = [$x, $m[2][$i] ?? ''];
+        foreach ($xs as $i => $x) {
+            $out[] = [$x, $strings[$i] ?? ''];
         }
 
         return $out;

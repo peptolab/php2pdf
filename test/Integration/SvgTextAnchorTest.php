@@ -61,7 +61,10 @@ final class SvgTextAnchorTest extends TestCase
 
         $options = new TextOptions(charSpacing: 2.0);
         $width   = $font->width(BidiRuns::shape($font, $text, $options), 20.0, $options);
+        $m       = [];
         self::assertSame(1, preg_match('/1 0 0 -1 ([\d.]+) 50 Tm/', $out->contents(), $m));
-        self::assertEqualsWithDelta(200.0 - ($share * $width), (float) $m[1], 0.001);
+        $x = $m[1] ?? null;
+        self::assertIsNumeric($x);
+        self::assertEqualsWithDelta(200.0 - ($share * $width), (float) $x, 0.001);
     }
 }

@@ -19,9 +19,8 @@ use function preg_match;
 use function preg_match_all;
 use function str_repeat;
 use function strlen;
+use function strpos;
 use function substr;
-
-use const PREG_OFFSET_CAPTURE;
 
 #[Group('unit')]
 final class WriterTest extends TestCase
@@ -97,17 +96,24 @@ final class WriterTest extends TestCase
         self::assertStringContainsString("2 0 obj\n<</Type/Catalog>>\nendobj\n", $pdf);
         self::assertStringEndsWith("%%EOF\n", $pdf);
 
+        $m = [];
         self::assertSame(1, preg_match('/startxref\n(\d+)\n%%EOF/', $pdf, $m));
-        $xrefOffset = (int) $m[1];
-        self::assertSame("xref\n0 3\n", substr($pdf, $xrefOffset, length: 9));
+        $xrefOffset = $m[1] ?? null;
+        self::assertNotNull($xrefOffset);
+        self::assertSame("xref\n0 3\n", substr($pdf, (int) $xrefOffset, length: 9));
 
+        $offsets = [];
         self::assertSame(1, preg_match(
             '/xref\n0 3\n0000000000 65535 f \n(\d{10}) 00000 n \n(\d{10}) 00000 n \n/',
             $pdf,
             $offsets,
         ));
-        self::assertSame('1 0 obj', substr($pdf, (int) $offsets[1], length: 7));
-        self::assertSame('2 0 obj', substr($pdf, (int) $offsets[2], length: 7));
+        $first  = $offsets[1] ?? null;
+        $second = $offsets[2] ?? null;
+        self::assertNotNull($first);
+        self::assertNotNull($second);
+        self::assertSame('1 0 obj', substr($pdf, (int) $first, length: 7));
+        self::assertSame('2 0 obj', substr($pdf, (int) $second, length: 7));
         self::assertMatchesRegularExpression('/\/ID\[<[0-9a-f]{32}> <[0-9a-f]{32}>\]/', $pdf);
         self::assertStringContainsString('/Size 3', $pdf);
     }
@@ -125,19 +131,23 @@ final class WriterTest extends TestCase
         $writer->finish(new Dictionary());
 
         self::assertFalse($stream->dictionary->has('Filter'));
+        $contents = $out->contents();
+        $matches  = [];
         self::assertSame(2, preg_match_all(
             '/<<\/Filter\/FlateDecode\/Length (\d+)>>\nstream\n/',
-            $out->contents(),
+            $contents,
             $matches,
-            PREG_OFFSET_CAPTURE,
         ));
+        $lengths = $matches[1] ?? null;
+        self::assertNotNull($lengths);
         $bodies = [];
-        foreach ($matches[0] as $i => [$header, $offset]) {
-            $bodies[] = gzuncompress(substr(
-                $out->contents(),
-                $offset + strlen($header),
-                (int) $matches[1][$i][0],
-            ));
+        $offset = 0;
+        foreach ($lengths as $length) {
+            $header = "<</Filter/FlateDecode/Length {$length}>>\nstream\n";
+            $start  = strpos($contents, $header, $offset);
+            self::assertIsInt($start);
+            $offset   = $start + strlen($header);
+            $bodies[] = gzuncompress(substr($contents, $offset, (int) $length));
         }
         self::assertSame([$data, $data], $bodies);
     }

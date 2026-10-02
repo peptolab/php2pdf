@@ -36,6 +36,7 @@ final class GsubBuilder
     {
         ksort($alternates);
         $sets = array_map(
+            /** @param list<int> $list */
             static fn(array $list): string => pack('n', count($list)) . pack('n*', ...$list),
             $alternates,
         );
@@ -301,6 +302,7 @@ final class GsubBuilder
     {
         ksort($sequences);
         $sets = array_map(
+            /** @param list<int> $glyphs */
             static fn(array $glyphs): string => pack('n', count($glyphs)) . self::shorts($glyphs),
             $sequences,
         );
@@ -333,7 +335,7 @@ final class GsubBuilder
         $b = count($backtrack);
 
         return (
-            pack('nn', 1, $offsets[0] ?? 0)
+            pack('nn', 1, $offsets[0])
                 . pack('n', $b)
                 . self::shorts(array_slice($offsets, offset: 1, length: $b))
                 . pack('n', count($lookahead))
@@ -408,7 +410,10 @@ final class GsubBuilder
                 $subOffsets = array_map(static fn(int $offset): int => $offset + 2, $subOffsets);
             }
             $tables .=
-                pack('nnn', $extension ? 7 : $type, $flag, $count) . self::shorts($subOffsets) . $setIndex . $body;
+                pack('nnn', $extension ? $extensionType : $type, $flag, $count)
+                . self::shorts($subOffsets)
+                . $setIndex
+                . $body;
         }
 
         return pack('n', count($lookups)) . self::shorts($offsets) . $tables;
@@ -419,7 +424,11 @@ final class GsubBuilder
     {
         return (
             pack('n', count($records))
-                . implode('', array_map(static fn(array $r): string => pack('nn', $r[0], $r[1]), $records))
+                . implode('', array_map(
+                    /** @param array{0: int, 1: int} $r */
+                    static fn(array $r): string => pack('nn', $r[0], $r[1]),
+                    $records,
+                ))
         );
     }
 
@@ -475,8 +484,8 @@ final class GsubBuilder
     /**
      * A format-1 subtable that lists a coverage and one set per covered glyph, in glyph order.
      *
-     * @param list<int>    $glyphs
-     * @param list<string> $sets
+     * @param list<int>          $glyphs
+     * @param array<int, string> $sets
      */
     private static function withSets(int $format, array $glyphs, array $sets): string
     {

@@ -85,7 +85,7 @@ final class CffSubsetterTest extends TestCase
         self::assertSame(
             [[0.001, 0, 0, 0.001, 0, 0], false, false],
             [
-                $subset->top[CffTable::OP_FONT_MATRIX]?->values,
+                ($subset->top[CffTable::OP_FONT_MATRIX] ?? null)?->values,
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[1]['dict'] ?? []),
             ],
@@ -102,7 +102,7 @@ final class CffSubsetterTest extends TestCase
         self::assertSame(
             [$matrix, false],
             [
-                $subset->top[CffTable::OP_FONT_MATRIX]?->operands,
+                ($subset->top[CffTable::OP_FONT_MATRIX] ?? null)?->operands,
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
             ],
         );
@@ -125,8 +125,8 @@ final class CffSubsetterTest extends TestCase
         self::assertSame(
             [$top, $fd],
             [
-                $subset->top[CffTable::OP_FONT_MATRIX]?->operands,
-                $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
+                ($subset->top[CffTable::OP_FONT_MATRIX] ?? null)?->operands,
+                ($subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX] ?? null)?->operands,
             ],
         );
     }
@@ -142,7 +142,7 @@ final class CffSubsetterTest extends TestCase
 
         self::assertSame(
             [2, array_slice($original->fdSelect, offset: 0, length: $glyphs), [391, 392, 0]],
-            [count($subset->fonts), $subset->fdSelect, $subset->top[CffTable::OP_ROS]?->values],
+            [count($subset->fonts), $subset->fdSelect, ($subset->top[CffTable::OP_ROS] ?? null)?->values],
         );
     }
 
@@ -178,8 +178,8 @@ final class CffSubsetterTest extends TestCase
             [false, $small, $large],
             [
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->top),
-                $subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
-                $subset->fonts[1]['dict'][CffTable::OP_FONT_MATRIX]?->operands,
+                ($subset->fonts[0]['dict'][CffTable::OP_FONT_MATRIX] ?? null)?->operands,
+                ($subset->fonts[1]['dict'][CffTable::OP_FONT_MATRIX] ?? null)?->operands,
             ],
         );
     }
@@ -223,7 +223,9 @@ final class CffSubsetterTest extends TestCase
 
         $expected = [];
         for ($gid = 0, $n = max(array_keys($used)) + 1; $gid < $n; ++$gid) {
-            $expected[] = 0 === $gid || array_key_exists($gid, $used) ? $original->charStrings[$gid] : self::ENDCHAR;
+            $expected[] = 0 === $gid || array_key_exists($gid, $used)
+                ? $original->charStrings[$gid] ?? null
+                : self::ENDCHAR;
         }
         self::assertSame($expected, $subset->charStrings);
     }
@@ -254,7 +256,7 @@ final class CffSubsetterTest extends TestCase
             [true, [391, 392, 0], false, false],
             [
                 $subset->cidKeyed,
-                $subset->top[CffTable::OP_ROS]?->values,
+                ($subset->top[CffTable::OP_ROS] ?? null)?->values,
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->top),
                 array_key_exists(CffTable::OP_FONT_MATRIX, $subset->fonts[0]['dict'] ?? []),
             ],

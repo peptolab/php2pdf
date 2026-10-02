@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -44,11 +45,11 @@ final class CffEmbeddingTest extends TestCase
 
     private static function tableOffset(string $font, string $tag): int
     {
-        $count = (int) (unpack('n', $font, offset: 4)[1] ?? 0);
+        $count = (int) unpack('n', $font, offset: 4)[1];
         for ($i = 0; $i < $count; ++$i) {
             $record = 12 + (16 * $i);
             if (substr($font, $record, length: 4) === $tag) {
-                return (int) (unpack('N', $font, $record + 8)[1] ?? 0);
+                return (int) unpack('N', $font, $record + 8)[1];
             }
         }
         self::fail("No {$tag} table.");
@@ -110,6 +111,7 @@ final class CffEmbeddingTest extends TestCase
         self::assertLessThan(strlen((string) file_get_contents($path)) / 10, strlen($pdf));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

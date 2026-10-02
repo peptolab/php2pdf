@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Document;
 
+use Override;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -118,6 +119,7 @@ final class NavigationTest extends TestCase
         self::assertSame(1, preg_match('#/Title\(One\)[^>]*/Count 3#', $pdf));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

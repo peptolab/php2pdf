@@ -41,7 +41,7 @@ final class DocumentStructureTest extends TestCase
 
         PdfTools::assertValid($path);
         $info = PdfTools::info($path);
-        self::assertSame('4', $info['Pages']);
+        self::assertSame('4', $info['Pages'] ?? null);
         self::assertSame('Structure test', $info['Title']);
         self::assertSame('606.614 x 853.228 pts', $info['Page size']);
         self::assertSame(['2.83', '2.83', '609.45', '856.06'], preg_split('/\s+/', trim($info['CropBox'])));

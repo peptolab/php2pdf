@@ -14,7 +14,6 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_column;
-use function array_map;
 
 /**
  * Glyph substitution from GSUB: standard ligatures (#5), other features (#32), and the lookup
@@ -108,7 +107,7 @@ final class GsubTest extends TestCase
     }
 
     /**
-     * @param array<int, int> $ids
+     * @param list<int> $ids
      *
      * @return list<array{0: int, 1: list<int>}>
      */
@@ -126,7 +125,12 @@ final class GsubTest extends TestCase
             9 => 0x2F,
         ];
 
-        return array_map(static fn(int $id): array => [$id, [$codePoints[$id] ?? 0]], $ids);
+        $glyphs = [];
+        foreach ($ids as $id) {
+            $glyphs[] = [$id, [$codePoints[$id] ?? 0]];
+        }
+
+        return $glyphs;
     }
 
     /**
@@ -146,13 +150,18 @@ final class GsubTest extends TestCase
     }
 
     /**
-     * @param list<array{0: int, 1: list<int>}> $glyphs
+     * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $glyphs
      *
      * @return list<int>
      */
     private static function ids(array $glyphs): array
     {
-        return array_column($glyphs, 0);
+        $ids = [];
+        foreach ($glyphs as [$id]) {
+            $ids[] = $id;
+        }
+
+        return $ids;
     }
 
     #[Test]

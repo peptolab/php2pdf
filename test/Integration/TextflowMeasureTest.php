@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Text\Style\TextStyle;
@@ -31,6 +32,7 @@ final class TextflowMeasureTest extends TestCase
         self::assertSame($before, $this->flow->minContentWidth());
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $document   = new Document(new MemoryOutput());

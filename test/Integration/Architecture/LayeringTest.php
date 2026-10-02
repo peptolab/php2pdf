@@ -96,7 +96,9 @@ final class LayeringTest extends TestCase
                 (string) file_get_contents($file->getPathname()),
                 $matches,
             );
-            foreach ($matches[1] as $target) {
+            $imported = $matches[1] ?? null;
+            self::assertNotNull($imported);
+            foreach ($imported as $target) {
                 if ($target === $namespace) {
                     continue;
                 }

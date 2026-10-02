@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Document\Document;
@@ -49,6 +50,7 @@ final class ActualTextTest extends TestCase
         self::assertSame(['a b c', "a\u{200D}b c"], $lines);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->path = PdfTools::outputDir() . '/actual-text.pdf';

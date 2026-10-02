@@ -15,7 +15,9 @@ use Php2PdfTest\TestAsset\PdfTools;
 /**
  * Source Serif 4 at 10 pt, whose kerning pairs the Itemiser and LineBreaker tests rely on:
  * T→space −19, space→T −20, e→T −50 but e→hyphen +10, n→T −60 but n→hyphen 0. "TrueType" and
- * "OpenType" hyphenate before "Type".
+ * "OpenType" hyphenate before "Type". A test assigns the three properties from kerning() in setUp.
+ *
+ * @internal
  */
 trait KerningFixtureTrait
 {
@@ -25,16 +27,18 @@ trait KerningFixtureTrait
     /** @var array<string, Hyphenator> */
     private array $hyphenators;
 
-    private function setUpKerning(): void
+    /** @return array{FontInterface, TextStyle, array<string, Hyphenator>} */
+    private static function kerning(): array
     {
-        $doc         = new Document(new MemoryOutput());
-        $this->serif = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSerif4-Regular.ttf'));
-        $this->style = (new StyleResolver($doc->text()))->resolve(null, new TextStyle(
-            font: $this->serif,
+        $doc   = new Document(new MemoryOutput());
+        $serif = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSerif4-Regular.ttf'));
+        $style = (new StyleResolver($doc->text()))->resolve(null, new TextStyle(
+            font: $serif,
             size: 10.0,
             hyphenate: true,
             language: 'en',
         ));
-        $this->hyphenators = ['en' => new Hyphenator([], ['true-type', 'open-type'])];
+
+        return [$serif, $style, ['en' => new Hyphenator([], ['true-type', 'open-type'])]];
     }
 }

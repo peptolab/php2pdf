@@ -39,9 +39,12 @@ final class DocumentTest extends TestCase
 
     private static function streamData(string $pdf): string
     {
+        $m = [];
         self::assertSame(1, preg_match('/stream\n(.*?)\nendstream/s', $pdf, $m));
+        $data = $m[1] ?? null;
+        self::assertNotNull($data);
 
-        return $m[1];
+        return $data;
     }
 
     #[Test]
@@ -97,7 +100,9 @@ final class DocumentTest extends TestCase
 
         $pdf = $out->contents();
         self::assertStringContainsString('/TrimBox[10 771.8898 110 821.8898]', $pdf);
-        self::assertStringContainsString('1 0 0 -1 0 841.8898 cm', gzuncompress(self::streamData($pdf)));
+        $content = gzuncompress(self::streamData($pdf));
+        self::assertIsString($content);
+        self::assertStringContainsString('1 0 0 -1 0 841.8898 cm', $content);
     }
 
     #[Test]

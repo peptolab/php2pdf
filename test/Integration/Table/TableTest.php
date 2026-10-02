@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Table;
 
+use Override;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Num;
@@ -37,6 +38,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_slice;
 use function array_unique;
 use function array_values;
 use function count;
@@ -198,9 +200,15 @@ final class TableTest extends TestCase
         self::assertNotNull($info);
         $edges = $info->columnEdges;
         self::assertCount(5, $edges);
-        self::assertEqualsWithDelta([0.0, 100.0, 200.0], [$edges[0], $edges[1], $edges[2]], 1.0e-6);
-        self::assertEqualsWithDelta(400.0, $edges[4], 1.0e-6);
-        self::assertGreaterThan($edges[3] - $edges[2], $edges[4] - $edges[3], 'The longer text gets the wider column.');
+        self::assertEqualsWithDelta([0.0, 100.0, 200.0], array_slice($edges, offset: 0, length: 3), 1.0e-6);
+        $third  = $edges[2] ?? null;
+        $fourth = $edges[3] ?? null;
+        $right  = $edges[4] ?? null;
+        self::assertNotNull($third);
+        self::assertNotNull($fourth);
+        self::assertNotNull($right);
+        self::assertEqualsWithDelta(400.0, $right, 1.0e-6);
+        self::assertGreaterThan($fourth - $third, $right - $fourth, 'The longer text gets the wider column.');
     }
 
     #[Test]
@@ -415,6 +423,7 @@ final class TableTest extends TestCase
         self::assertStringContainsString(' 20 Tf', $pdf);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

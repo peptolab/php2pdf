@@ -74,8 +74,8 @@ final class LimitsTest extends TestCase
         return [
             'zlib'                   => [(string) gzcompress($data)],
             'raw deflate'            => [(string) gzdeflate($data)],
-            'raw after two bytes'    => ['xx' . gzdeflate($data)],
-            'zlib and trailing junk' => [gzcompress($data) . 'junk'],
+            'raw after two bytes'    => ['xx' . (string) gzdeflate($data)],
+            'zlib and trailing junk' => [(string) gzcompress($data) . 'junk'],
         ];
     }
 
@@ -230,6 +230,7 @@ final class LimitsTest extends TestCase
      * broken object: in an object or an object stream it reads as missing, and in the trailer it
      * makes the reader repair the cross-reference and find the catalog by scanning.
      *
+     * @param 'object'|'object stream'|'trailer' $where
      * @param list<mixed>|null $annots
      */
     #[Test]

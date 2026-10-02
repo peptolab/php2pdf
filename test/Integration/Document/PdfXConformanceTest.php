@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Document;
 
+use Override;
 use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Color\GradientStop;
@@ -272,10 +273,15 @@ final class PdfXConformanceTest extends TestCase
         $page->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0));
     }
 
-    private function document(string $intent, ?string $rgbProfile = null): Document
+    #[Override]
+    protected function setUp(): void
     {
         $this->out = new MemoryOutput();
-        $doc       = new Document($this->out, new DocumentOptions(
+    }
+
+    private function document(string $intent, ?string $rgbProfile = null): Document
+    {
+        $doc = new Document($this->out, new DocumentOptions(
             compress: false,
             clock: new FixedClock('2026-01-01T00:00:00Z'),
             pdfx: PdfX::X4,

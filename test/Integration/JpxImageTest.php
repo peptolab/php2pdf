@@ -18,6 +18,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function abs;
+use function array_map;
 use function imagecolorat;
 use function imagecreatefrompng;
 use function imagesx;
@@ -60,12 +61,13 @@ final class JpxImageTest extends TestCase
             'poppler' === $renderer ? PdfTools::render($path, dpi: 144) : PdfTools::ghostscriptRender($path, dpi: 144),
         );
         self::assertNotFalse($png);
-        $pixel  = (int) imagecolorat($png, (int) (imagesx($png) / 2), (int) (imagesy($png) / 2));
-        $actual = [($pixel >> 16) & 0xFF, ($pixel >> 8) & 0xFF, $pixel & 0xFF];
-        foreach ($actual as $i => $channel) {
+        $pixel       = (int) imagecolorat($png, (int) (imagesx($png) / 2), (int) (imagesy($png) / 2));
+        $actual      = [($pixel >> 16) & 0xFF, ($pixel >> 8) & 0xFF, $pixel & 0xFF];
+        $differences = array_map(static fn(int $got, int $want): int => abs($got - $want), $actual, $expected);
+        foreach ($differences as $i => $difference) {
             self::assertLessThanOrEqual(
                 24,
-                abs($channel - $expected[$i]),
+                $difference,
                 "Channel {$i} of {$file}: " . implode(',', $actual),
             );
         }

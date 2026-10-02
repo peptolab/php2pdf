@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -76,7 +77,7 @@ final class RightToLeftTextflowTest extends TestCase
         $m = [];
         preg_match_all('#/F1 (\d+) Tf#', $this->out->contents(), $m);
 
-        self::assertSame(['10', '20', '10'], $m[1]);
+        self::assertSame(['10', '20', '10'], $m[1] ?? null);
     }
 
     #[Test]
@@ -88,6 +89,7 @@ final class RightToLeftTextflowTest extends TestCase
         self::assertSame([1, 0.0], [$flow->lastFit()?->lineCount, $flow->lastFit()?->firstBaseline[0]]);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out = new MemoryOutput();

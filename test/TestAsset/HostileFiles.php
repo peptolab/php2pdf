@@ -36,6 +36,7 @@ final class HostileFiles
      * holding it, which the reader only finds by repairing the cross-reference (its offset here
      * is wrong); or in the trailer, where the reader can only find the catalog by repairing.
      *
+     * @param non-negative-int                   $depth
      * @param 'object'|'object stream'|'trailer' $where
      */
     public static function deepArrayPdf(int $depth, string $where): string
@@ -65,7 +66,11 @@ final class HostileFiles
         };
     }
 
-    /** SVG with $depth nested groups. */
+    /**
+     * SVG with $depth nested groups.
+     *
+     * @param non-negative-int $depth
+     */
     public static function deepSvg(int $depth): string
     {
         return (
@@ -76,7 +81,11 @@ final class HostileFiles
         );
     }
 
-    /** One page whose content stream inflates to $bytes zero bytes. */
+    /**
+     * One page whose content stream inflates to $bytes zero bytes.
+     *
+     * @param non-negative-int $bytes
+     */
     public static function flateBomb(int $bytes): string
     {
         $data = (string) gzcompress(str_repeat("\0", $bytes));

@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 #[Group('unit')]
 final class FitEngineTest extends TestCase
 {
-    /** @return iterable<string, array{0: FitMethod, 1: list<float>, 2: float, 3: float, 4: bool}> */
+    /** @return iterable<string, array{0: FitMethod, 1: array{float, float, float, float}, 2: float, 3: float, 4: bool}> */
     public static function methods(): iterable
     {
         // A 200x100 object into a 100x100 box, positioned at the centre.
@@ -52,6 +52,7 @@ final class FitEngineTest extends TestCase
         FitEngine::place(10.0, 10.0, new Box(0.0, 0.0, 0.0, 50.0), new Fit($method), Origin::BottomLeft);
     }
 
+    /** @param array{float, float, float, float} $bounds */
     #[Test]
     #[DataProvider('methods')]
     public function appliesFitMethods(FitMethod $method, array $bounds, float $sx, float $sy, bool $clips): void

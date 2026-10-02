@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_map;
+use function array_slice;
 use function array_unique;
 use function count;
 use function preg_match;
@@ -49,14 +51,14 @@ final class OpenTypeFeatureTest extends TestCase
         $oldstyle = self::ids($this->serif->shape('office 2', new TextOptions(features: ['onum'])));
 
         self::assertSame([6, 8, 6], [count($oldstyle), count($spaced), count($plain)]);
-        self::assertNotSame($plain[count($plain) - 1], $oldstyle[count($oldstyle) - 1]);
+        self::assertNotSame(array_slice($plain, -1), array_slice($oldstyle, -1));
     }
 
     /** Source Serif's figures are tabular by default; pnum makes them proportional, tnum keeps one width. */
     #[Test]
     public function figureSpacingFollowsTheFeatures(): void
     {
-        $widths = fn(array $features): int => count(array_unique(array_map(
+        $widths = /** @param list<string> $features */ fn(array $features): int => count(array_unique(array_map(
             static fn(Glyph $g): int => $g->advance,
             $this->serif->shape('1234567890', new TextOptions(features: $features))->glyphs,
         )));
@@ -82,6 +84,7 @@ final class OpenTypeFeatureTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out   = new MemoryOutput();

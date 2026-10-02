@@ -202,12 +202,17 @@ final class PdfTools
      */
     public static function run(array $command): array
     {
+        $pipes   = [];
         $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         Assert::assertIsResource($process);
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
+        $out = $pipes[1] ?? null;
+        $err = $pipes[2] ?? null;
+        Assert::assertIsResource($out);
+        Assert::assertIsResource($err);
+        $stdout = stream_get_contents($out);
+        $stderr = stream_get_contents($err);
+        fclose($out);
+        fclose($err);
         $code = proc_close($process);
 
         return [$code, (string) $stdout . (string) $stderr];

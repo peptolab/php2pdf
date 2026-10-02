@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Font;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\PageSize;
@@ -24,71 +25,85 @@ final class ForeignFontTest extends TestCase
     public function drawingWithAFontFromElsewhereIsRefused(): void
     {
         $font = new class implements FontInterface {
+            #[Override]
             public function advance(int $glyphId): int
             {
                 return 500;
             }
 
+            #[Override]
             public function ascender(float $size): float
             {
                 return $size * 0.8;
             }
 
+            #[Override]
             public function capHeight(float $size): float
             {
                 return $size * 0.7;
             }
 
+            #[Override]
             public function descender(float $size): float
             {
                 return $size * -0.2;
             }
 
+            #[Override]
             public function hasGlyph(int $codePoint): bool
             {
                 return true;
             }
 
+            #[Override]
             public function lineGap(float $size): float
             {
                 return 0.0;
             }
 
+            #[Override]
             public function name(): string
             {
                 return 'Foreign';
             }
 
+            #[Override]
             public function shape(string $text, ?TextOptions $options = null): GlyphRun
             {
                 return new GlyphRun([new Glyph(1, 65, 500)]);
             }
 
+            #[Override]
             public function strikeoutPosition(float $size): float
             {
                 return $size * 0.3;
             }
 
+            #[Override]
             public function strikeoutSize(float $size): float
             {
                 return $size * 0.05;
             }
 
+            #[Override]
             public function underlinePosition(float $size): float
             {
                 return $size * -0.1;
             }
 
+            #[Override]
             public function underlineThickness(float $size): float
             {
                 return $size * 0.05;
             }
 
+            #[Override]
             public function width(string|GlyphRun $text, float $size, ?TextOptions $options = null): float
             {
                 return $size * 0.5;
             }
 
+            #[Override]
             public function xHeight(float $size): float
             {
                 return $size * 0.5;

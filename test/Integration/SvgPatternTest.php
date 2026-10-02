@@ -83,8 +83,12 @@ final class SvgPatternTest extends TestCase
 
             return abs($r - $b) > 80 ? $r > $b : throw new LogicException("Neither red nor blue at {$x},{$y}");
         };
-        /** @param list<float> $xs */
-        $strip = static fn(float $y, array $xs): array => array_map(static fn(float $x): bool => $red($x, $y), $xs);
+        $strip =
+            /**
+             * @param list<float> $xs
+             * @return list<bool>
+             */
+            static fn(float $y, array $xs): array => array_map(static fn(float $x): bool => $red($x, $y), $xs);
 
         self::assertSame(
             [

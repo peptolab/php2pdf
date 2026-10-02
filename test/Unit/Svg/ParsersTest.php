@@ -154,7 +154,7 @@ final class ParsersTest extends TestCase
         $g = $root->child('g');
         self::assertNotNull($g);
         self::assertSame('a', $g->id());
-        self::assertSame('rect', $g->elements()[0]->name ?? '');
+        self::assertSame('rect', ($g->elements()[0] ?? null)?->name);
         self::assertSame('A & B <AB><raw & text>', $root->child('text')?->text());
     }
 

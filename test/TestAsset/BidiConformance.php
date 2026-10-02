@@ -6,7 +6,9 @@ namespace Php2PdfTest\TestAsset;
 
 use Php2Pdf\Font\Bidi\Bidi;
 use Php2Pdf\Font\Bidi\BidiParagraph;
+use UnexpectedValueException;
 
+use function array_key_exists;
 use function array_map;
 use function count;
 use function explode;
@@ -64,7 +66,11 @@ final class BidiConformance
             if ('' === $line || '#' === $line[0]) {
                 continue;
             }
-            [$hex, $direction, , $levels, $order] = array_map(trim(...), explode(';', $line));
+            $fields = array_map(trim(...), explode(';', $line));
+            if (! array_key_exists(4, $fields)) {
+                throw new UnexpectedValueException("A character case needs five fields: {$line}");
+            }
+            [$hex, $direction, , $levels, $order] = $fields;
             $cases[] = [
                 array_map(static fn(string $h): int => (int) hexdec($h), explode(' ', $hex)),
                 2 === (int) $direction ? null : (int) $direction,
@@ -77,7 +83,10 @@ final class BidiConformance
         return $cases;
     }
 
-    /** @param list<int> $codePoints */
+    /**
+     * @param list<int> $codePoints
+     * @return array{0: string, 1: string}
+     */
     public static function characterResult(array $codePoints, ?int $level): array
     {
         return self::result(Bidi::paragraph($codePoints, $level), count($codePoints));
@@ -106,7 +115,11 @@ final class BidiConformance
                 $order = trim(substr($line, offset: 9));
                 continue;
             }
-            [$input, $bits] = array_map(trim(...), explode(';', $line));
+            $fields = array_map(trim(...), explode(';', $line));
+            if (! array_key_exists(1, $fields)) {
+                throw new UnexpectedValueException("A class case needs two fields: {$line}");
+            }
+            [$input, $bits] = $fields;
             $classes = array_map(static fn(string $c): int => self::CLASSES[$c] ?? 0, explode(' ', $input));
             foreach ([1 => null, 2 => 0, 4 => 1] as $bit => $level) {
                 if (0 === ((int) $bits & $bit)) {
@@ -145,11 +158,14 @@ final class BidiConformance
         return [implode(' ', $levels), implode(' ', $order)];
     }
 
-    /** @return list<string> */
+    /** @return array<int, string> */
     private static function lines(string $path): array
     {
         $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if (false === $lines) {
+            throw new UnexpectedValueException("Cannot read the conformance file {$path}.");
+        }
 
-        return false === $lines ? [] : $lines;
+        return $lines;
     }
 }

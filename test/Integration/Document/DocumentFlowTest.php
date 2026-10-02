@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Document;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -142,6 +143,7 @@ final class DocumentFlowTest extends TestCase
         ));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out   = new MemoryOutput();

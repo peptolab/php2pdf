@@ -18,6 +18,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function file_get_contents;
 use function substr_replace;
 
@@ -59,6 +60,19 @@ final class ExifTest extends TestCase
         return $cases;
     }
 
+    /** @return array<string, array{0: int, 1: 'II'|'MM'}> */
+    public static function orientationReadProvider(): array
+    {
+        return array_map(
+            /**
+             * @param array{0: int, 1: 'II'|'MM', 2: string} $case
+             * @return array{0: int, 1: 'II'|'MM'}
+             */
+            static fn(array $case): array => [$case[0], $case[1]],
+            self::orientationProvider(),
+        );
+    }
+
     /** @return array<string, array{0: array{0: int, 1: int, 2: int}, 1: float}> */
     public static function resolutionProvider(): array
     {
@@ -92,7 +106,11 @@ final class ExifTest extends TestCase
         self::assertSame([24.0, 32.0], [$image->naturalSize()->width, $image->naturalSize()->height]);
     }
 
-    /** At 72 dpi a 64 by 48 pixel image is drawn into a 64 by 48 pt box, turned 48 by 64 when transposed. */
+    /**
+     * At 72 dpi a 64 by 48 pixel image is drawn into a 64 by 48 pt box, turned 48 by 64 when transposed.
+     *
+     * @param 'II'|'MM' $byteOrder
+     */
     #[Test]
     #[DataProvider('orientationProvider')]
     public function drawsTheImageInItsOrientation(int $orientation, string $byteOrder, string $matrix): void
@@ -114,9 +132,10 @@ final class ExifTest extends TestCase
         self::assertSame(1, ImageReader::read($jpeg)->orientation);
     }
 
+    /** @param 'II'|'MM' $byteOrder */
     #[Test]
-    #[DataProvider('orientationProvider')]
-    public function readsTheOrientationInEitherByteOrder(int $orientation, string $byteOrder, string $matrix): void
+    #[DataProvider('orientationReadProvider')]
+    public function readsTheOrientationInEitherByteOrder(int $orientation, string $byteOrder): void
     {
         $data = ImageReader::read(JpegFixtures::withExif(self::jpeg(), $orientation, byteOrder: $byteOrder));
 

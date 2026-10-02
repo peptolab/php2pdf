@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -114,6 +115,7 @@ final class ColourFontTest extends TestCase
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out  = new MemoryOutput();

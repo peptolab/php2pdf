@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Font\FontInterface;
@@ -57,12 +58,14 @@ final class ShapingClusterTest extends TestCase
                 ['Box',  'x',            1],
             ],
             array_map(
+                /** @return array{0: string, 1: string, 2: int|null} */
                 static fn(Item $item): array => [$item->kind->name, $item->text, $item->run?->count()],
                 $items,
             ),
         );
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->document = new Document(new MemoryOutput());

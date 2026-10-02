@@ -17,7 +17,6 @@ use PHPUnit\Framework\TestCase;
 use function abs;
 use function chr;
 use function extension_loaded;
-use function gzcompress;
 use function imagealphablending;
 use function imagecolorallocatealpha;
 use function imagecreatetruecolor;
@@ -29,7 +28,6 @@ use function intdiv;
 use function ob_get_clean;
 use function ob_start;
 use function ord;
-use function pack;
 use function str_repeat;
 use function strlen;
 use function substr;
@@ -66,27 +64,17 @@ final class ImageReaderTest extends TestCase
         yield 'interlaced-gray1' => ['interlaced-gray1.png', 'DeviceGray', 8, 1, 'opaque', 'decoded'];
     }
 
-    /** A PNG from raw, already filtered scanlines. */
-    private static function png(int $width, int $height, int $depth, int $type, string $rows): string
-    {
-        $chunk = static fn(string $name, string $data): string => (
-            pack('N', strlen($data)) . $name . $data . pack('N', 0)
-        );
-
-        return (
-            "\x89PNG\r\n\x1A\n"
-                . $chunk('IHDR', pack('NNCCCCC', $width, $height, $depth, $type, 0, 0, 0))
-                . $chunk('IDAT', (string) gzcompress($rows))
-                . $chunk('IEND', data: '')
-        );
-    }
-
     private static function read(string $name): ImageData
     {
         return ImageReader::readFile(PdfTools::assetPath("images/{$name}"));
     }
 
-    /** Reverses PNG filters with a tiny independent implementation, for cross-checking. */
+    /**
+     * Reverses PNG filters with a tiny independent implementation, for cross-checking.
+     *
+     * @param non-negative-int $width
+     * @param non-negative-int $bpp
+     */
     private static function unfilterReference(string $raw, int $width, int $height, int $bpp): string
     {
         $rowBytes = $width * $bpp;

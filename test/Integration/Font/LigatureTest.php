@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -79,7 +80,11 @@ final class LigatureTest extends TestCase
 
         self::assertSame(
             [['o', 'f'], ['fi', 'c', 'e']],
-            array_map(static fn(Item $item): array => self::texts($item->run->glyphs ?? []), $boxes),
+            array_map(
+                /** @return list<string> */
+                static fn(Item $item): array => self::texts($item->run->glyphs ?? []),
+                $boxes,
+            ),
         );
     }
 
@@ -118,6 +123,7 @@ final class LigatureTest extends TestCase
         self::assertSame(['o', 'f', 'f', 'i', 'c', 'e'], self::texts($helvetica->shape('office')->glyphs));
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->out   = new MemoryOutput();

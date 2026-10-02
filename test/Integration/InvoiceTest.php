@@ -44,14 +44,12 @@ final class InvoiceTest extends TestCase
 {
     private static function projectName(int $i): string
     {
-        $names = [
-            'Riverside House',
-            'Civic Library Extension and Public Reading Room with a name long enough to wrap onto a second line',
-            'Courtyard Studio',
-            'Hillside Pavilion',
-        ];
-
-        return $names[$i % 4] ?? 'Project';
+        return match ($i % 4) {
+            0       => 'Riverside House',
+            1 => 'Civic Library Extension and Public Reading Room with a name long enough to wrap onto a second line',
+            2       => 'Courtyard Studio',
+            default => 'Hillside Pavilion',
+        };
     }
 
     #[Test]
