@@ -36,6 +36,12 @@ use function sprintf;
  */
 final readonly class TextPainter
 {
+    /**
+     * Begins content that stands for no text: colour glyph layers, drawn over a base glyph that
+     * already carries the text, so extraction and search find each character once.
+     */
+    private const string NO_TEXT = '/Span <</ActualText ()>> BDC';
+
     public function __construct(
         private ContentStream $stream,
         private Resources $resources,
@@ -96,7 +102,8 @@ final readonly class TextPainter
     }
 
     /**
-     * Shows a shaped run with the given text matrix, colour glyphs as their layers.
+     * Shows a shaped run with the given text matrix, colour glyphs as their layers. The layers
+     * are marked as standing for no text.
      *
      * @throws InvalidArgumentException for a font that is not the library's own
      */
@@ -119,6 +126,10 @@ final readonly class TextPainter
             ));
         $layers = TextRenderMode::Invisible === $options->renderMode ? [] : $font->colourLayers($run);
         $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers));
+        if ([] === $layers) {
+            return;
+        }
+        $this->stream->append(self::NO_TEXT);
         foreach ($layers as $index => $list) {
             $origin = Matrix::translation(
                 $font->width(new GlyphRun(array_slice($run->glyphs, offset: 0, length: $index)), $size, $options),
@@ -137,6 +148,7 @@ final readonly class TextPainter
                 $canvas->restore();
             }
         }
+        $this->stream->append('EMC');
     }
 
     /** A filled bar in the object space of a fitted text line: an underline or a strikeout. */
