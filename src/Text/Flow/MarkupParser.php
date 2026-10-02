@@ -57,7 +57,7 @@ final class MarkupParser
         'a',
     ];
 
-    /** @var list<array{style: ?TextStyle, spans: list<array{0: string, 1: TextStyle}>, breaks: list<array{0: int, 1: ItemKind|Item}>}> */
+    /** @var list<ParagraphSource> */
     private array $paragraphs = [];
 
     /** @var list<array{0: string, 1: TextStyle}> */
@@ -143,8 +143,7 @@ final class MarkupParser
     }
 
     /**
-     * @return list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}>
-     *         per paragraph: paragraph style override, spans, and breaks positioned before the span at that index
+     * @return list<ParagraphSource>
      *
      * @throws IoException
      * @throws ParseException
@@ -164,12 +163,7 @@ final class MarkupParser
         }
         $this->flushParagraph();
 
-        $out = [];
-        foreach ($this->paragraphs as $paragraph) {
-            $out[] = [$paragraph['style'], $paragraph['spans'], $paragraph['breaks']];
-        }
-
-        return $out;
+        return $this->paragraphs;
     }
 
     private function break(ItemKind $kind): void
@@ -207,11 +201,7 @@ final class MarkupParser
     private function flushParagraph(): void
     {
         if ([] !== $this->spans || [] !== $this->breaks) {
-            $this->paragraphs[] = [
-                'style'  => $this->paragraphStyle,
-                'spans'  => $this->spans,
-                'breaks' => $this->breaks,
-            ];
+            $this->paragraphs[] = new ParagraphSource($this->paragraphStyle, $this->spans, $this->breaks);
         }
         $this->spans          = [];
         $this->breaks         = [];

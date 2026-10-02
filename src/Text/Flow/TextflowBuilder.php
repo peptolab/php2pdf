@@ -20,7 +20,7 @@ use function count;
  */
 final class TextflowBuilder
 {
-    /** @var list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}> */
+    /** @var list<ParagraphSource> */
     private array $paragraphs = [];
 
     /** @var list<array{0: string, 1: TextStyle}> */
@@ -180,7 +180,7 @@ final class TextflowBuilder
     private function flush(): void
     {
         if ([] !== $this->spans || [] !== $this->breaks) {
-            $this->paragraphs[] = [$this->paragraphStyle, $this->spans, $this->breaks];
+            $this->paragraphs[] = new ParagraphSource($this->paragraphStyle, $this->spans, $this->breaks);
         }
         $this->spans  = [];
         $this->breaks = [];

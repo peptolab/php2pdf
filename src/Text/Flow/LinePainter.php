@@ -33,14 +33,15 @@ final class LinePainter
         return [$x, $y];
     }
 
-    public static function draw(Canvas $canvas, Box $box, Layout $layout, float $shift): void
+    public static function draw(Canvas $canvas, Box $box, LayoutResult $layout, float $shift): void
     {
         if ([] === $layout->lines) {
             return;
         }
         $canvas->save();
         $topDown = $canvas->isTopDown();
-        foreach ($layout->lines as [$line, $baseline]) {
+        foreach ($layout->lines as $placed) {
+            [$line, $baseline] = [$placed->line, $placed->baseline];
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
             foreach ($line->inlines as [$ix, $inline]) {
                 $edge = $topDown ? $y - $inline->raise - $inline->height : $y + $inline->raise;
@@ -92,11 +93,12 @@ final class LinePainter
      * @return array{0: list<array{0: Box, 1: Destination|string, 2: ?string}>, 1: array<string, list<Box>>}
      *         links with their targets and tooltips, and matched areas by name
      */
-    public static function markedAreas(Canvas $canvas, Box $box, Layout $layout, float $shift): array
+    public static function markedAreas(Canvas $canvas, Box $box, LayoutResult $layout, float $shift): array
     {
         $links   = [];
         $matches = [];
-        foreach ($layout->lines as [$line, $baseline]) {
+        foreach ($layout->lines as $placed) {
+            [$line, $baseline] = [$placed->line, $placed->baseline];
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
             foreach (self::runs($line, self::linkKey(...)) as [$left, $right, $ascent, $descent, $style]) {
                 if (null === $style->link) {

@@ -21,32 +21,29 @@ use function max;
  */
 final class Layout
 {
-    /** @var list<array{0: Line, 1: float}> lines with their baseline offset from the top */
-    public array $lines = [];
+    /** @var list<PlacedLine> */
+    private array $lines = [];
 
-    public float $height = 0.0;
-    public int $paragraphIndex;
-    public int $itemIndex;
+    private float $height = 0.0;
+    private int $paragraphIndex;
+    private int $itemIndex;
 
     /** The characters of the item at the cursor already placed: a box split across lines. */
-    public int $carry;
-    public FlowResult $result = FlowResult::Done;
+    private int $carry;
 
     private float $y = 0.0;
 
     /** @param list<Paragraph> $paragraphs */
     public function __construct(
         private readonly array $paragraphs,
-        int $paragraphIndex,
-        int $itemIndex,
-        int $carry,
+        FlowCursor $cursor,
         private readonly float $width,
         private readonly float $boxHeight,
         private readonly FlowOptions $options,
     ) {
-        $this->paragraphIndex = $paragraphIndex;
-        $this->itemIndex      = $itemIndex;
-        $this->carry          = $carry;
+        $this->paragraphIndex = $cursor->paragraph;
+        $this->itemIndex      = $cursor->item;
+        $this->carry          = $cursor->carry;
     }
 
     /**
@@ -68,19 +65,23 @@ final class Layout
         return [$consumed, $end];
     }
 
-    public function run(): self
+    public function run(): LayoutResult
     {
+        $result = FlowResult::Done;
         while (null !== ($paragraph = $this->paragraphs[$this->paragraphIndex] ?? null)) {
             $outcome = $this->placeParagraph($paragraph);
             if (null !== $outcome) {
-                $this->result = $outcome;
-
-                return $this;
+                $result = $outcome;
+                break;
             }
         }
-        $this->result = FlowResult::Done;
 
-        return $this;
+        return new LayoutResult(
+            $this->lines,
+            $this->height,
+            new FlowCursor($this->paragraphIndex, $this->itemIndex, $this->carry),
+            $result,
+        );
     }
 
     /**
@@ -154,7 +155,7 @@ final class Layout
     {
         [$consumed, $carry] = self::advance($lines, $this->carry);
         foreach ($lines as [$line, $baseline]) {
-            $this->lines[] = [$line, $baseline];
+            $this->lines[] = new PlacedLine($line, $baseline, $this->paragraphIndex);
             $this->y       = $baseline;
             $this->height  = max($this->height, $baseline + $line->descent);
         }
@@ -217,38 +218,36 @@ final class Layout
         if ($starting && ! $atTop) {
             $this->y += $style->spaceBefore ?? 0.0;
         }
-        $run       = $this->breakLines($paragraph);
-        $remaining = count($paragraph->items) - $this->itemIndex - $run->consumed;
-        $complete  = 0 === $remaining;
-
+        $run = $this->breakLines($paragraph);
         if (null !== $run->stop) {
-            // An explicit column or page break: keep what came before it and consume the break.
             $this->commit($run->lines);
             $this->skipBreakItem($paragraph);
 
             return $run->stop;
         }
-        if ($complete) {
-            $this->commit($run->lines);
-            $this->y += $style->spaceAfter ?? 0.0;
-            ++$this->paragraphIndex;
-            $this->itemIndex = 0;
-            $this->carry     = 0;
-            if (true === $style->keepWithNext && ! $atTop && ! $this->nextParagraphStarts()) {
-                $this->rollBack($paragraph, $run, $yStart, $carry);
-
-                return FlowResult::BoxFull;
-            }
-
-            return null;
+        if (count($paragraph->items) === ($this->itemIndex + $run->consumed)) {
+            return $this->placeWhole($paragraph, $run, $yStart, $carry);
         }
+        $keepAll = ! $atTop && $starting && true === $style->keepTogether;
 
-        // The paragraph does not fit entirely: decide how much of it stays here.
-        $lines = $run->lines;
-        if (! $atTop && ($starting && true === $style->keepTogether)) {
-            $lines = [];
-        }
-        $lines = $this->applyWidowsOrphans($paragraph, $lines, $starting && ! $atTop ? $style->orphans ?? 2 : 0);
+        return $this->placePart(
+            $paragraph,
+            $keepAll ? [] : $run->lines,
+            $starting && ! $atTop ? $style->orphans ?? 2 : 0,
+            $yStart,
+        );
+    }
+
+    /**
+     * Places the lines of a paragraph that does not fit entirely, as many as its widow and orphan
+     * rules let stay here; with none, the box is empty or full.
+     *
+     * @param list<array{0: Line, 1: float}> $lines
+     */
+    private function placePart(Paragraph $paragraph, array $lines, int $orphanFloor, float $yStart): FlowResult
+    {
+        $atTop = [] === $this->lines;
+        $lines = $this->applyWidowsOrphans($paragraph, $lines, $orphanFloor);
         if ([] === $lines) {
             $this->y = $yStart;
 
@@ -257,6 +256,28 @@ final class Layout
         $this->commit($lines);
 
         return FlowResult::BoxFull;
+    }
+
+    /**
+     * Places a paragraph that fits entirely, then moves to the next; one kept with the next goes
+     * back when the next cannot start here.
+     */
+    private function placeWhole(Paragraph $paragraph, LineRun $run, float $yStart, int $carry): ?FlowResult
+    {
+        $style = $paragraph->style;
+        $atTop = [] === $this->lines;
+        $this->commit($run->lines);
+        $this->y += $style->spaceAfter ?? 0.0;
+        ++$this->paragraphIndex;
+        $this->itemIndex = 0;
+        $this->carry     = 0;
+        if (true === $style->keepWithNext && ! $atTop && ! $this->nextParagraphStarts()) {
+            $this->rollBack($paragraph, $run, $yStart, $carry);
+
+            return FlowResult::BoxFull;
+        }
+
+        return null;
     }
 
     /** Removes a committed paragraph again so it moves to the next box with its successor. */
@@ -268,8 +289,8 @@ final class Layout
         $this->carry     = $carry;
         $this->y         = $yStart;
         $this->height    = 0.0;
-        foreach ($this->lines as [$line, $baseline]) {
-            $this->height = max($this->height, $baseline + $line->descent);
+        foreach ($this->lines as $placed) {
+            $this->height = max($this->height, $placed->baseline + $placed->line->descent);
         }
         unset($paragraph);
     }

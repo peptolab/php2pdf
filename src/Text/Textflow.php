@@ -10,31 +10,27 @@ use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
-use Php2Pdf\Font\Bidi\Bidi;
-use Php2Pdf\Font\Bidi\BidiRuns;
-use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\Flow\BoxSplit;
-use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\CopyFitter;
+use Php2Pdf\Text\Flow\FlowCursor;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\Layout;
 use Php2Pdf\Text\Flow\LinePainter;
 use Php2Pdf\Text\Flow\MarkupParser;
 use Php2Pdf\Text\Flow\Paragraph;
+use Php2Pdf\Text\Flow\ParagraphFactory;
+use Php2Pdf\Text\Flow\ParagraphSource;
 use Php2Pdf\Text\Flow\StyleResolver;
 use Php2Pdf\Text\Flow\TextflowBuilder;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Style\VerticalAlignment;
 
-use function array_slice;
 use function count;
 use function implode;
 use function max;
-use function mb_ord;
-use function mb_str_split;
-use function mb_strlen;
 use function preg_replace;
 use function preg_split;
 use function str_replace;
@@ -50,19 +46,19 @@ use const PHP_FLOAT_MAX;
  */
 final class Textflow implements FlowableInterface
 {
-    private int $paragraphIndex = 0;
-    private int $itemIndex      = 0;
+    /** Where the next fit starts. */
+    private FlowCursor $cursor;
 
-    /** The characters of the item at the cursor already placed: a word split across lines. */
-    private int      $carry = 0;
-    private ?FitInfo $last  = null;
+    private ?FitInfo $last = null;
 
     /**
      * @param list<Paragraph> $paragraphs
      */
     private function __construct(
         private readonly array $paragraphs,
-    ) {}
+    ) {
+        $this->cursor = new FlowCursor();
+    }
 
     /**
      * A builder for assembling a flow in code. Use Document::textflowBuilder().
@@ -110,7 +106,7 @@ final class Textflow implements FlowableInterface
     /**
      * @internal
      *
-     * @param list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}> $parsed
+     * @param list<ParagraphSource> $sources
      *
      * @throws IoException
      * @throws ParseException
@@ -119,40 +115,9 @@ final class Textflow implements FlowableInterface
         StyleResolver $resolver,
         TextStyle $base,
         Itemiser $itemiser,
-        array $parsed,
+        array $sources,
     ): self {
-        $paragraphs = [];
-        foreach ($parsed as [$override, $spans, $breaks]) {
-            $style   = $resolver->resolve($base, $override);
-            $items   = [];
-            $breakAt = [];
-            foreach ($breaks as [$index, $kind]) {
-                $breakAt[$index][] = $kind;
-            }
-            foreach ($spans as $k => [$spanText, $spanStyle]) {
-                $spans[$k] = [str_replace(["\r\n", "\r"], replace: "\n", subject: $spanText), $spanStyle];
-            }
-            [$levels, $level] = self::bidiLevels($spans, $style);
-            $offset = 0;
-            foreach ($spans as $i => $span) {
-                foreach ($breakAt[$i] ?? [] as $kind) {
-                    $items[] = $kind instanceof Item
-                        ? $kind->withLevel($level)
-                        : new Item($kind, $style, level: $level);
-                }
-                $length = mb_strlen($span[0], encoding: 'UTF-8');
-                foreach ($itemiser->itemise([$span], array_slice($levels, $offset, $length)) as $item) {
-                    $items[] = $item;
-                }
-                $offset += $length;
-            }
-            foreach ($breakAt[count($spans)] ?? [] as $kind) {
-                $items[] = $kind instanceof Item ? $kind->withLevel($level) : new Item($kind, $style, level: $level);
-            }
-            $paragraphs[] = new Paragraph($style, $items, $level);
-        }
-
-        return new self($paragraphs);
+        return new self((new ParagraphFactory($resolver, $base, $itemiser))->paragraphs($sources));
     }
 
     /**
@@ -181,72 +146,6 @@ final class Textflow implements FlowableInterface
     }
 
     /**
-     * The bidi levels of a paragraph's characters and the paragraph level, when its text has
-     * right-to-left characters or its style makes it right to left; none and 0 otherwise.
-     *
-     * @param list<array{0: string, 1: TextStyle}> $spans
-     *
-     * @return array{0: list<int>, 1: int}
-     */
-    private static function bidiLevels(array $spans, TextStyle $style): array
-    {
-        $text = '';
-        foreach ($spans as [$spanText]) {
-            $text .= $spanText;
-        }
-        $direction = $style->direction ?? TextDirection::Auto;
-        if (! BidiRuns::needed($text, $direction)) {
-            return [[], 0];
-        }
-        $codePoints = [];
-        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
-            $codePoints[] = (int) mb_ord($char, encoding: 'UTF-8');
-        }
-        $paragraph = Bidi::paragraph($codePoints, $direction->level());
-
-        return [$paragraph->levels(), $paragraph->level];
-    }
-
-    /**
-     * An item at a scaled style. Its shaped glyphs are kept, since kerning is in thousandths of an
-     * em; only the widths are measured again.
-     */
-    private static function scaledItem(Item $item, TextStyle $style): Item
-    {
-        $font    = StyleResolver::fontOf($style);
-        $size    = $style->fontSize();
-        $options = $style->textOptions();
-        $hyphen  = $item->hyphenRun;
-
-        $scaled = match (true) {
-            null !== $item->run => new Item(
-                $item->kind,
-                $style,
-                $item->text,
-                $item->run,
-                $font->width($item->run, $size, $options),
-            ),
-            null !== $item->inline => Item::inline(
-                $item->inline->scaled($style->fontSize() / $item->style->fontSize()),
-                $style,
-            ),
-            null !== $hyphen => new Item(
-                $item->kind,
-                $style,
-                '',
-                null,
-                0.0,
-                $hyphen,
-                $font->width($hyphen, $size, $options) + Itemiser::kerningWidth($item->hyphenKerning, $style),
-                $item->hyphenKerning,
-            ),
-            default => new Item($item->kind, $style),
-        };
-
-        return 0 === $item->level ? $scaled : $scaled->withLevel($item->level);
-    }
-
-    /**
      * Places as much of the remaining text as fits into a box on any canvas (a page's, a
      * template's). Page::fitTextflow() does the same on a page.
      */
@@ -255,18 +154,9 @@ final class Textflow implements FlowableInterface
     {
         $options ??= new FlowOptions();
         $scale   = 1.0;
-        $layout  = new Layout(
-            $this->paragraphs,
-            $this->paragraphIndex,
-            $this->itemIndex,
-            $this->carry,
-            $box->width,
-            $box->height,
-            $options,
-        );
-        $layout->run();
+        $layout  = (new Layout($this->paragraphs, $this->cursor, $box->width, $box->height, $options))->run();
         if ($options->shrinkToFit && FlowResult::Done !== $layout->result) {
-            [$layout, $scale] = $this->shrink($box, $options);
+            [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options);
         }
 
         $shift = 0.0;
@@ -286,8 +176,9 @@ final class Textflow implements FlowableInterface
         $firstBaseline = null;
         $lastBaseline  = null;
         $textEnd       = null;
-        foreach ($layout->lines as [$line, $baseline]) {
-            $point         = LinePainter::baselinePoint($canvas, $box, $line, $baseline + $shift);
+        foreach ($layout->lines as $placed) {
+            $line          = $placed->line;
+            $point         = LinePainter::baselinePoint($canvas, $box, $line, $placed->baseline + $shift);
             $firstBaseline ??= $point;
             $lastBaseline  = $point;
             $textEnd       = [$point[0] + LinePainter::textWidth($line), $point[1]];
@@ -302,9 +193,7 @@ final class Textflow implements FlowableInterface
             $textEnd,
             $matchboxes,
         );
-        $this->paragraphIndex = $layout->paragraphIndex;
-        $this->itemIndex      = $layout->itemIndex;
-        $this->carry          = $layout->carry;
+        $this->cursor = $layout->cursor;
 
         return $layout->result;
     }
@@ -312,7 +201,7 @@ final class Textflow implements FlowableInterface
     #[Override]
     public function isDone(): bool
     {
-        return $this->paragraphIndex >= count($this->paragraphs);
+        return $this->cursor->paragraph >= count($this->paragraphs);
     }
 
     /** Everything about the most recent fit, or null before the first. */
@@ -349,17 +238,14 @@ final class Textflow implements FlowableInterface
      */
     public function measure(float $width, ?FlowOptions $options = null): float
     {
-        $layout = new Layout(
+        return (new Layout(
             $this->paragraphs,
-            $this->paragraphIndex,
-            $this->itemIndex,
-            $this->carry,
+            $this->cursor,
             $width,
             PHP_FLOAT_MAX,
             $options ?? new FlowOptions(),
-        );
-
-        return $layout->run()->height;
+        ))->run()
+            ->height;
     }
 
     /** The width of the widest unbreakable piece of the remaining text. */
@@ -388,11 +274,11 @@ final class Textflow implements FlowableInterface
     {
         $parts = [];
         foreach ($this->paragraphs as $i => $paragraph) {
-            if ($i < $this->paragraphIndex) {
+            if ($i < $this->cursor->paragraph) {
                 continue;
             }
-            $remaining = $i === $this->paragraphIndex
-                ? BoxSplit::from($paragraph, $this->itemIndex, $this->carry)
+            $remaining = $i === $this->cursor->paragraph
+                ? BoxSplit::from($paragraph, $this->cursor->item, $this->cursor->carry)
                 : $paragraph;
             $parts[] = $remaining->text();
         }
@@ -404,27 +290,8 @@ final class Textflow implements FlowableInterface
     #[Override]
     public function reset(): void
     {
-        $this->paragraphIndex = 0;
-        $this->itemIndex      = 0;
-        $this->carry          = 0;
-        $this->last           = null;
-    }
-
-    private function layoutScaled(float $scale, Box $box, FlowOptions $options): Layout
-    {
-        $paragraphs = $this->scaledParagraphs($scale);
-
-        $layout = new Layout(
-            $paragraphs,
-            $this->paragraphIndex,
-            $this->itemIndex,
-            $this->carry,
-            $box->width,
-            $box->height,
-            $options,
-        );
-
-        return $layout->run();
+        $this->cursor = new FlowCursor();
+        $this->last   = null;
     }
 
     /** @return list<Paragraph> the paragraphs not fully placed, the current one cut at the cursor */
@@ -432,55 +299,14 @@ final class Textflow implements FlowableInterface
     {
         $out = [];
         foreach ($this->paragraphs as $i => $paragraph) {
-            if ($i < $this->paragraphIndex) {
+            if ($i < $this->cursor->paragraph) {
                 continue;
             }
-            $out[] = $i === $this->paragraphIndex
-                ? BoxSplit::from($paragraph, $this->itemIndex, $this->carry)
+            $out[] = $i === $this->cursor->paragraph
+                ? BoxSplit::from($paragraph, $this->cursor->item, $this->cursor->carry)
                 : $paragraph;
         }
 
         return $out;
-    }
-
-    /** @return list<Paragraph> */
-    private function scaledParagraphs(float $scale): array
-    {
-        $out = [];
-        foreach ($this->paragraphs as $paragraph) {
-            $style = $paragraph->style->scaled($scale);
-            $items = [];
-            foreach ($paragraph->items as $item) {
-                $itemStyle = $item->style->scaled($scale);
-                $items[]   = self::scaledItem($item, $itemStyle);
-            }
-            $out[] = new Paragraph($style, $items, $paragraph->level);
-        }
-
-        return $out;
-    }
-
-    /**
-     * Finds the largest scale within the shrink limit at which the remaining text fits.
-     *
-     * @return array{0: Layout, 1: float}
-     */
-    private function shrink(Box $box, FlowOptions $options): array
-    {
-        $lo   = $options->shrinkLimit;
-        $hi   = 1.0;
-        $best = null;
-        for ($i = 0; $i < 8; ++$i) {
-            $mid    = ($lo + $hi) / 2.0;
-            $layout = $this->layoutScaled($mid, $box, $options);
-            if (FlowResult::Done !== $layout->result) {
-                $hi = $mid;
-                continue;
-            }
-            $best = [$layout, $mid];
-            $lo   = $mid;
-        }
-
-        return $best ?? [$this->layoutScaled($options->shrinkLimit, $box, $options), $options->shrinkLimit];
     }
 }

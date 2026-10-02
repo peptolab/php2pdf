@@ -53,7 +53,6 @@ cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
     "src/Table/Planner.php",
     # Ratchet: the text engine's breaker, assembler, itemiser stages and layout result.
     "src/Text/Flow/Itemiser.php",
-    "src/Text/Flow/Layout.php",
     "src/Text/Flow/GreedyBreaker.php",
     "src/Text/Flow/LineAssembler.php",
     "src/Text/Flow/ParagraphComposer.php",
@@ -85,7 +84,6 @@ kan-defect = { threshold = 4.5, exclude = [
     "src/Text/Flow/Itemiser.php",
     "src/Text/Flow/GreedyBreaker.php",
     "src/Text/Flow/LineAssembler.php",
-    "src/Text/Textflow.php",
 ] }
 # The HarfBuzz adapter's purpose is to call the library through FFI; nothing else may.
 no-ffi = { exclude = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] }
