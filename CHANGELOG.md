@@ -30,7 +30,7 @@ The first release.
 - Colour fonts with COLR version 0 layers, in their palette colours; bitmap-only fonts refused with a clear error.
 - OpenType features by tag (`tnum`, `onum`, `smcp`, `c2sc`, `case`, `frac`, `sups` and others) through
   single, alternate, ligature and chained context substitution.
-- Fallback font stacks; a missing-glyph policy (`GlyphCheck`).
+- Fallback font stacks; a missing-glyph policy (`GlyphCheck`), and a policy for scripts the engine cannot shape yet (`ScriptCheck`, refusing them by default).
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and
   fixed-width Unicode spaces.

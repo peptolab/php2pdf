@@ -9,6 +9,7 @@ use Php2Pdf\Core\ClockInterface;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\SystemClock;
 use Php2Pdf\Font\GlyphCheck;
+use Php2Pdf\Font\ScriptCheck;
 
 /**
  * Options fixed for the lifetime of a document.
@@ -20,6 +21,7 @@ final readonly class DocumentOptions
     public ClockInterface $clock;
     public string $version;
     public GlyphCheck $glyphCheck;
+    public ScriptCheck $scriptCheck;
     public Limits $limits;
 
     /**
@@ -30,6 +32,8 @@ final readonly class DocumentOptions
      * @param GlyphCheck|null $glyphCheck what to do with characters a font has no glyph for: Error under
      *                                    PDF/X and Warn otherwise, unless set
      * @param Limits|null     $limits     resource limits for the PDFs, images and SVG the document reads
+     * @param ScriptCheck|null $scriptCheck what to do with text in a script that needs shaping the
+     *                                     library cannot do yet: Error unless set
      */
     public function __construct(
         string $version = '1.7',
@@ -44,10 +48,12 @@ final readonly class DocumentOptions
         public ?IccProfile $rgbProfile = null,
         ?GlyphCheck $glyphCheck = null,
         ?Limits $limits = null,
+        ?ScriptCheck $scriptCheck = null,
     ) {
-        $this->limits     = $limits ?? Limits::default();
-        $this->clock      = $clock ?? new SystemClock();
-        $this->version    = null === $pdfx ? $version : $pdfx->version();
-        $this->glyphCheck = $glyphCheck ?? (null === $pdfx ? GlyphCheck::Warn : GlyphCheck::Error);
+        $this->limits      = $limits ?? Limits::default();
+        $this->clock       = $clock ?? new SystemClock();
+        $this->version     = null === $pdfx ? $version : $pdfx->version();
+        $this->glyphCheck  = $glyphCheck ?? (null === $pdfx ? GlyphCheck::Warn : GlyphCheck::Error);
+        $this->scriptCheck = $scriptCheck ?? ScriptCheck::Error;
     }
 }

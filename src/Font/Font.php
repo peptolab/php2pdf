@@ -74,6 +74,11 @@ final class Font implements PdfFontInterface, DeferredInterface
     /** @var array<int, true> code points already reported as missing */
     private array $missing = [];
 
+    private readonly ScriptCheck $scriptCheck;
+
+    /** @var array<string, true> scripts already reported as unshaped */
+    private array $unshaped = [];
+
     /** @internal */
     public function __construct(
         private readonly Document $document,
@@ -90,10 +95,11 @@ final class Font implements PdfFontInterface, DeferredInterface
                 [] === $bitmaps ? '' : ': its glyphs are ' . implode(', ', $bitmaps) . ' bitmaps',
             ));
         }
-        $this->registry   = $document->fonts();
-        $this->glyphCheck = $document->options()->glyphCheck;
-        $this->reference  = $document->writer()->allocate();
-        $this->scale      = 1000.0 / $program->unitsPerEm;
+        $this->registry    = $document->fonts();
+        $this->glyphCheck  = $document->options()->glyphCheck;
+        $this->scriptCheck = $document->options()->scriptCheck;
+        $this->reference   = $document->writer()->allocate();
+        $this->scale       = 1000.0 / $program->unitsPerEm;
         $document->defer($this);
         if ($program->hasColrVersion1Glyphs()) {
             $this->registry->warn(sprintf(
@@ -288,6 +294,7 @@ final class Font implements PdfFontInterface, DeferredInterface
         if (null !== $cached) {
             return $cached;
         }
+        $this->checkScript($text);
         $sequence = [];
         foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
             $codePoint = mb_ord($char, encoding: 'UTF-8');
@@ -414,6 +421,35 @@ final class Font implements PdfFontInterface, DeferredInterface
         $cff2 = $this->program->table('CFF2') ?? throw new ParseException('The font has no CFF or CFF2 table.');
 
         return CffTable::fromCff2($cff2, $this->program->postScriptName());
+    }
+
+    /**
+     * Applies the document's script check to text in a script that needs shaping the library
+     * cannot do yet.
+     *
+     * @throws PdfException under ScriptCheck::Error
+     */
+    private function checkScript(string $text): void
+    {
+        if (ScriptCheck::Ignore === $this->scriptCheck) {
+            return;
+        }
+        $found = ComplexScripts::find($text);
+        if (null === $found || array_key_exists($found[1], $this->unshaped)) {
+            return;
+        }
+        [$codePoint, $script] = $found;
+        $what = sprintf(
+            '%s text (U+%04X) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "%s"',
+            $script,
+            $codePoint,
+            $this->program->postScriptName(),
+        );
+        if (ScriptCheck::Error === $this->scriptCheck) {
+            throw new PdfException("{$what}. Set DocumentOptions::\$scriptCheck to Warn or Ignore to set it unshaped.");
+        }
+        $this->unshaped[$script] = true;
+        $this->registry->warn("{$what}; it is set unshaped.");
     }
 
     private function flags(): int

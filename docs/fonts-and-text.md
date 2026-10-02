@@ -84,6 +84,15 @@ default) records a warning in `$doc->fonts()->warnings()` once per font and char
 default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
 does not pick up a wrong character for it.
 
+### Complex scripts
+
+Right-to-left scripts (Hebrew, Arabic and their relatives), Indic and other South and South East
+Asian scripts, and conjoining Hangul jamo need shaping the font engine does not do yet: set as
+they are, they would come out wrong. By default such text throws a `PdfException` naming the
+script and character. `DocumentOptions(scriptCheck: ScriptCheck::Warn)` sets it unshaped and
+records a warning once per font and script; `ScriptCheck::Ignore` sets it silently. Latin, Greek,
+Cyrillic, CJK and precomposed Hangul are not affected.
+
 ### Fallback fonts
 
 A text style can name fonts to try, in order, for characters its font lacks, as PDFlib's

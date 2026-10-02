@@ -27,6 +27,7 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `pdfx` | `null` | Write to a PDF/X level (see [navigation-and-pdfx.md](navigation-and-pdfx.md)) |
 | `rgbProfile` | `null` | An ICC profile RGB colours are interpreted in |
 | `glyphCheck` | `Warn` (`Error` under PDF/X) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
+| `scriptCheck` | `Error` | What text in a script the engine cannot shape yet does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `limits` | `Limits::default()` | Resource limits for the PDFs, images and SVG the document reads |
 
 `Limits` caps what reading a hostile or broken file can cost: `maxDecodedBytes` (256 MiB per

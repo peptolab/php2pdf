@@ -5,7 +5,8 @@ Known gaps, in rough order of how often they matter.
 - **Scripts.** Latin text is shaped with the font's substitutions (standard ligatures, and other
   features asked for by tag) and pair kerning. Multiple, context and reverse chaining
   substitutions (GSUB types 2, 5 and 8), lookup flags such as ignoring marks, mark positioning,
-  Arabic, Indic and CJK vertical text are not supported.
+  Arabic, Indic and CJK vertical text are not supported; text in those scripts is refused unless
+  `DocumentOptions::$scriptCheck` says otherwise.
 - **Variable fonts** draw their default instance only; named instances and axis values are not
   supported.
 - **Soft masks** (and SVG masks) are placed wrongly by macOS Preview inside artwork placed scaled or
