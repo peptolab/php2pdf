@@ -27,6 +27,9 @@ final class Layout
     public float $height = 0.0;
     public int $paragraphIndex;
     public int $itemIndex;
+
+    /** The characters of the item at the cursor already placed: a box split across lines. */
+    public int $carry;
     public FlowResult $result = FlowResult::Done;
 
     private float $y = 0.0;
@@ -36,12 +39,33 @@ final class Layout
         private readonly array $paragraphs,
         int $paragraphIndex,
         int $itemIndex,
+        int $carry,
         private readonly float $width,
         private readonly float $boxHeight,
         private readonly FlowOptions $options,
     ) {
         $this->paragraphIndex = $paragraphIndex;
         $this->itemIndex      = $itemIndex;
+        $this->carry          = $carry;
+    }
+
+    /**
+     * Where lines from the cursor end: the whole items they take, and the carry into the next.
+     *
+     * @param list<array{0: Line, 1: float}> $lines
+     *
+     * @return array{0: int, 1: int}
+     */
+    private static function advance(array $lines, int $carry): array
+    {
+        $consumed = 0;
+        $end      = $carry;
+        foreach ($lines as [$line]) {
+            $consumed += $line->itemsConsumed;
+            $end      = $line->carry;
+        }
+
+        return [$consumed, $end];
     }
 
     public function run(): self
@@ -74,11 +98,8 @@ final class Layout
             return [];
         }
         $widows = $paragraph->style->widows ?? 2;
-        $placed = 0;
-        foreach ($lines as [$line]) {
-            $placed += $line->itemsConsumed;
-        }
-        $remaining = $this->countRemainingLines($paragraph, $this->itemIndex + $placed, $widows);
+        [$placed, $carry] = self::advance($lines, $this->carry);
+        $remaining = $this->countRemainingLines($paragraph, $this->itemIndex + $placed, $carry, $widows);
         $keep      = count($lines) - max(0, $widows - $remaining);
         if ($keep < $orphanFloor) {
             $keep = 0;
@@ -95,7 +116,8 @@ final class Layout
         $lines      = [];
         $consumed   = 0;
         $offset     = $this->itemIndex;
-        $lineNumber = 0 === $offset ? 0 : 1;
+        $carry      = $this->carry;
+        $lineNumber = 0 === $offset && 0 === $carry ? 0 : 1;
         $y          = $this->y;
         while (null !== ($item = $paragraph->items[$offset] ?? null)) {
             if (ItemKind::ColumnBreak === $item->kind || ItemKind::PageBreak === $item->kind) {
@@ -104,9 +126,10 @@ final class Layout
                     $consumed,
                     ItemKind::PageBreak === $item->kind ? FlowResult::NextPage : FlowResult::BoxFull,
                     $y,
+                    $carry,
                 );
             }
-            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, $lineNumber);
+            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
             if (null === $line) {
                 break;
             }
@@ -119,32 +142,37 @@ final class Layout
             $y        = $baseline;
             $offset   += $line->itemsConsumed;
             $consumed += $line->itemsConsumed;
+            $carry    = $line->carry;
             ++$lineNumber;
         }
-        return new LineRun($lines, $consumed, null, $y);
+
+        return new LineRun($lines, $consumed, null, $y, $carry);
     }
 
     /** @param list<array{0: Line, 1: float}> $lines */
-    private function commit(array $lines, int $consumed): void
+    private function commit(array $lines): void
     {
+        [$consumed, $carry] = self::advance($lines, $this->carry);
         foreach ($lines as [$line, $baseline]) {
             $this->lines[] = [$line, $baseline];
             $this->y       = $baseline;
             $this->height  = max($this->height, $baseline + $line->descent);
         }
         $this->itemIndex += $consumed;
+        $this->carry     = $carry;
     }
 
-    private function countRemainingLines(Paragraph $paragraph, int $offset, int $limit): int
+    private function countRemainingLines(Paragraph $paragraph, int $offset, int $carry, int $limit): int
     {
         $count = 0;
         while ($count <= $limit) {
-            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, 1);
+            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, 1, $carry);
             if (null === $line) {
                 break;
             }
             ++$count;
             $offset += $line->itemsConsumed;
+            $carry  = $line->carry;
         }
 
         return $count;
@@ -182,7 +210,8 @@ final class Layout
     private function placeParagraph(Paragraph $paragraph): ?FlowResult
     {
         $style    = $paragraph->style;
-        $starting = 0 === $this->itemIndex;
+        $starting = 0 === $this->itemIndex && 0 === $this->carry;
+        $carry    = $this->carry;
         $atTop    = [] === $this->lines;
         $yStart   = $this->y;
         if ($starting && ! $atTop) {
@@ -194,18 +223,19 @@ final class Layout
 
         if (null !== $run->stop) {
             // An explicit column or page break: keep what came before it and consume the break.
-            $this->commit($run->lines, $run->consumed);
+            $this->commit($run->lines);
             $this->skipBreakItem($paragraph);
 
             return $run->stop;
         }
         if ($complete) {
-            $this->commit($run->lines, $run->consumed);
+            $this->commit($run->lines);
             $this->y += $style->spaceAfter ?? 0.0;
             ++$this->paragraphIndex;
             $this->itemIndex = 0;
+            $this->carry     = 0;
             if (true === $style->keepWithNext && ! $atTop && ! $this->nextParagraphStarts()) {
-                $this->rollBack($paragraph, $run, $yStart);
+                $this->rollBack($paragraph, $run, $yStart, $carry);
 
                 return FlowResult::BoxFull;
             }
@@ -224,21 +254,18 @@ final class Layout
 
             return $atTop ? FlowResult::BoxEmpty : FlowResult::BoxFull;
         }
-        $consumed = 0;
-        foreach ($lines as [$line]) {
-            $consumed += $line->itemsConsumed;
-        }
-        $this->commit($lines, $consumed);
+        $this->commit($lines);
 
         return FlowResult::BoxFull;
     }
 
     /** Removes a committed paragraph again so it moves to the next box with its successor. */
-    private function rollBack(Paragraph $paragraph, LineRun $run, float $yStart): void
+    private function rollBack(Paragraph $paragraph, LineRun $run, float $yStart, int $carry): void
     {
         $this->lines = array_slice($this->lines, offset: 0, length: count($this->lines) - count($run->lines));
         --$this->paragraphIndex;
         $this->itemIndex = count($paragraph->items) - $run->consumed;
+        $this->carry     = $carry;
         $this->y         = $yStart;
         $this->height    = 0.0;
         foreach ($this->lines as [$line, $baseline]) {
@@ -250,6 +277,7 @@ final class Layout
     private function skipBreakItem(Paragraph $paragraph): void
     {
         ++$this->itemIndex;
+        $this->carry = 0;
         if ($this->itemIndex >= count($paragraph->items)) {
             ++$this->paragraphIndex;
             $this->itemIndex = 0;

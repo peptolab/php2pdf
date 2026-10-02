@@ -15,12 +15,26 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_slice;
+use function count;
+use function implode;
 use function mb_chr;
 
 #[Group('unit')]
 final class LineBreakerTest extends TestCase
 {
     use KerningFixtureTrait;
+
+    private static function text(Line $line): string
+    {
+        $text = '';
+        foreach ($line->segments as $segment) {
+            foreach ($segment->run->glyphs as $glyph) {
+                $text .= $glyph->text();
+            }
+        }
+
+        return $text;
+    }
 
     #[Test]
     public function aHyphenatedLineKernsItsLastLetterAgainstTheHyphen(): void
@@ -77,6 +91,31 @@ final class LineBreakerTest extends TestCase
         self::assertSame(
             [0.0, $this->serif->width('AT', 10.0)],
             [$this->lastGlyphs($line, 1)[0]->kerning, $line->width],
+        );
+    }
+
+    #[Test]
+    public function aWordTooWideForAnyLineRunsOnAcrossLinesAndLeavesTheParagraphAsItWas(): void
+    {
+        $word      = 'Donaudampfschifffahrtsgesellschaft';
+        $items     = (new Itemiser($this->hyphenators))->itemise([[$word, $this->style]]);
+        $paragraph = new Paragraph($this->style, $items);
+        $width     = $this->serif->width('Donaudampf', 10.0);
+        $lines     = [];
+        $offset    = 0;
+        $carry     = 0;
+        while (null !== ($line = LineBreaker::nextLine($paragraph, $offset, $width, count($lines), $carry))) {
+            $lines[] = self::text($line);
+            $offset  += $line->itemsConsumed;
+            $carry   = $line->carry;
+            if ($line->last) {
+                break;
+            }
+        }
+
+        self::assertSame(
+            [$word, true, true],
+            [implode('', $lines), count($lines) > 2, $items === $paragraph->items],
         );
     }
 

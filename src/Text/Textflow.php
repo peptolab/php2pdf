@@ -13,6 +13,7 @@ use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\Bidi\Bidi;
 use Php2Pdf\Text\Bidi\BidiRuns;
+use Php2Pdf\Text\Flow\BoxSplit;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
@@ -48,9 +49,12 @@ use const PHP_FLOAT_MAX;
  */
 final class Textflow implements FlowableInterface
 {
-    private int      $paragraphIndex = 0;
-    private int      $itemIndex      = 0;
-    private ?FitInfo $last           = null;
+    private int $paragraphIndex = 0;
+    private int $itemIndex      = 0;
+
+    /** The characters of the item at the cursor already placed: a word split across lines. */
+    private int      $carry = 0;
+    private ?FitInfo $last  = null;
 
     /**
      * @param list<Paragraph> $paragraphs
@@ -241,6 +245,7 @@ final class Textflow implements FlowableInterface
             $this->paragraphs,
             $this->paragraphIndex,
             $this->itemIndex,
+            $this->carry,
             $box->width,
             $box->height,
             $options,
@@ -285,6 +290,7 @@ final class Textflow implements FlowableInterface
         );
         $this->paragraphIndex = $layout->paragraphIndex;
         $this->itemIndex      = $layout->itemIndex;
+        $this->carry          = $layout->carry;
 
         return $layout->result;
     }
@@ -333,6 +339,7 @@ final class Textflow implements FlowableInterface
             $this->paragraphs,
             $this->paragraphIndex,
             $this->itemIndex,
+            $this->carry,
             $width,
             PHP_FLOAT_MAX,
             $options ?? new FlowOptions(),
@@ -370,11 +377,10 @@ final class Textflow implements FlowableInterface
             if ($i < $this->paragraphIndex) {
                 continue;
             }
-            $items = $i === $this->paragraphIndex
-                ? array_slice($paragraph->items, $this->itemIndex)
-                : $paragraph->items;
-            $remaining = new Paragraph($paragraph->style, $items, $paragraph->level);
-            $parts[]   = $remaining->text();
+            $remaining = $i === $this->paragraphIndex
+                ? BoxSplit::from($paragraph, $this->itemIndex, $this->carry)
+                : $paragraph;
+            $parts[] = $remaining->text();
         }
 
         return implode("\n\n", $parts);
@@ -386,6 +392,7 @@ final class Textflow implements FlowableInterface
     {
         $this->paragraphIndex = 0;
         $this->itemIndex      = 0;
+        $this->carry          = 0;
         $this->last           = null;
     }
 
@@ -397,6 +404,7 @@ final class Textflow implements FlowableInterface
             $paragraphs,
             $this->paragraphIndex,
             $this->itemIndex,
+            $this->carry,
             $box->width,
             $box->height,
             $options,
@@ -413,14 +421,9 @@ final class Textflow implements FlowableInterface
             if ($i < $this->paragraphIndex) {
                 continue;
             }
-            $out[] =
-                $i === $this->paragraphIndex && $this->itemIndex > 0
-                    ? new Paragraph(
-                        $paragraph->style,
-                        array_slice($paragraph->items, $this->itemIndex),
-                        $paragraph->level,
-                    )
-                    : $paragraph;
+            $out[] = $i === $this->paragraphIndex
+                ? BoxSplit::from($paragraph, $this->itemIndex, $this->carry)
+                : $paragraph;
         }
 
         return $out;

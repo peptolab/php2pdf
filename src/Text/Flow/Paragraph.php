@@ -9,8 +9,6 @@ use Php2Pdf\Text\Style\Composer;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_key_exists;
-use function array_splice;
-use function array_values;
 use function max;
 
 /**
@@ -83,18 +81,6 @@ final class Paragraph
         }
 
         return $this->plan[1][$start] ?? null;
-    }
-
-    /**
-     * Replaces the item at $index with the given pieces.
-     *
-     * @param list<Item> $pieces
-     */
-    public function split(int $index, array $pieces): void
-    {
-        array_splice($this->items, $index, length: 1, replacement: $pieces);
-        $this->items = array_values($this->items);
-        $this->plan  = null;
     }
 
     public function text(): string

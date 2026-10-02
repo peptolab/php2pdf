@@ -66,16 +66,6 @@ final class ParagraphTest extends TestCase
     }
 
     #[Test]
-    public function splittingAnItemPlansTheLinesAgain(): void
-    {
-        $paragraph = self::paragraph(new TextStyle(alignment: Alignment::Justify));
-        $paragraph->plannedEnd(0, 20.0, 0);
-        $paragraph->split(0, [self::box(4.0), self::box(5.0)]);
-
-        self::assertSame(8, $paragraph->plannedEnd(0, 20.0, 0)?->index);
-    }
-
-    #[Test]
     public function textTheComposerCannotSetHasNoPlan(): void
     {
         $style     = new TextStyle(alignment: Alignment::Justify);

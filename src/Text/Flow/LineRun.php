@@ -17,11 +17,13 @@ final readonly class LineRun
      * @param list<array{0: Line, 1: float}> $lines    lines with their baseline offsets
      * @param int                            $consumed items used by the lines
      * @param ?FlowResult                    $stop     set when a column or page break item was reached
+     * @param int                            $carry    the characters placed of the item after those consumed
      */
     public function __construct(
         public array $lines,
         public int $consumed,
         public ?FlowResult $stop,
         public float $y,
+        public int $carry = 0,
     ) {}
 }

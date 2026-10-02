@@ -17,10 +17,7 @@ use function ceil;
 use function count;
 use function end;
 use function floor;
-use function implode;
-use function intdiv;
 use function max;
-use function mb_str_split;
 use function preg_match;
 use function strpos;
 use function substr;
@@ -40,14 +37,20 @@ final class LineBreaker
      *
      * @param int $lineNumber 0 for the paragraph's first line, which takes the first-line indent
      */
-    public static function nextLine(Paragraph $paragraph, int $offset, float $width, int $lineNumber): ?Line
-    {
+    public static function nextLine(
+        Paragraph $paragraph,
+        int $offset,
+        float $width,
+        int $lineNumber,
+        int $carry = 0,
+    ): ?Line {
         $style = $paragraph->style;
         $items = $paragraph->items;
         $count = count($items);
         if ($offset >= $count) {
             return null;
         }
+        $items     = BoxSplit::resume($items, $offset, $carry);
         $left      = ($style->leftIndent ?? 0.0) + (0 === $lineNumber ? $style->firstLineIndent ?? 0.0 : 0.0);
         $available = max(1.0, $width - $left - ($style->rightIndent ?? 0.0));
 
@@ -56,24 +59,14 @@ final class LineBreaker
         while (ItemKind::Glue === ($items[$start] ?? null)?->kind) {
             ++$start;
         }
-        $end = $paragraph->plannedEnd($start, $width, $lineNumber) ?? self::measure(
-            $paragraph,
-            $start,
-            $available,
-        );
-        if ($end->splitAt >= 0) {
-            $items = $paragraph->items;
-            $count = count($items);
-        }
+        $end = (0 === $carry ? $paragraph->plannedEnd($start, $width, $lineNumber) : null)
+            ?? self::measure($items, $style, $start, $available);
+        [$items, $consumed] = null === $end->head
+            ? [$items, [self::consumed($end, $items, $offset), 0]]
+            : BoxSplit::line($items, $end, $offset, $carry);
         $lineItems = array_slice($items, $start, $end->index - $start);
-        $consumed  = self::consumed($end, $items, $offset);
-        $last      = ($start + $end->index - $start + ($end->forced ? 1 : 0)) >= $count || $end->forced;
-
-        $start     = 1 === ($paragraph->level & 1) ? Alignment::Right : Alignment::Left;
-        $alignment = $style->alignment ?? $start;
-        if ($last && Alignment::Justify === $alignment) {
-            $alignment = $style->lastLineAlignment ?? $start;
-        }
+        [$body, $lastLine] = self::alignments($paragraph);
+        $last = 0 === $consumed[1] && (($end->index + ($end->forced ? 1 : 0)) >= $count || $end->forced);
 
         if (ItemKind::Glue === ($items[$end->index] ?? null)?->kind) {
             $lineItems = self::rekernLast($lineItems, null);
@@ -83,7 +76,7 @@ final class LineBreaker
             $lineItems,
             $end->hyphen,
             $style,
-            [$alignment, $paragraph->level],
+            [$last ? $lastLine : $body, $paragraph->level],
             $left,
             $available,
             $consumed,
@@ -92,11 +85,30 @@ final class LineBreaker
     }
 
     /**
+     * The paragraph's alignments: for its lines, by default its direction's start edge, and for
+     * its last line, which justified text sets with the last-line alignment.
+     *
+     * @return array{0: Alignment, 1: Alignment}
+     */
+    private static function alignments(Paragraph $paragraph): array
+    {
+        $start     = 1 === ($paragraph->level & 1) ? Alignment::Right : Alignment::Left;
+        $alignment = $paragraph->style->alignment ?? $start;
+
+        return [
+            $alignment,
+            Alignment::Justify === $alignment ? $paragraph->style->lastLineAlignment ?? $start : $alignment,
+        ];
+    }
+
+    /**
      * Positions the line's items in visual order: alignment, justification and tabs, merging runs
      * per style.
      *
      * @param list<Item>                  $items     in logical order
      * @param array{0: Alignment, 1: int} $direction the line's alignment and the paragraph's bidi level
+     * @param array{0: int, 1: int}       $consumed  the whole items the line takes, and the characters
+     *                                               placed of the item after them
      */
     private static function compose(
         array $items,
@@ -105,7 +117,7 @@ final class LineBreaker
         array $direction,
         float $left,
         float $available,
-        int $consumed,
+        array $consumed,
         bool $last,
     ): Line {
         $end = count($items);
@@ -157,9 +169,10 @@ final class LineBreaker
             $metrics['xHeight'],
             $metrics['lineHeight'],
             $style,
-            $consumed,
+            $consumed[0],
             $last,
             $inlines,
+            $consumed[1],
         );
     }
 
@@ -217,21 +230,23 @@ final class LineBreaker
     }
 
     /**
-     * Finds where the line ends. Splits an over-wide box inside the paragraph when needed.
+     * Finds where the line ends. A box too wide for any line is split between characters, its
+     * head ending the line.
+     *
+     * @param list<Item> $items
      */
-    private static function measure(Paragraph $paragraph, int $start, float $available): LineEnd
+    private static function measure(array $items, TextStyle $style, int $start, float $available): LineEnd
     {
-        $items     = $paragraph->items;
         $count     = count($items);
         $x         = 0.0;
         $lastBreak = -1;
-        $tabs      = self::tabPositions($paragraph->style);
+        $tabs      = self::tabPositions($style);
         for ($i = $start; null !== ($item = $items[$i] ?? null); ++$i) {
             if ($item->isForcedBreak()) {
                 return new LineEnd($i, null, true);
             }
             if (ItemKind::Tab === $item->kind) {
-                $x = self::tabTarget($x, $items, $i + 1, $tabs, $paragraph->style);
+                $x = self::tabTarget($x, $items, $i + 1, $tabs, $style);
                 continue;
             }
             if (ItemKind::Penalty === $item->kind) {
@@ -257,11 +272,7 @@ final class LineBreaker
             if (null !== $breakItem) {
                 return new LineEnd($lastBreak, ItemKind::Penalty === $breakItem->kind ? $breakItem : null, false);
             }
-            // A single box wider than the line: split it between characters.
-            $pieces = self::splitBox($item, $available - $x);
-            $paragraph->split($i, $pieces);
-
-            return new LineEnd($i + 1, null, false, $i);
+            return new LineEnd($i + 1, null, false, BoxSplit::head($item, $available - $x));
         }
 
         return new LineEnd($count, null, false);
@@ -434,32 +445,6 @@ final class LineBreaker
         }
 
         return [$segments, $x, $inlines];
-    }
-
-    /**
-     * Splits a box so its first piece fits $width (at least one character).
-     *
-     * @return list<Item>
-     */
-    private static function splitBox(Item $item, float $width): array
-    {
-        $chars = mb_str_split($item->text, length: 1, encoding: 'UTF-8');
-        $n     = count($chars);
-        $lo    = 1;
-        $hi    = max(1, $n - 1);
-        while ($lo < $hi) {
-            $mid = intdiv($lo + $hi + 1, num2: 2);
-            $box = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $mid)), $item->style, $item->level);
-            if ($box->width > $width) {
-                $hi = $mid - 1;
-                continue;
-            }
-            $lo = $mid;
-        }
-        $head = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $lo)), $item->style, $item->level);
-        $tail = implode('', array_slice($chars, $lo));
-
-        return '' === $tail ? [$head] : [$head, Itemiser::box($tail, $item->style, $item->level)];
     }
 
     /**

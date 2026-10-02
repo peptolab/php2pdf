@@ -12,15 +12,17 @@ namespace Php2Pdf\Text\Flow;
 final readonly class LineEnd
 {
     /**
-     * @param int   $index   the first item not on the line (a glue, penalty or break item when breaking there)
-     * @param ?Item $hyphen  the penalty the line broke at, when it shows a hyphen
-     * @param bool  $forced  whether the line ends at an explicit break item
-     * @param int   $splitAt the index of a box that was split to fit, or -1
+     * @param int   $index  the first item not on the line (a glue, penalty or break item when
+     *                      breaking there); for a split box, the one after it
+     * @param ?Item $hyphen the penalty the line broke at, when it shows a hyphen
+     * @param bool  $forced whether the line ends at an explicit break item
+     * @param ?Item $head   for a box too wide for any line, split between characters: the part
+     *                      on this line, which takes the box's place (the box is $index - 1)
      */
     public function __construct(
         public int $index,
         public ?Item $hyphen,
         public bool $forced,
-        public int $splitAt = -1,
+        public ?Item $head = null,
     ) {}
 }
