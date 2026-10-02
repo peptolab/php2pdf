@@ -17,7 +17,6 @@ use function count;
 use function hypot;
 use function implode;
 use function in_array;
-use function ltrim;
 use function max;
 use function min;
 use function sprintf;
@@ -167,12 +166,8 @@ final class PaintServers
         $current = $element;
         $limit   = $this->file->limits->maxSvgDepth;
         while (true) {
-            $href = $current->href();
-            if (null === $href) {
-                break;
-            }
-            $target = ltrim(trim($href), characters: '#');
-            $next   = '' === $target ? null : $this->file->byId($target);
+            $target = ElementRef::fromHref($current->href());
+            $next   = null === $target ? null : $this->file->byId($target);
             if (null === $next) {
                 break;
             }

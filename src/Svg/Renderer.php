@@ -15,9 +15,6 @@ use Php2Pdf\Geometry\Path;
 use Php2Pdf\Template\Template;
 
 use function array_key_exists;
-use function ltrim;
-use function str_starts_with;
-use function trim;
 
 /**
  * Walks the element tree and draws it on a template's canvas: groups, transforms, clip paths,
@@ -245,13 +242,12 @@ final class Renderer
     /** @throws ParseException */
     private function use(Canvas $canvas, Element $use, Style $style): void
     {
-        $href = $use->href();
-        if (null === $href || ! str_starts_with(trim($href), '#')) {
+        $id = ElementRef::fromHref($use->href());
+        if (null === $id) {
             $this->context->warn('external <use> references');
 
             return;
         }
-        $id     = ltrim(trim($href), characters: '#');
         $target = $this->context->file->byId($id);
         if (null === $target) {
             return;

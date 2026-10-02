@@ -259,11 +259,9 @@ final class ColorParser
         if ('none' === strtolower($value)) {
             return Paint::none();
         }
-        $m = [];
-        if (preg_match('/^url\(\s*["\']?#([^"\')]+)["\']?\s*\)\s*(.*)$/', $value, $m) === 1) {
-            $fallback = '' === trim($m[2] ?? '') ? null : self::color($m[2] ?? '', $currentColor);
-
-            return Paint::server($m[1] ?? '', $fallback);
+        $url = ElementRef::splitUrl($value);
+        if (null !== $url) {
+            return Paint::server($url[0], '' === $url[1] ? null : self::color($url[1], $currentColor));
         }
         $color = self::color($value, $currentColor);
 

@@ -10,7 +10,6 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Path;
 
-use function ltrim;
 use function trim;
 
 /**
@@ -98,7 +97,7 @@ final readonly class ClipBuilder
             }
             $path = $this->context->guard->within(
                 'use',
-                $this->useId($child),
+                $target->id() ?? '',
                 fn(): ?Path => Shapes::path(
                     $target,
                     $style->derive($target, $this->context->sheet),
@@ -182,7 +181,7 @@ final readonly class ClipBuilder
         }
         $box = $this->context->guard->within(
             'use',
-            $this->useId($use),
+            $target->id() ?? '',
             /** @throws ParseException */
             fn(): ?Box => $this->bounds($target, $style),
         );
@@ -192,16 +191,11 @@ final readonly class ClipBuilder
         return $box?->translate($x, $y);
     }
 
-    private function useId(Element $use): string
-    {
-        return ltrim(trim($use->href() ?? ''), characters: '#');
-    }
-
     /** @throws ParseException */
     private function useTarget(Element $use): ?Element
     {
-        $id = $this->useId($use);
+        $id = ElementRef::fromHref($use->href());
 
-        return '' === $id ? null : $this->context->file->byId($id);
+        return null === $id ? null : $this->context->file->byId($id);
     }
 }

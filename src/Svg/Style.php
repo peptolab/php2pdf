@@ -15,7 +15,6 @@ use function explode;
 use function is_numeric;
 use function max;
 use function min;
-use function preg_match;
 use function str_ends_with;
 use function strtolower;
 use function substr;
@@ -124,12 +123,7 @@ final class Style
 
     public function clipPathId(): ?string
     {
-        $m = [];
-        if (preg_match('/url\(\s*["\']?#([^"\')]+)["\']?\s*\)/', $this->properties['clip-path'] ?? '', $m) !== 1) {
-            return null;
-        }
-
-        return $m[1] ?? null;
+        return ElementRef::fromUrl($this->properties['clip-path'] ?? null);
     }
 
     public function clipRule(): FillRule
@@ -325,15 +319,7 @@ final class Style
     /** The marker for 'start', 'mid' or 'end' vertices, or null. */
     public function markerId(string $position): ?string
     {
-        $m = [];
-        if (
-            preg_match('/url\(\s*["\']?#([^"\')]+)["\']?\s*\)/', $this->properties["marker-{$position}"] ?? '', $m)
-            !== 1
-        ) {
-            return null;
-        }
-
-        return $m[1] ?? null;
+        return ElementRef::fromUrl($this->properties["marker-{$position}"] ?? null);
     }
 
     /** Whether a <mask> masks by alpha (mask-type="alpha") rather than luminance. */
@@ -345,12 +331,7 @@ final class Style
     /** The id of the mask the element is drawn through, from mask: url(#id). */
     public function maskId(): ?string
     {
-        $m = [];
-        if (preg_match('/url\(\s*["\']?#([^"\')]+)["\']?\s*\)/', $this->properties['mask'] ?? '', $m) !== 1) {
-            return null;
-        }
-
-        return $m[1] ?? null;
+        return ElementRef::fromUrl($this->properties['mask'] ?? null);
     }
 
     public function miterLimit(): float
