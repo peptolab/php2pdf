@@ -7,7 +7,6 @@ namespace Php2Pdf\Import;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
-use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\ParseException;
 
 use function array_fill_keys;
@@ -18,6 +17,7 @@ use function count;
 use function in_array;
 use function is_array;
 use function is_string;
+use function strlen;
 use function substr;
 
 /**
@@ -120,39 +120,15 @@ final class HiddenContent
      */
     public function filter(string $content, ?Dictionary $resources): string
     {
-        $lexer          = new Lexer($content);
-        $parser         = new ObjectParser($lexer, maxNesting: $this->reader->limits()->maxObjectNesting);
+        $parser         = new ContentStreamParser($content, $this->reader->limits()->maxObjectNesting);
         $this->cuts     = [];
         $this->skipFrom = null;
         $this->depth    = 0;
-        $operands       = [];
-        $start          = null;
-        while (true) {
-            $before = $lexer->position();
-            try {
-                $token = $lexer->next();
-                if ($token->is(Token::END)) {
-                    break;
-                }
-                $value = $token->is(Token::KEYWORD) ? $token : $parser->parse($token);
-            } catch (ExceptionInterface) {
-                break;
-            }
-            if (! $value instanceof Token || ! $value->is(Token::KEYWORD)) {
-                $start      ??= $before;
-                $operands[] = $value;
-                continue;
-            }
-            $operator = (string) $value->value;
-            if ('BI' === $operator) {
-                $this->skipInlineImage($lexer);
-            }
-            $this->operator($operator, $operands, $start ?? $before, $lexer->position(), $resources);
-            $operands = [];
-            $start    = null;
+        foreach ($parser->operations() as $operation) {
+            $this->operator($operation, $resources);
         }
         if (null !== $this->skipFrom) {
-            $this->cuts[] = [$this->skipFrom, $lexer->length()];
+            $this->cuts[] = [$this->skipFrom, strlen($content)];
         }
 
         return self::cut($content, $this->cuts);
@@ -226,13 +202,16 @@ final class HiddenContent
     }
 
     /**
-     * Acts on one operator spanning bytes $from to $to with its operands: opens a hidden section,
-     * closes one, or cuts a hidden form.
+     * Acts on one operation: opens a hidden section, closes one, or cuts a hidden form.
      *
-     * @param list<mixed> $operands
+     * @throws ParseException
      */
-    private function operator(string $operator, array $operands, int $from, int $to, ?Dictionary $resources): void
+    private function operator(ContentOperation $operation, ?Dictionary $resources): void
     {
+        $operator = $operation->operator;
+        $operands = $operation->operands;
+        $from     = $operation->start;
+        $to       = $operation->end;
         if (null !== $this->skipFrom) {
             $this->depth += match ($operator) {
                 'BDC', 'BMC' => 1,
@@ -255,18 +234,5 @@ final class HiddenContent
         if ('Do' === $operator && $this->hiddenForm($operands[0] ?? null, $resources)) {
             $this->cuts[] = [$from, $to];
         }
-    }
-
-    /**
-     * Reads an inline image's dictionary up to ID, then skips its data.
-     *
-     * @throws ParseException
-     */
-    private function skipInlineImage(Lexer $lexer): void
-    {
-        do {
-            $token = $lexer->next();
-        } while (! $token->is(Token::END) && ! $token->is(Token::KEYWORD, 'ID'));
-        $lexer->skipInlineImageData();
     }
 }

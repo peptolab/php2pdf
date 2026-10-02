@@ -94,6 +94,7 @@ final class Lexer
         $this->position = max(0, min($position, $this->length));
     }
 
+    /** Skips one end of line (CR, LF or CR LF), as after the stream keyword. */
     public function skipEol(): void
     {
         if ("\r" === ($this->data[$this->position] ?? '')) {
@@ -104,7 +105,6 @@ final class Lexer
         }
     }
 
-    /** Skips whitespace only, leaving the position at the next byte (used after "stream"). */
     /**
      * Skips an inline image's data, just after its ID operator, to the end of its EI operator (or
      * of the stream when there is none).

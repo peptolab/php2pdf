@@ -7,7 +7,6 @@ namespace Php2Pdf\Import;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
@@ -107,40 +106,27 @@ final class ColourScanner
     }
 
     /**
-     * Records the device spaces a content stream selects.
+     * Records the device spaces a content stream selects, inline images included.
      *
      * @throws ParseException
      */
     private function content(string $content): void
     {
-        $lexer    = new Lexer($content);
-        $operands = [];
-        while (true) {
-            try {
-                $token = $lexer->next();
-            } catch (ExceptionInterface) {
-                return;
-            }
-            if ($token->is(Token::END)) {
-                return;
-            }
-            if (! $token->is(Token::KEYWORD)) {
-                $operands[] = $token;
-                continue;
-            }
-            $operator = (string) $token->value;
+        $parser = new ContentStreamParser($content, $this->reader->limits()->maxObjectNesting);
+        foreach ($parser->operations() as $operation) {
+            $operator = $operation->operator;
             $space    = self::OPERATORS[$operator] ?? null;
             if (null !== $space) {
                 $this->spaces[$space] = true;
             }
-            $operand = $operands[count($operands) - 1] ?? null;
-            if (('cs' === $operator || 'CS' === $operator) && null !== $operand) {
-                $this->device((string) $operand->value);
+            $operand = $operation->operands[count($operation->operands) - 1] ?? null;
+            if (('cs' === $operator || 'CS' === $operator) && $operand instanceof Name) {
+                $this->device($operand->value);
             }
-            if ('BI' === $operator) {
-                $this->inlineImage($lexer);
+            $image = $operation->inlineImage['CS'] ?? $operation->inlineImage['ColorSpace'] ?? null;
+            if ($image instanceof Name) {
+                $this->device($image->value);
             }
-            $operands = [];
         }
     }
 
@@ -204,31 +190,6 @@ final class ColourScanner
         $dict = $this->reader->dict($resources, $key);
 
         return null === $dict ? [] : array_values($dict->all());
-    }
-
-    /**
-     * Reads an inline image's dictionary up to ID, then skips its data to EI.
-     *
-     * @throws ParseException
-     */
-    private function inlineImage(Lexer $lexer): void
-    {
-        $key = null;
-        while (true) {
-            $token = $lexer->next();
-            if ($token->is(Token::END) || $token->is(Token::KEYWORD, 'ID')) {
-                break;
-            }
-            if ($token->is(Token::NAME) && null === $key) {
-                $key = (string) $token->value;
-                continue;
-            }
-            if (null !== $key && ('CS' === $key || 'ColorSpace' === $key) && $token->is(Token::NAME)) {
-                $this->device((string) $token->value);
-            }
-            $key = null;
-        }
-        $lexer->skipInlineImageData();
     }
 
     /**
