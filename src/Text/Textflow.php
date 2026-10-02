@@ -232,9 +232,8 @@ final class Textflow implements FlowableInterface
     }
 
     /**
-     * Places as much of the remaining text as fits into the box.
-     *
-     * @internal use Canvas::fitTextflow()
+     * Places as much of the remaining text as fits into a box on any canvas (a page's, a
+     * template's). Page::fitTextflow() does the same on a page.
      */
     #[Override]
     public function fitInto(Canvas $canvas, Box $box, ?FlowOptions $options = null): FlowResult

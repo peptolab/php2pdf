@@ -156,7 +156,7 @@ final class TextLinkTest extends TestCase
             TextFormat::Markup,
         );
         $template = $this->doc->template(new Dimensions(200.0, 100.0));
-        $template->canvas()->fitTextflow($flow, new Box(0.0, 0.0, 200.0, 100.0));
+        $flow->fitInto($template->canvas(), new Box(0.0, 0.0, 200.0, 100.0));
         $this->doc->addPage()->place($template, new Box(0.0, 0.0, 200.0, 100.0));
         $this->doc->close();
 

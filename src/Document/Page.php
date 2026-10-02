@@ -179,13 +179,13 @@ final class Page
     /** Places as many of a table's remaining rows as fit into a box on this page. */
     public function fitTable(Table $table, Box $box): FlowResult
     {
-        return $this->canvas()->fitTable($table, $box);
+        return $table->fitInto($this->canvas(), $box);
     }
 
     /** Places as much of a Textflow as fits into a box on this page. */
     public function fitTextflow(Textflow $flow, Box $box, ?FlowOptions $options = null): FlowResult
     {
-        return $this->canvas()->fitTextflow($flow, $box, $options);
+        return $flow->fitInto($this->canvas(), $box, $options);
     }
 
     /** Fits a single line of text into a box on this page. */
@@ -202,7 +202,7 @@ final class Page
     /** Places as much of any flowable content as fits into a box on this page. */
     public function flow(FlowableInterface $content, Box $box): FlowResult
     {
-        return $this->canvas()->flow($content, $box);
+        return $content->fitInto($this->canvas(), $box);
     }
 
     public function height(): float

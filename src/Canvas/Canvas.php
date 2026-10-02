@@ -20,8 +20,6 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitEngine;
 use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Fit\Placement;
-use Php2Pdf\Flow\FlowableInterface;
-use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\Glyph;
@@ -33,10 +31,7 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Navigation\Destination;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Template\Template;
-use Php2Pdf\Text\FlowOptions;
-use Php2Pdf\Text\Textflow;
 
 use function abs;
 use function array_keys;
@@ -285,20 +280,6 @@ final class Canvas
         return $this->ops;
     }
 
-    /** Places as many of a table's remaining rows as fit into a box. */
-    public function fitTable(Table $table, Box $box): FlowResult
-    {
-        return $table->fitInto($this, $box);
-    }
-
-    /**
-     * Places as much of a Textflow as fits into the box and reports what happened.
-     */
-    public function fitTextflow(Textflow $flow, Box $box, ?FlowOptions $options = null): FlowResult
-    {
-        return $flow->fitInto($this, $box, $options);
-    }
-
     /**
      * Fits a single line of text into a box: positioned, optionally rotated, scaled or shrunk to
      * fit, with underline and strikeout drawn from the font's metrics.
@@ -365,12 +346,6 @@ final class Canvas
             $width * $placement->scaleX,
             ! $placement->overflows($box),
         );
-    }
-
-    /** Places as much of any flowable content (a Textflow, a Table) as fits into a box. */
-    public function flow(FlowableInterface $content, Box $box): FlowResult
-    {
-        return $content->fitInto($this, $box);
     }
 
     public function height(): float

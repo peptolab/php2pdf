@@ -133,7 +133,7 @@ final class Painter
         $vertical = $placed->style->verticalAlignment ?? VerticalAlignment::Top;
         if (null !== $placed->flow) {
             $before = $placed->flow->lastFit();
-            $result = $this->canvas->fitTextflow($placed->flow, $inner, $this->layout->flowOptions($placed));
+            $result = $placed->flow->fitInto($this->canvas, $inner, $this->layout->flowOptions($placed));
 
             return FlowResult::BoxEmpty !== $result || (null !== $before && $before->lineCount > 0);
         }

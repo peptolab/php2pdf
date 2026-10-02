@@ -131,9 +131,8 @@ final class Table implements FlowableInterface
     }
 
     /**
-     * Places as many of the remaining rows as fit into the box, headers first.
-     *
-     * @internal use Canvas::fitTable()
+     * Places as many of the remaining rows as fit into a box on any canvas (a page's, a
+     * template's), headers first. Page::fitTable() does the same on a page.
      */
     #[Override]
     public function fitInto(Canvas $canvas, Box $box): FlowResult

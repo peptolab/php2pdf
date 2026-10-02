@@ -351,7 +351,7 @@ final class Document
             $canvas = $page($this, $count)->canvas();
             $result = FlowResult::BoxFull;
             foreach ($boxes as $i => $box) {
-                $result = $canvas->flow($content, $box);
+                $result = $content->fitInto($canvas, $box);
                 if (FlowResult::BoxEmpty === $result && 0 === $i) {
                     throw new LayoutException('The box is too small for any of the content; nothing was placed.');
                 }

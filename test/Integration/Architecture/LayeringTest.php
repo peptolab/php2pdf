@@ -68,9 +68,6 @@ final class LayeringTest extends TestCase
     private const array RATCHET = [
         'Font>Document'     => 'fonts take a narrow resource interface, not the document',
         'Canvas>Document'   => 'Dimensions and Destination move down; resources go through an interface',
-        'Canvas>Flow'       => 'the canvas loses fitTable, fitTextflow and flow',
-        'Canvas>Table'      => 'the canvas loses fitTable',
-        'Canvas>Text'       => 'text layout leaves the canvas: bidi shaping and fitTextline move to Text',
         'Image>Document'    => 'Dimensions moves down; images take a resource interface',
         'Import>Document'   => 'Dimensions moves down; PdfX moves to the conformance profiles',
         'Template>Document' => 'Dimensions moves down; templates take a resource interface',

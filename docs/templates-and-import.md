@@ -12,6 +12,10 @@ $header->canvas()->fitTextline('Php2Pdf', $bold, 24, new Box(80, 0, 300, $header
 $page->place($header, Box::fromMm(0, 267, 210, 30), Fit::entire());
 ```
 
+Text flows and tables go into a template's canvas, or any canvas, with `fitInto()`:
+`$flow->fitInto($header->canvas(), $box)`. On a page, `$page->fitTextflow()` and
+`$page->fitTable()` do the same.
+
 Templates can be drawn on until the document closes. `asTransparencyGroup()` makes the form a
 transparency group, so a group opacity or blend mode applied when placing it composites its
 content as one object.
