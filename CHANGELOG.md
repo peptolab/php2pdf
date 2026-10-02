@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format follows
 - Streams are written to the output without being copied, and a written image keeps none of its
   pixels: placing an 11.7 MB JPEG peaks at 1.2 times its size rather than 3.2, and a document with
   many images no longer holds all of their samples until it closes.
+- A PNG with an alpha channel is decoded a row at a time, its colour compressed as it is read: a
+  65 MB file peaks at 3.4 times its size rather than 7.
 
 ### Fixed
 

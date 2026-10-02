@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Core\Filter;
 
+use Generator;
+use InflateContext;
+use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\ParseException;
 
 use function abs;
@@ -11,6 +14,8 @@ use function array_fill;
 use function chr;
 use function count;
 use function implode;
+use function inflate_add;
+use function inflate_init;
 use function intdiv;
 use function ksort;
 use function max;
@@ -22,6 +27,9 @@ use function strlen;
 use function strtr;
 use function substr;
 use function unpack;
+
+use const ZLIB_ENCODING_DEFLATE;
+use const ZLIB_SYNC_FLUSH;
 
 /**
  * Reverses PNG scanline filtering and Adam7 interlacing, producing one byte per sample.
@@ -107,6 +115,66 @@ final class PngScanlines
     }
 
     /**
+     * The rows of a non-interlaced image, unfiltered, one at a time, from its compressed data in
+     * pieces (a PNG's IDAT chunks): the data is inflated as the rows are needed, so the whole
+     * image is never held at once.
+     *
+     * @param iterable<string> $compressed
+     *
+     * @return Generator<int, string>
+     *
+     * @throws ParseException for data that does not inflate, decodes to more than $maxBytes, or
+     *                        ends before the last row
+     */
+    public static function rows(
+        iterable $compressed,
+        int $width,
+        int $height,
+        int $bitDepth,
+        int $channels,
+        int $maxBytes,
+    ): Generator {
+        $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
+        $bpp      = max(1, intdiv($channels * $bitDepth, num2: 8));
+        $inflater = Silencer::run(static fn(): InflateContext|false => inflate_init(ZLIB_ENCODING_DEFLATE));
+        if (false === $inflater) {
+            throw new ParseException('Flate decompression failed.');
+        }
+        $buffer  = '';
+        $decoded = 0;
+        $y       = 0;
+        $prev    = [];
+        foreach ($compressed as $piece) {
+            $out = Silencer::run(static fn(): string|false => inflate_add($inflater, $piece, ZLIB_SYNC_FLUSH));
+            if (false === $out) {
+                throw new ParseException('Flate decompression failed.');
+            }
+            $decoded += strlen($out);
+            if ($decoded > $maxBytes) {
+                throw new ParseException(sprintf('A compressed stream decodes to more than %d bytes.', $maxBytes));
+            }
+            $buffer .= $out;
+            $offset = 0;
+            while ($y < $height && (strlen($buffer) - $offset) >= ($rowBytes + 1)) {
+                /** @var array<int, int>|false $row */
+                $row = unpack('C*', substr($buffer, $offset + 1, $rowBytes));
+                if (false === $row) {
+                    throw new ParseException('PNG scanline could not be read.');
+                }
+                $row = self::unfilterRow(ord($buffer[$offset]), $row, $prev, $bpp);
+                yield $y => pack('C*', ...$row);
+                $prev   = $row;
+                $offset += $rowBytes + 1;
+                ++$y;
+            }
+            $buffer = substr($buffer, $offset);
+        }
+        if ($y < $height) {
+            throw new ParseException('PNG image data is truncated.');
+        }
+    }
+
+    /**
      * Reverses the per-row filters. Rows keep their packed layout.
      *
      * @throws ParseException
@@ -128,14 +196,7 @@ final class PngScanlines
             if (false === $row) {
                 throw new ParseException('PNG scanline could not be read.');
             }
-            $row = match ($filter) {
-                0       => $row,
-                1       => self::sub($row, $bpp),
-                2       => self::up($row, $prev),
-                3       => self::average($row, $prev, $bpp),
-                4       => self::paeth($row, $prev, $bpp),
-                default => throw new ParseException(sprintf('Unknown PNG filter type %d.', $filter)),
-            };
+            $row  = self::unfilterRow($filter, $row, $prev, $bpp);
             $out  .= pack('C*', ...$row);
             $prev = $row;
         }
@@ -246,6 +307,28 @@ final class PngScanlines
         }
 
         return $row;
+    }
+
+    /**
+     * One row with its filter reversed.
+     *
+     * @param array<int, int> $row  1-based
+     * @param array<int, int> $prev 1-based, the row before it unfiltered
+     *
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
+    private static function unfilterRow(int $filter, array $row, array $prev, int $bpp): array
+    {
+        return match ($filter) {
+            0       => $row,
+            1       => self::sub($row, $bpp),
+            2       => self::up($row, $prev),
+            3       => self::average($row, $prev, $bpp),
+            4       => self::paeth($row, $prev, $bpp),
+            default => throw new ParseException(sprintf('Unknown PNG filter type %d.', $filter)),
+        };
     }
 
     /**

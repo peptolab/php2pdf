@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Core\Filter;
 
+use DeflateContext;
 use InflateContext;
 use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 
+use function deflate_add;
+use function deflate_init;
 use function gzcompress;
 use function inflate_add;
 use function inflate_init;
@@ -19,6 +22,8 @@ use function substr;
 use const PHP_INT_MAX;
 use const ZLIB_ENCODING_DEFLATE;
 use const ZLIB_ENCODING_RAW;
+use const ZLIB_FINISH;
+use const ZLIB_NO_FLUSH;
 use const ZLIB_SYNC_FLUSH;
 
 /** @internal */
@@ -48,9 +53,57 @@ final class Flate
         throw new ParseException('Flate decompression failed.');
     }
 
+    /**
+     * Compresses the next piece of data given to a deflater. Fed in any pieces and then
+     * finished, a deflater gives the bytes encode() gives for the whole.
+     *
+     * @throws PdfException
+     */
+    public static function deflate(DeflateContext $deflater, string $data): string
+    {
+        return self::add($deflater, $data, ZLIB_NO_FLUSH);
+    }
+
+    /**
+     * A deflater for compressing data in pieces as encode() compresses it whole: the same level,
+     * and zlib's largest memory level, as gzcompress() uses.
+     *
+     * @throws PdfException
+     */
+    public static function deflater(int $level = 6): DeflateContext
+    {
+        $deflater = deflate_init(ZLIB_ENCODING_DEFLATE, ['level' => $level, 'memory' => 9]);
+        if (false === $deflater) {
+            throw new PdfException('Flate compression failed.');
+        }
+
+        return $deflater;
+    }
+
     public static function encode(string $data, int $level = 6): string
     {
         $out = gzcompress($data, $level);
+        if (false === $out) {
+            throw new PdfException('Flate compression failed.');
+        }
+
+        return $out;
+    }
+
+    /**
+     * The last of a deflater's compressed data, ending its stream.
+     *
+     * @throws PdfException
+     */
+    public static function finish(DeflateContext $deflater): string
+    {
+        return self::add($deflater, '', ZLIB_FINISH);
+    }
+
+    /** @throws PdfException */
+    private static function add(DeflateContext $deflater, string $data, int $flush): string
+    {
+        $out = deflate_add($deflater, $data, $flush);
         if (false === $out) {
             throw new PdfException('Flate compression failed.');
         }

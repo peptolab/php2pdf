@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Generator;
 use Override;
 use Php2Pdf\Core\Filter\Flate;
 use Php2Pdf\Core\Filter\PngScanlines;
@@ -13,10 +14,10 @@ use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 
+use function array_filter;
 use function array_slice;
 use function array_values;
 use function count;
-use function implode;
 use function in_array;
 use function intdiv;
 use function max;
@@ -51,13 +52,54 @@ final readonly class PngDecoder implements ImageDecoderInterface
     ];
 
     /**
-     * @return array<string, list<string>> chunk type => data blocks in file order
+     * A non-interlaced image with an alpha channel (grey or RGB with alpha, 8 or 16 bits) read a
+     * row at a time: each row inflated, unfiltered and split, its colour compressed as it comes, so
+     * the whole image is never held. The compressed colour is the bytes the whole-image path gives;
+     * null when the data cannot be read this way, for that path to read it as leniently as it does.
+     *
+     * @param iterable<string> $idat the image data chunks
+     *
+     * @return array{0: string, 1: string}|null the compressed colour samples and the alpha samples
+     *
+     * @throws PdfException
+     */
+    private static function alphaRows(
+        iterable $idat,
+        int $width,
+        int $height,
+        int $depth,
+        int $channels,
+        Limits $limits,
+    ): ?array {
+        $deflater = Flate::deflater();
+        $color    = '';
+        $alpha    = '';
+        try {
+            foreach (PngScanlines::rows($idat, $width, $height, $depth, $channels, $limits->maxDecodedBytes) as $row) {
+                [$rowColor, $rowAlpha] = AlphaSplit::split($row, $channels, intdiv($depth, num2: 8));
+                $color .= Flate::deflate($deflater, $rowColor);
+                $alpha .= $rowAlpha;
+            }
+        } catch (ParseException) {
+            return null;
+        }
+
+        return [$color . Flate::finish($deflater), $alpha];
+    }
+
+    /**
+     * The chunks other than image data, by type in file order, and where the image data chunks
+     * lie: their bytes stay in the file until they are read.
+     *
+     * @return array{0: array<string, list<string>>, 1: list<array{0: int, 1: int}>} chunks, and the
+     *         offset and length of each IDAT chunk's data
      *
      * @throws ParseException
      */
     private static function chunks(string $data): array
     {
         $chunks = [];
+        $idat   = [];
         $offset = 8;
         $length = strlen($data);
         while (($offset + 8) <= $length) {
@@ -66,14 +108,19 @@ final readonly class PngDecoder implements ImageDecoderInterface
             if (($offset + 12 + $size) > $length) {
                 throw new ParseException(sprintf('PNG chunk "%s" is truncated.', $type));
             }
-            $chunks[$type][] = substr($data, $offset + 8, $size);
+            if ('IDAT' === $type) {
+                $idat[] = [$offset + 8, $size];
+            }
+            if ('IDAT' !== $type) {
+                $chunks[$type][] = substr($data, $offset + 8, $size);
+            }
             if ('IEND' === $type) {
                 break;
             }
             $offset += 12 + $size;
         }
 
-        return $chunks;
+        return [$chunks, $idat];
     }
 
     /** @return list<int>|null */
@@ -143,6 +190,35 @@ final readonly class PngDecoder implements ImageDecoderInterface
         }
     }
 
+    /**
+     * The image data chunks' bytes, one chunk at a time.
+     *
+     * @param list<array{0: int, 1: int}> $spans
+     *
+     * @return Generator<int, string>
+     */
+    private static function idat(string $data, array $spans): Generator
+    {
+        foreach ($spans as [$offset, $size]) {
+            yield substr($data, $offset, $size);
+        }
+    }
+
+    /**
+     * The image data chunks' bytes joined.
+     *
+     * @param list<array{0: int, 1: int}> $spans
+     */
+    private static function joinedIdat(string $data, array $spans): string
+    {
+        $joined = '';
+        foreach ($spans as [$offset, $size]) {
+            $joined .= substr($data, $offset, $size);
+        }
+
+        return $joined;
+    }
+
     private static function paletteAlpha(string $indices, string $trns): string
     {
         $table = str_pad($trns, length: 256, pad_string: "\xFF");
@@ -155,26 +231,32 @@ final readonly class PngDecoder implements ImageDecoderInterface
     }
 
     /**
-     * The palette, transparency and concatenated image data, validated for the colour type.
+     * The palette and transparency, validated with the image data for the colour type.
      *
-     * @param array<string, list<string>> $chunks
+     * @param array<string, list<string>>  $chunks
+     * @param list<array{0: int, 1: int}> $spans the image data chunks
      *
-     * @return array{0: string|null, 1: string|null, 2: string}
+     * @return array{0: string|null, 1: string|null}
      *
      * @throws ParseException
      */
-    private static function pixelChunks(array $chunks, int $type): array
+    private static function pixelChunks(array $chunks, array $spans, int $type): array
     {
         $palette = $chunks['PLTE'][0] ?? null;
-        $idat    = implode('', $chunks['IDAT'] ?? []);
-        if ('' === $idat) {
+        if (
+            [] === array_filter(
+                $spans,
+                /** @param array{0: int, 1: int} $span */
+                static fn(array $span): bool => $span[1] > 0,
+            )
+        ) {
             throw new ParseException('PNG has no image data.');
         }
         if (3 === $type && null === $palette) {
             throw new ParseException('Indexed PNG has no palette.');
         }
 
-        return [$palette, $chunks['tRNS'][0] ?? null, $idat];
+        return [$palette, $chunks['tRNS'][0] ?? null];
     }
 
     /** @return array{0: float, 1: float} */
@@ -227,7 +309,7 @@ final readonly class PngDecoder implements ImageDecoderInterface
         if (! $this->accepts($data)) {
             throw new ParseException('Not a PNG file.');
         }
-        $chunks = self::chunks($data);
+        [$chunks, $spans] = self::chunks($data);
         [$width, $height, $depth, $type, $interlace] = self::header(
             $chunks['IHDR'][0] ?? throw new ParseException('PNG has no IHDR chunk.'),
             $limits,
@@ -239,7 +321,7 @@ final readonly class PngDecoder implements ImageDecoderInterface
             6       => 4,
             default => throw new ParseException(sprintf('Unsupported PNG colour type %d.', $type)),
         };
-        [$palette, $trns, $idat] = self::pixelChunks($chunks, $type);
+        [$palette, $trns] = self::pixelChunks($chunks, $spans, $type);
         $colorSpace = match ($type) {
             0, 4    => ImageColorSpace::gray(),
             3       => ImageColorSpace::indexed($palette ?? ''),
@@ -258,7 +340,7 @@ final readonly class PngDecoder implements ImageDecoderInterface
                     $height,
                     $depth,
                     $colorSpace,
-                    $idat,
+                    self::joinedIdat($data, $spans),
                     'FlateDecode',
                     Dictionary::of([
                         'Predictor'        => 15,
@@ -274,9 +356,21 @@ final readonly class PngDecoder implements ImageDecoderInterface
             );
         }
 
+        $rows =
+            0 === $interlace && (4 === $type || 6 === $type)
+                ? self::alphaRows(self::idat($data, $spans), $width, $height, $depth, $channels, $limits)
+                : null;
+        if (null !== $rows) {
+            return new ImageData(
+                new Raster($width, $height, $depth, $colorSpace, $rows[0], 'FlateDecode', iccProfile: $meta['icc']),
+                new SoftMask($rows[1], $depth),
+                dpiX: $meta['dpi'][0],
+                dpiY: $meta['dpi'][1],
+            );
+        }
         $factor  = 3 === $type || $depth >= 8 ? 1 : intdiv(255, (1 << $depth) - 1);
         $samples = PngScanlines::decode(
-            Flate::decode($idat, $limits->maxDecodedBytes),
+            Flate::decode(self::joinedIdat($data, $spans), $limits->maxDecodedBytes),
             $width,
             $height,
             $depth,
