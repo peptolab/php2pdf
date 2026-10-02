@@ -52,6 +52,18 @@ final class OpenTypeFontTest extends TestCase
     }
 
     #[Test]
+    public function legacyKerningComesOnlyFromTheKernTable(): void
+    {
+        $font = OpenTypeFont::fromFile(PdfTools::assetPath('fonts/SourceSerif4-Regular.ttf'));
+
+        self::assertSame(
+            [false, 0],
+            [$font->hasKerning(), $font->kerning($font->glyphId(0x41), $font->glyphId(0x56))],
+            'Source Serif kerns through GPOS, whose pairs apply only through its kern feature.',
+        );
+    }
+
+    #[Test]
     public function mapsCodePointsAndAdvances(): void
     {
         $font = self::dejaVu();

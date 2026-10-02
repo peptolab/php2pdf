@@ -65,9 +65,6 @@ final class OpenTypeFont
     /** @var array<int, int>|null legacy kern pairs */
     private ?array $kernPairs = null;
 
-    private ?GposKerning $gpos        = null;
-    private bool         $gposChecked = false;
-
     /** @var array<int, list<array{0: int, 1: int}>>|null base glyph => layers */
     private ?array $colr = null;
 
@@ -348,7 +345,7 @@ final class OpenTypeFont
     /** @throws ParseException */
     public function hasKerning(): bool
     {
-        return null !== $this->gposKerning() || [] !== $this->kernPairs();
+        return [] !== $this->kernPairs();
     }
 
     /** Whether the font has outlines (glyf, CFF or CFF2), not just bitmaps. */
@@ -369,17 +366,14 @@ final class OpenTypeFont
     }
 
     /**
-     * Kerning adjustment between two glyphs in font units (negative moves them closer).
+     * Kerning adjustment between two glyphs in font units (negative moves them closer), from the
+     * legacy kern table, which shaping uses when the font's GPOS has no kern feature for the
+     * script, as HarfBuzz does.
      *
      * @throws ParseException
      */
     public function kerning(int $left, int $right): int
     {
-        $gpos = $this->gposKerning();
-        if (null !== $gpos) {
-            return $gpos->adjustment($left, $right);
-        }
-
         return $this->kernPairs()[($left << 16) | $right] ?? 0;
     }
 
@@ -479,23 +473,6 @@ final class OpenTypeFont
     public function tableReader(string $tag): ?BinaryReader
     {
         return $this->tables->has($tag) ? $this->tables->slice($this->reader, $tag) : null;
-    }
-
-    /** @throws ParseException */
-    private function gposKerning(): ?GposKerning
-    {
-        if (! $this->gposChecked) {
-            $this->gposChecked = true;
-            $reader            = $this->tableReader('GPOS');
-            if (null !== $reader) {
-                $gpos = new GposKerning($reader);
-                if ($gpos->hasPairs()) {
-                    $this->gpos = $gpos;
-                }
-            }
-        }
-
-        return $this->gpos;
     }
 
     /**
