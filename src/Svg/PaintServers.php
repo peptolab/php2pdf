@@ -223,16 +223,12 @@ final class PaintServers
             'reflect' => GradientSpread::Reflect,
             default   => GradientSpread::Pad,
         };
-        $objectBox = 'userSpaceOnUse' !== trim($attrs['gradientUnits'] ?? 'objectBoundingBox');
-        $matrix    = TransformParser::parse($attrs['gradientTransform'] ?? null);
+        $units     = Units::of($attrs['gradientUnits'] ?? null, Units::ObjectBoundingBox);
+        $objectBox = Units::ObjectBoundingBox === $units;
         $reference = $objectBox ? 1.0 : 0.0;
-        if ($objectBox) {
-            $matrix = $matrix->then(
-                new Matrix($bounds->width, 0.0, 0.0, $bounds->height, $bounds->x, $bounds->y),
-            );
-        }
-        $size     = $objectBox ? 1.0 : 100.0;
-        $gradient = 'linearGradient' === $element->name
+        $matrix    = TransformParser::parse($attrs['gradientTransform'] ?? null)->then($units->boxMatrix($bounds));
+        $size      = $objectBox ? 1.0 : 100.0;
+        $gradient  = 'linearGradient' === $element->name
             ? self::linear($attrs, $size, $reference, $stops)
             : self::radial($attrs, $size, $stops);
         if (GradientSpread::Pad !== $spread) {

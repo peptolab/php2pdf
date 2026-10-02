@@ -11,11 +11,8 @@ use Php2Pdf\Canvas\SoftMaskType;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
-use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Geometry\Path;
-
-use function trim;
 
 /**
  * Applies <mask> elements as soft masks: the mask's children, drawn in the masked element's user
@@ -65,9 +62,7 @@ final readonly class MaskBuilder
             Path::rect($region->x, $region->y, $region->width, $region->height),
             FillRule::NonZero,
         );
-        if ('objectBoundingBox' === trim($mask->attribute('maskContentUnits') ?? '')) {
-            $content->concat(new Matrix($bounds->width, 0.0, 0.0, $bounds->height, $bounds->x, $bounds->y));
-        }
+        $content->concat(Units::of($mask->attribute('maskContentUnits'), Units::UserSpaceOnUse)->boxMatrix($bounds));
         $maskStyle = Style::root()->derive($mask, $this->context->sheet);
         ($this->children)($content, $mask, $maskStyle);
         $canvas->setSoftMask($template, $maskStyle->maskAlpha() ? SoftMaskType::Alpha : SoftMaskType::Luminosity);
@@ -76,27 +71,14 @@ final readonly class MaskBuilder
     /** The mask's region, in user space or as fractions of the bounding box (the default). */
     private function region(Element $mask, Box $bounds): Box
     {
-        $x      = $mask->attribute('x') ?? '-10%';
-        $y      = $mask->attribute('y') ?? '-10%';
-        $width  = $mask->attribute('width') ?? '120%';
-        $height = $mask->attribute('height') ?? '120%';
-        if ('userSpaceOnUse' === trim($mask->attribute('maskUnits') ?? '')) {
-            $viewWidth  = $this->context->viewportWidth;
-            $viewHeight = $this->context->viewportHeight;
-
-            return new Box(
-                Length::parse($x, $viewWidth) ?? 0.0,
-                Length::parse($y, $viewHeight) ?? 0.0,
-                Length::parse($width, $viewWidth) ?? 0.0,
-                Length::parse($height, $viewHeight) ?? 0.0,
-            );
-        }
-
-        return new Box(
-            $bounds->x + ((Length::parse($x, 1.0) ?? 0.0) * $bounds->width),
-            $bounds->y + ((Length::parse($y, 1.0) ?? 0.0) * $bounds->height),
-            (Length::parse($width, 1.0) ?? 0.0) * $bounds->width,
-            (Length::parse($height, 1.0) ?? 0.0) * $bounds->height,
+        return Units::of($mask->attribute('maskUnits'), Units::ObjectBoundingBox)->region(
+            $mask->attribute('x') ?? '-10%',
+            $mask->attribute('y') ?? '-10%',
+            $mask->attribute('width') ?? '120%',
+            $mask->attribute('height') ?? '120%',
+            $bounds,
+            $this->context->viewportWidth,
+            $this->context->viewportHeight,
         );
     }
 }

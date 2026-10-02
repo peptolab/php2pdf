@@ -10,8 +10,6 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Path;
 
-use function trim;
-
 /**
  * Applies <clipPath> elements: the union of their shapes, in user space or scaled to the clipped
  * element's bounding box, intersected with any clip path of their own. Clip paths, and the
@@ -147,9 +145,11 @@ final readonly class ClipBuilder
             $this->apply($canvas, $nested, $clipped, $style);
         }
         $matrix = TransformParser::parse($clipPath->attribute('transform'));
-        if ('objectBoundingBox' === trim($clipPath->attribute('clipPathUnits') ?? 'userSpaceOnUse')) {
-            $bounds = $this->bounds($clipped, $style) ?? new Box(0.0, 0.0, 1.0, 1.0);
-            $matrix = $matrix->then(new Matrix($bounds->width, 0.0, 0.0, $bounds->height, $bounds->x, $bounds->y));
+        $units  = Units::of($clipPath->attribute('clipPathUnits'), Units::UserSpaceOnUse);
+        if (Units::ObjectBoundingBox === $units) {
+            $matrix = $matrix->then($units->boxMatrix(
+                $this->bounds($clipped, $style) ?? new Box(0.0, 0.0, 1.0, 1.0),
+            ));
         }
         $combined = new Path();
         $rule     = $clipStyle->clipRule();

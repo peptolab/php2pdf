@@ -14,7 +14,6 @@ use Php2Pdf\Geometry\Origin;
 
 use function array_key_exists;
 use function implode;
-use function trim;
 
 /**
  * Resolves <pattern> paint servers into tiling patterns: the pattern's children, drawn into a
@@ -54,8 +53,8 @@ final class PatternBuilder
             }
         }
         $key =
-            'userSpaceOnUse' === trim($attrs['patternUnits'] ?? '')
-            && 'objectBoundingBox' !== trim($attrs['patternContentUnits'] ?? '')
+            Units::UserSpaceOnUse === Units::of($attrs['patternUnits'] ?? null, Units::ObjectBoundingBox)
+            && Units::UserSpaceOnUse === Units::of($attrs['patternContentUnits'] ?? null, Units::UserSpaceOnUse)
                 ? $id
                 : implode(':', [$id, $bounds->x, $bounds->y, $bounds->width, $bounds->height]);
         if (! array_key_exists($key, $this->tiles)) {
@@ -91,7 +90,7 @@ final class PatternBuilder
             );
         }
 
-        return 'objectBoundingBox' === trim($attrs['patternContentUnits'] ?? '')
+        return Units::ObjectBoundingBox === Units::of($attrs['patternContentUnits'] ?? null, Units::UserSpaceOnUse)
             ? Matrix::scaling($bounds->width, $bounds->height)
             : Matrix::identity();
     }
@@ -137,27 +136,14 @@ final class PatternBuilder
      */
     private function tileBox(array $attrs, Box $bounds): Box
     {
-        $x      = $attrs['x'] ?? '0';
-        $y      = $attrs['y'] ?? '0';
-        $width  = $attrs['width'] ?? '0';
-        $height = $attrs['height'] ?? '0';
-        if ('userSpaceOnUse' === trim($attrs['patternUnits'] ?? '')) {
-            $viewWidth  = $this->context->viewportWidth;
-            $viewHeight = $this->context->viewportHeight;
-
-            return new Box(
-                Length::parse($x, $viewWidth) ?? 0.0,
-                Length::parse($y, $viewHeight) ?? 0.0,
-                Length::parse($width, $viewWidth) ?? 0.0,
-                Length::parse($height, $viewHeight) ?? 0.0,
-            );
-        }
-
-        return new Box(
-            $bounds->x + ((Length::parse($x, 1.0) ?? 0.0) * $bounds->width),
-            $bounds->y + ((Length::parse($y, 1.0) ?? 0.0) * $bounds->height),
-            (Length::parse($width, 1.0) ?? 0.0) * $bounds->width,
-            (Length::parse($height, 1.0) ?? 0.0) * $bounds->height,
+        return Units::of($attrs['patternUnits'] ?? null, Units::ObjectBoundingBox)->region(
+            $attrs['x'] ?? '0',
+            $attrs['y'] ?? '0',
+            $attrs['width'] ?? '0',
+            $attrs['height'] ?? '0',
+            $bounds,
+            $this->context->viewportWidth,
+            $this->context->viewportHeight,
         );
     }
 }
