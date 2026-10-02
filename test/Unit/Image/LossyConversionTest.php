@@ -40,10 +40,8 @@ final class LossyConversionTest extends TestCase
                 'it is CMYK and would become RGB',
             ],
             'multi-ink separation in planes'     => [
-                (new TiffFixture(2, 1, 5, 8, 4, str_repeat("\x00", times: 8)))->withTags([
-                    284 => [3, [2]],
-                    332 => [3, [2]],
-                ]),
+                (new TiffFixture(2, 1, 5, 8, 4, str_repeat("\x00", times: 8)))->separatePlanes()
+                    ->withTags([332 => [3, [2]]]),
                 'it is a multi-ink separation and would become RGB',
             ],
             'tiled CIELab'                       => [
@@ -51,10 +49,8 @@ final class LossyConversionTest extends TestCase
                 'it is CIELab and would become RGB',
             ],
             'RGB in planes with an ICC profile'  => [
-                (new TiffFixture(2, 1, 2, 8, 3, str_repeat("\x00", times: 6)))->withTags([
-                    284    => [3, [2]],
-                    34_675 => [7, 'ICC-PROFILE'],
-                ]),
+                (new TiffFixture(2, 1, 2, 8, 3, str_repeat("\x00", times: 6)))->separatePlanes()
+                    ->withTags([34_675 => [7, 'ICC-PROFILE']]),
                 'its ICC profile would not be kept',
             ],
             '32-bit grey'                        => [
@@ -141,10 +137,8 @@ final class LossyConversionTest extends TestCase
         if (! extension_loaded('imagick')) {
             self::markTestSkipped('Converting a CMYK TIFF the decoder does not read needs ext-imagick.');
         }
-        $tiff = (new TiffFixture(2, 1, 5, 8, 4, "\x00\xFF\xFF\x00\x00\x00\x00\x00"))->withTags([
-            284    => [3, [2]],
-            34_675 => [7, 'ICC-PROFILE'],
-        ])
+        $tiff = (new TiffFixture(2, 1, 5, 8, 4, "\x00\xFF\xFF\x00\x00\x00\x00\x00"))->separatePlanes()
+            ->withTags([34_675 => [7, 'ICC-PROFILE']])
             ->bytes();
         $image = ImageReader::read($tiff, options: new ImageOptions(allowLossyConversion: true));
 

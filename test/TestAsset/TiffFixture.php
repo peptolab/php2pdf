@@ -9,9 +9,11 @@ use function chr;
 use function count;
 use function get_object_vars;
 use function gzcompress;
+use function intdiv;
 use function is_array;
 use function is_string;
 use function ksort;
+use function max;
 use function pack;
 use function str_pad;
 use function str_split;
@@ -19,7 +21,8 @@ use function strlen;
 
 /**
  * A baseline TIFF file built in memory: one image in a single strip with the tags the decoder
- * reads, in either byte order, compressed or not, repeated over several pages. Extra tags are
+ * reads, in either byte order, compressed or not, repeated over several pages. Its samples can
+ * instead be in separate planes, uncompressed, one strip per plane. Extra tags are
  * tag => [type, values]: SHORT 3 and LONG 4 as integers, RATIONAL 5 as [numerator, denominator]
  * pairs, UNDEFINED 7 as a byte string.
  */
@@ -40,6 +43,7 @@ final readonly class TiffFixture
         private array $tags = [],
         private string $byteOrder = 'II',
         private int $pages = 1,
+        private bool $planar = false,
     ) {}
 
     /** PackBits with literal runs only, which every decoder reads. */
@@ -70,18 +74,19 @@ final readonly class TiffFixture
             32_773  => self::packBits($this->pixels),
             default => $this->pixels,
         };
-        $tags = $this->tags
+        $planes = $this->planar ? $this->samples : 1;
+        $tags   = $this->tags
         + [
             256 => [4, [$this->width]],
             257 => [4, [$this->height]],
             258 => [3, array_fill(0, $this->samples, $this->bits)],
             259 => [3, [$this->compression]],
             262 => [3, [$this->photometric]],
-            273 => [4, [0]],
+            273 => [4, array_fill(0, $planes, value: 0)],
             277 => [3, [$this->samples]],
             278 => [4, [$this->height]],
-            279 => [4, [strlen($strip)]],
-            284 => [3, [1]],
+            279 => [4, array_fill(0, $planes, intdiv(strlen($strip), max(1, $planes)))],
+            284 => [3, [$this->planar ? 2 : 1]],
         ];
         ksort($tags);
         $file = $this->byteOrder . $this->u16(42) . $this->u32(8);
@@ -100,6 +105,15 @@ final readonly class TiffFixture
     public function pages(int $pages): self
     {
         return new self(...[...get_object_vars($this), 'pages' => $pages]);
+    }
+
+    /**
+     * The same image with each sample in a plane of its own: the pixels are given plane after
+     * plane, and each plane is a strip.
+     */
+    public function separatePlanes(): self
+    {
+        return new self(...[...get_object_vars($this), 'planar' => true]);
     }
 
     /** @param array<int, array{0: int, 1: list<int>|list<array{0: int, 1: int}>|string}> $tags */
@@ -133,7 +147,7 @@ final readonly class TiffFixture
         $extra   = '';
         $entries = '';
         foreach ($values as $tag => [$type, $count, $bytes]) {
-            $bytes = 273 === $tag ? $this->u32($stripAt) : $bytes;
+            $bytes = 273 === $tag ? $this->stripOffsets($stripAt, $count, intdiv(strlen($strip), $count)) : $bytes;
             $value = str_pad($bytes, length: 4, pad_string: "\0");
             if (strlen($bytes) > 4) {
                 $value = $this->u32($extraAt + strlen($extra));
@@ -162,6 +176,17 @@ final readonly class TiffFixture
         }
 
         return $bytes;
+    }
+
+    /** The offsets of $count strips of $length bytes each, laid out one after another from $at. */
+    private function stripOffsets(int $at, int $count, int $length): string
+    {
+        $offsets = '';
+        for ($k = 0; $k < $count; ++$k) {
+            $offsets .= $this->u32($at + ($k * $length));
+        }
+
+        return $offsets;
     }
 
     private function u16(int $value): string

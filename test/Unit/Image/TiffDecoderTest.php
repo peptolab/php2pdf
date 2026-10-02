@@ -65,7 +65,7 @@ final class TiffDecoderTest extends TestCase
             'premultiplied alpha' => [(new TiffFixture(2, 1, 2, 8, 4, str_repeat("\x00", times: 8)))->withTags([
                 338 => [3, [1]],
             ])],
-            'separate planes'     => [(new TiffFixture(4, 2, 2, 8, 3, $rgb))->withTags([284 => [3, [2]]])],
+            'separate planes'     => [(new TiffFixture(4, 2, 2, 8, 3, $rgb))->separatePlanes()],
         ];
     }
 
