@@ -33,6 +33,14 @@ final class Gpos
 
     private readonly ChainRules $rules;
 
+    /**
+     * Pair adjustments read so far, by subtable and pair (first glyph << 16 | second): the first
+     * and second glyphs' values and whether the second is passed over, or false for no record.
+     *
+     * @var array<int, array<int, array{0: array{0: int, 1: int, 2: int, 3: int}, 1: array{0: int, 1: int, 2: int, 3: int}, 2: bool}|false>>
+     */
+    private array $pairs = [];
+
     private readonly GposAttachment $attachments;
 
     /** Whether the sequence being positioned runs right to left. */
@@ -300,21 +308,21 @@ final class Gpos
         if (null === $index || null === $j) {
             return null;
         }
-        $format1 = $r->u16($offset + 4);
-        $format2 = $r->u16($offset + 6);
-        $size1   = self::valueSize($format1);
-        $record  = match ($r->u16($offset)) {
-            1       => $this->pairRecord($offset, $index, $ids[$j] ?? -1, $size1 + self::valueSize($format2)),
-            2       => $this->classRecord($offset, $ids[$i] ?? -1, $ids[$j] ?? -1, $size1 + self::valueSize($format2)),
-            default => null,
-        };
-        if (null === $record) {
+        $first  = $ids[$i] ?? -1;
+        $second = $ids[$j] ?? -1;
+        $key    = ($first << 16) | $second;
+        $pair   = $this->pairs[$offset][$key] ?? null;
+        if (null === $pair) {
+            $pair                       = $this->readPair($offset, $index, $first, $second);
+            $this->pairs[$offset][$key] = $pair;
+        }
+        if (false === $pair) {
             return null;
         }
-        self::adjust($positions, $i, $this->value($record, $format1));
-        self::adjust($positions, $j, $this->value($record + $size1, $format2));
+        self::adjust($positions, $i, $pair[0]);
+        self::adjust($positions, $j, $pair[1]);
 
-        return 0 === $format2 ? $j : $j + 1;
+        return $pair[2] ? $j : $j + 1;
     }
 
     /**
@@ -364,6 +372,33 @@ final class Gpos
         }
 
         return $out;
+    }
+
+    /**
+     * A pair's adjustments from its subtable: the first and second glyphs' values and whether the
+     * second is passed over (it has no value of its own), or false when the subtable has no record
+     * for the pair.
+     *
+     * @return array{0: array{0: int, 1: int, 2: int, 3: int}, 1: array{0: int, 1: int, 2: int, 3: int}, 2: bool}|false
+     *
+     * @throws ParseException
+     */
+    private function readPair(int $offset, int $index, int $first, int $second): array|false
+    {
+        $r       = $this->tables->reader;
+        $format1 = $r->u16($offset + 4);
+        $format2 = $r->u16($offset + 6);
+        $size1   = self::valueSize($format1);
+        $record  = match ($r->u16($offset)) {
+            1       => $this->pairRecord($offset, $index, $second, $size1 + self::valueSize($format2)),
+            2       => $this->classRecord($offset, $first, $second, $size1 + self::valueSize($format2)),
+            default => null,
+        };
+        if (null === $record) {
+            return false;
+        }
+
+        return [$this->value($record, $format1), $this->value($record + $size1, $format2), 0 === $format2];
     }
 
     /**
