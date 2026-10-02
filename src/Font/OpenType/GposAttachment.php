@@ -34,25 +34,25 @@ final readonly class GposAttachment
     /**
      * Attaches the glyph at $i to the one at $base: its offset puts its anchor on the other's.
      *
-     * @param list<Position>         $positions
      * @param array{0: int, 1: int} $baseAnchor
      * @param array{0: int, 1: int} $markAnchor
-     *
-     * @return list<Position>
      */
-    private static function attach(array $positions, int $i, int $base, array $baseAnchor, array $markAnchor): array
-    {
-        $p             = $positions[$i] ?? [0, 0, 0, 0, 0, 0];
-        $positions[$i] = [
+    private static function attach(
+        GlyphPositions $positions,
+        int $i,
+        int $base,
+        array $baseAnchor,
+        array $markAnchor,
+    ): void {
+        $p = $positions->get($i);
+        $positions->set($i, [
             $p[0],
             $p[1],
             $baseAnchor[0] - $markAnchor[0],
             $baseAnchor[1] - $markAnchor[1],
             $base - $i,
             self::MARK,
-        ];
-
-        return $positions;
+        ]);
     }
 
     /**
@@ -91,27 +91,22 @@ final readonly class GposAttachment
      * Turns round the cursive chain a glyph already hangs in, so the whole chain hangs from the
      * glyph's new parent, stopping at that parent.
      *
-     * @param list<Position> $positions
-     *
-     * @return list<Position>
      */
-    private static function reverseCursiveChain(array $positions, int $i, int $newParent): array
+    private static function reverseCursiveChain(GlyphPositions $positions, int $i, int $newParent): void
     {
-        $p     = $positions[$i] ?? [0, 0, 0, 0, 0, 0];
+        $p     = $positions->get($i);
         $chain = $p[4];
         if (0 === $chain || self::CURSIVE !== $p[5]) {
-            return $positions;
+            return;
         }
-        $positions[$i] = [$p[0], $p[1], $p[2], $p[3], 0, $p[5]];
-        $j             = $i + $chain;
+        $positions->set($i, [$p[0], $p[1], $p[2], $p[3], 0, $p[5]]);
+        $j = $i + $chain;
         if ($j === $newParent) {
-            return $positions;
+            return;
         }
-        $positions     = self::reverseCursiveChain($positions, $j, $newParent);
-        $q             = $positions[$j] ?? [0, 0, 0, 0, 0, 0];
-        $positions[$j] = [$q[0], $q[1], $q[2], -$p[3], -$chain, $p[5]];
-
-        return $positions;
+        self::reverseCursiveChain($positions, $j, $newParent);
+        $q = $positions->get($j);
+        $positions->set($j, [$q[0], $q[1], $q[2], -$p[3], -$chain, $p[5]]);
     }
 
     /**
@@ -139,21 +134,18 @@ final readonly class GposAttachment
      * other vertically (the earlier from the later under the right-to-left lookup flag), and a
      * chain it already hung in is turned round to hang from its new parent.
      *
-     * @param list<int>      $ids
-     * @param list<Position> $positions
-     *
-     * @return array{0: list<Position>, 1: int}|null
+     * @param list<int> $ids
      *
      * @throws ParseException
      */
     public function cursive(
         int $offset,
         array $ids,
-        array $positions,
+        GlyphPositions $positions,
         int $i,
         GlyphFilter $filter,
         TextDirection $direction,
-    ): ?array {
+    ): ?int {
         $r        = $this->tables->reader;
         $coverage = $this->tables->coverage($offset + $r->u16($offset + 2));
         $index    = $coverage[$ids[$i] ?? -1] ?? null;
@@ -165,40 +157,35 @@ final readonly class GposAttachment
         }
         [$exitX, $exitY] = $this->anchor($offset + $exit);
         [$entryX, $entryY] = $this->anchor($offset + $entry);
-        $p = $positions[$prev] ?? [0, 0, 0, 0, 0, 0];
-        $c = $positions[$i] ?? [0, 0, 0, 0, 0, 0];
-        [$p, $c] = self::join($p, $c, $exitX, $entryX, $direction);
-        $positions[$prev] = $p;
-        $positions[$i]    = $c;
-        $rightToLeftFlag  = 0 !== ($filter->flag & GlyphFilter::RIGHT_TO_LEFT);
+        [$p, $c] = self::join($positions->get($prev), $positions->get($i), $exitX, $entryX, $direction);
+        $positions->set($prev, $p);
+        $positions->set($i, $c);
+        $rightToLeftFlag = 0 !== ($filter->flag & GlyphFilter::RIGHT_TO_LEFT);
         [$child, $parent] = $rightToLeftFlag ? [$prev, $i] : [$i, $prev];
-        $yOffset           = $rightToLeftFlag ? $entryY - $exitY : $exitY - $entryY;
-        $positions         = self::reverseCursiveChain($positions, $child, $parent);
-        $own               = $positions[$child] ?? [0, 0, 0, 0, 0, 0];
-        $positions[$child] = [$own[0], $own[1], $own[2], $yOffset, $parent - $child, self::CURSIVE];
-        $parentPosition    = $positions[$parent] ?? [0, 0, 0, 0, 0, 0];
+        $yOffset = $rightToLeftFlag ? $entryY - $exitY : $exitY - $entryY;
+        self::reverseCursiveChain($positions, $child, $parent);
+        $own = $positions->get($child);
+        $positions->set($child, [$own[0], $own[1], $own[2], $yOffset, $parent - $child, self::CURSIVE]);
+        $parentPosition = $positions->get($parent);
         if ($parentPosition[4] === ($child - $parent)) {
-            $positions[$parent] = [
+            $positions->set($parent, [
                 $parentPosition[0],
                 $parentPosition[1],
                 $parentPosition[2],
                 0,
                 0,
                 $parentPosition[5],
-            ];
+            ]);
         }
 
-        return [$positions, $i + 1];
+        return $i + 1;
     }
 
     /**
      * Mark-to-base attachment: the mark at $i attaches to the base before it, passing over marks.
      *
-     * @param list<Entry>    $glyphs
-     * @param list<int>      $ids
-     * @param list<Position> $positions
-     *
-     * @return array{0: list<Position>, 1: int}|null
+     * @param list<Entry> $glyphs
+     * @param list<int>   $ids
      *
      * @throws ParseException
      */
@@ -206,10 +193,10 @@ final readonly class GposAttachment
         int $offset,
         array $glyphs,
         array $ids,
-        array $positions,
+        GlyphPositions $positions,
         int $i,
         GlyphFilter $filter,
-    ): ?array {
+    ): ?int {
         $r    = $this->tables->reader;
         $mark = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
         if (null === $mark) {
@@ -233,27 +220,23 @@ final readonly class GposAttachment
             return null;
         }
 
-        return [
-            self::attach(
-                $positions,
-                $i,
-                $j,
-                $this->anchor($baseArray + $anchor),
-                $this->anchor($markArray + $r->u16($record + 2)),
-            ),
-            $i + 1,
-        ];
+        self::attach(
+            $positions,
+            $i,
+            $j,
+            $this->anchor($baseArray + $anchor),
+            $this->anchor($markArray + $r->u16($record + 2)),
+        );
+
+        return $i + 1;
     }
 
     /**
      * Mark-to-ligature attachment: the mark attaches to the ligature component it followed, or to
      * the last component.
      *
-     * @param list<Entry>    $glyphs
-     * @param list<int>      $ids
-     * @param list<Position> $positions
-     *
-     * @return array{0: list<Position>, 1: int}|null
+     * @param list<Entry> $glyphs
+     * @param list<int>   $ids
      *
      * @throws ParseException
      */
@@ -261,10 +244,10 @@ final readonly class GposAttachment
         int $offset,
         array $glyphs,
         array $ids,
-        array $positions,
+        GlyphPositions $positions,
         int $i,
         GlyphFilter $filter,
-    ): ?array {
+    ): ?int {
         $r    = $this->tables->reader;
         $mark = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
         $j    = null === $mark ? null : ChainRules::previous($ids, $i, $filter->marksOnly());
@@ -293,27 +276,23 @@ final readonly class GposAttachment
             return null;
         }
 
-        return [
-            self::attach(
-                $positions,
-                $i,
-                $j,
-                $this->anchor($attach + $anchor),
-                $this->anchor($markArray + $r->u16($record + 2)),
-            ),
-            $i + 1,
-        ];
+        self::attach(
+            $positions,
+            $i,
+            $j,
+            $this->anchor($attach + $anchor),
+            $this->anchor($markArray + $r->u16($record + 2)),
+        );
+
+        return $i + 1;
     }
 
     /**
      * Mark-to-mark attachment: the mark attaches to the mark before it when both belong to the
      * same ligature component, or neither to a ligature.
      *
-     * @param list<Entry>    $glyphs
-     * @param list<int>      $ids
-     * @param list<Position> $positions
-     *
-     * @return array{0: list<Position>, 1: int}|null
+     * @param list<Entry> $glyphs
+     * @param list<int>   $ids
      *
      * @throws ParseException
      */
@@ -321,10 +300,10 @@ final readonly class GposAttachment
         int $offset,
         array $glyphs,
         array $ids,
-        array $positions,
+        GlyphPositions $positions,
         int $i,
         GlyphFilter $filter,
-    ): ?array {
+    ): ?int {
         $r     = $this->tables->reader;
         $mark1 = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
         $j     = null === $mark1 ? null : ChainRules::previous($ids, $i, $filter);
@@ -350,16 +329,15 @@ final readonly class GposAttachment
             return null;
         }
 
-        return [
-            self::attach(
-                $positions,
-                $i,
-                $j,
-                $this->anchor($mark2Array + $anchor),
-                $this->anchor($mark1Array + $r->u16($record + 2)),
-            ),
-            $i + 1,
-        ];
+        self::attach(
+            $positions,
+            $i,
+            $j,
+            $this->anchor($mark2Array + $anchor),
+            $this->anchor($mark1Array + $r->u16($record + 2)),
+        );
+
+        return $i + 1;
     }
 
     /**

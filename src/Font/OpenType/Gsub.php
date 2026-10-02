@@ -11,7 +11,6 @@ use function array_column;
 use function array_key_exists;
 use function array_map;
 use function array_slice;
-use function array_splice;
 use function count;
 use function in_array;
 use function max;
@@ -37,41 +36,18 @@ final class Gsub
 
     private readonly ChainRules $rules;
 
-    private int $ligatures = 0;
-
     public function __construct(BinaryReader $gsub, ?Gdef $gdef = null)
     {
         $this->tables = LayoutTables::gsub($gsub, $gdef);
         $this->rules  = new ChainRules($this->tables);
     }
 
-    /**
-     * @param list<Entry> $glyphs
-     *
-     * @return list<int>
-     */
-    private static function ids(array $glyphs): array
+    /** Replaces the glyph at $i, and continues after it. */
+    private static function replace(GlyphBuffer $glyphs, int $i, int $glyph): int
     {
-        $ids = [];
-        foreach ($glyphs as $entry) {
-            $ids[] = $entry[0];
-        }
+        $glyphs->replace($i, $glyph);
 
-        return $ids;
-    }
-
-    /**
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}
-     */
-    private static function replace(array $glyphs, int $i, int $glyph): array
-    {
-        $entry      = $glyphs[$i] ?? [0, []];
-        $entry[0]   = $glyph;
-        $glyphs[$i] = $entry;
-
-        return [$glyphs, $i + 1];
+        return $i + 1;
     }
 
     /**
@@ -137,16 +113,17 @@ final class Gsub
      */
     public function applyStages(array $glyphs, array $stages, string $script = 'latn'): array
     {
+        $buffer = new GlyphBuffer($glyphs);
         foreach ($stages as $features) {
             $form = 1 === count($features) && in_array($features[0], ArabicJoining::FEATURES, strict: true)
                 ? $features[0]
                 : null;
             foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
-                $glyphs = $this->applyLookup($lookup, $glyphs, $form);
+                $this->applyLookup($lookup, $buffer, $form);
             }
         }
 
-        return $glyphs;
+        return $buffer->entries();
     }
 
     /**
@@ -165,17 +142,11 @@ final class Gsub
         return $this->tables->hasScript($tag);
     }
 
-    /**
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
-     * @throws ParseException
-     */
-    private function alternate(int $offset, array $glyphs, int $i): ?array
+    /** @throws ParseException */
+    private function alternate(int $offset, GlyphBuffer $glyphs, int $i): ?int
     {
         $r     = $this->tables->reader;
-        $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$glyphs[$i][0] ?? -1] ?? null;
+        $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$glyphs->id($i) ?? -1] ?? null;
         if (null === $index || 1 !== $r->u16($offset)) {
             return null;
         }
@@ -188,24 +159,20 @@ final class Gsub
     }
 
     /**
-     * Applies a lookup at one position: the first subtable that matches there. Returns the new
-     * sequence and the position to continue from, or null when nothing matched.
-     *
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
+     * Applies a lookup at one position: the first subtable that matches there. Returns the
+     * position to continue from, or null when nothing matched.
      *
      * @throws ParseException
      */
-    private function applyAt(int $lookup, array $glyphs, int $i, int $depth): ?array
+    private function applyAt(int $lookup, GlyphBuffer $glyphs, int $i, int $depth): ?int
     {
-        $glyph  = $glyphs[$i][0] ?? null;
+        $glyph  = $glyphs->id($i);
         $filter = $this->tables->filter($lookup);
         if (null === $glyph || $depth > self::MAX_NESTING || $filter->ignores($glyph)) {
             return null;
         }
         foreach ($this->tables->subtablesAt($lookup, $glyph) as [$type, $offset]) {
-            $result = match ($type) {
+            $next = match ($type) {
                 1       => $this->single($offset, $glyphs, $i),
                 2       => $this->multiple($offset, $glyphs, $i),
                 3       => $this->alternate($offset, $glyphs, $i),
@@ -214,8 +181,8 @@ final class Gsub
                 8       => $this->reverse($offset, $glyphs, $i, $filter),
                 default => null,
             };
-            if (null !== $result) {
-                return $result;
+            if (null !== $next) {
+                return $next;
             }
         }
 
@@ -226,64 +193,49 @@ final class Gsub
      * Applies one lookup at every position of the sequence: forwards, or backwards for reverse
      * chaining.
      *
-     * @param list<Entry> $glyphs
-     *
-     * @return list<Entry>
-     *
      * @throws ParseException
      */
-    private function applyLookup(int $lookup, array $glyphs, ?string $form = null): array
+    private function applyLookup(int $lookup, GlyphBuffer $glyphs, ?string $form = null): void
     {
         $starts = $this->tables->startGlyphs($lookup);
         if ([] === $starts) {
-            return $glyphs;
+            return;
         }
         if (in_array(8, array_column($this->tables->subtables($lookup), column_key: 0), strict: true)) {
-            for ($i = count($glyphs) - 1; $i >= 0; --$i) {
-                if (! array_key_exists($glyphs[$i][0] ?? -1, $starts)) {
+            for ($i = $glyphs->count() - 1; $i >= 0; --$i) {
+                if (! array_key_exists($glyphs->id($i) ?? -1, $starts)) {
                     continue;
                 }
-                $glyphs = $this->applyAt($lookup, $glyphs, $i, depth: 0)[0] ?? $glyphs;
+                $this->applyAt($lookup, $glyphs, $i, depth: 0);
             }
 
-            return $glyphs;
+            return;
         }
         $i = 0;
-        while ($i < count($glyphs)) {
+        while ($i < $glyphs->count()) {
             if (
-                ! array_key_exists($glyphs[$i][0] ?? -1, $starts)
+                ! array_key_exists($glyphs->id($i) ?? -1, $starts)
                 || (
                     null !== $form
-                    && $form !== ($glyphs[$i][4] ?? '')
+                    && $form !== ($glyphs->entry($i)[4] ?? '')
                 )
             ) {
                 ++$i;
                 continue;
             }
-            $result = $this->applyAt($lookup, $glyphs, $i, depth: 0);
-            if (null === $result) {
-                ++$i;
-                continue;
-            }
-            [$glyphs, $i] = $result;
+            $i = $this->applyAt($lookup, $glyphs, $i, depth: 0) ?? ($i + 1);
         }
-
-        return $glyphs;
     }
 
     /**
      * Context and chained context substitution: when the rule matches at $i, the nested lookups
      * apply at their input positions, which follow any change in the sequence's length.
      *
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
      * @throws ParseException
      */
-    private function context(int $type, int $offset, array $glyphs, int $i, int $depth, GlyphFilter $filter): ?array
+    private function context(int $type, int $offset, GlyphBuffer $glyphs, int $i, int $depth, GlyphFilter $filter): ?int
     {
-        $match = $this->rules->match($type, $offset, self::ids($glyphs), $i, $filter);
+        $match = $this->rules->match($type, $offset, $glyphs->ids(), $i, $filter);
         if (null === $match) {
             return null;
         }
@@ -294,13 +246,11 @@ final class Gsub
             if (null === $position) {
                 continue;
             }
-            $before = count($glyphs);
-            $result = $this->applyAt($lookupIndex, $glyphs, $position, $depth + 1);
-            if (null === $result) {
+            $before = $glyphs->count();
+            if (null === $this->applyAt($lookupIndex, $glyphs, $position, $depth + 1)) {
                 continue;
             }
-            $glyphs = $result[0];
-            $delta  = count($glyphs) - $before;
+            $delta = $glyphs->count() - $before;
             if (0 === $delta) {
                 continue;
             }
@@ -308,22 +258,18 @@ final class Gsub
             $positions = self::shiftPositions($positions, $sequenceIndex, $delta);
         }
 
-        return [$glyphs, max($i + 1, $end)];
+        return max($i + 1, $end);
     }
 
     /**
      * Ligature substitution: the components follow the first glyph, passing over glyphs the
      * lookup ignores, which stay after the ligature marked with the component they followed.
      *
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
      * @throws ParseException
      */
-    private function ligature(int $offset, array $glyphs, int $i, GlyphFilter $filter): ?array
+    private function ligature(int $offset, GlyphBuffer $glyphs, int $i, GlyphFilter $filter): ?int
     {
-        $ids = self::ids($glyphs);
+        $ids = $glyphs->ids();
         foreach ($this->tables->ligatureSet($offset)[$ids[$i] ?? -1] ?? [] as [$components, $ligature]) {
             $positions = [$i];
             $p         = $i;
@@ -334,11 +280,15 @@ final class Gsub
                 }
                 $positions[] = $p;
             }
-            $id         = ++$this->ligatures;
+            $id         = $glyphs->nextLigature();
             $codePoints = [];
             $kept       = [];
             $component  = 0;
-            foreach (array_slice($glyphs, $i, $p - $i + 1, preserve_keys: true) as $position => $entry) {
+            for ($position = $i; $position <= $p; ++$position) {
+                $entry = $glyphs->entry($position);
+                if (null === $entry) {
+                    continue;
+                }
                 if (in_array($position, $positions, strict: true)) {
                     ++$component;
                     foreach ($entry[1] as $point) {
@@ -348,9 +298,10 @@ final class Gsub
                 }
                 $kept[] = [$entry[0], $entry[1], $id, $component, $entry[4] ?? ''];
             }
-            array_splice($glyphs, $i, $p - $i + 1, [[$ligature, $codePoints, $id, 0, $glyphs[$i][4] ?? ''], ...$kept]);
+            $form = $glyphs->entry($i)[4] ?? '';
+            $glyphs->splice($i, $p - $i + 1, [[$ligature, $codePoints, $id, 0, $form], ...$kept]);
 
-            return [$glyphs, $i + 1];
+            return $i + 1;
         }
 
         return null;
@@ -359,16 +310,12 @@ final class Gsub
     /**
      * Multiple substitution: one glyph becomes several; the first stands for its characters.
      *
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
      * @throws ParseException
      */
-    private function multiple(int $offset, array $glyphs, int $i): ?array
+    private function multiple(int $offset, GlyphBuffer $glyphs, int $i): ?int
     {
         $r     = $this->tables->reader;
-        $entry = $glyphs[$i] ?? null;
+        $entry = $glyphs->entry($i);
         $index = null === $entry ? null : $this->tables->coverage($offset + $r->u16($offset + 2))[$entry[0]] ?? null;
         if (null === $entry || null === $index || 1 !== $r->u16($offset) || $index >= $r->u16($offset + 4)) {
             return null;
@@ -378,25 +325,21 @@ final class Gsub
         foreach ($r->u16List($sequence + 2, $r->u16($sequence)) as $k => $glyph) {
             $replacement[] = [$glyph, 0 === $k ? $entry[1] : [], $entry[2] ?? 0, $entry[3] ?? 0, $entry[4] ?? ''];
         }
-        array_splice($glyphs, $i, length: 1, replacement: $replacement);
+        $glyphs->splice($i, 1, $replacement);
 
-        return [$glyphs, $i + count($replacement)];
+        return $i + count($replacement);
     }
 
     /**
      * Reverse chaining single substitution, applied from the end of the sequence: a glyph whose
      * backtrack and lookahead match is replaced.
      *
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
      * @throws ParseException
      */
-    private function reverse(int $offset, array $glyphs, int $i, GlyphFilter $filter): ?array
+    private function reverse(int $offset, GlyphBuffer $glyphs, int $i, GlyphFilter $filter): ?int
     {
         $r     = $this->tables->reader;
-        $ids   = self::ids($glyphs);
+        $ids   = $glyphs->ids();
         $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
         if (null === $index || 1 !== $r->u16($offset)) {
             return null;
@@ -424,20 +367,16 @@ final class Gsub
             return null;
         }
 
+        unset($ids);
+
         return self::replace($glyphs, $i, $r->u16($at + 2 + (2 * $index)));
     }
 
-    /**
-     * @param list<Entry> $glyphs
-     *
-     * @return array{0: list<Entry>, 1: int}|null
-     *
-     * @throws ParseException
-     */
-    private function single(int $offset, array $glyphs, int $i): ?array
+    /** @throws ParseException */
+    private function single(int $offset, GlyphBuffer $glyphs, int $i): ?int
     {
         $r     = $this->tables->reader;
-        $glyph = $glyphs[$i][0] ?? -1;
+        $glyph = $glyphs->id($i) ?? -1;
         $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$glyph] ?? null;
         if (null === $index) {
             return null;

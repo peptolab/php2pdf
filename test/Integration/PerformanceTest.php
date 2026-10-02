@@ -6,6 +6,7 @@ namespace Php2PdfTest\Integration;
 
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
@@ -22,6 +23,7 @@ use PHPUnit\Framework\TestCase;
 
 use function file_get_contents;
 use function filesize;
+use function hrtime;
 use function memory_get_peak_usage;
 use function microtime;
 use function sprintf;
@@ -35,6 +37,34 @@ use function str_repeat;
 #[Group('slow')]
 final class PerformanceTest extends TestCase
 {
+    /**
+     * Shaping keeps one buffer for a run and changes it in place, so four times the text takes
+     * about four times as long; a copy per substitution made it sixteen.
+     */
+    #[Test]
+    #[Group('performance')]
+    public function shapingTimeGrowsWithTheTextNotItsSquare(): void
+    {
+        $document = new Document(new MemoryOutput());
+        $font     = $document->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
+        $text     = str_repeat('The quick brown fox affirms fluffy waffles, officially. ', times: 40);
+        $time     = static function (string $text) use ($font): float {
+            $start = hrtime(true);
+            $font->shape($text);
+
+            return (float) (hrtime(true) - $start);
+        };
+        $time("{$text}warm");
+        $short = $time("{$text}a");
+        $long  = $time(str_repeat($text, times: 4) . 'b');
+
+        self::assertLessThan(
+            8.0,
+            $long / $short,
+            sprintf('Four times the text took %.1f times as long.', $long / $short),
+        );
+    }
+
     #[Test]
     #[Group('performance')]
     public function writesFiveHundredPagesInBoundedTimeAndMemory(): void
