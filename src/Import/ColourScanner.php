@@ -26,8 +26,6 @@ use function spl_object_id;
  */
 final class ColourScanner
 {
-    private const int MAX_DEPTH = 32;
-
     /** Content operators that select a device colour space directly. */
     private const array OPERATORS = [
         'g'  => 'DeviceGray',
@@ -85,7 +83,7 @@ final class ColourScanner
 
             return;
         }
-        if (! is_array($space) || $depth > self::MAX_DEPTH) {
+        if (! is_array($space) || $depth > $this->reader->limits()->maxObjectNesting) {
             return;
         }
         $family = $this->reader->resolve($space[0] ?? null);
@@ -216,7 +214,7 @@ final class ColourScanner
     private function resources(Dictionary $resources, int $depth): void
     {
         $id = spl_object_id($resources);
-        if (array_key_exists($id, $this->seen) || $depth > self::MAX_DEPTH) {
+        if (array_key_exists($id, $this->seen) || $depth > $this->reader->limits()->maxObjectNesting) {
             return;
         }
         $this->seen[$id] = true;

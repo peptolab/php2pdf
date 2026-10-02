@@ -26,8 +26,6 @@ use function is_string;
  */
 final class OptionalContent
 {
-    private const int MAX_DEPTH = 32;
-
     /** @var list<Dictionary> */
     private array $auto = [];
 
@@ -187,7 +185,7 @@ final class OptionalContent
     private function order(PdfReader $source, mixed $order, ObjectCopier $copier, int $depth): array
     {
         $order = $source->resolve($order);
-        if (! is_array($order) || $depth > self::MAX_DEPTH) {
+        if (! is_array($order) || $depth > $source->limits()->maxObjectNesting) {
             return [];
         }
         $out      = [];

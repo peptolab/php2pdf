@@ -56,7 +56,7 @@ final class PdfReader
         private readonly Limits $limits,
     ) {
         $this->lexer      = new Lexer($data);
-        $this->parser     = new ObjectParser($this->lexer, $this->resolve(...));
+        $this->parser     = new ObjectParser($this->lexer, $this->resolve(...), $limits->maxObjectNesting);
         $this->xrefParser = new XrefParser($this->lexer, $this->parser, $this->decode(...), $limits->maxXrefEntries);
         $m                = [];
         $this->version    = preg_match('/%PDF-(\d\.\d)/', substr($data, offset: 0, length: 1024), $m) === 1
@@ -139,6 +139,12 @@ final class PdfReader
         return $this->resolve($dict->get($key));
     }
 
+    /** The limits this file is read under. */
+    public function limits(): Limits
+    {
+        return $this->limits;
+    }
+
     public function object(int $number): mixed
     {
         if (array_key_exists($number, $this->cache)) {
@@ -183,7 +189,7 @@ final class PdfReader
     public function resolve(mixed $value): mixed
     {
         $depth = 0;
-        while ($value instanceof Reference && $depth++ < 32) {
+        while ($value instanceof Reference && $depth++ < $this->limits->maxObjectNesting) {
             $value = $this->object($value->id);
         }
 
@@ -243,7 +249,7 @@ final class PdfReader
             return;
         }
         $data = $this->decode($stream);
-        $body = new ObjectParser(new Lexer($data));
+        $body = new ObjectParser(new Lexer($data), maxNesting: $this->limits->maxObjectNesting);
         foreach ($this->objectStreamOffsets($stream, $data) as $num => $offset) {
             // An object redefined in a later update, or living in another stream, keeps precedence.
             $entry = $this->xref->entry($num);
@@ -251,7 +257,7 @@ final class PdfReader
                 continue;
             }
             $body->lexer()->seek($offset);
-            $this->cache[$num] = $body->parse();
+            $this->cache[$num] = $this->parseInStream($body);
         }
     }
 
@@ -307,6 +313,16 @@ final class PdfReader
         }
 
         return $number === $expected ? $object : null;
+    }
+
+    /** Parses one object of an object stream, or null when it is broken, as a broken object in the file is. */
+    private function parseInStream(ObjectParser $body): mixed
+    {
+        try {
+            return $body->parse();
+        } catch (PdfException) {
+            return null;
+        }
     }
 
     private function registerObjectStream(int $number, Stream $stream): void
@@ -366,7 +382,7 @@ final class PdfReader
         array &$visited,
         int $depth,
     ): void {
-        if ($depth > 64) {
+        if ($depth > $this->limits->maxObjectNesting) {
             return;
         }
         $merged = new Dictionary($inherited->all());

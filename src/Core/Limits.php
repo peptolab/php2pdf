@@ -16,12 +16,15 @@ use Php2Pdf\Exception\InvalidArgumentException;
 final readonly class Limits
 {
     /**
-     * @param int $maxDecodedBytes the largest a single decompressed stream may grow
-     * @param int $maxImagePixels  the most pixels an image may have (width × height)
-     * @param int $maxPages        the most pages an imported PDF may have
-     * @param int $maxXrefEntries  the most cross-reference entries an imported PDF may declare
-     * @param int $maxNesting      the deepest SVG elements may nest
-     * @param int $maxSvgUses      the most <use> references one SVG may expand while drawing
+     * @param int $maxDecodedBytes  the largest a single decompressed stream may grow
+     * @param int $maxImagePixels   the most pixels an image may have (width × height)
+     * @param int $maxPages         the most pages an imported PDF may have
+     * @param int $maxXrefEntries   the most cross-reference entries an imported PDF may declare
+     * @param int $maxNesting       the deepest SVG elements may nest
+     * @param int $maxSvgUses       the most <use> references one SVG may expand while drawing
+     * @param int $maxObjectNesting the deepest an imported PDF's objects may nest: arrays and
+     *                              dictionaries within each other, page tree levels, chains of
+     *                              references, and resources within forms
      */
     public function __construct(
         public int $maxDecodedBytes = 256 * 1024 * 1024,
@@ -30,8 +33,17 @@ final readonly class Limits
         public int $maxXrefEntries = 10_000_000,
         public int $maxNesting = 256,
         public int $maxSvgUses = 10_000,
+        public int $maxObjectNesting = 256,
     ) {
-        foreach ([$maxDecodedBytes, $maxImagePixels, $maxPages, $maxXrefEntries, $maxNesting, $maxSvgUses] as $limit) {
+        foreach ([
+            $maxDecodedBytes,
+            $maxImagePixels,
+            $maxPages,
+            $maxXrefEntries,
+            $maxNesting,
+            $maxSvgUses,
+            $maxObjectNesting,
+        ] as $limit) {
             if ($limit < 1) {
                 throw new InvalidArgumentException('Limits must be at least 1.');
             }

@@ -55,6 +55,16 @@ final class LimitsTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: 'object'|'object stream'|'trailer', 1: list<mixed>|null}> */
+    public static function deepArrayProvider(): array
+    {
+        return [
+            'in an object'        => ['object', null],
+            'in an object stream' => ['object stream', null],
+            'in the trailer'      => ['trailer', []],
+        ];
+    }
+
     /** @return array<string, array{0: string}> */
     public static function flateProvider(): array
     {
@@ -152,6 +162,25 @@ final class LimitsTest extends TestCase
     public function aSharedPageTreeIsWalkedOnce(): void
     {
         self::assertSame(1, PdfFile::fromData(HostileFiles::sharedPageTree(30))->pageCount());
+    }
+
+    /**
+     * Arrays nested far past the limit fail as a ParseException, which the reader treats as a
+     * broken object: in an object or an object stream it reads as missing, and in the trailer it
+     * makes the reader repair the cross-reference and find the catalog by scanning.
+     *
+     * @param list<mixed>|null $annots
+     */
+    #[Test]
+    #[DataProvider('deepArrayProvider')]
+    public function deeplyNestedPdfArraysAreReadAsBrokenObjects(string $where, ?array $annots): void
+    {
+        $file = PdfFile::fromData(HostileFiles::deepArrayPdf(200_000, $where));
+
+        self::assertSame(
+            [1, $annots],
+            [$file->pageCount(), $file->reader()->get($file->page(1)->dictionary(), 'Annots')],
+        );
     }
 
     #[Test]

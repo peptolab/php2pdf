@@ -8,19 +8,55 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Import\Lexer;
 use Php2Pdf\Import\ObjectParser;
 use Php2Pdf\Import\Token;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function str_repeat;
+
+#[Group('unit')]
 final class ObjectParserTest extends TestCase
 {
+    /** @return array<string, array{0: string}> */
+    public static function tooDeepProvider(): array
+    {
+        return [
+            'arrays'                 => [str_repeat('[', times: 4) . str_repeat(']', times: 4)],
+            'dictionaries'           => [str_repeat('<< /K ', times: 4) . str_repeat('>> ', times: 4)],
+            'arrays in dictionaries' => ['<< /A [<< /B [1] >>] >>'],
+            'unclosed arrays'        => [str_repeat('[', times: 200_000)],
+        ];
+    }
+
     private static function parse(string $syntax): mixed
     {
         $parser = new ObjectParser(new Lexer($syntax));
 
         return $parser->parse();
+    }
+
+    #[Test]
+    #[DataProvider('tooDeepProvider')]
+    public function containersNestedPastTheLimitAreRejected(string $syntax): void
+    {
+        $parser = new ObjectParser(new Lexer($syntax), maxNesting: 3);
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('PDF arrays and dictionaries are nested more than 3 deep');
+        $parser->parse();
+    }
+
+    #[Test]
+    public function containersNestedToTheLimitAreParsed(): void
+    {
+        $parser = new ObjectParser(new Lexer('[[[1]]]'), maxNesting: 3);
+
+        self::assertSame([[[1]]], $parser->parse());
     }
 
     #[Test]
@@ -94,6 +130,21 @@ final class ObjectParserTest extends TestCase
         self::assertSame('joined', self::parse("(join\\\ned)"));
         self::assertSame("cr\nlf", self::parse("(cr\r\nlf)"));
         self::assertSame("\x90\x1F\xA0", self::parse('<90 1F A>'));
+    }
+
+    #[Test]
+    public function theParserRecoversItsDepthAfterRejectingAnObject(): void
+    {
+        $lexer  = new Lexer('[[[[1]]]] [[[2]]]');
+        $parser = new ObjectParser($lexer, maxNesting: 3);
+        try {
+            $parser->parse();
+            self::fail('The first object nests too deep.');
+        } catch (ParseException) {
+            $lexer->seek(10);
+        }
+
+        self::assertSame([[[2]]], $parser->parse());
     }
 
     #[Test]

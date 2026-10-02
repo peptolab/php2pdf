@@ -8,16 +8,53 @@ use function count;
 use function gzcompress;
 use function implode;
 use function pack;
+use function preg_replace;
 use function sprintf;
 use function str_repeat;
+use function str_replace;
 use function strlen;
 
 /**
  * Small malformed or oversized files for robustness tests: decompression bombs, shared page
- * trees, bad cross-reference streams, oversized and inconsistent PNGs, deep and self-expanding SVG.
+ * trees, bad cross-reference streams, deeply nested objects, oversized and inconsistent PNGs, deep
+ * and self-expanding SVG.
  */
 final class HostileFiles
 {
+    /**
+     * A PDF with arrays nested $depth deep: as the page's /Annots object; in an object stream
+     * holding it, which the reader only finds by repairing the cross-reference (its offset here
+     * is wrong); or in the trailer, where the reader can only find the catalog by repairing.
+     *
+     * @param 'object'|'object stream'|'trailer' $where
+     */
+    public static function deepArrayPdf(int $depth, string $where): string
+    {
+        $deep    = str_repeat('[', $depth) . str_repeat(']', $depth);
+        $objects = [
+            '<< /Type /Catalog /Pages 2 0 R >>',
+            '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Annots 4 0 R >>',
+            'object' === $where ? $deep : '[]',
+        ];
+        if ('object stream' === $where) {
+            $data       = "5 0 {$deep}";
+            $objects[2] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Annots 5 0 R >>';
+            $objects[3] = sprintf(
+                "<< /Type /ObjStm /N 1 /First 4 /Length %d >>\nstream\n%s\nendstream",
+                strlen($data),
+                $data,
+            );
+        }
+        $pdf = self::pdf($objects);
+
+        return match ($where) {
+            'trailer'       => str_replace('/Root 1 0 R', "/Root 1 0 R /Deep {$deep}", $pdf),
+            'object stream' => (string) preg_replace('/startxref\n\d+/', replacement: "startxref\n1", subject: $pdf),
+            default         => $pdf,
+        };
+    }
+
     /** SVG with $depth nested groups. */
     public static function deepSvg(int $depth): string
     {

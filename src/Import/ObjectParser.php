@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Import;
 
 use Closure;
+use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
@@ -24,7 +25,8 @@ use function substr;
 /**
  * Builds objects from tokens: scalars, names, strings, arrays, dictionaries, references and
  * streams. Stream lengths come from the dictionary, resolved through the reader when indirect,
- * and are verified against the "endstream" keyword with a search fallback.
+ * and are verified against the "endstream" keyword with a search fallback. Arrays and dictionaries
+ * nested deeper than the limit fail with a ParseException rather than exhausting the stack.
  *
  * @internal
  */
@@ -33,12 +35,23 @@ final class ObjectParser
     /** @var Closure(mixed): mixed resolves references to their objects */
     private readonly Closure $resolver;
 
-    /** @param Closure(mixed): mixed|null $resolver */
+    private readonly int $maxNesting;
+
+    /** Arrays and dictionaries open around the object being parsed. */
+    private int $depth = 0;
+
+    /**
+     * @param Closure(mixed): mixed|null $resolver
+     * @param int|null                   $maxNesting the deepest arrays and dictionaries may nest;
+     *                                               the default limits' maxObjectNesting when null
+     */
     public function __construct(
         private readonly Lexer $lexer,
         ?Closure $resolver = null,
+        ?int $maxNesting = null,
     ) {
-        $this->resolver = $resolver ?? static fn(mixed $value): mixed => $value;
+        $this->resolver   = $resolver ?? static fn(mixed $value): mixed => $value;
+        $this->maxNesting = $maxNesting ?? Limits::default()->maxObjectNesting;
     }
 
     public function lexer(): Lexer
@@ -49,6 +62,8 @@ final class ObjectParser
     /**
      * Parses the next object. Keywords other than true/false/null are returned as Token so
      * callers can act on "obj", "endobj", "stream" and friends.
+     *
+     * @throws ParseException for arrays and dictionaries nested deeper than the limit
      */
     public function parse(?Token $first = null): mixed
     {
@@ -95,6 +110,68 @@ final class ObjectParser
     /** @return list<mixed> */
     private function array(): array
     {
+        $this->open();
+
+        try {
+            return $this->items();
+        } finally {
+            --$this->depth;
+        }
+    }
+
+    private function dictionaryOrStream(): Dictionary|Stream
+    {
+        $this->open();
+
+        try {
+            $dict = $this->entries();
+        } finally {
+            --$this->depth;
+        }
+
+        $save  = $this->lexer->position();
+        $token = $this->lexer->next();
+        if (! $token->is(Token::KEYWORD, 'stream')) {
+            $this->lexer->seek($save);
+
+            return $dict;
+        }
+
+        return $this->stream($dict);
+    }
+
+    /** The entries of a dictionary, up to its closing delimiter. */
+    private function entries(): Dictionary
+    {
+        $dict = new Dictionary();
+        while (true) {
+            $token = $this->lexer->next();
+            if ($token->is(Token::DICT_CLOSE) || $token->is(Token::END)) {
+                return $dict;
+            }
+            if (! $token->is(Token::NAME)) {
+                // Skip a stray value so one broken entry does not lose the dictionary.
+                $this->parse($token);
+                continue;
+            }
+            $value = $this->parse();
+            if ($value instanceof Token) {
+                if ($value->is(Token::DICT_CLOSE)) {
+                    return $dict;
+                }
+                continue;
+            }
+            $dict->set((string) $token->value, $value);
+        }
+    }
+
+    /**
+     * The items of an array, up to its closing delimiter.
+     *
+     * @return list<mixed>
+     */
+    private function items(): array
+    {
         $items = [];
         while (true) {
             $token = $this->lexer->next();
@@ -115,40 +192,6 @@ final class ObjectParser
             }
             $items[] = $value;
         }
-    }
-
-    private function dictionaryOrStream(): Dictionary|Stream
-    {
-        $dict = new Dictionary();
-        while (true) {
-            $token = $this->lexer->next();
-            if ($token->is(Token::DICT_CLOSE) || $token->is(Token::END)) {
-                break;
-            }
-            if (! $token->is(Token::NAME)) {
-                // Skip a stray value so one broken entry does not lose the dictionary.
-                $this->parse($token);
-                continue;
-            }
-            $value = $this->parse();
-            if ($value instanceof Token) {
-                if ($value->is(Token::DICT_CLOSE)) {
-                    break;
-                }
-                continue;
-            }
-            $dict->set((string) $token->value, $value);
-        }
-
-        $save  = $this->lexer->position();
-        $token = $this->lexer->next();
-        if (! $token->is(Token::KEYWORD, 'stream')) {
-            $this->lexer->seek($save);
-
-            return $dict;
-        }
-
-        return $this->stream($dict);
     }
 
     private function numberOrReference(Token $number): int|float|Reference
@@ -173,6 +216,19 @@ final class ObjectParser
         $this->lexer->seek($save);
 
         return $number->value;
+    }
+
+    /** @throws ParseException when one more array or dictionary would nest past the limit */
+    private function open(): void
+    {
+        if ($this->depth >= $this->maxNesting) {
+            throw new ParseException(sprintf(
+                'PDF arrays and dictionaries are nested more than %d deep at offset %d.',
+                $this->maxNesting,
+                $this->lexer->position(),
+            ));
+        }
+        ++$this->depth;
     }
 
     private function stream(Dictionary $dict): Stream

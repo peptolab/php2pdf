@@ -32,8 +32,11 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 
 `Limits` caps what reading a hostile or broken file can cost: `maxDecodedBytes` (256 MiB per
 decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per imported PDF),
-`maxXrefEntries` (10 million), `maxNesting` (256 levels of SVG elements) and `maxSvgUses`
-(10,000 `<use>` expansions). A file over a limit fails with a `ParseException`. The static
+`maxXrefEntries` (10 million), `maxObjectNesting` (256 levels of PDF arrays and dictionaries,
+page tree levels, reference chains and nested resources), `maxNesting` (256 levels of SVG
+elements) and `maxSvgUses` (10,000 `<use>` expansions). A file over a limit fails with a
+`ParseException`, except that a PDF object nested too deeply is treated like any other broken
+object: it reads as missing, or makes the reader rebuild the cross-reference. The static
 constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a
 `Limits` too; lower the limits for files from untrusted sources.
 
@@ -42,8 +45,8 @@ constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()
 The library parses these inputs, and any of them may come from a user upload:
 
 - **PDF and AI files** (`import()`, `PdfFile`): the cross-reference, object and page-tree
-  parsers and the stream filters, bounded by `maxDecodedBytes`, `maxPages` and
-  `maxXrefEntries`, with cycles in the page tree detected;
+  parsers and the stream filters, bounded by `maxDecodedBytes`, `maxPages`, `maxXrefEntries`
+  and `maxObjectNesting`, with cycles in the page tree detected;
 - **images** (`image()`, `imageFromData()`): the PNG decoder and the header readers of other
   formats, bounded by `maxImagePixels` before anything is decoded; formats other than JPEG and
   PNG go to Imagick or GD, which have their own limits;

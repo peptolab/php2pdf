@@ -8,6 +8,7 @@ use Closure;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_sum;
@@ -139,7 +140,7 @@ final readonly class XrefParser
         preg_match_all('/trailer/', $data, $trailers, flags: PREG_OFFSET_CAPTURE);
         foreach ($trailers[0] ?? [] as $match) {
             $this->lexer->seek((int) ($match[1] ?? 0) + 7);
-            $dict = $this->parser->parse();
+            $dict = $this->trailerAt();
             if (! $dict instanceof Dictionary) {
                 continue;
             }
@@ -245,6 +246,16 @@ final readonly class XrefParser
                 }
             }
             $this->lexer->seek($pos);
+        }
+    }
+
+    /** The object after a "trailer" keyword found by scanning, or null when it cannot be parsed. */
+    private function trailerAt(): mixed
+    {
+        try {
+            return $this->parser->parse();
+        } catch (PdfException) {
+            return null;
         }
     }
 }

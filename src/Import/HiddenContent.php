@@ -110,7 +110,7 @@ final class HiddenContent
     public function filter(string $content, ?Dictionary $resources): string
     {
         $lexer          = new Lexer($content);
-        $parser         = new ObjectParser($lexer);
+        $parser         = new ObjectParser($lexer, maxNesting: $this->reader->limits()->maxObjectNesting);
         $this->cuts     = [];
         $this->skipFrom = null;
         $this->depth    = 0;
