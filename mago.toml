@@ -1,11 +1,96 @@
-extends = "vendor/php-db/phpdb-qa-tools/mago.toml"
+#:schema https://mago.carthage.software/1.43.0/schema.json
+# The php-db/phpdb-qa-tools base configuration, written out in full rather than extended: its
+# analyzer excludes test/, and an extending file can add to that list but not remove from it.
+# Keep the shared settings in step with the base when it changes; this project's own settings
+# follow each section's shared ones.
+version = "1"
 php-version = "8.3.0"
 
 [source]
 paths = ["src", "test"]
 includes = ["vendor"]
 
+[formatter]
+preset = "default"
+print-width = 120
+tab-width = 4
+use-tabs = false
+preserve-breaking-member-access-chain = true
+preserve-breaking-member-access-chain-first-method-on-same-line = true
+preserve-breaking-argument-list = true
+preserve-breaking-array-like = true
+preserve-breaking-parameter-list = true
+preserve-breaking-attribute-list = true
+preserve-breaking-conditional-expression = true
+preserve-breaking-condition-expression = true
+preserve-redundant-logical-binary-expression-parentheses = true
+preserve-breaking-binary-expression = true
+space-after-logical-not-unary-prefix-operator = true
+always-break-named-arguments-list = true
+align-assignment-like = true
+sort-class-methods = true
+
+[linter]
+minimum-fail-level = "Help"
+integrations = ["laminas", "phpunit"]
+
 [linter.rules]
+literal-named-argument = { enabled = true }
+valid-docblock = { enabled = true }
+no-negated-ternary = { enabled = true }
+no-short-bool-cast = { enabled = true }
+no-inline = { enabled = true }
+no-array-accumulation-in-loop = { enabled = true }
+no-literal-namespace-string = { enabled = true }
+no-parameter-shadowing = { enabled = true }
+no-side-effects-with-declarations = { enabled = true }
+prefer-array-spread = { enabled = true }
+prefer-explode-over-preg-split = { enabled = true }
+prefer-first-class-callable = { check-functions = true }
+prefer-test-attribute = { enabled = true }
+require-namespace = { enabled = true }
+prefer-pre-increment = { enabled = true }
+prefer-self-return-type = { enabled = true }
+sorted-integer-keys = { enabled = true }
+yoda-conditions = { enabled = true }
+file-name = { enabled = true }
+array-style = { level = "Help" }
+block-statement = { level = "Help" }
+braced-string-interpolation = { enabled = true, level = "Help" }
+no-alias-function = { level = "Help" }
+no-php-tag-terminator = { level = "Help" }
+no-trailing-space = { level = "Help" }
+string-style = { enabled = true, level = "Help" }
+ambiguous-constant-access = { enabled = true }
+ambiguous-function-call = { enabled = true }
+class-name = { psr = true }
+function-name = { camel = true, exclude = ["src/functions/*"] }
+interface-name = { psr = true }
+method-name = { enabled = true, camel = true }
+no-fully-qualified-global-class-like = { enabled = true }
+no-fully-qualified-global-constant = { enabled = true }
+no-fully-qualified-global-function = { enabled = true }
+property-name = { enabled = true }
+trait-name = { psr = true }
+variable-name = { enabled = true, camel = true, either = false }
+no-iterator-to-array-in-foreach = { enabled = true }
+no-duplicate-match-arm = { level = "Help" }
+no-empty-comment = { level = "Help" }
+no-empty-loop = { level = "Help" }
+no-is-null = { enabled = true, level = "Help" }
+no-null-property-init = { enabled = true }
+no-redundant-else = { enabled = true }
+disallowed-type-instantiation = { enabled = true }
+no-debug-symbols = { level = "Help" }
+no-assign-in-argument = { enabled = true }
+no-dead-store = { enabled = true }
+no-redundant-variable = { enabled = true }
+no-unused-closure-capture = { enabled = true }
+no-unused-global = { enabled = true }
+no-unused-static = { enabled = true }
+switch-continue-to-break = { enabled = true }
+invalid-open-tag = { level = "Help" }
+
 # Size and complexity limits for the whole library. Each rule lists two kinds of exception:
 #
 # - Honest ones, which stay: binary format readers that follow a format's grammar branch by
@@ -13,6 +98,8 @@ includes = ["vendor"]
 # - A ratchet: classes the restructuring phases split up. Remove a file from its list when it
 #   passes, and never add one to make new code pass.
 too-many-methods = { threshold = 30, exclude = [
+    # Test classes group many cases.
+    "test/",
     # Honest: the drawing vocabulary (paths, painting, state, colour, text), each method a line or
     # two delegating to the content stream, shapes, paint and text painter.
     "src/Canvas/Canvas.php",
@@ -89,6 +176,32 @@ kan-defect = { threshold = 4.5, exclude = [
 no-ffi = { exclude = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] }
 
 [analyzer]
+# Tests are analysed too, so they keep up with the signatures they call.
+excludes = ["test/asset", "test/output"]
+plugins = ["psl", "psr-container"]
+find-unused-definitions = true
+find-unused-expressions = true
+find-overly-wide-return-types = true
+analyze-dead-code = true
+memoize-properties = true
+check-throws = true
+check-missing-override = true
+find-unused-parameters = true
+strict-list-index-checks = true
+strict-array-index-existence = true
+allow-array-truthy-operand = false
+no-boolean-literal-comparison = true
+check-missing-type-hints = true
+check-arrow-function-missing-type-hints = true
+register-super-globals = false
+check-property-initialization = true
+check-use-statements = true
+check-name-casing = true
+enforce-class-finality = true
+require-api-or-internal = true
+class-initializers = [
+    "PHPUnit\\Framework\\TestCase::setUp",
+]
 # Reading files is checked: ParseException and IoException must be declared with @throws, so
 # callers see which calls read input that may be broken or missing. Bad arguments, misuse of an
 # object's state, and conformance and layout failures are unchecked: they are bugs in the calling
@@ -96,6 +209,10 @@ no-ffi = { exclude = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] }
 unchecked-exceptions = [
     "Error",
     "LogicException",
+    "Laminas\\Validator\\Exception\\RuntimeException",
+    "PHPUnit\\Framework\\Exception",
+    "PHPUnit\\Framework\\MockObject\\Exception",
+    "PHPUnit\\Event\\NoPreviousThrowableException",
     "Php2Pdf\\Exception\\InvalidArgumentException",
     "Php2Pdf\\Exception\\StateException",
     "Php2Pdf\\Exception\\ConformanceException",
@@ -104,6 +221,8 @@ unchecked-exceptions = [
 unchecked-exception-classes = ["Php2Pdf\\Exception\\PdfException"]
 # The object model and the import layer handle arbitrary PDF objects, which are `mixed` by nature.
 ignore = [
+    # A test lets what it calls throw: the exception fails the test, so tests declare none.
+    { code = "unhandled-thrown-type", in = ["test/"] },
     { code = "mixed-assignment", in = ["src/Import/", "src/Core/Object/", "src/Core/Serializer.php", "src/Core/Filter/FilterChain.php"] },
     # Values coming back from C through FFI are untyped to the analyser.
     { code = "mixed-assignment", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
