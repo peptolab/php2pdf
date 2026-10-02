@@ -49,7 +49,8 @@ faces `<b>` and `<i>` switch to), `alignment` (Left, Right, Center, Justify),
 an optional leader),
 `defaultTabWidth`, `keepWithNext`, `keepTogether`, `orphans`, `widows`, `fallback` (fonts for
 characters the font lacks), `ligatures` and `features` (OpenType features by tag; see
-[fonts-and-text.md](fonts-and-text.md)).
+[fonts-and-text.md](fonts-and-text.md)), and `direction` (a paragraph's direction; right-to-left
+paragraphs align right unless an alignment is set).
 
 A tab stop can carry a leader, repeated across the space the tab jumps: dots to a page number
 in a contents list, for example. Its repeats sit on a grid of their own width from the start of

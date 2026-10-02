@@ -7,10 +7,12 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
+use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function array_key_exists;
+use function array_reverse;
 use function array_slice;
 use function array_values;
 use function count;
@@ -58,10 +60,14 @@ final class Itemiser
         private readonly array $hyphenators = [],
     ) {}
 
-    public static function box(string $text, TextStyle $style): Item
+    /** A box of text at a bidi level, shaped right to left when the level is odd. */
+    public static function box(string $text, TextStyle $style, int $level = 0): Item
     {
-        $font = StyleResolver::fontOf($style);
-        $run  = $font->shape($text, $style->textOptions());
+        $font    = StyleResolver::fontOf($style);
+        $options = 1 === ($level & 1)
+            ? $style->textOptions()->withDirection(TextDirection::RightToLeft)
+            : $style->textOptions();
+        $run = $font->shape($text, $options);
 
         return new Item(
             ItemKind::Box,
@@ -69,6 +75,7 @@ final class Itemiser
             $text,
             $run,
             $font->width($run, $style->fontSize(), $style->textOptions()),
+            level: $level,
         );
     }
 
@@ -106,26 +113,62 @@ final class Itemiser
     }
 
     /**
-     * @param list<array{0: string, 1: TextStyle}> $spans text with its resolved style
+     * Text cut where its bidi level changes, each piece with its level.
+     *
+     * @param list<int> $levels
+     *
+     * @return list<array{0: string, 1: int}>
+     */
+    private static function levelRuns(string $text, array $levels): array
+    {
+        if ([] === $levels) {
+            return [[$text, 0]];
+        }
+        $runs  = [];
+        $run   = '';
+        $level = $levels[0] ?? 0;
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $k => $char) {
+            $next = $levels[$k] ?? $level;
+            if ($next !== $level && '' !== $run) {
+                $runs[] = [$run, $level];
+                $run    = '';
+            }
+            $level = $next;
+            $run   .= $char;
+        }
+        $runs[] = [$run, $level];
+
+        return $runs;
+    }
+
+    /**
+     * @param list<array{0: string, 1: TextStyle}> $spans  text with its resolved style
+     * @param list<int>                            $levels the bidi level of each character of the
+     *                                                     spans' text; none for left-to-right text
      *
      * @return list<Item>
      */
-    public function itemise(array $spans): array
+    public function itemise(array $spans, array $levels = []): array
     {
-        $items = [];
+        $items  = [];
+        $offset = 0;
         foreach ($this->byFont($spans) as [$text, $style]) {
             $text = str_replace(["\r\n", "\r"], replace: "\n", subject: $text);
             foreach ($this->stretches($text) as $stretch) {
-                if ("\n" === $stretch) {
-                    $items[] = new Item(ItemKind::LineBreak, $style);
+                $length = mb_strlen($stretch, encoding: 'UTF-8');
+                $level  = $levels[$offset] ?? 0;
+                $offset += $length;
+                if ("\n" === $stretch || "\t" === $stretch) {
+                    $items[] = new Item("\n" === $stretch ? ItemKind::LineBreak : ItemKind::Tab, $style, level: $level);
                     continue;
                 }
-                if ("\t" === $stretch) {
-                    $items[] = new Item(ItemKind::Tab, $style);
-                    continue;
-                }
-                foreach ($this->stretch($stretch, $style) as $item) {
-                    $items[] = $item;
+                foreach (self::levelRuns($stretch, array_slice($levels, $offset - $length, $length)) as [
+                    $run,
+                    $runLevel,
+                ]) {
+                    foreach ($this->stretch($run, $style, $runLevel) as $item) {
+                        $items[] = 0 === $runLevel ? $item : $item->withLevel($runLevel);
+                    }
                 }
             }
         }
@@ -257,6 +300,41 @@ final class Itemiser
     }
 
     /**
+     * The pieces of a stretch, each with the break after it (glue, a break showing nothing, a
+     * hyphen, or none), and the text to shape for them: fixed spaces the font lacks become word
+     * spaces. Right-to-left words are not hyphenated.
+     *
+     * @return array{0: list<array{0: string, 1: ?string}>, 1: string}
+     */
+    private function pieces(string $text, TextStyle $style, bool $rtl): array
+    {
+        $font    = StyleResolver::fontOf($style);
+        $matches = [];
+        preg_match_all('/[ ]+|' . self::FIXED_SPACES . '|(?:(?!' . self::FIXED_SPACES . ')[^ ])+/u', $text, $matches);
+        $pieces = [];
+        $shaped = '';
+        foreach ($matches[0] ?? [] as $chunk) {
+            if (' ' === $chunk[0]) {
+                $pieces[] = [$chunk, self::GLUE];
+                $shaped   .= $chunk;
+                continue;
+            }
+            if (preg_match('/^' . self::FIXED_SPACES . '$/u', $chunk) === 1) {
+                $pieces[]  = [$chunk, self::BREAK];
+                $codePoint = mb_ord($chunk, encoding: 'UTF-8');
+                $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
+                continue;
+            }
+            foreach ($rtl ? [[$chunk, null]] : $this->wordPieces($chunk, $style) as $piece) {
+                $pieces[] = $piece;
+                $shaped   .= $piece[0];
+            }
+        }
+
+        return [$pieces, $shaped];
+    }
+
+    /**
      * The glyphs with every ligature that straddles a break between pieces (a hyphenation point,
      * a hard hyphen) set as separate glyphs instead, each kerned towards the character after it.
      *
@@ -308,32 +386,15 @@ final class Itemiser
      *
      * @return list<Item>
      */
-    private function stretch(string $text, TextStyle $style): array
+    private function stretch(string $text, TextStyle $style, int $level = 0): array
     {
-        $font    = StyleResolver::fontOf($style);
-        $matches = [];
-        preg_match_all('/[ ]+|' . self::FIXED_SPACES . '|(?:(?!' . self::FIXED_SPACES . ')[^ ])+/u', $text, $matches);
-        /** @var list<array{0: string, 1: ?string}> $pieces piece, then the break after it */
-        $pieces = [];
-        $shaped = '';
-        foreach ($matches[0] ?? [] as $chunk) {
-            if (' ' === $chunk[0]) {
-                $pieces[] = [$chunk, self::GLUE];
-                $shaped   .= $chunk;
-                continue;
-            }
-            if (preg_match('/^' . self::FIXED_SPACES . '$/u', $chunk) === 1) {
-                $pieces[]  = [$chunk, self::BREAK];
-                $codePoint = mb_ord($chunk, encoding: 'UTF-8');
-                $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
-                continue;
-            }
-            foreach ($this->wordPieces($chunk, $style) as $piece) {
-                $pieces[] = $piece;
-                $shaped   .= $piece[0];
-            }
-        }
-        $glyphs = $this->splitLigatures($font->shape($shaped, $style->textOptions())->glyphs, $pieces, $shaped, $style);
+        $rtl  = 1 === ($level & 1);
+        $font = StyleResolver::fontOf($style);
+        [$pieces, $shaped] = $this->pieces($text, $style, $rtl);
+        $options = $style->textOptions()
+            ->withDirection($rtl ? TextDirection::RightToLeft : TextDirection::LeftToRight);
+        $shapedRun = $font->shape($shaped, $options)->glyphs;
+        $glyphs    = $rtl ? array_reverse($shapedRun) : $this->splitLigatures($shapedRun, $pieces, $shaped, $style);
 
         $items  = [];
         $cursor = 0;
@@ -345,6 +406,9 @@ final class Itemiser
                 $slice[] = $glyph;
                 $count   += $glyph->length();
                 ++$cursor;
+            }
+            if ($rtl) {
+                $slice = array_reverse($slice);
             }
             if (self::GLUE === $after) {
                 $first = $slice[0] ?? null;

@@ -114,8 +114,13 @@ final class Gpos
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    public function position(array $glyphs, array $advances, array $features, string $script = 'latn'): array
-    {
+    public function position(
+        array $glyphs,
+        array $advances,
+        array $features,
+        string $script = 'latn',
+        bool $rightToLeft = false,
+    ): array {
         $ids       = [];
         $positions = [];
         foreach ($glyphs as $k => $entry) {
@@ -131,7 +136,7 @@ final class Gpos
             $out[] = [$mark ? 0 : $xAdvance, $mark ? 0 : $yAdvance, $xOffset, $yOffset];
         }
 
-        return $this->propagate($out, $positions);
+        return $this->propagate($out, $positions, $rightToLeft);
     }
 
     /**
@@ -495,18 +500,19 @@ final class Gpos
 
     /**
      * Gives attached glyphs their final offsets: an attached glyph takes the offset of what it
-     * attaches to, less the advances between them.
+     * attaches to, less the advances from it to the glyph, or for right-to-left text (drawn in
+     * reverse) plus the advances after it up to the glyph.
      *
      * @param list<array{0: int, 1: int, 2: int, 3: int}> $out
      * @param list<Position>                              $positions
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    private function propagate(array $out, array $positions): array
+    private function propagate(array $out, array $positions, bool $rightToLeft): array
     {
         $done = [];
         foreach ($out as $i => $_) {
-            $out = $this->propagateOne($out, $positions, $i, $done);
+            $out = $this->propagateOne($out, $positions, $i, $done, $rightToLeft);
         }
 
         return $out;
@@ -519,7 +525,7 @@ final class Gpos
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    private function propagateOne(array $out, array $positions, int $i, array &$done): array
+    private function propagateOne(array $out, array $positions, int $i, array &$done, bool $rightToLeft): array
     {
         if (array_key_exists($i, $done)) {
             return $out;
@@ -530,13 +536,15 @@ final class Gpos
         if (0 === $chain || $j < 0 || $j >= $i) {
             return $out;
         }
-        $out = $this->propagateOne($out, $positions, $j, $done);
+        $out = $this->propagateOne($out, $positions, $j, $done, $rightToLeft);
         $p   = $out[$i] ?? [0, 0, 0, 0];
         $x   = $p[2] + ($out[$j][2] ?? 0);
         $y   = $p[3] + ($out[$j][3] ?? 0);
         for ($k = $j; $k < $i; ++$k) {
-            $x -= $out[$k][0] ?? 0;
-            $y -= $out[$k][1] ?? 0;
+            $from = $rightToLeft ? $k + 1 : $k;
+            $sign = $rightToLeft ? 1 : -1;
+            $x    += $sign * ($out[$from][0] ?? 0);
+            $y    += $sign * ($out[$from][1] ?? 0);
         }
         $out[$i] = [$p[0], $p[1], $x, $y];
 

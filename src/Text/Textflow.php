@@ -9,7 +9,10 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Text\Bidi\Bidi;
+use Php2Pdf\Text\Bidi\BidiRuns;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
@@ -27,6 +30,9 @@ use function array_slice;
 use function count;
 use function implode;
 use function max;
+use function mb_ord;
+use function mb_str_split;
+use function mb_strlen;
 use function preg_replace;
 use function preg_split;
 use function str_replace;
@@ -107,18 +113,27 @@ final class Textflow implements FlowableInterface
             foreach ($breaks as [$index, $kind]) {
                 $breakAt[$index][] = $kind;
             }
+            foreach ($spans as $k => [$spanText, $spanStyle]) {
+                $spans[$k] = [str_replace(["\r\n", "\r"], replace: "\n", subject: $spanText), $spanStyle];
+            }
+            [$levels, $level] = self::bidiLevels($spans, $style);
+            $offset = 0;
             foreach ($spans as $i => $span) {
                 foreach ($breakAt[$i] ?? [] as $kind) {
-                    $items[] = $kind instanceof Item ? $kind : new Item($kind, $style);
+                    $items[] = $kind instanceof Item
+                        ? $kind->withLevel($level)
+                        : new Item($kind, $style, level: $level);
                 }
-                foreach ($itemiser->itemise([$span]) as $item) {
+                $length = mb_strlen($span[0], encoding: 'UTF-8');
+                foreach ($itemiser->itemise([$span], array_slice($levels, $offset, $length)) as $item) {
                     $items[] = $item;
                 }
+                $offset += $length;
             }
             foreach ($breakAt[count($spans)] ?? [] as $kind) {
-                $items[] = $kind instanceof Item ? $kind : new Item($kind, $style);
+                $items[] = $kind instanceof Item ? $kind->withLevel($level) : new Item($kind, $style, level: $level);
             }
-            $paragraphs[] = new Paragraph($style, $items);
+            $paragraphs[] = new Paragraph($style, $items, $level);
         }
 
         return new self($paragraphs);
@@ -147,6 +162,33 @@ final class Textflow implements FlowableInterface
     }
 
     /**
+     * The bidi levels of a paragraph's characters and the paragraph level, when its text has
+     * right-to-left characters or its style makes it right to left; none and 0 otherwise.
+     *
+     * @param list<array{0: string, 1: TextStyle}> $spans
+     *
+     * @return array{0: list<int>, 1: int}
+     */
+    private static function bidiLevels(array $spans, TextStyle $style): array
+    {
+        $text = '';
+        foreach ($spans as [$spanText]) {
+            $text .= $spanText;
+        }
+        $direction = $style->direction ?? TextDirection::Auto;
+        if (! BidiRuns::needed($text, $direction)) {
+            return [[], 0];
+        }
+        $codePoints = [];
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+            $codePoints[] = (int) mb_ord($char, encoding: 'UTF-8');
+        }
+        $paragraph = Bidi::paragraph($codePoints, $direction->level());
+
+        return [$paragraph->levels(), $paragraph->level];
+    }
+
+    /**
      * An item at a scaled style. Its shaped glyphs are kept, since kerning is in thousandths of an
      * em; only the widths are measured again.
      */
@@ -157,7 +199,7 @@ final class Textflow implements FlowableInterface
         $options = $style->textOptions();
         $hyphen  = $item->hyphenRun;
 
-        return match (true) {
+        $scaled = match (true) {
             null !== $item->run => new Item(
                 $item->kind,
                 $style,
@@ -181,6 +223,8 @@ final class Textflow implements FlowableInterface
             ),
             default => new Item($item->kind, $style),
         };
+
+        return 0 === $item->level ? $scaled : $scaled->withLevel($item->level);
     }
 
     /**
@@ -329,7 +373,7 @@ final class Textflow implements FlowableInterface
             $items = $i === $this->paragraphIndex
                 ? array_slice($paragraph->items, $this->itemIndex)
                 : $paragraph->items;
-            $remaining = new Paragraph($paragraph->style, $items);
+            $remaining = new Paragraph($paragraph->style, $items, $paragraph->level);
             $parts[]   = $remaining->text();
         }
 
@@ -371,7 +415,11 @@ final class Textflow implements FlowableInterface
             }
             $out[] =
                 $i === $this->paragraphIndex && $this->itemIndex > 0
-                    ? new Paragraph($paragraph->style, array_slice($paragraph->items, $this->itemIndex))
+                    ? new Paragraph(
+                        $paragraph->style,
+                        array_slice($paragraph->items, $this->itemIndex),
+                        $paragraph->level,
+                    )
                     : $paragraph;
         }
 
@@ -389,7 +437,7 @@ final class Textflow implements FlowableInterface
                 $itemStyle = $item->style->scaled($scale);
                 $items[]   = self::scaledItem($item, $itemStyle);
             }
-            $out[] = new Paragraph($style, $items);
+            $out[] = new Paragraph($style, $items, $paragraph->level);
         }
 
         return $out;

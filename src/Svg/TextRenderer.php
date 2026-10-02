@@ -9,6 +9,7 @@ use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Text\Bidi\BidiRuns;
 
 use function count;
 use function is_string;
@@ -247,7 +248,7 @@ final class TextRenderer
             }
             $options = new TextOptions(charSpacing: $style->letterSpacing());
             $canvas->showRun(
-                $font->shape($text, $options),
+                BidiRuns::shape($font, $text, $options),
                 $font,
                 $size,
                 new Matrix(1.0, 0.0, 0.0, -1.0, $x, $y),

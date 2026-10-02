@@ -33,6 +33,9 @@ The first release.
   flags and the font's features for each script.
 - Mark positioning: accents placed on their letters by the font's anchors, glyph offsets in `Glyph`,
   and Unicode normalisation for the font as HarfBuzz does it.
+- Right-to-left text: the Unicode bidi algorithm (passing Unicode's conformance tests) for lines,
+  SVG text and Textflow paragraphs, mirrored characters, `TextDirection` on `TextOptions` and
+  `TextStyle`; Hebrew shaped as HarfBuzz shapes it.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`), and a policy for scripts the engine cannot shape yet (`ScriptCheck`, refusing them by default).
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use IntlChar;
 use Override;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\Object\Dictionary;
@@ -23,9 +24,11 @@ use function array_filter;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
+use function array_reverse;
 use function array_slice;
 use function array_values;
 use function chr;
+use function class_exists;
 use function count;
 use function implode;
 use function max;
@@ -289,7 +292,8 @@ final class Font implements PdfFontInterface, DeferredInterface
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
     {
         $options  ??= TextOptions::default();
-        $features = $options->activeFeatures();
+        $rtl      = TextDirection::RightToLeft === $options->direction;
+        $features = [...$options->activeFeatures(), ...($rtl ? ['rtla', 'rtlm'] : ['ltra', 'ltrm'])];
         $key      = ($options->kerning ? 'k' : '-') . implode(',', $features) . '|' . $text;
         $cached   = $this->shapes[$key] ?? null;
         if (null !== $cached) {
@@ -300,12 +304,13 @@ final class Font implements PdfFontInterface, DeferredInterface
         $codePoints = $this->codePoints($text);
         $sequence   = [];
         foreach ($codePoints as $codePoint) {
-            $id = $this->program->glyphId($codePoint);
+            $shown = $rtl ? $this->mirrored($codePoint) : $codePoint;
+            $id    = $this->program->glyphId($shown);
             if (0 === $id) {
                 $this->missingGlyph(mb_chr($codePoint, encoding: 'UTF-8'), $codePoint);
             }
             $gdef->learn($id, $codePoint);
-            $sequence[] = [$id, [$codePoint]];
+            $sequence[] = [$id, [$shown]];
         }
         $gsub   = $this->program->gsub();
         $glyphs = [];
@@ -317,6 +322,9 @@ final class Font implements PdfFontInterface, DeferredInterface
             foreach ($this->positioned($run, $options, $features, $script) as $glyph) {
                 $glyphs[] = $glyph;
             }
+        }
+        if ($rtl) {
+            $glyphs = array_reverse($glyphs);
         }
 
         if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
@@ -488,6 +496,20 @@ final class Font implements PdfFontInterface, DeferredInterface
     }
 
     /**
+     * The character a font shows for one set right to left: its mirrored form (")" for "("), when
+     * it has one and the font has a glyph for it, as HarfBuzz does.
+     */
+    private function mirrored(int $codePoint): int
+    {
+        if (! class_exists(IntlChar::class) || ! IntlChar::isMirrored($codePoint)) {
+            return $codePoint;
+        }
+        $mirror = (int) IntlChar::charMirror($codePoint);
+
+        return 0 !== $this->program->glyphId($mirror) ? $mirror : $codePoint;
+    }
+
+    /**
      * Applies the document's glyph check to a character this font has no glyph for.
      *
      * @throws PdfException under GlyphCheck::Error
@@ -531,7 +553,13 @@ final class Font implements PdfFontInterface, DeferredInterface
             foreach ($sequence as [$id]) {
                 $advances[] = $this->program->advance($id);
             }
-            $positions = $gpos->position($sequence, $advances, $gposFeatures, $script);
+            $positions = $gpos->position(
+                $sequence,
+                $advances,
+                $gposFeatures,
+                $script,
+                TextDirection::RightToLeft === $options->direction,
+            );
         }
         $legacyKern =
             $options->kerning

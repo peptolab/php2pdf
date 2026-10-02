@@ -25,7 +25,6 @@ final class ScriptCheckTest extends TestCase
     public static function complexProvider(): array
     {
         return [
-            'Hebrew'                   => ["Shalom \u{05E9}\u{05DC}\u{05D5}\u{05DD}", [0x05E9, 'Hebrew']],
             'Arabic'                   => ["\u{0633}\u{0644}\u{0627}\u{0645}", [0x0633, 'Arabic']],
             'Arabic presentation form' => ["\u{FEF5}", [0xFEF5, 'Arabic']],
             'Devanagari'               => ["\u{0928}\u{092E}\u{0938}\u{094D}\u{0924}\u{0947}", [0x0928, 'Devanagari']],
@@ -42,6 +41,7 @@ final class ScriptCheckTest extends TestCase
             'Latin with combining marks' => ["cafe\u{0301} na\u{0308}ive"],
             'Greek and Cyrillic'         => ["\u{03B1}\u{03B2}\u{03B3} \u{0434}\u{0430}"],
             'Han and Kana'               => ["\u{6F22}\u{5B57} \u{304B}\u{306A}"],
+            'Hebrew'                     => ["Shalom \u{05E9}\u{05DC}\u{05D5}\u{05DD}"],
             'precomposed Hangul'         => ["\u{D55C}\u{AE00}"],
         ];
     }
@@ -50,15 +50,15 @@ final class ScriptCheckTest extends TestCase
     public function aWarningIsRecordedOncePerScript(): void
     {
         [$doc, $font] = $this->document(ScriptCheck::Warn);
-        $font->shape("\u{05E9}\u{05DC}\u{05D5}\u{05DD}");
-        $font->shape("\u{05D0}");
-        $run = $font->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
+        $font->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
+        $font->shape("\u{0628}");
+        $run = $font->shape("\u{0E81}\u{0E82}\u{0E84}\u{0E87}");
 
         self::assertSame(
             [
                 [
-                    'Hebrew text (U+05E9) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
                     'Arabic text (U+0633) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
+                    'Lao text (U+0E81) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
                 ],
                 4,
             ],
@@ -79,16 +79,16 @@ final class ScriptCheckTest extends TestCase
     {
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage(
-            'Hebrew text (U+05E9) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans".',
+            'Arabic text (U+0633) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans".',
         );
-        $this->font(null)->shape("\u{05E9}\u{05DC}\u{05D5}\u{05DD}");
+        $this->font(null)->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
     }
 
     #[Test]
     public function ignoringSetsTheTextSilently(): void
     {
         [$doc, $font] = $this->document(ScriptCheck::Ignore);
-        $font->shape("\u{05E9}\u{05DC}\u{05D5}\u{05DD}");
+        $font->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
 
         self::assertSame([], $doc->fonts()->warnings());
     }

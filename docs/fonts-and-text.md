@@ -97,14 +97,32 @@ when it has one, and a precomposed letter the font lacks is set as its letter an
 text keeps the characters. Normalisation and script detection use ext-intl; without it text is
 shaped as given, as Latin.
 
+### Right-to-left text
+
+Hebrew, and English or numbers within it, is ordered by the Unicode bidi algorithm (UAX #9, which
+the implementation passes in full against Unicode's conformance tests): in text drawn with
+`drawText()`, `fitTextline()` and SVG, and in Textflow paragraphs. A line or paragraph takes its
+direction from its first letter that has one, or from `TextOptions(direction: ...)` and
+`TextStyle(direction: ...)` (`TextDirection::Auto`, `LeftToRight` or `RightToLeft`). Brackets and
+other mirrored characters are drawn mirrored, marks and points are placed by the font, and a
+right-to-left paragraph aligns right unless an alignment is set. Right-to-left text needs ext-intl.
+
+```php
+$canvas->drawText('The word שלום means peace.', $font, 12, 72, 700);
+$styles->define('hebrew', new TextStyle(direction: TextDirection::RightToLeft), basedOn: 'body');
+```
+
+Copied right-to-left text comes out as the viewer reconstructs it from the drawn order, so it can
+differ between viewers.
+
 ### Complex scripts
 
-Right-to-left scripts (Hebrew, Arabic and their relatives), Indic and other South and South East
-Asian scripts, and conjoining Hangul jamo need shaping the font engine does not do yet: set as
-they are, they would come out wrong. By default such text throws a `PdfException` naming the
-script and character. `DocumentOptions(scriptCheck: ScriptCheck::Warn)` sets it unshaped and
-records a warning once per font and script; `ScriptCheck::Ignore` sets it silently. Latin, Greek,
-Cyrillic, CJK and precomposed Hangul are not affected.
+Arabic and the other joining scripts, Indic and other South and South East Asian scripts, and
+conjoining Hangul jamo need shaping the font engine does not do yet: set as they are, they would
+come out wrong. By default such text throws a `PdfException` naming the script and character.
+`DocumentOptions(scriptCheck: ScriptCheck::Warn)` sets it unshaped and records a warning once per
+font and script; `ScriptCheck::Ignore` sets it silently. Latin, Greek, Cyrillic, Hebrew, CJK and
+precomposed Hangul are not affected.
 
 ### Fallback fonts
 

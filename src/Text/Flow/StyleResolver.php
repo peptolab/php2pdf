@@ -9,7 +9,6 @@ use Php2Pdf\Color\Gray;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Font\FontInterface;
-use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
 
@@ -41,7 +40,6 @@ final class StyleResolver
             strikeout: false,
             kerning: true,
             ligatures: true,
-            alignment: Alignment::Left,
             firstLineIndent: 0.0,
             leftIndent: 0.0,
             rightIndent: 0.0,

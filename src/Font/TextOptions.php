@@ -20,8 +20,11 @@ use function substr;
 final readonly class TextOptions
 {
     /**
-     * @param list<string> $features OpenType features to apply besides the standard ligatures:
-     *                               tnum, onum, smcp, c2sc, case, frac, sups and so on
+     * @param list<string>  $features  OpenType features to apply besides the standard ligatures:
+     *                                 tnum, onum, smcp, c2sc, case, frac, sups and so on
+     * @param TextDirection $direction the direction of the line, whose text in either direction is
+     *                                 ordered by the Unicode bidi algorithm; a font shapes a run
+     *                                 right to left when it is RightToLeft
      */
     public function __construct(
         public float $charSpacing = 0.0,
@@ -33,6 +36,7 @@ final readonly class TextOptions
         public bool $kerning = true,
         public bool $ligatures = true,
         public array $features = [],
+        public TextDirection $direction = TextDirection::Auto,
     ) {}
 
     public static function default(): self
@@ -80,6 +84,23 @@ final readonly class TextOptions
         return $this->ligatures && 0.0 === $this->tracking && 0.0 === $this->charSpacing;
     }
 
+    /** The same options for text in a direction. */
+    public function withDirection(TextDirection $direction): self
+    {
+        return new self(
+            $this->charSpacing,
+            $this->wordSpacing,
+            $this->tracking,
+            $this->horizontalScale,
+            $this->rise,
+            $this->renderMode,
+            $this->kerning,
+            $this->ligatures,
+            $this->features,
+            $direction,
+        );
+    }
+
     /** The same options with ligatures on or off. */
     public function withLigatures(bool $ligatures): self
     {
@@ -93,6 +114,7 @@ final readonly class TextOptions
             $this->kerning,
             $ligatures,
             $this->features,
+            $this->direction,
         );
     }
 }

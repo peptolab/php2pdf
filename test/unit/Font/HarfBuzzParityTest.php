@@ -8,6 +8,8 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Font\GlyphCheck;
+use Php2Pdf\Font\TextDirection;
+use Php2Pdf\Font\TextOptions;
 use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +26,19 @@ use function round;
 #[Group('unit')]
 final class HarfBuzzParityTest extends TestCase
 {
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function rightToLeftProvider(): array
+    {
+        return [
+            'Hebrew: marks reordered'   => ['שָׁלוֹם', '[1332+1359|1306+0|1324+558|1331+1164|1305+0|1314+0|1344+1451]'],
+            'Hebrew: marks on marks'    => [
+                'וַיֹּאמֶר אֱלֹהִים',
+                '[1332+1359|1328+458|1301@28,0+0|1323+1338|1306+0|1331+1164|1298@79,0+0|1319+1369|3+651|1343+1156|1303@111,0+0|1333+1391|1319+1369|1306+0|1309@-659,235+0|1328+458|1304@-384,0+0|1324+558]',
+            ],
+            'Hebrew: mirrored brackets' => ['(א) [ב]', '[62+799|1320+1184|64+799|3+651|11+799|1319+1369|12+799]'],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: string, 2: string}> */
     public static function textProvider(): array
     {
@@ -86,15 +101,14 @@ final class HarfBuzzParityTest extends TestCase
         ];
     }
 
-    #[Test]
-    #[DataProvider('textProvider')]
-    public function shapingMatchesHarfBuzz(string $font, string $text, string $expected): void
+    /** The shaped glyphs as hb-shape prints them: id, offsets and advance in font units. */
+    private static function shaped(string $font, string $text, TextOptions $options): string
     {
         $doc  = new Document(new MemoryOutput(), new DocumentOptions(glyphCheck: GlyphCheck::Ignore));
         $face = $doc->fonts()->load(PdfTools::assetPath("fonts/{$font}"));
         $upem = $face->program()->unitsPerEm;
         $out  = [];
-        foreach ($face->shape($text)->glyphs as $glyph) {
+        foreach ($face->shape($text, $options)->glyphs as $glyph) {
             $natural = $face->program()->advance($glyph->id);
             $drawn   = (int) round((($glyph->advance + $glyph->kerning) * $upem) / 1000);
             $advance = match (true) {
@@ -107,6 +121,24 @@ final class HarfBuzzParityTest extends TestCase
             $out[] = $glyph->id . (0 !== $x || 0 !== $y ? "@{$x},{$y}" : '') . "+{$advance}";
         }
 
-        self::assertSame($expected, '[' . implode('|', $out) . ']');
+        return '[' . implode('|', $out) . ']';
+    }
+
+    #[Test]
+    #[DataProvider('rightToLeftProvider')]
+    public function rightToLeftShapingMatchesHarfBuzz(string $text, string $expected): void
+    {
+        self::assertSame($expected, self::shaped(
+            'DejaVuSans.ttf',
+            $text,
+            new TextOptions(direction: TextDirection::RightToLeft),
+        ));
+    }
+
+    #[Test]
+    #[DataProvider('textProvider')]
+    public function shapingMatchesHarfBuzz(string $font, string $text, string $expected): void
+    {
+        self::assertSame($expected, self::shaped($font, $text, new TextOptions()));
     }
 }

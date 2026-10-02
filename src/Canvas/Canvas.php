@@ -34,6 +34,7 @@ use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Table\Table;
 use Php2Pdf\Template\Template;
+use Php2Pdf\Text\Bidi\BidiRuns;
 use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextlineOptions;
@@ -208,7 +209,7 @@ final class Canvas
         $options ??= TextOptions::default();
         $matrix  = new Matrix(1.0, 0.0, 0.0, $this->topDown ? -1.0 : 1.0, $x, $y);
 
-        return $this->showRun($font->shape($text, $options), $font, $size, $matrix, $options);
+        return $this->showRun(BidiRuns::shape($font, $text, $options), $font, $size, $matrix, $options);
     }
 
     /**
@@ -312,7 +313,7 @@ final class Canvas
         ?TextlineOptions $options = null,
     ): TextlinePlacement {
         $options ??= new TextlineOptions();
-        $run     = $font->shape($text, $options->text);
+        $run     = BidiRuns::shape($font, $text, $options->text);
         $width   = max(0.01, $font->width($run, $size, $options->text));
         $ascent  = $font->ascender($size);
         $descent = $font->descender($size);

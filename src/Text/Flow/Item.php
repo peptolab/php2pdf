@@ -31,6 +31,8 @@ final readonly class Item
         public float $hyphenKerning = 0.0,
         /** For inline items: the artwork and its size. */
         public ?InlineObject $inline = null,
+        /** The bidi embedding level: even left to right, odd right to left. */
+        public int $level = 0,
     ) {}
 
     /** An item that sets artwork in the line. */
@@ -50,6 +52,23 @@ final readonly class Item
             ItemKind::LineBreak === $this->kind
                 || ItemKind::ColumnBreak === $this->kind
                 || ItemKind::PageBreak === $this->kind
+        );
+    }
+
+    /** The same item at a bidi level. */
+    public function withLevel(int $level): self
+    {
+        return new self(
+            $this->kind,
+            $this->style,
+            $this->text,
+            $this->run,
+            $this->width,
+            $this->hyphenRun,
+            $this->hyphenWidth,
+            $this->hyphenKerning,
+            $this->inline,
+            $level,
         );
     }
 }

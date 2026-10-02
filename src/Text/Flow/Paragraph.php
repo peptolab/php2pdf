@@ -10,17 +10,21 @@ use function array_splice;
 use function array_values;
 
 /**
- * A paragraph: its resolved style and the items that make up its text. Items may be split when a
- * word is wider than a line.
+ * A paragraph: its resolved style, the items that make up its text, and its direction as a bidi
+ * level. Items may be split when a word is wider than a line.
  *
  * @internal
  */
 final class Paragraph
 {
-    /** @param list<Item> $items */
+    /**
+     * @param list<Item> $items
+     * @param int        $level the bidi paragraph level: 0 left to right, 1 right to left
+     */
     public function __construct(
         public readonly TextStyle $style,
         public array $items,
+        public readonly int $level = 0,
     ) {}
 
     /**

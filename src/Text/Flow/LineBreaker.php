@@ -65,28 +65,40 @@ final class LineBreaker
         $consumed  = self::consumed($end, $items, $offset);
         $last      = ($start + $end->index - $start + ($end->forced ? 1 : 0)) >= $count || $end->forced;
 
-        $alignment = $style->alignment ?? Alignment::Left;
+        $start     = 1 === ($paragraph->level & 1) ? Alignment::Right : Alignment::Left;
+        $alignment = $style->alignment ?? $start;
         if ($last && Alignment::Justify === $alignment) {
-            $alignment = $style->lastLineAlignment ?? Alignment::Left;
+            $alignment = $style->lastLineAlignment ?? $start;
         }
 
         if (ItemKind::Glue === ($items[$end->index] ?? null)?->kind) {
             $lineItems = self::rekernLast($lineItems, null);
         }
 
-        return self::compose($lineItems, $end->hyphen, $style, $alignment, $left, $available, $consumed, $last);
+        return self::compose(
+            $lineItems,
+            $end->hyphen,
+            $style,
+            [$alignment, $paragraph->level],
+            $left,
+            $available,
+            $consumed,
+            $last,
+        );
     }
 
     /**
-     * Positions the line's items: alignment, justification and tabs, merging runs per style.
+     * Positions the line's items in visual order: alignment, justification and tabs, merging runs
+     * per style.
      *
-     * @param list<Item> $items
+     * @param list<Item>                  $items     in logical order
+     * @param array{0: Alignment, 1: int} $direction the line's alignment and the paragraph's bidi level
      */
     private static function compose(
         array $items,
         ?Item $hyphen,
         TextStyle $style,
-        Alignment $alignment,
+        array $direction,
         float $left,
         float $available,
         int $consumed,
@@ -106,6 +118,8 @@ final class LineBreaker
         if (null !== $hyphen && null === $hyphen->hyphenRun) {
             $items = self::rekernLast(self::withoutTrailingSpace($items), null);
         }
+        [$alignment, $paragraphLevel] = $direction;
+        $items   = BidiLine::visual($items, $paragraphLevel);
         $natural = 0.0;
         $glues   = 0;
         $hasTab  = self::containsTab($items);
@@ -324,7 +338,7 @@ final class LineBreaker
         $index = count($items) - 1;
         $item  = $items[$index] ?? null;
         $run   = $item?->run;
-        if (null === $item || null === $run || ItemKind::Box !== $item->kind) {
+        if (null === $item || null === $run || ItemKind::Box !== $item->kind || 1 === ($item->level & 1)) {
             return $items;
         }
         $glyphs = $run->glyphs;
@@ -337,7 +351,14 @@ final class LineBreaker
         $glyphs[$last] = $glyph->withKerning($kerning);
         $width         = $item->width
         - (null === $change ? Itemiser::kerningWidth($glyph->kerning, $item->style) : 0.0);
-        $items[$index] = new Item(ItemKind::Box, $item->style, $item->text, new GlyphRun($glyphs), $width);
+        $items[$index] = new Item(
+            ItemKind::Box,
+            $item->style,
+            $item->text,
+            new GlyphRun($glyphs),
+            $width,
+            level: $item->level,
+        );
 
         return $items;
     }
@@ -424,17 +445,17 @@ final class LineBreaker
         $hi    = max(1, $n - 1);
         while ($lo < $hi) {
             $mid = intdiv($lo + $hi + 1, num2: 2);
-            $box = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $mid)), $item->style);
+            $box = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $mid)), $item->style, $item->level);
             if ($box->width > $width) {
                 $hi = $mid - 1;
                 continue;
             }
             $lo = $mid;
         }
-        $head = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $lo)), $item->style);
+        $head = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $lo)), $item->style, $item->level);
         $tail = implode('', array_slice($chars, $lo));
 
-        return '' === $tail ? [$head] : [$head, Itemiser::box($tail, $item->style)];
+        return '' === $tail ? [$head] : [$head, Itemiser::box($tail, $item->style, $item->level)];
     }
 
     /**

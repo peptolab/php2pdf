@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Style;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Document\Destination;
 use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
 
@@ -35,6 +36,10 @@ final readonly class TextStyle
      *                                                  on a page
      * @param string|null                     $match    a name under which the text's areas are
      *                                                  reported in FitInfo::$matchboxes
+     * @param TextDirection|null              $direction a paragraph's direction (Auto takes it
+     *                                                   from its first letter with one); a
+     *                                                   right-to-left paragraph aligns right
+     *                                                   unless an alignment is set
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -77,6 +82,7 @@ final readonly class TextStyle
         public Destination|string|null $link = null,
         public ?string $linkTooltip = null,
         public ?string $match = null,
+        public ?TextDirection $direction = null,
     ) {}
 
     public function fontSize(): float

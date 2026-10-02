@@ -8,9 +8,10 @@ use function mb_ord;
 use function preg_match;
 
 /**
- * The scripts whose text needs shaping beyond what the font engine does: right-to-left scripts
- * (bidi reordering, and joining for Arabic and its relatives), Indic and other South and South
- * East Asian scripts (reordering, conjuncts and mark placement), and conjoining Hangul jamo.
+ * The scripts whose text needs shaping beyond what the font engine does: Arabic and the other
+ * joining scripts, Indic and other South and South East Asian scripts (reordering, conjuncts and
+ * mark placement), and conjoining Hangul jamo. Hebrew is shaped: bidi reordering, marks and
+ * mirroring.
  *
  * @internal
  */
@@ -18,7 +19,6 @@ final class ComplexScripts
 {
     /** @var list<array{0: int, 1: int, 2: string}> first and last code point, and the script */
     private const array RANGES = [
-        [0x0590,   0x05FF,   'Hebrew'],
         [0x0600,   0x06FF,   'Arabic'],
         [0x0700,   0x074F,   'Syriac'],
         [0x0750,   0x077F,   'Arabic'],
@@ -57,7 +57,6 @@ final class ComplexScripts
         [0xA9E0,   0xA9FF,   'Myanmar'],
         [0xAA60,   0xAA7F,   'Myanmar'],
         [0xD7B0,   0xD7FF,   'Hangul jamo'],
-        [0xFB1D,   0xFB4F,   'Hebrew'],
         [0xFB50,   0xFDFF,   'Arabic'],
         [0xFE70,   0xFEFF,   'Arabic'],
         [0x1_0800, 0x1_0FFF, 'right-to-left'],
@@ -66,9 +65,9 @@ final class ComplexScripts
     ];
 
     private const string PATTERN =
-        '/[\x{0590}-\x{08FF}\x{0900}-\x{0FFF}\x{1000}-\x{109F}\x{1100}-\x{11FF}'
+        '/[\x{0600}-\x{08FF}\x{0900}-\x{0FFF}\x{1000}-\x{109F}\x{1100}-\x{11FF}'
             . '\x{1780}-\x{18AF}\x{19E0}-\x{19FF}\x{1A20}-\x{1AAF}\x{1B00}-\x{1C4F}\x{A8E0}-\x{A8FF}\x{A960}-\x{A97F}'
-            . '\x{A980}-\x{A9FF}\x{AA60}-\x{AA7F}\x{D7B0}-\x{D7FF}\x{FB1D}-\x{FDFF}\x{FE70}-\x{FEFF}'
+            . '\x{A980}-\x{A9FF}\x{AA60}-\x{AA7F}\x{D7B0}-\x{D7FF}\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}'
             . '\x{10800}-\x{11FFF}\x{1E800}-\x{1EFFF}]/u';
 
     /**

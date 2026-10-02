@@ -30,6 +30,46 @@ use function usort;
  */
 final class Normaliser
 {
+    /** HarfBuzz's modified combining classes: Unicode class => the class marks are ordered by. */
+    private const array MODIFIED_CLASSES = [
+        10  => 22,
+        11  => 15,
+        12  => 16,
+        13  => 17,
+        14  => 23,
+        15  => 18,
+        16  => 19,
+        17  => 20,
+        18  => 21,
+        19  => 14,
+        20  => 24,
+        21  => 12,
+        22  => 25,
+        23  => 13,
+        24  => 10,
+        25  => 11,
+        26  => 26,
+        27  => 28,
+        28  => 29,
+        29  => 30,
+        30  => 31,
+        31  => 32,
+        32  => 33,
+        33  => 27,
+        34  => 34,
+        35  => 35,
+        36  => 36,
+        84  => 0,
+        91  => 0,
+        103 => 3,
+        107 => 107,
+        118 => 118,
+        122 => 122,
+        129 => 129,
+        130 => 132,
+        132 => 131,
+    ];
+
     /**
      * @param list<int>             $codePoints
      * @param Closure(int): bool    $hasGlyph
@@ -71,9 +111,16 @@ final class Normaliser
         return $marks ? self::recompose(self::reorder($out), $hasGlyph) : $out;
     }
 
+    /**
+     * The combining class marks are ordered by: Unicode's, with HarfBuzz's changes for Hebrew
+     * (shin and sin dots and dagesh before vowels), Arabic (shadda first), Telugu, Thai, Lao and
+     * Tibetan, so marks reach the font in the order its lookups expect.
+     */
     private static function combiningClass(int $codePoint): int
     {
-        return (int) IntlChar::getCombiningClass($codePoint);
+        $class = (int) IntlChar::getCombiningClass($codePoint);
+
+        return self::MODIFIED_CLASSES[$class] ?? $class;
     }
 
     /** The character Unicode composes two into, or null. */
