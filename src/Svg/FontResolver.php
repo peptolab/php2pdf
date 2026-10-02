@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\FontStyle;
 
@@ -28,7 +30,12 @@ final class FontResolver
         private readonly ?FontInterface $fallback,
     ) {}
 
-    /** @param list<string> $families */
+    /**
+     * @param list<string> $families
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function resolve(array $families, bool $bold, bool $italic): ?FontInterface
     {
         $style = match (true) {
@@ -45,14 +52,19 @@ final class FontResolver
         return $this->cache[$key] = $this->lookup($families, $style);
     }
 
-    /** @param list<string> $families */
+    /**
+     * @param list<string> $families
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function lookup(array $families, FontStyle $style): ?FontInterface
     {
         $registry = $this->document->fonts();
         foreach ($families as $family) {
             try {
                 $found = $registry->family($family);
-            } catch (PdfException) {
+            } catch (ExceptionInterface) {
                 continue;
             }
             if ($found->has($style)) {

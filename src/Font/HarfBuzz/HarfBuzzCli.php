@@ -47,6 +47,7 @@ final class HarfBuzzCli implements ExternalShaperInterface
         private readonly string $binary = 'hb-shape',
     ) {}
 
+    /** @throws IoException */
     #[Override]
     public function shape(
         OpenTypeFont $font,
@@ -91,7 +92,11 @@ final class HarfBuzzCli implements ExternalShaperInterface
         return $glyphs;
     }
 
-    /** The font's data in a temporary file, written the first time it is shaped. */
+    /**
+     * The font's data in a temporary file, written the first time it is shaped.
+     *
+     * @throws IoException
+     */
     private function file(OpenTypeFont $font): string
     {
         $id = spl_object_id($font);
@@ -120,21 +125,21 @@ final class HarfBuzzCli implements ExternalShaperInterface
         $pipes   = [];
         $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (! is_resource($process)) {
-            throw new PdfException(sprintf('Cannot run "%s".', $this->binary));
+            throw new IoException(sprintf('Cannot run "%s".', $this->binary));
         }
         $stdout = $pipes[1] ?? null;
         $stderr = $pipes[2] ?? null;
         if (! is_resource($stdout) || ! is_resource($stderr)) {
             proc_close($process);
 
-            throw new PdfException(sprintf('Cannot read from "%s".', $this->binary));
+            throw new IoException(sprintf('Cannot read from "%s".', $this->binary));
         }
         $output = (string) stream_get_contents($stdout);
         $errors = (string) stream_get_contents($stderr);
         fclose($stdout);
         fclose($stderr);
         if (0 !== proc_close($process)) {
-            throw new PdfException(sprintf('"%s" failed: %s', $this->binary, trim($errors)));
+            throw new IoException(sprintf('"%s" failed: %s', $this->binary, trim($errors)));
         }
 
         return $output;

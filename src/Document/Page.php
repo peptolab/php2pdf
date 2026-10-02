@@ -16,7 +16,9 @@ use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\InvalidArgumentException;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\StateException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\Placement;
 use Php2Pdf\Flow\FlowableInterface;
@@ -133,7 +135,7 @@ final class Page
     public function finish(Reference $parent): Reference
     {
         if ($this->finished) {
-            throw new PdfException(sprintf('Page %d has already been finished.', $this->number));
+            throw new StateException(sprintf('Page %d has already been finished.', $this->number));
         }
 
         $pdfx = $this->document->options()->pdfx;
@@ -178,7 +180,12 @@ final class Page
         return $writer->add($dict);
     }
 
-    /** Places as many of a table's remaining rows as fit into a box on this page. */
+    /**
+     * Places as many of a table's remaining rows as fit into a box on this page.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function fitTable(Table $table, Box $box): FlowResult
     {
         return $table->fitInto($this->canvas(), $box);
@@ -328,7 +335,7 @@ final class Page
     private function assertOpen(): void
     {
         if ($this->finished) {
-            throw new PdfException(sprintf('Page %d has been written and can no longer be drawn on.', $this->number));
+            throw new StateException(sprintf('Page %d has been written and can no longer be drawn on.', $this->number));
         }
     }
 

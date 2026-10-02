@@ -12,7 +12,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Output\OutputInterface;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\StateException;
 
 use function array_key_exists;
 use function hash_final;
@@ -74,7 +74,7 @@ final class Writer
         $xrefOffset = $this->output->position();
         $xref       = "xref\n0 {$size}\n0000000000 65535 f \n";
         for ($id = 1; $id < $size; ++$id) {
-            $offset = $this->offsets[$id] ?? throw new PdfException(sprintf(
+            $offset = $this->offsets[$id] ?? throw new StateException(sprintf(
                 'Object %d was allocated but never written.',
                 $id,
             ));
@@ -108,10 +108,10 @@ final class Writer
     public function write(Reference $ref, mixed $object): void
     {
         if ($this->finished) {
-            throw new PdfException('Cannot write objects after the document has been finished.');
+            throw new StateException('Cannot write objects after the document has been finished.');
         }
         if (array_key_exists($ref->id, $this->offsets)) {
-            throw new PdfException(sprintf('Object %d has already been written.', $ref->id));
+            throw new StateException(sprintf('Object %d has already been written.', $ref->id));
         }
         $this->offsets[$ref->id] = $this->output->position();
 

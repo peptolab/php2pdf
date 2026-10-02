@@ -76,7 +76,11 @@ final class Transcoder
         );
     }
 
-    /** @return array{0: string, 1: ImageTraits} the PNG, and what is known of the source */
+    /**
+     * @return array{0: string, 1: ImageTraits} the PNG, and what is known of the source
+     *
+     * @throws ParseException
+     */
     private static function convert(string $data, int $page, ImageTraits $source, ?string $subject): array
     {
         if (extension_loaded('imagick')) {
@@ -114,6 +118,8 @@ final class Transcoder
     /**
      * Refuses a conversion from $source to $result that loses data, unless there is no $subject
      * because losses are accepted.
+     *
+     * @throws ParseException
      */
     private static function refuseLosses(ImageTraits $source, ImageTraits $result, ?string $subject): void
     {
@@ -130,6 +136,7 @@ final class Transcoder
         ));
     }
 
+    /** @throws ParseException */
     private static function viaGd(string $data): string
     {
         $image = Silencer::run(static fn(): GdImage|false => imagecreatefromstring($data));
@@ -155,6 +162,8 @@ final class Transcoder
      *                             accepted
      *
      * @return array{0: string, 1: ImageTraits} the PNG, and what is known of the source
+     *
+     * @throws ParseException
      */
     private static function viaImagick(string $data, int $page, ImageTraits $known, ?string $subject): array
     {

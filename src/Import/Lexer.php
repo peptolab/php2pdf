@@ -56,6 +56,7 @@ final class Lexer
         return $this->length;
     }
 
+    /** @throws ParseException */
     public function next(): Token
     {
         $this->skipWhitespaceAndComments();
@@ -159,6 +160,7 @@ final class Lexer
         return [$c, $i + 1];
     }
 
+    /** @throws ParseException */
     private function hexString(): Token
     {
         $start = $this->position + 1;
@@ -176,6 +178,7 @@ final class Lexer
         return new Token(Token::STRING, (string) hex2bin($hex), $this->position);
     }
 
+    /** @throws ParseException */
     private function keyword(): Token
     {
         $start = $this->position;
@@ -191,6 +194,7 @@ final class Lexer
         return new Token(Token::KEYWORD, substr($this->data, $start, $span), $this->position);
     }
 
+    /** @throws ParseException */
     private function literalString(): Token
     {
         $depth = 0;

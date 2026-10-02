@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Style;
 
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 use function array_key_exists;
 use function array_keys;
@@ -32,7 +32,12 @@ final class StyleRegistry
 
     public function get(string $name): TextStyle
     {
-        return $this->styles[$name] ?? throw new PdfException(sprintf('Text style "%s" is not defined.', $name));
+        return (
+            $this->styles[$name] ?? throw new InvalidArgumentException(sprintf(
+                'Text style "%s" is not defined.',
+                $name,
+            ))
+        );
     }
 
     public function has(string $name): bool

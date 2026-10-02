@@ -22,7 +22,7 @@ use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\StateException;
 use Php2Pdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -154,7 +154,7 @@ final class CanvasTest extends TestCase
     #[Test]
     public function refusesRestoreWithoutSave(): void
     {
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $this->canvas->restore();
     }
 
@@ -163,7 +163,7 @@ final class CanvasTest extends TestCase
     {
         $this->canvas->save();
 
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $this->expectExceptionMessage('Unbalanced');
         $this->doc->close();
     }

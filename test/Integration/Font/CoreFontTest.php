@@ -10,6 +10,7 @@ use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Document\PdfX;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\CoreFont;
@@ -208,7 +209,7 @@ final class CoreFontTest extends TestCase
     #[Test]
     public function unknownNamesAreStillRejected(): void
     {
-        $this->expectException(PdfException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('not one of the standard 14 fonts');
         $this->doc->fonts()->find('Helvetica Neue');
     }

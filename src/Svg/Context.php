@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function array_keys;
 use function sqrt;
@@ -26,6 +28,7 @@ final class Context
     /** @var array<string, true> */
     private array $warnings = [];
 
+    /** @throws ParseException */
     public function __construct(
         public readonly SvgDocumentInterface $document,
         public readonly SvgFile $file,

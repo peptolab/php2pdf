@@ -51,6 +51,8 @@ final class PngScanlines
      * @param int $factor multiplier for expanded sub-byte samples (255 / max value for gray levels, 1 for indices)
      *
      * @return string width * height * channels * bytesPerSample bytes
+     *
+     * @throws ParseException
      */
     public static function decode(
         string $inflated,
@@ -106,6 +108,8 @@ final class PngScanlines
 
     /**
      * Reverses the per-row filters. Rows keep their packed layout.
+     *
+     * @throws ParseException
      */
     public static function unfilter(string $raw, int $width, int $height, int $bitDepth, int $channels): string
     {

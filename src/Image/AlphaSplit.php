@@ -23,6 +23,8 @@ final class AlphaSplit
      * @param int $bytes    bytes per sample (1 or 2)
      *
      * @return array{0: string, 1: string} colour samples and alpha, each $bytes per sample
+     *
+     * @throws ParseException
      */
     public static function split(string $samples, int $channels, int $bytes): array
     {

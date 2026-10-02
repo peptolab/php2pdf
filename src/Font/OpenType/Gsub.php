@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\ArabicJoining;
 
 use function array_column;
@@ -114,6 +115,8 @@ final class Gsub
      * @param list<string> $features
      *
      * @return list<Entry>
+     *
+     * @throws ParseException
      */
     public function apply(array $glyphs, array $features, string $script = 'latn'): array
     {
@@ -129,6 +132,8 @@ final class Gsub
      * @param list<list<string>> $stages
      *
      * @return list<Entry>
+     *
+     * @throws ParseException
      */
     public function applyStages(array $glyphs, array $stages, string $script = 'latn'): array
     {
@@ -144,12 +149,17 @@ final class Gsub
         return $glyphs;
     }
 
-    /** @param list<string> $features */
+    /**
+     * @param list<string> $features
+     *
+     * @throws ParseException
+     */
     public function has(array $features, string $script = 'latn'): bool
     {
         return [] !== $this->tables->lookupsFor($features, $script);
     }
 
+    /** @throws ParseException */
     public function hasScript(string $tag): bool
     {
         return $this->tables->hasScript($tag);
@@ -159,6 +169,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function alternate(int $offset, array $glyphs, int $i): ?array
     {
@@ -182,6 +194,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function applyAt(int $lookup, array $glyphs, int $i, int $depth): ?array
     {
@@ -215,6 +229,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return list<Entry>
+     *
+     * @throws ParseException
      */
     private function applyLookup(int $lookup, array $glyphs, ?string $form = null): array
     {
@@ -262,6 +278,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function context(int $type, int $offset, array $glyphs, int $i, int $depth, GlyphFilter $filter): ?array
     {
@@ -300,6 +318,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function ligature(int $offset, array $glyphs, int $i, GlyphFilter $filter): ?array
     {
@@ -342,6 +362,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function multiple(int $offset, array $glyphs, int $i): ?array
     {
@@ -368,6 +390,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function reverse(int $offset, array $glyphs, int $i, GlyphFilter $filter): ?array
     {
@@ -407,6 +431,8 @@ final class Gsub
      * @param list<Entry> $glyphs
      *
      * @return array{0: list<Entry>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function single(int $offset, array $glyphs, int $i): ?array
     {

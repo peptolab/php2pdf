@@ -70,7 +70,11 @@ final class Hyphenator
         }
     }
 
-    /** Loads a TeX "\patterns{...} \hyphenation{...}" file or a hunspell hyph_*.dic file. */
+    /**
+     * Loads a TeX "\patterns{...} \hyphenation{...}" file or a hunspell hyph_*.dic file.
+     *
+     * @throws IoException
+     */
     public static function fromFile(string $path, ?string $language = null): self
     {
         $text = file_get_contents($path);

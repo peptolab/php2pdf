@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
@@ -30,7 +32,12 @@ final class TextflowBuilder
     private ?TextStyle $paragraphStyle = null;
     private TextStyle $current;
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function __construct(
         private readonly StyleResolver $resolver,
         private readonly TextStyle $base,
@@ -39,11 +46,19 @@ final class TextflowBuilder
         $this->current = $resolver->resolve($base);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function bold(string $text): self
     {
         return $this->text($text, new TextStyle(font: $this->current->bold ?? $this->current->font));
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function build(): Textflow
     {
         $this->flush();
@@ -79,6 +94,10 @@ final class TextflowBuilder
         return $this;
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function italic(string $text): self
     {
         return $this->text($text, new TextStyle(font: $this->current->italic ?? $this->current->font));
@@ -91,7 +110,12 @@ final class TextflowBuilder
         return $this;
     }
 
-    /** Text that links to a URL or a destination, over each line's piece of it. */
+    /**
+     * Text that links to a URL or a destination, over each line's piece of it.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function link(Destination|string $target, string $text, ?string $tooltip = null): self
     {
         return $this->text($text, new TextStyle(
@@ -100,7 +124,12 @@ final class TextflowBuilder
         ));
     }
 
-    /** Text whose areas are reported under a name in FitInfo::$matchboxes. */
+    /**
+     * Text whose areas are reported under a name in FitInfo::$matchboxes.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function match(string $name, string $text): self
     {
         return $this->text($text, new TextStyle(match: $name));
@@ -113,7 +142,12 @@ final class TextflowBuilder
         return $this;
     }
 
-    /** Starts a new paragraph, optionally with a paragraph style. */
+    /**
+     * Starts a new paragraph, optionally with a paragraph style.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function paragraph(TextStyle|string|null $style = null): self
     {
         $this->flush();
@@ -130,7 +164,12 @@ final class TextflowBuilder
         return $this;
     }
 
-    /** Adds text, optionally in a character style layered over the paragraph's. */
+    /**
+     * Adds text, optionally in a character style layered over the paragraph's.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function text(string $text, TextStyle|string|null $style = null): self
     {
         $this->spans[] = [$text, null === $style ? $this->current : $this->resolver->resolve($this->current, $style)];

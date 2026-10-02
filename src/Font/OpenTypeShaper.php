@@ -6,6 +6,7 @@ namespace Php2Pdf\Font;
 
 use Closure;
 use IntlChar;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function array_diff;
@@ -132,6 +133,8 @@ final readonly class OpenTypeShaper
      * @param list<string> $features the GSUB features, with the direction's
      *
      * @return list<Glyph>
+     *
+     * @throws ParseException
      */
     public function shape(string $text, TextOptions $options, array $features): array
     {
@@ -306,6 +309,8 @@ final readonly class OpenTypeShaper
      * @param list<string>                                                     $features
      *
      * @return list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}>
+     *
+     * @throws ParseException
      */
     private function joined(array $run, array $codePoints, array $features, string $script): array
     {
@@ -373,6 +378,8 @@ final readonly class OpenTypeShaper
      * @param list<string>                                                    $features
      *
      * @return list<Glyph>
+     *
+     * @throws ParseException
      */
     private function positioned(array $sequence, TextOptions $options, array $features, string $script): array
     {

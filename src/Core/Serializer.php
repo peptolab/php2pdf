@@ -10,7 +10,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Raw;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 use function bin2hex;
 use function get_debug_type;
@@ -85,7 +85,7 @@ final class Serializer
             $name,
         );
         if (null === $escaped) {
-            throw new PdfException(sprintf('Cannot escape name "%s".', $name));
+            throw new InvalidArgumentException(sprintf('Cannot escape name "%s".', $name));
         }
 
         return "/{$escaped}";
@@ -104,8 +104,10 @@ final class Serializer
             null === $value => 'null',
             $value instanceof HexString => '<' . bin2hex($value->bytes) . '>',
             $value instanceof Raw => $value->syntax,
-            $value instanceof Stream => throw new PdfException('Streams must be written as indirect objects.'),
-            default => throw new PdfException('Cannot serialise value of type ' . get_debug_type($value)),
+            $value instanceof Stream => throw new InvalidArgumentException(
+                'Streams must be written as indirect objects.',
+            ),
+            default => throw new InvalidArgumentException('Cannot serialise value of type ' . get_debug_type($value)),
         };
     }
 }

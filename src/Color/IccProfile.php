@@ -41,6 +41,7 @@ final readonly class IccProfile
         };
     }
 
+    /** @throws IoException */
     public static function fromFile(string $path, ?string $identifier = null): self
     {
         $data = Silencer::run(static fn(): string|false => file_get_contents($path));

@@ -78,7 +78,11 @@ final class Font implements PdfFontInterface, DeferredInterface
     /** @var array<string, true> scripts already reported as unshaped */
     private array $unshaped = [];
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     public function __construct(
         private readonly Objects $objects,
         private readonly FontRegistry $registry,
@@ -88,6 +92,7 @@ final class Font implements PdfFontInterface, DeferredInterface
         if (! $program->hasOutlines()) {
             $bitmaps = array_values(array_filter(
                 ['sbix', 'CBDT', 'EBDT'],
+                /** @throws ParseException */
                 static fn(string $tag): bool => null !== $program->table($tag),
             ));
             throw new ParseException(sprintf(
@@ -129,6 +134,7 @@ final class Font implements PdfFontInterface, DeferredInterface
         return $this->program->metrics->scale($this->program->metrics->capHeight, $size);
     }
 
+    /** @throws ParseException */
     #[Override]
     public function colourLayers(GlyphRun $run): array
     {
@@ -172,7 +178,11 @@ final class Font implements PdfFontInterface, DeferredInterface
         return pack('n*', ...$glyphIds);
     }
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     #[Override]
     public function finalize(): void
     {
@@ -278,6 +288,8 @@ final class Font implements PdfFontInterface, DeferredInterface
     /**
      * Maps UTF-8 text to glyphs, applies the font's substitutions for the active features (the
      * standard ligatures by default), then kerns. Characters the font lacks become .notdef.
+     *
+     * @throws ParseException
      */
     #[Override]
     public function shape(string $text, ?TextOptions $options = null): GlyphRun
@@ -331,7 +343,11 @@ final class Font implements PdfFontInterface, DeferredInterface
         return max(0.1, $this->program->metrics->scale($this->program->metrics->underlineThickness, $size));
     }
 
-    /** Width of text in points at the given size, including kerning, spacing and tracking. */
+    /**
+     * Width of text in points at the given size, including kerning, spacing and tracking.
+     *
+     * @throws ParseException
+     */
     #[Override]
     public function width(string|GlyphRun $text, float $size, ?TextOptions $options = null): float
     {
@@ -351,6 +367,8 @@ final class Font implements PdfFontInterface, DeferredInterface
      * subset; the font registry then records a warning. A variable font's CFF2 outlines are
      * converted to CFF at their default instance first; when that fails the font cannot be used,
      * since few readers draw CFF2.
+     *
+     * @throws ParseException
      */
     private function cffStream(): Reference
     {
@@ -381,6 +399,8 @@ final class Font implements PdfFontInterface, DeferredInterface
     /**
      * The font's CFF outlines: the CFF table, or a variable font's CFF2 outlines at their default
      * instance.
+     *
+     * @throws ParseException
      */
     private function cffTable(): CffTable
     {
@@ -468,6 +488,7 @@ final class Font implements PdfFontInterface, DeferredInterface
         return (int) round(50 + ($this->program->metrics->weightClass / 65.0) ** 2);
     }
 
+    /** @throws ParseException */
     private function subsetStream(): Reference
     {
         $data = TrueTypeSubsetter::subset($this->program, $this->used);

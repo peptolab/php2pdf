@@ -24,6 +24,8 @@ final readonly class TableDirectory
 
     /**
      * @param int|null $dataLength the length of the whole font, when $reader holds only the directory
+     *
+     * @throws ParseException
      */
     public function __construct(BinaryReader $reader, int $faceIndex = 0, ?int $dataLength = null)
     {
@@ -62,7 +64,11 @@ final readonly class TableDirectory
         $this->isCff  = array_key_exists('CFF ', $tables) || array_key_exists('CFF2', $tables);
     }
 
-    /** @return array{offset: int, length: int} */
+    /**
+     * @return array{offset: int, length: int}
+     *
+     * @throws ParseException
+     */
     public function get(string $tag): array
     {
         return $this->tables[$tag] ?? throw new ParseException(sprintf('Font has no "%s" table.', $tag));
@@ -73,6 +79,7 @@ final readonly class TableDirectory
         return array_key_exists($tag, $this->tables);
     }
 
+    /** @throws ParseException */
     public function slice(BinaryReader $reader, string $tag): BinaryReader
     {
         $table = $this->get($tag);

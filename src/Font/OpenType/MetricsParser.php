@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function round;
 use function strlen;
 
@@ -19,6 +21,7 @@ final readonly class MetricsParser
         private OpenTypeFont $font,
     ) {}
 
+    /** @throws ParseException */
     public function parse(BinaryReader $head): Metrics
     {
         $upem     = $this->font->unitsPerEm;
@@ -48,7 +51,11 @@ final readonly class MetricsParser
         );
     }
 
-    /** @return array{ascender: int, descender: int, lineGap: int} */
+    /**
+     * @return array{ascender: int, descender: int, lineGap: int}
+     *
+     * @throws ParseException
+     */
     private function hhea(int $upem): array
     {
         $hhea = $this->font->tableReader('hhea');
@@ -59,7 +66,11 @@ final readonly class MetricsParser
         return ['ascender' => $hhea->i16(4), 'descender' => $hhea->i16(6), 'lineGap' => $hhea->i16(8)];
     }
 
-    /** The yMax of a glyph's bounding box, or a fallback fraction of the em when unavailable. */
+    /**
+     * The yMax of a glyph's bounding box, or a fallback fraction of the em when unavailable.
+     *
+     * @throws ParseException
+     */
     private function measureHeight(int $codePoint, float $fallback): int
     {
         $glyph = $this->font->glyphId($codePoint);
@@ -79,6 +90,8 @@ final readonly class MetricsParser
      * @return array{
      *     weightClass: int, strikeoutPosition: int, strikeoutSize: int, isSerif: bool, capHeight: int, xHeight: int
      * }
+     *
+     * @throws ParseException
      */
     private function os2(int $upem): array
     {
@@ -106,7 +119,11 @@ final readonly class MetricsParser
         ];
     }
 
-    /** @return array{underlinePosition: int, underlineThickness: int, italicAngle: float, isFixedPitch: bool} */
+    /**
+     * @return array{underlinePosition: int, underlineThickness: int, italicAngle: float, isFixedPitch: bool}
+     *
+     * @throws ParseException
+     */
     private function post(int $upem): array
     {
         $post = $this->font->tableReader('post');

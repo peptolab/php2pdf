@@ -10,6 +10,7 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
@@ -51,6 +52,7 @@ final class PdfReader
 
     private bool $repaired = false;
 
+    /** @throws ParseException */
     private function __construct(
         string $data,
         private readonly Limits $limits,
@@ -66,7 +68,7 @@ final class PdfReader
 
         try {
             $this->xrefParser->readChain($this->xrefParser->startXref(), $this->xref);
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             $this->repair();
         }
         if (! $this->xref->trailer->has('Root')) {
@@ -77,6 +79,7 @@ final class PdfReader
         }
     }
 
+    /** @throws ParseException */
     public static function fromData(string $data, ?Limits $limits = null): self
     {
         if (! str_contains(substr($data, offset: 0, length: 1024), '%PDF-')) {
@@ -86,6 +89,10 @@ final class PdfReader
         return new self($data, $limits ?? Limits::default());
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public static function fromFile(string $path, ?Limits $limits = null): self
     {
         $data = is_file($path) ? file_get_contents($path) : false;
@@ -96,6 +103,7 @@ final class PdfReader
         return self::fromData($data, $limits);
     }
 
+    /** @throws ParseException */
     public function catalog(): Dictionary
     {
         $root = $this->resolve($this->xref->trailer->get('Root'));
@@ -106,7 +114,11 @@ final class PdfReader
         return $root;
     }
 
-    /** The decoded data of a stream, or the raw data when it ends in an image codec. */
+    /**
+     * The decoded data of a stream, or the raw data when it ends in an image codec.
+     *
+     * @throws ParseException
+     */
     public function decode(Stream $stream): string
     {
         $filters = FilterChain::filters($this->get($stream->dictionary, 'Filter'));
@@ -121,7 +133,11 @@ final class PdfReader
         return FilterChain::decode($stream->data, $filters, $parms, $this->limits->maxDecodedBytes);
     }
 
-    /** A dictionary entry that must be a dictionary (streams count), or null. */
+    /**
+     * A dictionary entry that must be a dictionary (streams count), or null.
+     *
+     * @throws ParseException
+     */
     public function dict(Dictionary $dict, string $key): ?Dictionary
     {
         $value = $this->get($dict, $key);
@@ -133,7 +149,11 @@ final class PdfReader
         };
     }
 
-    /** A dictionary entry with references followed. */
+    /**
+     * A dictionary entry with references followed.
+     *
+     * @throws ParseException
+     */
     public function get(Dictionary $dict, string $key): mixed
     {
         return $this->resolve($dict->get($key));
@@ -145,6 +165,7 @@ final class PdfReader
         return $this->limits;
     }
 
+    /** @throws ParseException */
     public function object(int $number): mixed
     {
         if (array_key_exists($number, $this->cache)) {
@@ -171,6 +192,8 @@ final class PdfReader
      * The page dictionaries in document order, with inheritable attributes filled in.
      *
      * @return list<Dictionary>
+     *
+     * @throws ParseException
      */
     public function pages(): array
     {
@@ -185,7 +208,11 @@ final class PdfReader
         return $pages;
     }
 
-    /** Follows a reference to its object; other values pass through. */
+    /**
+     * Follows a reference to its object; other values pass through.
+     *
+     * @throws ParseException
+     */
     public function resolve(mixed $value): mixed
     {
         $depth = 0;
@@ -206,7 +233,11 @@ final class PdfReader
         return $this->version;
     }
 
-    /** Registers objects living in object streams and finds the catalog when no trailer names it. */
+    /**
+     * Registers objects living in object streams and finds the catalog when no trailer names it.
+     *
+     * @throws ParseException
+     */
     private function collectFromObjects(): void
     {
         $found = new Dictionary();
@@ -238,6 +269,7 @@ final class PdfReader
         $this->xref->mergeTrailer($found);
     }
 
+    /** @throws ParseException */
     private function expandObjectStream(int $streamNumber): void
     {
         if (array_key_exists($streamNumber, $this->expandedStreams)) {
@@ -261,6 +293,7 @@ final class PdfReader
         }
     }
 
+    /** @throws ParseException */
     private function load(int $number): mixed
     {
         $entry = $this->xref->entry($number);
@@ -280,6 +313,8 @@ final class PdfReader
      * The object numbers and absolute data offsets listed in an object stream's header.
      *
      * @return array<int, int>
+     *
+     * @throws ParseException
      */
     private function objectStreamOffsets(Stream $stream, string $data): array
     {
@@ -308,7 +343,7 @@ final class PdfReader
         try {
             $this->lexer->seek($offset);
             [$number, , $object] = $this->parser->parseIndirect();
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return null;
         }
 
@@ -320,7 +355,7 @@ final class PdfReader
     {
         try {
             return $body->parse();
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return null;
         }
     }
@@ -329,7 +364,7 @@ final class PdfReader
     {
         try {
             $offsets = $this->objectStreamOffsets($stream, $this->decode($stream));
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return;
         }
         $index = 0;
@@ -340,6 +375,8 @@ final class PdfReader
 
     /**
      * Rebuilds the cross-reference by scanning the file, keeping whatever the trailer already said.
+     *
+     * @throws ParseException
      */
     private function repair(): void
     {
@@ -356,6 +393,7 @@ final class PdfReader
         }
     }
 
+    /** @throws ParseException */
     private function resolveDictionary(Dictionary $dict): Dictionary
     {
         $out = new Dictionary();

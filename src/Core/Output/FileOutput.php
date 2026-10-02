@@ -34,6 +34,7 @@ final class FileOutput implements OutputInterface
     private readonly string $temporary;
     private int $position = 0;
 
+    /** @throws IoException */
     public function __construct(
         public readonly string $path,
     ) {
@@ -68,6 +69,7 @@ final class FileOutput implements OutputInterface
         return $this->position;
     }
 
+    /** @throws IoException */
     #[Override]
     public function write(string $bytes): void
     {

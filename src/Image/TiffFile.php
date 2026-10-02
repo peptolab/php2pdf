@@ -66,11 +66,13 @@ final class TiffFile
         return substr($this->data, $offset, $length);
     }
 
+    /** @throws ParseException */
     public function directoryCount(): int
     {
         return count($this->directories());
     }
 
+    /** @throws ParseException */
     public function has(int $directory, int $tag): bool
     {
         return array_key_exists($tag, $this->directories()[$directory] ?? []);
@@ -81,7 +83,11 @@ final class TiffFile
         return $this->littleEndian;
     }
 
-    /** The raw bytes of a tag (an ICC profile, a colour map), or null. */
+    /**
+     * The raw bytes of a tag (an ICC profile, a colour map), or null.
+     *
+     * @throws ParseException
+     */
     public function raw(int $directory, int $tag): ?string
     {
         $entry = $this->directories()[$directory][$tag] ?? null;
@@ -93,7 +99,11 @@ final class TiffFile
         return $this->bytes($at, $count * (self::TYPE_SIZES[$type] ?? 1));
     }
 
-    /** A tag's first value, or $default when it is absent. */
+    /**
+     * A tag's first value, or $default when it is absent.
+     *
+     * @throws ParseException
+     */
     public function value(int $directory, int $tag, int|float|null $default = null): int|float|null
     {
         return $this->values($directory, $tag)[0] ?? $default;
@@ -103,6 +113,8 @@ final class TiffFile
      * A tag's numeric values (BYTE, SHORT, LONG and RATIONAL), or an empty list.
      *
      * @return list<int|float>
+     *
+     * @throws ParseException
      */
     public function values(int $directory, int $tag): array
     {
@@ -129,7 +141,11 @@ final class TiffFile
         return $values;
     }
 
-    /** @return list<array<int, array{0: int, 1: int, 2: int}>> */
+    /**
+     * @return list<array<int, array{0: int, 1: int, 2: int}>>
+     *
+     * @throws ParseException
+     */
     private function directories(): array
     {
         if (null !== $this->directories) {

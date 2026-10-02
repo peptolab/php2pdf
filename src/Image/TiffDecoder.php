@@ -162,6 +162,7 @@ final class TiffDecoder
         return $out;
     }
 
+    /** @throws ParseException */
     private function colorSpace(int $photometric, int $bits): ImageColorSpace
     {
         return match ($photometric) {
@@ -182,6 +183,7 @@ final class TiffDecoder
         };
     }
 
+    /** @throws ParseException */
     private function dpi(int $tag): float
     {
         $value = $this->file->value($this->ifd, $tag);
@@ -193,7 +195,11 @@ final class TiffDecoder
         return 3 === $unit ? $value * 2.54 : (float) $value;
     }
 
-    /** Single-strip CCITT fax data, passed through. */
+    /**
+     * Single-strip CCITT fax data, passed through.
+     *
+     * @throws ParseException
+     */
     private function fax(int $width, int $height, int $bits, int $samples, int $compression): ?ImageData
     {
         $strips = $this->strips();
@@ -227,6 +233,7 @@ final class TiffDecoder
         );
     }
 
+    /** @throws ParseException */
     private function int(int $tag, int $default = 0): int
     {
         $value = $this->file->value($this->ifd, $tag, $default);
@@ -237,6 +244,8 @@ final class TiffDecoder
     /**
      * Whether the samples are read natively, and whether they carry alpha: null when not, else
      * true for colour samples followed by an unassociated alpha sample.
+     *
+     * @throws ParseException
      */
     private function layout(int $photometric, int $bits, int $samples, int $compression): ?bool
     {
@@ -261,6 +270,7 @@ final class TiffDecoder
         return $supported ? $alpha : null;
     }
 
+    /** @throws ParseException */
     private function orientation(): int
     {
         $orientation = $this->int(self::ORIENTATION, 1);
@@ -268,7 +278,11 @@ final class TiffDecoder
         return $orientation >= 1 && $orientation <= 8 ? $orientation : 1;
     }
 
-    /** RGB triplets from the 16-bit colour map: all reds, then greens, then blues. */
+    /**
+     * RGB triplets from the 16-bit colour map: all reds, then greens, then blues.
+     *
+     * @throws ParseException
+     */
     private function palette(int $bits): string
     {
         $map     = $this->file->values($this->ifd, self::COLOR_MAP);
@@ -286,7 +300,11 @@ final class TiffDecoder
         return $palette;
     }
 
-    /** The strips decompressed, unpredicted and in big-endian byte order. */
+    /**
+     * The strips decompressed, unpredicted and in big-endian byte order.
+     *
+     * @throws ParseException
+     */
     private function pixels(int $width, int $height, int $bits, int $samples, int $compression): string
     {
         $strips = $this->strips() ?? throw new ParseException('TIFF strips lie outside the file.');
@@ -309,6 +327,7 @@ final class TiffDecoder
         return $raw;
     }
 
+    /** @throws ParseException */
     private function read(): ?ImageData
     {
         $width  = $this->int(self::WIDTH);
@@ -338,7 +357,11 @@ final class TiffDecoder
         return $this->samples($width, $height, (int) $bits, $samples, $compression);
     }
 
-    /** Uncompressed, LZW, Deflate or PackBits strips, decoded to samples. */
+    /**
+     * Uncompressed, LZW, Deflate or PackBits strips, decoded to samples.
+     *
+     * @throws ParseException
+     */
     private function samples(int $width, int $height, int $bits, int $samples, int $compression): ?ImageData
     {
         $photometric = $this->int(self::PHOTOMETRIC, -1);
@@ -369,7 +392,11 @@ final class TiffDecoder
         );
     }
 
-    /** @return list<string>|null the strips' bytes, or null when one lies outside the file */
+    /**
+     * @return list<string>|null the strips' bytes, or null when one lies outside the file
+     *
+     * @throws ParseException
+     */
     private function strips(): ?array
     {
         $offsets = $this->file->values($this->ifd, self::STRIP_OFFSETS);

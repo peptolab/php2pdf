@@ -41,7 +41,11 @@ final readonly class Exif
         }
     }
 
-    /** The tags of the first directory; malformed ones read as absent. */
+    /**
+     * The tags of the first directory; malformed ones read as absent.
+     *
+     * @throws ParseException
+     */
     private static function tags(?TiffFile $tags): self
     {
         $orientation = $tags?->value(0, self::TAG_ORIENTATION);

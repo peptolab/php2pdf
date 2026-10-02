@@ -7,7 +7,8 @@ namespace Php2Pdf\Import;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
 use function array_keys;
@@ -60,6 +61,8 @@ final class ColourScanner
      * The device colour spaces a page uses.
      *
      * @return list<string> DeviceGray, DeviceRGB and DeviceCMYK, as found
+     *
+     * @throws ParseException
      */
     public function scan(PdfPage $page): array
     {
@@ -74,7 +77,11 @@ final class ColourScanner
         return array_keys($this->spaces);
     }
 
-    /** Records the device spaces a colour space object stands on. */
+    /**
+     * Records the device spaces a colour space object stands on.
+     *
+     * @throws ParseException
+     */
     private function colourSpace(mixed $space, int $depth): void
     {
         $space = $this->reader->resolve($space);
@@ -99,7 +106,11 @@ final class ColourScanner
         };
     }
 
-    /** Records the device spaces a content stream selects. */
+    /**
+     * Records the device spaces a content stream selects.
+     *
+     * @throws ParseException
+     */
     private function content(string $content): void
     {
         $lexer    = new Lexer($content);
@@ -107,7 +118,7 @@ final class ColourScanner
         while (true) {
             try {
                 $token = $lexer->next();
-            } catch (PdfException) {
+            } catch (ExceptionInterface) {
                 return;
             }
             if ($token->is(Token::END)) {
@@ -141,7 +152,11 @@ final class ColourScanner
         }
     }
 
-    /** Scans a form, image, or pattern. */
+    /**
+     * Scans a form, image, or pattern.
+     *
+     * @throws ParseException
+     */
     private function drawing(mixed $object, int $depth): void
     {
         $object = $this->reader->resolve($object);
@@ -181,6 +196,8 @@ final class ColourScanner
      * The values of a resource sub-dictionary, unresolved.
      *
      * @return list<mixed>
+     *
+     * @throws ParseException
      */
     private function entries(Dictionary $resources, string $key): array
     {
@@ -189,7 +206,11 @@ final class ColourScanner
         return null === $dict ? [] : array_values($dict->all());
     }
 
-    /** Reads an inline image's dictionary up to ID, then skips its data to EI. */
+    /**
+     * Reads an inline image's dictionary up to ID, then skips its data to EI.
+     *
+     * @throws ParseException
+     */
     private function inlineImage(Lexer $lexer): void
     {
         $key = null;
@@ -210,7 +231,11 @@ final class ColourScanner
         $lexer->skipInlineImageData();
     }
 
-    /** Scans a resource dictionary and everything it draws. */
+    /**
+     * Scans a resource dictionary and everything it draws.
+     *
+     * @throws ParseException
+     */
     private function resources(Dictionary $resources, int $depth): void
     {
         $id = spl_object_id($resources);
@@ -232,6 +257,7 @@ final class ColourScanner
         }
     }
 
+    /** @throws ParseException */
     private function shading(mixed $shading, int $depth): void
     {
         $shading = $this->reader->resolve($shading);

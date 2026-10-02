@@ -8,6 +8,7 @@ use Php2Pdf\Core\Filter\Flate;
 use Php2Pdf\Core\Filter\PngScanlines;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 
@@ -127,7 +128,11 @@ final class PngDecoder
         );
     }
 
-    /** @return array<string, list<string>> chunk type => data blocks in file order */
+    /**
+     * @return array<string, list<string>> chunk type => data blocks in file order
+     *
+     * @throws ParseException
+     */
     private static function chunks(string $data): array
     {
         $chunks = [];
@@ -170,7 +175,11 @@ final class PngDecoder
         return $mask;
     }
 
-    /** @return array{0: int, 1: int, 2: int, 3: int, 4: int} width, height, depth, colour type, interlace */
+    /**
+     * @return array{0: int, 1: int, 2: int, 3: int, 4: int} width, height, depth, colour type, interlace
+     *
+     * @throws ParseException
+     */
     private static function header(string $ihdr, Limits $limits): array
     {
         if (strlen($ihdr) < 13) {
@@ -207,7 +216,7 @@ final class PngDecoder
         }
         try {
             return Flate::decode(substr($iccp, offset: $null + 2), $limits->maxDecodedBytes);
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return null;
         }
     }
@@ -229,6 +238,8 @@ final class PngDecoder
      * @param array<string, list<string>> $chunks
      *
      * @return array{0: string|null, 1: string|null, 2: string}
+     *
+     * @throws ParseException
      */
     private static function pixelChunks(array $chunks, int $type): array
     {
@@ -266,6 +277,8 @@ final class PngDecoder
      * with one regular expression per output.
      *
      * @return array{0: string, 1: string|null}
+     *
+     * @throws ParseException
      */
     private static function split(string $samples, int $channels, int $bytes, int $type, ?string $trns): array
     {

@@ -90,6 +90,8 @@ final class ObjectParser
      * Parses "n g obj <object> endobj" at the current position and returns the object.
      *
      * @return array{0: int, 1: int, 2: mixed} object number, generation, object
+     *
+     * @throws ParseException
      */
     public function parseIndirect(): array
     {
@@ -107,7 +109,11 @@ final class ObjectParser
         return [(int) $number->value, (int) $generation->value, $object];
     }
 
-    /** @return list<mixed> */
+    /**
+     * @return list<mixed>
+     *
+     * @throws ParseException
+     */
     private function array(): array
     {
         $this->open();
@@ -119,6 +125,7 @@ final class ObjectParser
         }
     }
 
+    /** @throws ParseException */
     private function dictionaryOrStream(): Dictionary|Stream
     {
         $this->open();
@@ -140,7 +147,11 @@ final class ObjectParser
         return $this->stream($dict);
     }
 
-    /** The entries of a dictionary, up to its closing delimiter. */
+    /**
+     * The entries of a dictionary, up to its closing delimiter.
+     *
+     * @throws ParseException
+     */
     private function entries(): Dictionary
     {
         $dict = new Dictionary();
@@ -169,6 +180,8 @@ final class ObjectParser
      * The items of an array, up to its closing delimiter.
      *
      * @return list<mixed>
+     *
+     * @throws ParseException
      */
     private function items(): array
     {
@@ -194,6 +207,7 @@ final class ObjectParser
         }
     }
 
+    /** @throws ParseException */
     private function numberOrReference(Token $number): int|float|Reference
     {
         if (! is_int($number->value)) {
@@ -231,6 +245,7 @@ final class ObjectParser
         ++$this->depth;
     }
 
+    /** @throws ParseException */
     private function stream(Dictionary $dict): Stream
     {
         $this->lexer->skipEol();

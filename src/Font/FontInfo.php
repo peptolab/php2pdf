@@ -47,6 +47,8 @@ final readonly class FontInfo
      * Reads the identifying tables of each face in a file.
      *
      * @return list<self>
+     *
+     * @throws ParseException
      */
     public static function peek(string $path): array
     {
@@ -78,6 +80,8 @@ final readonly class FontInfo
      * @param resource $handle
      *
      * @return list<int> offset of each face's table directory
+     *
+     * @throws ParseException
      */
     private static function collectionFaces(mixed $handle): array
     {
@@ -90,7 +94,11 @@ final readonly class FontInfo
         return $reader->u32List(0, intdiv(strlen($offsets), num2: 4));
     }
 
-    /** @param array<int, string> $names */
+    /**
+     * @param array<int, string> $names
+     *
+     * @throws ParseException
+     */
     private static function fromTables(
         string $path,
         int $index,
@@ -127,7 +135,11 @@ final readonly class FontInfo
         );
     }
 
-    /** @param resource $handle */
+    /**
+     * @param resource $handle
+     *
+     * @throws ParseException
+     */
     private static function peekFace(mixed $handle, string $path, int $index, int $base): ?self
     {
         fseek($handle, $base);

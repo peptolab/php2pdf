@@ -6,7 +6,9 @@ namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Color\Gray;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\LayoutException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
@@ -82,7 +84,12 @@ final class StyleResolver
         return is_string($style) ? $this->context->styles->get($style) : $style;
     }
 
-    /** Layers $style over $base and the defaults, resolving fonts. */
+    /**
+     * Layers $style over $base and the defaults, resolving fonts.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function resolve(?TextStyle $base, TextStyle|string|null $style = null): TextStyle
     {
         $merged = $this->defaults->merge($base)->merge($this->named($style));
@@ -102,6 +109,9 @@ final class StyleResolver
      * @param list<FontInterface|string> $fonts
      *
      * @return list<FontInterface>
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     private function fallbacks(array $fonts): array
     {
@@ -113,6 +123,10 @@ final class StyleResolver
         return $resolved;
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function font(FontInterface|string|null $font): ?FontInterface
     {
         return is_string($font) ? $this->context->fonts->find($font) : $font;

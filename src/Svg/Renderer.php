@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
@@ -66,6 +68,10 @@ final class Renderer
         $this->images  = new ImageRenderer($context);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function render(): Template
     {
         $root = $this->context->file->root();
@@ -86,6 +92,10 @@ final class Renderer
         return $template;
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function children(Canvas $canvas, Element $element, Style $style): void
     {
         foreach ($element->elements() as $child) {
@@ -101,7 +111,12 @@ final class Renderer
         Painter::clipTo($canvas, PathData::rect($x, $y, $width, $height), $style->clipRule());
     }
 
-    /** Draws an element's own content after its transform: clip, then shape, text, image or children. */
+    /**
+     * Draws an element's own content after its transform: clip, then shape, text, image or children.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function content(Canvas $canvas, Element $element, Style $style): void
     {
         $clipId = $style->clipPathId();
@@ -120,7 +135,12 @@ final class Renderer
         };
     }
 
-    /** Draws an element in the current user space, applying its transform, clip and opacity. */
+    /**
+     * Draws an element in the current user space, applying its transform, clip and opacity.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function element(Canvas $canvas, Element $element, Style $parent): void
     {
         if (array_key_exists($element->name, self::SKIPPED)) {
@@ -154,7 +174,12 @@ final class Renderer
         $this->context->guard->ascend();
     }
 
-    /** Draws the element's content into a transparency group and composites it with group opacity. */
+    /**
+     * Draws the element's content into a transparency group and composites it with group opacity.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function group(Canvas $canvas, Element $element, Style $style, float $opacity): void
     {
         $group = $this->unboundedTemplate()->asTransparencyGroup();
@@ -163,6 +188,10 @@ final class Renderer
         $canvas->drawXObject($group->reference(), Matrix::identity());
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function nestedSvg(Canvas $canvas, Element $element, Style $style): void
     {
         $x      = $this->context->length($element->attribute('x'), 'x', $style) ?? 0.0;
@@ -173,6 +202,7 @@ final class Renderer
         $this->viewport($canvas, $element, $style, $x, $y, $width, $height);
     }
 
+    /** @throws ParseException */
     private function shape(Canvas $canvas, Element $element, Style $style): void
     {
         $path = Shapes::path($element, $style, $this->context);
@@ -185,6 +215,10 @@ final class Renderer
         }
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function switch(Canvas $canvas, Element $element, Style $style): void
     {
         foreach ($element->elements() as $child) {
@@ -207,6 +241,7 @@ final class Renderer
         );
     }
 
+    /** @throws ParseException */
     private function use(Canvas $canvas, Element $use, Style $style): void
     {
         $href = $use->href();
@@ -220,12 +255,24 @@ final class Renderer
         if (null === $target) {
             return;
         }
-        $this->context->guard->within('use', $id, function () use ($canvas, $use, $target, $style): void {
-            $this->useTarget($canvas, $use, $target, $style);
-        });
+        $this->context->guard->within(
+            'use',
+            $id,
+            /**
+             * @throws IoException
+             * @throws ParseException
+             */ function () use ($canvas, $use, $target, $style): void {
+                $this->useTarget($canvas, $use, $target, $style);
+            },
+        );
     }
 
-    /** Draws the target of a <use> already entered in the guard, offset by its x and y. */
+    /**
+     * Draws the target of a <use> already entered in the guard, offset by its x and y.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function useTarget(Canvas $canvas, Element $use, Element $target, Style $style): void
     {
         $canvas->save();
@@ -244,7 +291,12 @@ final class Renderer
         $canvas->restore();
     }
 
-    /** A <symbol> or <svg> referenced by <use>: sized by the use element, then by itself. */
+    /**
+     * A <symbol> or <svg> referenced by <use>: sized by the use element, then by itself.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function useViewport(Canvas $canvas, Element $use, Element $target, Style $parent): void
     {
         $style = $parent->derive($target, $this->context->sheet);
@@ -270,7 +322,12 @@ final class Renderer
         $canvas->restore();
     }
 
-    /** Establishes a viewport at x, y of the given size, mapping the element's viewBox into it. */
+    /**
+     * Establishes a viewport at x, y of the given size, mapping the element's viewBox into it.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function viewport(
         Canvas $canvas,
         Element $element,

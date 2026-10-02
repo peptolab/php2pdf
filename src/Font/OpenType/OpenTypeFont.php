@@ -6,6 +6,7 @@ namespace Php2Pdf\Font\OpenType;
 
 use Php2Pdf\Core\Lru;
 use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
 use function count;
@@ -78,7 +79,11 @@ final class OpenTypeFont
 
     private readonly BinaryReader $reader;
 
-    /** @param int $faceIndex the font's index in a collection (0 for a single font) */
+    /**
+     * @param int $faceIndex the font's index in a collection (0 for a single font)
+     *
+     * @throws ParseException
+     */
     private function __construct(
         string $data,
         public readonly int $faceIndex,
@@ -109,6 +114,7 @@ final class OpenTypeFont
         self::$cache?->clear();
     }
 
+    /** @throws ParseException */
     public static function fromData(string $data, int $faceIndex = 0): self
     {
         return new self($data, $faceIndex);
@@ -118,6 +124,9 @@ final class OpenTypeFont
      * Loads and parses a font file. Parsed files are shared between documents in the same
      * process: the 32 most recently used, up to 64 MiB of font data, and reloaded when the file
      * changes.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public static function fromFile(string $path, int $faceIndex = 0): self
     {
@@ -159,6 +168,8 @@ final class OpenTypeFont
      * CPAL palette entry, 0xFFFF meaning the text colour. Empty for a glyph without layers.
      *
      * @return list<array{0: int, 1: int}>
+     *
+     * @throws ParseException
      */
     public function colourLayers(int $glyph): array
     {
@@ -171,6 +182,8 @@ final class OpenTypeFont
      * Component glyph ids of a composite glyph, or an empty list for simple glyphs.
      *
      * @return list<int>
+     *
+     * @throws ParseException
      */
     public function componentGlyphs(int $glyphId): array
     {
@@ -219,13 +232,21 @@ final class OpenTypeFont
         return $this->names[NameTable::FULL_NAME] ?? trim("{$this->familyName()} {$this->subfamilyName()}");
     }
 
-    /** The font's glyph definitions (GDEF), synthesised from characters when it has none. */
+    /**
+     * The font's glyph definitions (GDEF), synthesised from characters when it has none.
+     *
+     * @throws ParseException
+     */
     public function gdef(): Gdef
     {
         return $this->gdef ??= new Gdef($this->tableReader('GDEF'), $this->cmap);
     }
 
-    /** Raw glyf data for a glyph (empty for glyphs without outlines). */
+    /**
+     * Raw glyf data for a glyph (empty for glyphs without outlines).
+     *
+     * @throws ParseException
+     */
     public function glyphData(int $glyphId): string
     {
         $loca  = $this->loca();
@@ -245,7 +266,11 @@ final class OpenTypeFont
         return $this->cmap[$codePoint] ?? 0;
     }
 
-    /** The font's glyph positioning (GPOS), or null when it has none. */
+    /**
+     * The font's glyph positioning (GPOS), or null when it has none.
+     *
+     * @throws ParseException
+     */
     public function gpos(): ?Gpos
     {
         if (null === $this->gposTable) {
@@ -256,7 +281,11 @@ final class OpenTypeFont
         return false === $this->gposTable ? null : $this->gposTable;
     }
 
-    /** The font's glyph substitutions (GSUB), or null when it has none. */
+    /**
+     * The font's glyph substitutions (GSUB), or null when it has none.
+     *
+     * @throws ParseException
+     */
     public function gsub(): ?Gsub
     {
         if (null === $this->gsub) {
@@ -267,7 +296,11 @@ final class OpenTypeFont
         return false === $this->gsub ? null : $this->gsub;
     }
 
-    /** Whether the font has colour glyphs drawn from layers (COLR version 0). */
+    /**
+     * Whether the font has colour glyphs drawn from layers (COLR version 0).
+     *
+     * @throws ParseException
+     */
     public function hasColourLayers(): bool
     {
         $this->colr ??= $this->readColr();
@@ -278,6 +311,8 @@ final class OpenTypeFont
     /**
      * Whether the font defines colour glyphs only as COLR version 1 paint graphs, which are drawn
      * in one colour from their outlines.
+     *
+     * @throws ParseException
      */
     public function hasColrVersion1Glyphs(): bool
     {
@@ -291,6 +326,7 @@ final class OpenTypeFont
         return array_key_exists($codePoint, $this->cmap);
     }
 
+    /** @throws ParseException */
     public function hasKerning(): bool
     {
         return null !== $this->gposKerning() || [] !== $this->kernPairs();
@@ -302,7 +338,11 @@ final class OpenTypeFont
         return $this->isCff || $this->tables->has('glyf');
     }
 
-    /** Kerning adjustment between two glyphs in font units (negative moves them closer). */
+    /**
+     * Kerning adjustment between two glyphs in font units (negative moves them closer).
+     *
+     * @throws ParseException
+     */
     public function kerning(int $left, int $right): int
     {
         $gpos = $this->gposKerning();
@@ -316,6 +356,8 @@ final class OpenTypeFont
     /**
      * Left side bearing of a glyph in font units. Subset fonts must keep it: with the head flag
      * that says it equals the glyph's xMin, renderers position each outline by it.
+     *
+     * @throws ParseException
      */
     public function leftSideBearing(int $glyphId): int
     {
@@ -334,6 +376,8 @@ final class OpenTypeFont
      * A colour of the first CPAL palette as red, green, blue and alpha (0 to 255), or null.
      *
      * @return array{0: int, 1: int, 2: int, 3: int}|null
+     *
+     * @throws ParseException
      */
     public function paletteColour(int $index): ?array
     {
@@ -368,7 +412,11 @@ final class OpenTypeFont
         return $this->names[NameTable::TYPOGRAPHIC_SUBFAMILY] ?? $this->names[NameTable::SUBFAMILY] ?? 'Regular';
     }
 
-    /** The raw bytes of a table, or null when the font lacks it. */
+    /**
+     * The raw bytes of a table, or null when the font lacks it.
+     *
+     * @throws ParseException
+     */
     public function table(string $tag): ?string
     {
         if (! $this->tables->has($tag)) {
@@ -383,12 +431,15 @@ final class OpenTypeFont
      * A reader over one table, or null when the font lacks it.
      *
      * @internal
+     *
+     * @throws ParseException
      */
     public function tableReader(string $tag): ?BinaryReader
     {
         return $this->tables->has($tag) ? $this->tables->slice($this->reader, $tag) : null;
     }
 
+    /** @throws ParseException */
     private function gposKerning(): ?GposKerning
     {
         if (! $this->gposChecked) {
@@ -405,7 +456,11 @@ final class OpenTypeFont
         return $this->gpos;
     }
 
-    /** @return array<int, int> */
+    /**
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
     private function kernPairs(): array
     {
         return $this->kernPairs ??= $this->tables->has('kern')
@@ -413,7 +468,11 @@ final class OpenTypeFont
             : [];
     }
 
-    /** @return list<int> */
+    /**
+     * @return list<int>
+     *
+     * @throws ParseException
+     */
     private function loca(): array
     {
         if (null !== $this->loca) {
@@ -435,7 +494,11 @@ final class OpenTypeFont
         return $this->loca = $values;
     }
 
-    /** @return list<int> */
+    /**
+     * @return list<int>
+     *
+     * @throws ParseException
+     */
     private function parseAdvances(): array
     {
         $metrics  = $this->tables->slice($this->reader, 'hhea')->u16(34);
@@ -453,6 +516,8 @@ final class OpenTypeFont
      * The layers of every base glyph in the COLR table (version 0 records).
      *
      * @return array<int, list<array{0: int, 1: int}>>
+     *
+     * @throws ParseException
      */
     private function readColr(): array
     {

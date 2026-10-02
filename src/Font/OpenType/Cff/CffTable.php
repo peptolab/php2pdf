@@ -111,7 +111,11 @@ final readonly class CffTable
         return new self($names[0], $top, $globalSubrs, $charStrings, $fonts, $fdSelect, true);
     }
 
-    /** @return list<int> glyph id => Font DICT */
+    /**
+     * @return list<int> glyph id => Font DICT
+     *
+     * @throws ParseException
+     */
     private static function fdSelect(BinaryReader $reader, int $offset, int $glyphs): array
     {
         $format = $reader->u8($offset);
@@ -152,6 +156,8 @@ final readonly class CffTable
      * @param array<int, DictEntry> $owner the DICT holding the Private operator
      *
      * @return array{dict: array<int, DictEntry>, private: array<int, DictEntry>, subrs: list<string>}
+     *
+     * @throws ParseException
      */
     private static function font(BinaryReader $reader, array $dict, array $owner): array
     {
@@ -173,6 +179,8 @@ final readonly class CffTable
      * The items of the INDEX at $offset, and the offset just past it.
      *
      * @return array{0: list<string>, 1: int}
+     *
+     * @throws ParseException
      */
     private static function index(BinaryReader $reader, int $offset): array
     {
@@ -200,7 +208,11 @@ final readonly class CffTable
         return [$items, $base + $end];
     }
 
-    /** @param array<int, DictEntry> $dict */
+    /**
+     * @param array<int, DictEntry> $dict
+     *
+     * @throws ParseException
+     */
     private static function offset(array $dict, int $operator): int
     {
         $entry = $dict[$operator] ?? throw new ParseException(sprintf('CFF DICT lacks operator %d.', $operator));
@@ -208,6 +220,7 @@ final readonly class CffTable
         return (int) ($entry->values[0] ?? 0);
     }
 
+    /** @throws ParseException */
     private static function offsetValue(BinaryReader $reader, int $offset, int $size): int
     {
         if ($size < 1 || $size > 4) {

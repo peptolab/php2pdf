@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Text\Style\TextStyle;
@@ -74,7 +75,12 @@ final class MarkupParser
 
     private bool $inParagraph = false;
 
-    /** @param TextFormat $format StrictMarkup makes an unknown tag an error */
+    /**
+     * @param TextFormat $format StrictMarkup makes an unknown tag an error
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function __construct(
         private readonly StyleResolver $resolver,
         private readonly TextStyle $base,
@@ -83,7 +89,11 @@ final class MarkupParser
         $this->current = $resolver->resolve($base);
     }
 
-    /** An attribute of a tag, with entities decoded. */
+    /**
+     * An attribute of a tag, with entities decoded.
+     *
+     * @throws ParseException
+     */
     private static function attribute(string $inner, string $key): ?string
     {
         $m = [];
@@ -93,6 +103,7 @@ final class MarkupParser
             : null;
     }
 
+    /** @throws ParseException */
     private static function decodeEntities(string $text): string
     {
         $text = str_replace(['&nbsp;', '&shy;'], ["\u{00A0}", "\u{00AD}"], $text);
@@ -107,6 +118,8 @@ final class MarkupParser
     /**
      * The link of an <a href title> (a URL, or a named destination after #) or the match name of
      * a <span match>.
+     *
+     * @throws ParseException
      */
     private static function marks(string $name, string $inner): ?TextStyle
     {
@@ -132,6 +145,9 @@ final class MarkupParser
     /**
      * @return list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}>
      *         per paragraph: paragraph style override, spans, and breaks positioned before the span at that index
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function parse(string $markup): array
     {
@@ -161,6 +177,10 @@ final class MarkupParser
         $this->breaks[] = [count($this->spans), $kind];
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function close(string $name): void
     {
         if ('p' === $name) {
@@ -180,6 +200,10 @@ final class MarkupParser
         }
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function flushParagraph(): void
     {
         if ([] !== $this->spans || [] !== $this->breaks) {
@@ -197,7 +221,11 @@ final class MarkupParser
         $this->current        = $this->resolver->resolve($this->base);
     }
 
-    /** An inline image: <img src="name"> with optional width, height and raise in points. */
+    /**
+     * An inline image: <img src="name"> with optional width, height and raise in points.
+     *
+     * @throws ParseException
+     */
     private function image(string $inner): void
     {
         $attribute = static function (string $key) use ($inner): ?string {
@@ -239,6 +267,10 @@ final class MarkupParser
         return false;
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function open(string $name, ?string $styleName, ?TextStyle $marks = null): void
     {
         $this->stack[] = [$name, $this->current];
@@ -272,6 +304,10 @@ final class MarkupParser
         }
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function openParagraph(?string $style): void
     {
         $this->flushParagraph();
@@ -280,6 +316,10 @@ final class MarkupParser
         $this->current        = $this->resolver->resolve($this->base, $this->paragraphStyle);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function tag(string $tag): void
     {
         $closing = str_starts_with($tag, '</');
@@ -310,6 +350,10 @@ final class MarkupParser
         };
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function text(string $raw): void
     {
         $text = self::decodeEntities($raw);
@@ -332,7 +376,11 @@ final class MarkupParser
         $this->spans[] = [str_replace("\n", replace: ' ', subject: $text), $this->current];
     }
 
-    /** An unknown tag is dropped, or an error in strict markup. */
+    /**
+     * An unknown tag is dropped, or an error in strict markup.
+     *
+     * @throws ParseException
+     */
     private function unknown(string $tag): void
     {
         if (TextFormat::StrictMarkup === $this->format) {

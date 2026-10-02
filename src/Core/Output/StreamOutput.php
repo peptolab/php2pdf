@@ -25,7 +25,11 @@ final class StreamOutput implements OutputInterface
 
     private int $position = 0;
 
-    /** @param resource $resource */
+    /**
+     * @param resource $resource
+     *
+     * @throws IoException
+     */
     public function __construct(mixed $resource)
     {
         if (! is_resource($resource)) {
@@ -46,6 +50,7 @@ final class StreamOutput implements OutputInterface
         return $this->position;
     }
 
+    /** @throws IoException */
     #[Override]
     public function write(string $bytes): void
     {

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Override;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Import\ImportedPage;
 use Php2Pdf\Import\PdfFile;
 
@@ -30,6 +32,10 @@ final class RsvgConverter implements SvgConverterInterface
         private readonly string $binary = 'rsvg-convert',
     ) {}
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     #[Override]
     public function convert(SvgFile $svg, SvgDocumentInterface $document): ImportedPage
     {
@@ -45,14 +51,18 @@ final class RsvgConverter implements SvgConverterInterface
     {
         try {
             $this->run(['--version'], '');
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return false;
         }
 
         return true;
     }
 
-    /** @param list<string> $arguments */
+    /**
+     * @param list<string> $arguments
+     *
+     * @throws IoException
+     */
     private function run(array $arguments, string $input): string
     {
         $command = escapeshellarg($this->binary);
@@ -62,14 +72,14 @@ final class RsvgConverter implements SvgConverterInterface
         $pipes   = [];
         $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         if (! is_resource($process)) {
-            throw new PdfException(sprintf('Cannot run "%s".', $this->binary));
+            throw new IoException(sprintf('Cannot run "%s".', $this->binary));
         }
         $stdin  = $pipes[0] ?? null;
         $stdout = $pipes[1] ?? null;
         $stderr = $pipes[2] ?? null;
         if (! is_resource($stdin) || ! is_resource($stdout) || ! is_resource($stderr)) {
             proc_close($process);
-            throw new PdfException(sprintf('Cannot talk to "%s".', $this->binary));
+            throw new IoException(sprintf('Cannot talk to "%s".', $this->binary));
         }
         fwrite($stdin, $input);
         fclose($stdin);
@@ -79,7 +89,7 @@ final class RsvgConverter implements SvgConverterInterface
         fclose($stderr);
         $status = proc_close($process);
         if (0 !== $status || false === $output) {
-            throw new PdfException(sprintf(
+            throw new IoException(sprintf(
                 '%s failed (%d): %s',
                 $this->binary,
                 $status,

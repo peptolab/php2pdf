@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function is_string;
 use function mb_convert_encoding;
@@ -32,7 +34,11 @@ final class NameTable
         self::TYPOGRAPHIC_SUBFAMILY => true,
     ];
 
-    /** @return array<int, string> name id => UTF-8 string */
+    /**
+     * @return array<int, string> name id => UTF-8 string
+     *
+     * @throws ParseException
+     */
     public static function parse(BinaryReader $name): array
     {
         $count      = $name->u16(2);

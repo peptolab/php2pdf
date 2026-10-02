@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function max;
 
 /**
@@ -13,7 +15,11 @@ use function max;
  */
 final class KernTable
 {
-    /** @return array<int, int> (left << 16 | right) => adjustment in font units */
+    /**
+     * @return array<int, int> (left << 16 | right) => adjustment in font units
+     *
+     * @throws ParseException
+     */
     public static function parse(BinaryReader $kern): array
     {
         $pairs = [];

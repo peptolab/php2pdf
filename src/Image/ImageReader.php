@@ -57,6 +57,7 @@ final class ImageReader
         return $image;
     }
 
+    /** @throws IoException */
     public static function readFile(string $path, ?Limits $limits = null, ?ImageOptions $options = null): ImageData
     {
         if (! is_file($path) || ! is_readable($path)) {
@@ -75,6 +76,8 @@ final class ImageReader
      * pixels are decoded; read() checks the result again, so no format gets past the limit. A
      * format or TIFF layout not read natively is converted to PNG, which is refused when it would
      * lose data, unless the options accept that.
+     *
+     * @throws ParseException
      */
     private static function decode(string $data, Limits $limits, ImageOptions $options, ?string $name): ImageData
     {

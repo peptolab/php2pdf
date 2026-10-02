@@ -6,6 +6,7 @@ namespace Php2Pdf\Import;
 
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 
 use function array_slice;
@@ -32,16 +33,19 @@ final readonly class PdfPage
         public int $number,
     ) {}
 
+    /** @throws ParseException */
     public function artBox(): Box
     {
         return $this->clamped('ArtBox', $this->cropBox());
     }
 
+    /** @throws ParseException */
     public function bleedBox(): Box
     {
         return $this->clamped('BleedBox', $this->cropBox());
     }
 
+    /** @throws ParseException */
     public function box(PageBox $box): Box
     {
         return match ($box) {
@@ -57,6 +61,8 @@ final readonly class PdfPage
      * The decoded content stream(s), concatenated.
      *
      * @internal
+     *
+     * @throws ParseException
      */
     public function content(): string
     {
@@ -76,6 +82,7 @@ final readonly class PdfPage
         return implode("\n", $parts);
     }
 
+    /** @throws ParseException */
     public function cropBox(): Box
     {
         return $this->clamped('CropBox', $this->mediaBox());
@@ -87,6 +94,8 @@ final readonly class PdfPage
      * @internal
      *
      * @return list<string> DeviceGray, DeviceRGB and DeviceCMYK, as found
+     *
+     * @throws ParseException
      */
     public function deviceColourSpaces(): array
     {
@@ -99,24 +108,37 @@ final readonly class PdfPage
         return $this->dictionary;
     }
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     public function group(): ?Dictionary
     {
         return $this->reader->dict($this->dictionary, 'Group');
     }
 
+    /** @throws ParseException */
     public function mediaBox(): Box
     {
         return $this->rect('MediaBox') ?? new Box(0.0, 0.0, 612.0, 792.0);
     }
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     public function resources(): ?Dictionary
     {
         return $this->reader->dict($this->dictionary, 'Resources');
     }
 
-    /** Display rotation: 0, 90, 180 or 270. */
+    /**
+     * Display rotation: 0, 90, 180 or 270.
+     *
+     * @throws ParseException
+     */
     public function rotation(): int
     {
         $rotate = $this->reader->get($this->dictionary, 'Rotate');
@@ -125,11 +147,13 @@ final readonly class PdfPage
         return (($value % 360) + 360) % 360;
     }
 
+    /** @throws ParseException */
     public function trimBox(): Box
     {
         return $this->clamped('TrimBox', $this->cropBox());
     }
 
+    /** @throws ParseException */
     private function clamped(string $key, Box $fallback): Box
     {
         $box = $this->rect($key);
@@ -141,6 +165,7 @@ final readonly class PdfPage
         return $inside->isEmpty() ? $fallback : $inside;
     }
 
+    /** @throws ParseException */
     private function rect(string $key): ?Box
     {
         $value = $this->reader->get($this->dictionary, $key);

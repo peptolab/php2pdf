@@ -82,7 +82,11 @@ final class JpegDecoder
         );
     }
 
-    /** @return array{precision: int, height: int, width: int, components: int} */
+    /**
+     * @return array{precision: int, height: int, width: int, components: int}
+     *
+     * @throws ParseException
+     */
     private static function frame(string $segment): array
     {
         if (strlen($segment) < 6) {
@@ -126,7 +130,11 @@ final class JpegDecoder
         };
     }
 
-    /** Walks the marker segments up to the start of scan data. */
+    /**
+     * Walks the marker segments up to the start of scan data.
+     *
+     * @throws ParseException
+     */
     private function scan(string $data): void
     {
         $length = strlen($data);
@@ -154,6 +162,7 @@ final class JpegDecoder
         }
     }
 
+    /** @throws ParseException */
     private function segment(int $marker, string $segment): void
     {
         if (self::isFrameMarker($marker)) {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\HarfBuzz;
 
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Font\ExternalShaperInterface;
 
 use function exec;
@@ -38,7 +38,7 @@ final class HarfBuzz
     {
         try {
             return new HarfBuzzFfi($library);
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return null;
         }
     }

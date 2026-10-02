@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Exception;
 
+use InvalidArgumentException as SplInvalidArgumentException;
+
 /**
  * An argument is outside what the method accepts.
  *
  * @api
  */
-final class InvalidArgumentException extends PdfException {}
+final class InvalidArgumentException extends SplInvalidArgumentException implements ExceptionInterface {}

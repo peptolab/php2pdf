@@ -9,7 +9,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Navigation\Destination;
 use PHPUnit\Framework\Attributes\Group;
@@ -29,7 +29,7 @@ final class NavigationTest extends TestCase
     public function rejectsDestinationsToMissingPages(): void
     {
         $this->doc->addPage(PageSize::A4)->addLink(new Box(0.0, 0.0, 10.0, 10.0), Destination::page(9));
-        $this->expectException(PdfException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->doc->close();
     }
 
@@ -38,7 +38,7 @@ final class NavigationTest extends TestCase
     {
         $this->doc->addPage(PageSize::A4);
         $this->doc->outline()->add('x', Destination::named('nowhere'));
-        $this->expectException(PdfException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->doc->close();
     }
 

@@ -115,6 +115,7 @@ final class XmlParser
         return $attributes;
     }
 
+    /** @throws ParseException */
     private function document(): Element
     {
         /** @var list<Element> $stack */
@@ -147,6 +148,8 @@ final class XmlParser
      * top level, so the root can be found.
      *
      * @param list<Element> $stack
+     *
+     * @throws ParseException
      */
     private function markup(array &$stack): ?Element
     {
@@ -186,6 +189,7 @@ final class XmlParser
         return $this->startTag($stack);
     }
 
+    /** @throws ParseException */
     private function skipDeclaration(): void
     {
         // A DOCTYPE may carry an internal subset in brackets, which can itself contain ">".
@@ -204,6 +208,7 @@ final class XmlParser
         $this->position = $close + 1;
     }
 
+    /** @throws ParseException */
     private function skipTo(string $terminator): void
     {
         $end = strpos($this->xml, $terminator, $this->position);
@@ -213,7 +218,11 @@ final class XmlParser
         $this->position = $end + strlen($terminator);
     }
 
-    /** @param list<Element> $stack */
+    /**
+     * @param list<Element> $stack
+     *
+     * @throws ParseException
+     */
     private function startTag(array &$stack): ?Element
     {
         $m = [];

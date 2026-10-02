@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Override;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Template\Template;
 
@@ -32,6 +34,10 @@ final class NativeConverter implements SvgConverterInterface
         private readonly ?FontInterface $fallbackFont = null,
     ) {}
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     #[Override]
     public function convert(SvgFile $svg, SvgDocumentInterface $document): Template
     {

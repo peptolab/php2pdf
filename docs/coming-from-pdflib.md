@@ -10,7 +10,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | Options | Option list strings | Named arguments and small option classes |
 | Units | Points | Points; `Unit::mm()`, `Box::fromMm()` at the boundary |
 | Origin | Bottom-left (`topdown` optional) | Bottom-left; `addPage(topDown: true)` |
-| Errors | Exceptions or `-1` with `get_errmsg()` | `PdfException` and subtypes (`ParseException`, `ConformanceException`, `LayoutException`) |
+| Errors | Exceptions or `-1` with `get_errmsg()` | Exceptions implementing `ExceptionInterface`: `InvalidArgumentException`, `StateException`, and `PdfException` with its kinds (`ParseException`, `IoException`, `ConformanceException`, `LayoutException`) |
 
 ## Documents and pages
 

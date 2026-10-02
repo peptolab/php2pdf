@@ -9,7 +9,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\StateException;
 use Php2Pdf\Geometry\Box;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -72,7 +72,7 @@ final class DocumentTest extends TestCase
         $page = $doc->addPage();
         $doc->addPage();
 
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $page->canvas();
     }
 
@@ -81,7 +81,7 @@ final class DocumentTest extends TestCase
     {
         $doc = new Document(new MemoryOutput());
 
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $doc->close();
     }
 

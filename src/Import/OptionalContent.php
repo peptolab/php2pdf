@@ -8,6 +8,7 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\HexString;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Exception\ParseException;
 
 use function array_filter;
 use function array_values;
@@ -46,7 +47,11 @@ final class OptionalContent
     private array $radio = [];
 
     /** Adds the groups of one source document that its copied pages use. */
-    /** @param HiddenContent|null $removed the layers whose content was removed, left out here too */
+    /**
+     * @param HiddenContent|null $removed the layers whose content was removed, left out here too
+     *
+     * @throws ParseException
+     */
     public function add(PdfReader $source, ObjectCopier $copier, ?HiddenContent $removed = null): void
     {
         $this->removed = $removed;
@@ -98,6 +103,7 @@ final class OptionalContent
         $catalog->set('OCProperties', Dictionary::of(['OCGs' => $this->groups, 'D' => $config]));
     }
 
+    /** @throws ParseException */
     private function autoStates(PdfReader $source, Dictionary $config, ObjectCopier $copier): void
     {
         $states = $source->get($config, 'AS');
@@ -125,6 +131,8 @@ final class OptionalContent
      * The groups in a list that were copied into the document, as target references.
      *
      * @return list<Reference>
+     *
+     * @throws ParseException
      */
     private function copied(PdfReader $source, mixed $list, ObjectCopier $copier): array
     {
@@ -169,6 +177,8 @@ final class OptionalContent
      * @param list<Reference> $groups
      *
      * @return list<Reference>
+     *
+     * @throws ParseException
      */
     private function offGroups(PdfReader $source, Dictionary $config, array $groups, ObjectCopier $copier): array
     {
@@ -189,6 +199,8 @@ final class OptionalContent
      * left empty dropped.
      *
      * @return list<mixed>
+     *
+     * @throws ParseException
      */
     private function order(PdfReader $source, mixed $order, ObjectCopier $copier, int $depth): array
     {
@@ -222,6 +234,7 @@ final class OptionalContent
         return $hasGroup ? $out : [];
     }
 
+    /** @throws ParseException */
     private function radioGroups(PdfReader $source, Dictionary $config, ObjectCopier $copier): void
     {
         $lists = $source->get($config, 'RBGroups');

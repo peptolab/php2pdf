@@ -153,7 +153,11 @@ final class Cff2CharStrings
         return self::finish($this->globalSubrs, $this->globalOut);
     }
 
-    /** Converts a glyph's charstring, ending it with endchar. */
+    /**
+     * Converts a glyph's charstring, ending it with endchar.
+     *
+     * @throws ParseException
+     */
     public function glyph(string $charString, int $fd): string
     {
         $this->stems   = 0;
@@ -180,6 +184,8 @@ final class Cff2CharStrings
      * @param list<float>  $values
      *
      * @return array{0: list<string>, 1: list<float>}
+     *
+     * @throws ParseException
      */
     private function blend(array $tokens, array $values): array
     {
@@ -196,7 +202,11 @@ final class Cff2CharStrings
         ];
     }
 
-    /** Converts a called subroutine the first time it is called, following its stems. */
+    /**
+     * Converts a called subroutine the first time it is called, following its stems.
+     *
+     * @throws ParseException
+     */
     private function call(int $op, int $biased, int $fd, int $depth): void
     {
         $global = self::OP_CALLGSUBR === $op;
@@ -226,6 +236,8 @@ final class Cff2CharStrings
     /**
      * Converts one charstring or subroutine body. Numbers stay as written, except where blend
      * drops a value's deltas.
+     *
+     * @throws ParseException
      */
     private function convert(string $data, int $fd, int $depth): string
     {

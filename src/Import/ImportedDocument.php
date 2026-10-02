@@ -6,6 +6,7 @@ namespace Php2Pdf\Import;
 
 use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ParseException;
 
 /**
  * An existing PDF bound to a document being written: each page can be placed as artwork, and
@@ -22,7 +23,11 @@ final class ImportedDocument
     /** @var array<string, ImportedPage> */
     private array $pages = [];
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
@@ -37,13 +42,19 @@ final class ImportedDocument
      * Adds the layers the copied pages use to the document's optional content.
      *
      * @internal
+     *
+     * @throws ParseException
      */
     public function addOptionalContent(OptionalContent $layers): void
     {
         $layers->add($this->file->reader(), $this->copier, $this->hidden);
     }
 
-    /** A page by 1-based number, bounded by the given box (the crop box by default). */
+    /**
+     * A page by 1-based number, bounded by the given box (the crop box by default).
+     *
+     * @throws ParseException
+     */
     public function page(int $number, PageBox $box = PageBox::Crop): ImportedPage
     {
         return $this->pages["{$number}:{$box->value}"] ??= new ImportedPage(
@@ -56,6 +67,7 @@ final class ImportedDocument
         );
     }
 
+    /** @throws ParseException */
     public function pageCount(): int
     {
         return $this->file->pageCount();

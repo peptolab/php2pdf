@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function count;
 use function max;
@@ -75,6 +77,8 @@ final readonly class ChainRules
      * @param list<int> $ids
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     public function match(int $type, int $offset, array $ids, int $i, GlyphFilter $filter): ?array
     {
@@ -131,6 +135,8 @@ final readonly class ChainRules
      * @param list<int> $ids
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     private function chainFormat3(int $offset, array $ids, int $i, GlyphFilter $filter): ?array
     {
@@ -185,6 +191,8 @@ final readonly class ChainRules
      * @param list<int> $ids
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     private function contextFormat3(int $offset, array $ids, int $i, GlyphFilter $filter): ?array
     {
@@ -209,6 +217,8 @@ final readonly class ChainRules
      * @param list<int> $ids
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     private function format1(int $offset, array $ids, int $i, GlyphFilter $filter, int $type): ?array
     {
@@ -234,6 +244,8 @@ final readonly class ChainRules
      * @param list<int> $ids
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     private function format2(int $offset, array $ids, int $i, GlyphFilter $filter, int $type): ?array
     {
@@ -310,6 +322,8 @@ final readonly class ChainRules
      * @param array{0: array<int, int>, 1: array<int, int>, 2: array<int, int>}|null $classes
      *
      * @return array{0: list<int>, 1: list<array{0: int, 1: int}>}|null
+     *
+     * @throws ParseException
      */
     private function rule(int $rule, array $ids, int $i, GlyphFilter $filter, ?array $classes, int $type): ?array
     {

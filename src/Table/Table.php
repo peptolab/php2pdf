@@ -9,6 +9,8 @@ use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
@@ -137,6 +139,9 @@ final class Table implements FlowableInterface
     /**
      * Places as many of the remaining rows as fit into a box on any canvas (a page's, a
      * template's), headers first. Page::fitTable() does the same on a page.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     #[Override]
     public function fitInto(Canvas $canvas, Box $box): FlowResult
@@ -225,6 +230,9 @@ final class Table implements FlowableInterface
     /**
      * The height the remaining rows (and the headers and footers) would take at the given width,
      * without placing anything.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function measure(float $width): float
     {
@@ -283,6 +291,9 @@ final class Table implements FlowableInterface
 
     /**
      * The footer rows to draw in this box: the callback's, when it gives any, or the footer grid.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     private function boxFooters(Grid $footers, int $firstRow, Plan $plan): Grid
     {
@@ -312,7 +323,12 @@ final class Table implements FlowableInterface
         return new Grid($built, $this->columns, $this->style, $this->text, $this->context);
     }
 
-    /** @return array{0: Grid, 1: Grid, 2: Grid} */
+    /**
+     * @return array{0: Grid, 1: Grid, 2: Grid}
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function grids(): array
     {
         $this->headerGrid ??= new Grid($this->headers, $this->columns, $this->style, $this->text, $this->context);

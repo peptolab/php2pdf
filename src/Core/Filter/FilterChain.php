@@ -37,6 +37,8 @@ final class FilterChain
      * @param list<string>          $filters
      * @param list<Dictionary|null> $parms    one entry per filter
      * @param int                   $maxBytes the most any stage may decode to
+     *
+     * @throws ParseException
      */
     public static function decode(string $data, array $filters, array $parms, int $maxBytes = PHP_INT_MAX): string
     {
@@ -118,6 +120,7 @@ final class FilterChain
         return is_int($value) || is_float($value) ? (int) $value : $default;
     }
 
+    /** @throws ParseException */
     private static function predict(string $data, ?Dictionary $parms): string
     {
         $predictor = self::int($parms, 'Predictor', 1);

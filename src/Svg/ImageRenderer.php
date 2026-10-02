@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Fit\Position;
@@ -75,7 +75,7 @@ final class ImageRenderer
         }
         try {
             $image = $this->context->document->imageFromData($data);
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             $this->context->warn('images in unsupported formats');
 
             return;

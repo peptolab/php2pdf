@@ -77,16 +77,21 @@ files from untrusted sources:
 
 ## Errors
 
-Everything the library throws for a PDF problem is a `PdfException`, and most failures use a
-subtype that says what kind of problem it is:
+Everything the library throws implements `Php2Pdf\Exception\ExceptionInterface`: catch that to
+handle them all. Each is also one of PHP's own exceptions, so it can be caught by kind:
 
-| Exception | Thrown when |
-|---|---|
-| `ParseException` | an input file or markup is malformed, unsupported, or over a resource limit |
-| `ConformanceException` | the document would break the rules of the standard it declares (PDF/X-4) |
-| `LayoutException` | content cannot be laid out where it was asked to go |
-| `IoException` | a file cannot be read or written |
-| `InvalidArgumentException` | an argument is out of range or the wrong kind |
+| Exception | Is a | Thrown when |
+|---|---|---|
+| `InvalidArgumentException` | `\InvalidArgumentException` | an argument is out of range or the wrong kind |
+| `StateException` | `\LogicException` | a call the object's state does not allow: drawing on a finished page, using a closed document, `restore()` without `save()` |
+| `PdfException` | `\RuntimeException` | something fails at run time; its kinds below say what |
+| `ParseException` | `PdfException` | an input file or markup is malformed, unsupported, or over a resource limit |
+| `IoException` | `PdfException` | a file cannot be read or written, or a tool cannot be run |
+| `ConformanceException` | `PdfException` | the document would break the rules of the standard it declares (PDF/X-4) |
+| `LayoutException` | `PdfException` | content cannot be laid out where it was asked to go |
+
+Methods that read files say so with `@throws ParseException` and `@throws IoException`, and the
+static analysis checks that every caller in the library declares them too.
 
 ## Deterministic output
 

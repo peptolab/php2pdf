@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Font\OpenType;
 
 use IntlChar;
+use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
 use function class_exists;
@@ -38,7 +39,11 @@ final class Gdef
     /** @var list<array<int, int>> mark glyph set => glyph => coverage index */
     private readonly array $markSets;
 
-    /** @param array<int, int> $cmap code point => glyph, for synthesising classes */
+    /**
+     * @param array<int, int> $cmap code point => glyph, for synthesising classes
+     *
+     * @throws ParseException
+     */
     public function __construct(
         ?BinaryReader $gdef,
         private readonly array $cmap = [],

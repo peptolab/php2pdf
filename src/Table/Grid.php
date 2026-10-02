@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Table;
 
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Text\Flow\StyleResolver;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextContext;
@@ -33,6 +35,9 @@ final class Grid
     /**
      * @param list<Row>    $rows
      * @param list<Column> $columns
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function __construct(
         array $rows,
@@ -97,6 +102,10 @@ final class Grid
         }
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     private function place(
         TextContext $context,
         StyleResolver $resolver,

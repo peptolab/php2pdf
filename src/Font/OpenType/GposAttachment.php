@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\TextDirection;
 
 use function array_key_exists;
@@ -142,6 +143,8 @@ final readonly class GposAttachment
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     public function cursive(
         int $offset,
@@ -196,6 +199,8 @@ final readonly class GposAttachment
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     public function markToBase(
         int $offset,
@@ -249,6 +254,8 @@ final readonly class GposAttachment
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     public function markToLigature(
         int $offset,
@@ -307,6 +314,8 @@ final readonly class GposAttachment
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     public function markToMark(
         int $offset,
@@ -357,6 +366,8 @@ final readonly class GposAttachment
      * An anchor's coordinates: formats 1 to 3, without contour points or device tables.
      *
      * @return array{0: int, 1: int}
+     *
+     * @throws ParseException
      */
     private function anchor(int $offset): array
     {

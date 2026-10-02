@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 
 use function sprintf;
@@ -22,11 +24,19 @@ final class FontFamily
         private readonly array $faces,
     ) {}
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function bold(): Font
     {
         return $this->style(FontStyle::Bold);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function boldItalic(): Font
     {
         return $this->style(FontStyle::BoldItalic);
@@ -43,16 +53,28 @@ final class FontFamily
         return null !== $this->face($style);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function italic(): Font
     {
         return $this->style(FontStyle::Italic);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function regular(): Font
     {
         return $this->style(FontStyle::Regular);
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function style(FontStyle $style): Font
     {
         $face = $this->face($style) ?? throw new PdfException(sprintf(

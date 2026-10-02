@@ -88,6 +88,8 @@ final class CharStringScanner
      * Follows a callgsubr.
      *
      * @param list<string> $localSubrs
+     *
+     * @throws ParseException
      */
     private function callGlobal(int $fd, array $localSubrs): bool
     {
@@ -101,6 +103,8 @@ final class CharStringScanner
      * Follows a callsubr.
      *
      * @param list<string> $localSubrs
+     *
+     * @throws ParseException
      */
     private function callLocal(int $fd, array $localSubrs): bool
     {
@@ -114,6 +118,8 @@ final class CharStringScanner
      * Runs a subroutine; returns whether it reached endchar.
      *
      * @param list<string> $localSubrs
+     *
+     * @throws ParseException
      */
     private function enter(string $subr, int $fd, array $localSubrs): bool
     {
@@ -159,6 +165,8 @@ final class CharStringScanner
      * @param list<string> $localSubrs
      *
      * @return bool whether endchar was reached
+     *
+     * @throws ParseException
      */
     private function run(string $code, int $fd, array $localSubrs): bool
     {
@@ -221,6 +229,8 @@ final class CharStringScanner
      * The subroutine the number on top of the stack calls.
      *
      * @param list<string> $subrs
+     *
+     * @throws ParseException
      */
     private function subrIndex(array $subrs): int
     {

@@ -23,7 +23,8 @@ use Php2Pdf\Core\Writer;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\LayoutException;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\StateException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\FontOptions;
@@ -111,6 +112,7 @@ final class Document implements SvgDocumentInterface
     private ?Navigation     $navigation = null;
     private ?TextContext    $text       = null;
 
+    /** @throws IoException */
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
         $this->options = $options ?? new DocumentOptions();
@@ -207,6 +209,8 @@ final class Document implements SvgDocumentInterface
     /**
      * Runs the onClose() callbacks, then finishes the current page and writes the page tree,
      * catalog, metadata and trailer.
+     *
+     * @throws ParseException
      */
     public function close(): void
     {
@@ -220,7 +224,7 @@ final class Document implements SvgDocumentInterface
         $this->closing = [];
         $this->finishCurrentPage();
         if ([] === $this->pageRefs) {
-            throw new PdfException('A document needs at least one page.');
+            throw new StateException('A document needs at least one page.');
         }
         foreach ($this->pdfx->complete($this->info->title()) as $description) {
             $this->xmpDescriptions[] = $description;
@@ -333,6 +337,8 @@ final class Document implements SvgDocumentInterface
     /**
      * Loads an image file (JPEG or PNG natively; other formats through ext-imagick or ext-gd).
      * The same file is written once however many times it is loaded or placed.
+     *
+     * @throws IoException
      */
     public function image(string $path, ?ImageOptions $options = null): Image
     {
@@ -359,6 +365,8 @@ final class Document implements SvgDocumentInterface
      * templates. The same file is imported once; shared resources are written once. Layers the
      * file switches off stay off; HiddenLayers::Remove removes their content instead, so viewers
      * that ignore layers in placed artwork (macOS Preview) do not show them either.
+     *
+     * @throws ParseException
      */
     #[Override]
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument
@@ -466,6 +474,9 @@ final class Document implements SvgDocumentInterface
      * Converts an SVG so it can be placed as artwork. The native converter is used unless another
      * is given (RsvgConverter when rsvg-convert is installed). The same file converts once per
      * converter.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function svg(SvgFile|string $source, ?SvgConverterInterface $converter = null): PlaceableInterface
     {
@@ -531,6 +542,9 @@ final class Document implements SvgDocumentInterface
      * Markup::escape() for interpolating data into markup).
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function textflow(
         string $text,
@@ -550,6 +564,9 @@ final class Document implements SvgDocumentInterface
      * breaks, then build().
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function textflowBuilder(TextStyle|string|null $style = null, array $hyphenators = []): TextflowBuilder
     {
@@ -561,7 +578,7 @@ final class Document implements SvgDocumentInterface
     private function assertOpen(): void
     {
         if ($this->closed) {
-            throw new PdfException('The document has been closed.');
+            throw new StateException('The document has been closed.');
         }
     }
 

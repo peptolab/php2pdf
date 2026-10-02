@@ -13,6 +13,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
@@ -30,7 +31,11 @@ final class ImportedPage implements PlaceableInterface
     private readonly Matrix $matrix;
     private readonly Dimensions $size;
 
-    /** @internal */
+    /**
+     * @internal
+     *
+     * @throws ParseException
+     */
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
@@ -54,6 +59,7 @@ final class ImportedPage implements PlaceableInterface
         return $this->bounds;
     }
 
+    /** @throws ParseException */
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
@@ -73,6 +79,7 @@ final class ImportedPage implements PlaceableInterface
         return $this->size;
     }
 
+    /** @throws ParseException */
     private function write(): Reference
     {
         $page = $this->page;

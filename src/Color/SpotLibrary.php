@@ -150,6 +150,8 @@ final class SpotLibrary
      * Name, alternate and swatch kind (0 global, 1 spot, 2 process) of an ASE colour block.
      *
      * @return array{0: string, 1: Gray|Rgb|Cmyk|Lab, 2: int}
+     *
+     * @throws ParseException
      */
     private static function aseColour(string $body): array
     {
@@ -174,7 +176,7 @@ final class SpotLibrary
                 $model,
             )),
         };
-        $v      = static fn(int $i): float => self::f32($body, $at + 4 + ($i * 4));
+        $v      = /** @throws ParseException */ static fn(int $i): float => self::f32($body, $at + 4 + ($i * 4));
         $colour = match ($model) {
             'CMYK'  => new Cmyk($v(0), $v(1), $v(2), $v(3)),
             'RGB '  => new Rgb($v(0), $v(1), $v(2)),
@@ -204,6 +206,8 @@ final class SpotLibrary
      * @param list<string> $header
      *
      * @return array{0: 'cmyk'|'lab'|'rgb', 1: list<int>}
+     *
+     * @throws ParseException
      */
     private static function csvModel(array $header): array
     {
@@ -231,6 +235,8 @@ final class SpotLibrary
      * @param list<int>           $columns
      *
      * @return list<float>
+     *
+     * @throws ParseException
      */
     private static function csvNumbers(array $cells, array $columns, int $row): array
     {
@@ -250,6 +256,7 @@ final class SpotLibrary
         return $values;
     }
 
+    /** @throws ParseException */
     private static function f32(string $data, int $offset): float
     {
         if (strlen($data) < ($offset + 4)) {
@@ -266,6 +273,7 @@ final class SpotLibrary
         return strtolower((string) preg_replace('/\s+/', replacement: ' ', subject: trim($name)));
     }
 
+    /** @throws IoException */
     private static function read(string $path): string
     {
         $data = is_file($path) ? file_get_contents($path) : false;
@@ -276,6 +284,7 @@ final class SpotLibrary
         return $data;
     }
 
+    /** @throws ParseException */
     private static function u16(string $data, int $offset): int
     {
         if (strlen($data) < ($offset + 2)) {
@@ -287,6 +296,7 @@ final class SpotLibrary
         return $value[1];
     }
 
+    /** @throws ParseException */
     private static function u32(string $data, int $offset): int
     {
         if (strlen($data) < ($offset + 4)) {

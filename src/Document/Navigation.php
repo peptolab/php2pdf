@@ -9,7 +9,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\TextString;
 use Php2Pdf\Core\Writer;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Navigation\Destination;
 
@@ -133,11 +133,11 @@ final class Navigation
     private function resolve(Destination $destination, array $pageRefs): array|string
     {
         if (null !== $destination->name && ! array_key_exists($destination->name, $this->destinations)) {
-            throw new PdfException(sprintf('Named destination "%s" is not defined.', $destination->name));
+            throw new InvalidArgumentException(sprintf('Named destination "%s" is not defined.', $destination->name));
         }
         $pageRef = null;
         if (null !== $destination->page) {
-            $pageRef = $pageRefs[$destination->page - 1] ?? throw new PdfException(sprintf(
+            $pageRef = $pageRefs[$destination->page - 1] ?? throw new InvalidArgumentException(sprintf(
                 'Destination page %d does not exist.',
                 $destination->page,
             ));

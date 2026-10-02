@@ -210,6 +210,8 @@ final class Dict
      * A real number's value and encoded length, from the byte after the 30 prefix.
      *
      * @return array{0: float, 1: int}
+     *
+     * @throws ParseException
      */
     private static function readReal(BinaryReader $reader, int $offset): array
     {

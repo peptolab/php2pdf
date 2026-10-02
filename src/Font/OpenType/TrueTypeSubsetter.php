@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function array_keys;
 use function array_pop;
@@ -32,6 +34,8 @@ final class TrueTypeSubsetter
 {
     /**
      * @param array<int, true> $glyphIds the glyphs to keep (components are added automatically)
+     *
+     * @throws ParseException
      */
     public static function subset(OpenTypeFont $font, array $glyphIds): string
     {
@@ -104,6 +108,8 @@ final class TrueTypeSubsetter
      * @param array<int, true> $keep
      *
      * @return array{0: string, 1: list<int>} glyf data and loca offsets
+     *
+     * @throws ParseException
      */
     private static function buildGlyf(OpenTypeFont $font, array $keep, int $numGlyphs): array
     {
@@ -140,6 +146,8 @@ final class TrueTypeSubsetter
      * @param array<int, true> $glyphIds
      *
      * @return array<int, true>
+     *
+     * @throws ParseException
      */
     private static function closeOverComponents(OpenTypeFont $font, array $glyphIds): array
     {
@@ -162,6 +170,7 @@ final class TrueTypeSubsetter
         return $keep;
     }
 
+    /** @throws ParseException */
     private static function postFormat3(OpenTypeFont $font): string
     {
         $post = $font->table('post');

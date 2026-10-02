@@ -6,6 +6,7 @@ namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 
 /**
@@ -28,7 +29,11 @@ final class Painter
         $canvas->clip($rule);
     }
 
-    /** Sets the fill colour, gradient or pattern; returns whether there is anything to fill. */
+    /**
+     * Sets the fill colour, gradient or pattern; returns whether there is anything to fill.
+     *
+     * @throws ParseException
+     */
     public function fill(Canvas $canvas, Style $style, Box $bounds): bool
     {
         $paint = $style->fill();
@@ -60,6 +65,7 @@ final class Painter
         return true;
     }
 
+    /** @throws ParseException */
     public function paint(Canvas $canvas, PathData $path, Style $style, ?Box $bounds = null): void
     {
         if (! $style->isVisible()) {
@@ -85,7 +91,11 @@ final class Painter
         };
     }
 
-    /** Sets the stroke colour, gradient or pattern and line style; returns whether there is anything to stroke. */
+    /**
+     * Sets the stroke colour, gradient or pattern and line style; returns whether there is anything to stroke.
+     *
+     * @throws ParseException
+     */
     public function stroke(Canvas $canvas, Style $style, Box $bounds): bool
     {
         $paint = $style->stroke();

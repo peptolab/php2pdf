@@ -18,6 +18,7 @@ use function substr;
 /** @internal */
 final class Ascii85
 {
+    /** @throws ParseException */
     public static function decode(string $data): string
     {
         $data = preg_replace('/\s+/', replacement: '', subject: $data) ?? '';

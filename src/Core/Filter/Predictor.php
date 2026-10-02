@@ -21,6 +21,7 @@ use function unpack;
  */
 final class Predictor
 {
+    /** @throws ParseException */
     public static function decode(
         string $data,
         int $predictor,
@@ -62,6 +63,7 @@ final class Predictor
         throw new ParseException(sprintf('Unsupported predictor %d.', $predictor));
     }
 
+    /** @throws ParseException */
     private static function tiff(string $data, int $colors, int $bitsPerComponent, int $columns): string
     {
         if (8 !== $bitsPerComponent) {

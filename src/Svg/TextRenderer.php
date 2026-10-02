@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\GlyphRun;
@@ -101,6 +103,10 @@ final class TextRenderer
         return $out;
     }
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function render(Canvas $canvas, Element $text, Style $style): void
     {
         $runs = [];
@@ -125,6 +131,9 @@ final class TextRenderer
      * @param list<array{0: string, 1: Style, 2: ?float, 3: ?float, 4: float, 5: float}> $runs
      *
      * @return list<list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}>> shaped run, style, font, x, y, width, text options
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     private function chunks(array $runs, float $x, float $y): array
     {
@@ -223,7 +232,11 @@ final class TextRenderer
         }
     }
 
-    /** @param list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}> $chunk */
+    /**
+     * @param list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}> $chunk
+     *
+     * @throws ParseException
+     */
     private function drawChunk(Canvas $canvas, array $chunk): void
     {
         foreach ($chunk as [$run, $style, $font, $x, $y, $width, $options]) {

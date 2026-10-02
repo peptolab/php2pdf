@@ -81,6 +81,8 @@ final readonly class MarkerBuilder
     /**
      * @param array{0: float, 1: float, 2: float} $vertex   x, y and the path's angle there
      * @param 'start'|'mid'|'end'                 $position
+     *
+     * @throws ParseException
      */
     private function marker(Canvas $canvas, string $id, array $vertex, float $strokeWidth, string $position): void
     {

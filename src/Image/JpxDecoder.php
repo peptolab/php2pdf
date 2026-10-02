@@ -31,6 +31,7 @@ final class JpxDecoder
     private const int GREYSCALE = 17;
     private const int SYCC      = 18;
 
+    /** @throws ParseException */
     public static function decode(string $data, Limits $limits): ImageData
     {
         [$width, $height, $components, $bits, $enumerated, $icc, $alpha] = str_starts_with($data, self::CODESTREAM)
@@ -67,6 +68,8 @@ final class JpxDecoder
      * Finds a box of a type between two offsets, returning where its contents start and end.
      *
      * @return array{0: int, 1: int}|null
+     *
+     * @throws ParseException
      */
     private static function box(string $data, int $from, int $to, string $type): ?array
     {
@@ -96,6 +99,8 @@ final class JpxDecoder
      * The size and depth from a bare codestream's SIZ marker.
      *
      * @return array{0: int, 1: int, 2: int, 3: int, 4: null, 5: null, 6: bool}
+     *
+     * @throws ParseException
      */
     private static function codestream(string $data): array
     {
@@ -117,6 +122,8 @@ final class JpxDecoder
      * Whether a channel definition box marks a channel as opacity.
      *
      * @param array{0: int, 1: int}|null $cdef
+     *
+     * @throws ParseException
      */
     private static function hasAlpha(string $data, ?array $cdef): bool
     {
@@ -143,6 +150,8 @@ final class JpxDecoder
      * definition gives it an alpha channel.
      *
      * @return array{0: int, 1: int, 2: int, 3: int, 4: int|null, 5: string|null, 6: bool}
+     *
+     * @throws ParseException
      */
     private static function jp2(string $data): array
     {
@@ -179,6 +188,7 @@ final class JpxDecoder
         ];
     }
 
+    /** @throws ParseException */
     private static function u16(string $data, int $offset): int
     {
         $value = $offset >= 0 && ($offset + 2) <= strlen($data) ? unpack('n', $data, $offset) : false;
@@ -186,6 +196,7 @@ final class JpxDecoder
         return false === $value ? throw new ParseException('Truncated JPEG 2000 data.') : (int) $value[1];
     }
 
+    /** @throws ParseException */
     private static function u32(string $data, int $offset): int
     {
         $value = $offset >= 0 && ($offset + 4) <= strlen($data) ? unpack('N', $data, $offset) : false;

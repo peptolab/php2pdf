@@ -36,12 +36,20 @@ final readonly class ClipBuilder
         if (null === $clipPath || 'clipPath' !== $clipPath->name) {
             return;
         }
-        $this->context->guard->within('clip-path', $id, function () use ($canvas, $clipPath, $clipped, $style): void {
-            $this->clip($canvas, $clipPath, $clipped, $style);
-        });
+        $this->context->guard->within(
+            'clip-path',
+            $id,
+            /** @throws ParseException */ function () use ($canvas, $clipPath, $clipped, $style): void {
+                $this->clip($canvas, $clipPath, $clipped, $style);
+            },
+        );
     }
 
-    /** The bounding box of an element's geometry in its parent's user space. */
+    /**
+     * The bounding box of an element's geometry in its parent's user space.
+     *
+     * @throws ParseException
+     */
     public function bounds(Element $element, Style $style): ?Box
     {
         $transform = TransformParser::parse($element->attribute('transform'));
@@ -76,6 +84,7 @@ final readonly class ClipBuilder
         );
     }
 
+    /** @throws ParseException */
     private function childPath(Element $child, Style $style): ?PathData
     {
         if (Shapes::isShape($child->name)) {
@@ -109,6 +118,7 @@ final readonly class ClipBuilder
         return null;
     }
 
+    /** @throws ParseException */
     private function childrenBounds(Element $element, Style $style): ?Box
     {
         $box = null;
@@ -123,7 +133,11 @@ final readonly class ClipBuilder
         return $box;
     }
 
-    /** Clips to a <clipPath> already entered in the guard, after any clip path of its own. */
+    /**
+     * Clips to a <clipPath> already entered in the guard, after any clip path of its own.
+     *
+     * @throws ParseException
+     */
     private function clip(Canvas $canvas, Element $clipPath, Element $clipped, Style $style): void
     {
         $clipStyle = $style->derive($clipPath, $this->context->sheet);
@@ -160,6 +174,7 @@ final readonly class ClipBuilder
         Painter::clipTo($canvas, $combined, $rule);
     }
 
+    /** @throws ParseException */
     private function useBounds(Element $use, Style $style): ?Box
     {
         $target = $this->useTarget($use);
@@ -169,6 +184,7 @@ final readonly class ClipBuilder
         $box = $this->context->guard->within(
             'use',
             $this->useId($use),
+            /** @throws ParseException */
             fn(): ?Box => $this->bounds($target, $style),
         );
         $x = $this->context->length($use->attribute('x'), 'x', $style) ?? 0.0;
@@ -182,6 +198,7 @@ final readonly class ClipBuilder
         return ltrim(trim($use->href() ?? ''), characters: '#');
     }
 
+    /** @throws ParseException */
     private function useTarget(Element $use): ?Element
     {
         $id = $this->useId($use);

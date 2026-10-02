@@ -57,6 +57,7 @@ final class SvgFile
         return new self($data, null, $baseDirectory, $limits);
     }
 
+    /** @throws IoException */
     public static function open(string $path, ?Limits $limits = null): self
     {
         $data = is_file($path) ? file_get_contents($path) : false;
@@ -68,6 +69,7 @@ final class SvgFile
         return new self($file->data, $path, $file->baseDirectory, $file->limits);
     }
 
+    /** @throws ParseException */
     private static function gunzip(string $data, Limits $limits): string
     {
         $decoded = Silencer::run(static fn(): string|false => zlib_decode($data, $limits->maxDecodedBytes));
@@ -81,7 +83,11 @@ final class SvgFile
         return $decoded;
     }
 
-    /** The element with the given id, or null. */
+    /**
+     * The element with the given id, or null.
+     *
+     * @throws ParseException
+     */
     public function byId(string $id): ?Element
     {
         if (null === $this->ids) {
@@ -92,6 +98,7 @@ final class SvgFile
         return $this->ids[$id] ?? null;
     }
 
+    /** @throws ParseException */
     public function root(): Element
     {
         if (null === $this->root) {
@@ -105,7 +112,11 @@ final class SvgFile
         return $this->root;
     }
 
-    /** The intrinsic size in points, from width/height, else the viewBox, else 300 by 150 px. */
+    /**
+     * The intrinsic size in points, from width/height, else the viewBox, else 300 by 150 px.
+     *
+     * @throws ParseException
+     */
     public function size(): Dimensions
     {
         [$width, $height] = Viewport::intrinsicSize($this->root());
@@ -113,7 +124,11 @@ final class SvgFile
         return new Dimensions($width * Length::PT_PER_PX, $height * Length::PT_PER_PX);
     }
 
-    /** The combined rules of every <style> element. */
+    /**
+     * The combined rules of every <style> element.
+     *
+     * @throws ParseException
+     */
     public function styleSheet(): StyleSheet
     {
         if (null === $this->styleSheet) {

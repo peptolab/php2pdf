@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 /**
  * Parses the Unicode subtables of cmap (formats 4 and 12) into a code point to glyph map.
  *
@@ -11,7 +13,11 @@ namespace Php2Pdf\Font\OpenType;
  */
 final class CmapTable
 {
-    /** @return array<int, int> code point => glyph id */
+    /**
+     * @return array<int, int> code point => glyph id
+     *
+     * @throws ParseException
+     */
     public static function parse(BinaryReader $cmap): array
     {
         $count = $cmap->u16(2);
@@ -44,7 +50,11 @@ final class CmapTable
         };
     }
 
-    /** @return array<int, int> */
+    /**
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
     private static function format12(BinaryReader $r, int $base): array
     {
         $groups = $r->u32($base + 12);
@@ -65,7 +75,11 @@ final class CmapTable
         return $map;
     }
 
-    /** @return array<int, int> */
+    /**
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
     private static function format4(BinaryReader $r, int $base): array
     {
         $segCount   = $r->u16($base + 6) >> 1;
@@ -96,6 +110,7 @@ final class CmapTable
         return $map;
     }
 
+    /** @throws ParseException */
     private static function format4Glyph(
         BinaryReader $r,
         int $rangeAddress,

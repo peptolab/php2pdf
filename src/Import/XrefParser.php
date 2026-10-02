@@ -7,8 +7,8 @@ namespace Php2Pdf\Import;
 use Closure;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\ParseException;
-use Php2Pdf\Exception\PdfException;
 
 use function array_key_exists;
 use function array_sum;
@@ -79,6 +79,8 @@ final readonly class XrefParser
      * The /W field widths, validated.
      *
      * @return array{0: int, 1: int, 2: int}
+     *
+     * @throws ParseException
      */
     private static function widths(mixed $w): array
     {
@@ -103,7 +105,11 @@ final readonly class XrefParser
         return $widths;
     }
 
-    /** Reads the chain of sections starting at $offset into $table. */
+    /**
+     * Reads the chain of sections starting at $offset into $table.
+     *
+     * @throws ParseException
+     */
     public function readChain(int $offset, XrefTable $table): void
     {
         $seen = [];
@@ -152,7 +158,11 @@ final readonly class XrefParser
         $table->mergeTrailer($found);
     }
 
-    /** The byte offset named by the last startxref in the file. */
+    /**
+     * The byte offset named by the last startxref in the file.
+     *
+     * @throws ParseException
+     */
     public function startXref(): int
     {
         $tail = substr($this->lexer->data(), offset: -2048);
@@ -165,7 +175,11 @@ final readonly class XrefParser
         return (int) ($m[1] ?? 0);
     }
 
-    /** Reads one section (table or stream) and returns its trailer dictionary. */
+    /**
+     * Reads one section (table or stream) and returns its trailer dictionary.
+     *
+     * @throws ParseException
+     */
     private function readSection(int $offset, XrefTable $table): Dictionary
     {
         $this->lexer->seek($offset);
@@ -183,6 +197,7 @@ final readonly class XrefParser
         throw new ParseException(sprintf('No cross-reference section at offset %d.', $offset));
     }
 
+    /** @throws ParseException */
     private function readStream(Stream $stream, XrefTable $table): Dictionary
     {
         $dict   = $stream->dictionary;
@@ -212,6 +227,7 @@ final readonly class XrefParser
         return $dict;
     }
 
+    /** @throws ParseException */
     private function readTable(XrefTable $table): Dictionary
     {
         $data = $this->lexer->data();
@@ -254,7 +270,7 @@ final readonly class XrefParser
     {
         try {
             return $this->parser->parse();
-        } catch (PdfException) {
+        } catch (ExceptionInterface) {
             return null;
         }
     }

@@ -63,6 +63,8 @@ final class PdfFile
      * Document information (Title, Author, Subject, Keywords, Creator, Producer...) as UTF-8.
      *
      * @return array<string, string>
+     *
+     * @throws ParseException
      */
     public function info(): array
     {
@@ -81,7 +83,11 @@ final class PdfFile
         return $out;
     }
 
-    /** A page by 1-based number. */
+    /**
+     * A page by 1-based number.
+     *
+     * @throws ParseException
+     */
     public function page(int $number): PdfPage
     {
         return $this->pages()[$number - 1]
@@ -92,6 +98,7 @@ final class PdfFile
             ));
     }
 
+    /** @throws ParseException */
     public function pageCount(): int
     {
         return count($this->pages());
@@ -108,7 +115,11 @@ final class PdfFile
         return $this->reader->version();
     }
 
-    /** @return list<PdfPage> */
+    /**
+     * @return list<PdfPage>
+     *
+     * @throws ParseException
+     */
     private function pages(): array
     {
         if (null === $this->pages) {

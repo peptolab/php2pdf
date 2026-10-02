@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function array_keys;
 
@@ -24,6 +26,7 @@ final class GposKerning
     /** @var array<int, array<int, int>> class definition offset => glyph => class */
     private array $classDefs = [];
 
+    /** @throws ParseException */
     public function __construct(
         private readonly BinaryReader $gpos,
     ) {
@@ -43,6 +46,7 @@ final class GposKerning
         return $count;
     }
 
+    /** @throws ParseException */
     public function adjustment(int $left, int $right): int
     {
         $key = ($left << 16) | $right;
@@ -72,6 +76,7 @@ final class GposKerning
         return [] !== $this->subtables;
     }
 
+    /** @throws ParseException */
     private function addPairPos(int $offset): void
     {
         $r      = $this->gpos;
@@ -93,7 +98,11 @@ final class GposKerning
         ];
     }
 
-    /** @return array<int, int> glyph => class */
+    /**
+     * @return array<int, int> glyph => class
+     *
+     * @throws ParseException
+     */
     private function classDef(int $offset): array
     {
         $cached = $this->classDefs[$offset] ?? null;
@@ -110,7 +119,11 @@ final class GposKerning
         return $this->classDefs[$offset] = $map;
     }
 
-    /** @return array<int, int> */
+    /**
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
     private function classDefFormat1(int $offset): array
     {
         $r     = $this->gpos;
@@ -126,7 +139,11 @@ final class GposKerning
         return $map;
     }
 
-    /** @return array<int, int> */
+    /**
+     * @return array<int, int>
+     *
+     * @throws ParseException
+     */
     private function classDefFormat2(int $offset): array
     {
         $r     = $this->gpos;
@@ -147,6 +164,7 @@ final class GposKerning
         return $map;
     }
 
+    /** @throws ParseException */
     private function collectPairPos(int $lookup): void
     {
         $r     = $this->gpos;
@@ -165,7 +183,11 @@ final class GposKerning
         }
     }
 
-    /** @return array<int, int> glyph => coverage index */
+    /**
+     * @return array<int, int> glyph => coverage index
+     *
+     * @throws ParseException
+     */
     private function coverage(int $offset): array
     {
         $r      = $this->gpos;
@@ -192,6 +214,7 @@ final class GposKerning
         return $map;
     }
 
+    /** @throws ParseException */
     private function format1(int $offset, int $vf1, int $vf2, int $coverageIndex, int $right): ?int
     {
         $r          = $this->gpos;
@@ -219,6 +242,7 @@ final class GposKerning
         return null;
     }
 
+    /** @throws ParseException */
     private function format2(int $offset, int $vf1, int $vf2, int $left, int $right): ?int
     {
         $r           = $this->gpos;
@@ -241,6 +265,8 @@ final class GposKerning
      * Offsets of the lookup tables the "kern" feature references.
      *
      * @return list<int>
+     *
+     * @throws ParseException
      */
     private function kernLookups(): array
     {

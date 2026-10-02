@@ -6,7 +6,10 @@ namespace Php2Pdf\Font;
 
 use Php2Pdf\Core\Lru;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 
@@ -100,7 +103,7 @@ final class FontRegistry
                 foreach (FontInfo::peek($file) as $face) {
                     $faces[] = $face;
                 }
-            } catch (PdfException) {
+            } catch (ExceptionInterface) {
                 // Unreadable or malformed fonts are skipped rather than failing the whole index.
                 continue;
             }
@@ -116,6 +119,7 @@ final class FontRegistry
         return strtolower(preg_replace('/[\s_-]+/', replacement: '', subject: $name) ?? $name);
     }
 
+    /** @throws IoException */
     public function addSearchPath(string $directory): self
     {
         $real = realpath($directory);
@@ -129,7 +133,11 @@ final class FontRegistry
         return $this;
     }
 
-    /** Embeds an already parsed font program. */
+    /**
+     * Embeds an already parsed font program.
+     *
+     * @throws ParseException
+     */
     public function embed(OpenTypeFont $program): Font
     {
         return $this->fonts['program#' . spl_object_id($program)] ??= new Font(
@@ -169,7 +177,7 @@ final class FontRegistry
             $faces[] = $face;
         }
         if ([] === $faces) {
-            throw new PdfException(sprintf('Font family "%s" not found in the search paths.', $family));
+            throw new InvalidArgumentException(sprintf('Font family "%s" not found in the search paths.', $family));
         }
 
         return new FontFamily($this, $faces[0]->family, $faces);
@@ -178,6 +186,9 @@ final class FontRegistry
     /**
      * Finds a font by PostScript name, full name, "Family Style", or file name, case-insensitively.
      * A font file in the search paths wins over a standard font of the same name.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function find(string $name): FontInterface
     {
@@ -185,7 +196,7 @@ final class FontRegistry
         if (null !== $info) {
             return $this->load($info->path, $info->faceIndex);
         }
-        $standard = StandardFont::fromName($name) ?? throw new PdfException(sprintf(
+        $standard = StandardFont::fromName($name) ?? throw new InvalidArgumentException(sprintf(
             'Font "%s" not found in the search paths, and it is not one of the standard 14 fonts.',
             $name,
         ));
@@ -200,6 +211,9 @@ final class FontRegistry
 
     /**
      * Embeds a font file. Relative paths are resolved against the search paths.
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function load(string $path, int $faceIndex = 0): Font
     {
@@ -272,6 +286,7 @@ final class FontRegistry
         return null;
     }
 
+    /** @throws IoException */
     private function resolvePath(string $path): string
     {
         if (is_file($path)) {

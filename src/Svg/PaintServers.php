@@ -200,6 +200,8 @@ final class PaintServers
      * not a usable gradient.
      *
      * @return array{0: AbstractGradient, 1: Matrix}|null
+     *
+     * @throws ParseException
      */
     public function gradient(string $id, Box $bounds, Style $style, StyleSheet $sheet): ?array
     {

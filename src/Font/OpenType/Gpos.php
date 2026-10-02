@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\TextDirection;
 
 use function array_key_exists;
@@ -70,7 +71,11 @@ final class Gpos
         return $size;
     }
 
-    /** @param list<string> $features */
+    /**
+     * @param list<string> $features
+     *
+     * @throws ParseException
+     */
     public function has(array $features, string $script = 'latn'): bool
     {
         return [] !== $this->tables->lookupsFor($features, $script);
@@ -84,6 +89,8 @@ final class Gpos
      * @param list<string> $features
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
+     *
+     * @throws ParseException
      */
     public function position(
         array $glyphs,
@@ -119,6 +126,8 @@ final class Gpos
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function applyAt(int $lookup, array $glyphs, array $ids, array $positions, int $i, int $depth): ?array
     {
@@ -151,6 +160,8 @@ final class Gpos
      * @param list<Position> $positions
      *
      * @return list<Position>
+     *
+     * @throws ParseException
      */
     private function applyLookup(int $lookup, array $glyphs, array $ids, array $positions): array
     {
@@ -173,7 +184,11 @@ final class Gpos
         return $positions;
     }
 
-    /** The values of a format 2 class pair. */
+    /**
+     * The values of a format 2 class pair.
+     *
+     * @throws ParseException
+     */
     private function classRecord(int $offset, int $first, int $second, int $recordSize): ?int
     {
         $r      = $this->tables->reader;
@@ -196,6 +211,8 @@ final class Gpos
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function context(
         int $type,
@@ -232,6 +249,8 @@ final class Gpos
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function pair(int $offset, array $ids, array $positions, int $i, GlyphFilter $filter): ?array
     {
@@ -258,7 +277,11 @@ final class Gpos
         return [$positions, 0 === $format2 ? $j : $j + 1];
     }
 
-    /** The values of a format 1 pair set for the second glyph, or null when the pair is not listed. */
+    /**
+     * The values of a format 1 pair set for the second glyph, or null when the pair is not listed.
+     *
+     * @throws ParseException
+     */
     private function pairRecord(int $offset, int $index, int $second, int $recordSize): ?int
     {
         $r    = $this->tables->reader;
@@ -351,6 +374,8 @@ final class Gpos
      * @param list<Position> $positions
      *
      * @return array{0: list<Position>, 1: int}|null
+     *
+     * @throws ParseException
      */
     private function single(int $offset, array $ids, array $positions, int $i): ?array
     {
@@ -377,6 +402,8 @@ final class Gpos
      * tables are not read.
      *
      * @return array{0: int, 1: int, 2: int, 3: int}
+     *
+     * @throws ParseException
      */
     private function value(int $at, int $format): array
     {

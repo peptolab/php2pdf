@@ -9,6 +9,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ParseException;
 
 use function is_array;
 
@@ -36,6 +37,7 @@ final class ObjectCopier
         return $this->map[$ref->id] ?? null;
     }
 
+    /** @throws ParseException */
     public function copy(mixed $value): mixed
     {
         if ($value instanceof Reference) {
@@ -59,6 +61,7 @@ final class ObjectCopier
         return $value;
     }
 
+    /** @throws ParseException */
     public function copyDictionary(Dictionary $dict): Dictionary
     {
         $out = new Dictionary();
@@ -69,6 +72,7 @@ final class ObjectCopier
         return $out;
     }
 
+    /** @throws ParseException */
     private function copyReference(Reference $ref): Reference
     {
         $mapped = $this->map[$ref->id] ?? null;
@@ -86,6 +90,8 @@ final class ObjectCopier
     /**
      * Copies a stream as it is, except a form when hidden layers are removed: its content is
      * decoded, filtered and compressed again.
+     *
+     * @throws ParseException
      */
     private function copyStream(Stream $stream): Stream
     {

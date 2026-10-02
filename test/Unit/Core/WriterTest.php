@@ -9,7 +9,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Core\Writer;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\StateException;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -63,7 +63,7 @@ final class WriterTest extends TestCase
         $ref    = $writer->allocate();
         $writer->write($ref, 1);
 
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $writer->write($ref, 2);
     }
 
@@ -74,7 +74,7 @@ final class WriterTest extends TestCase
         $writer->writeHeader('1.7');
         $writer->allocate();
 
-        $this->expectException(PdfException::class);
+        $this->expectException(StateException::class);
         $this->expectExceptionMessage('never written');
         $writer->finish(new Dictionary());
     }

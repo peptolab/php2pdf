@@ -6,6 +6,8 @@ namespace Php2Pdf\Text;
 
 use Override;
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\Bidi\Bidi;
@@ -68,6 +70,9 @@ final class Textflow implements FlowableInterface
      * @internal
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public static function build(
         TextContext $context,
@@ -83,6 +88,9 @@ final class Textflow implements FlowableInterface
      * Text with inline markup; see MarkupParser for the tags.
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public static function fromMarkup(
         TextContext $context,
@@ -103,6 +111,9 @@ final class Textflow implements FlowableInterface
      * @internal
      *
      * @param list<array{0: ?TextStyle, 1: list<array{0: string, 1: TextStyle}>, 2: list<array{0: int, 1: ItemKind|Item}>}> $parsed
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public static function fromParagraphs(
         StyleResolver $resolver,
@@ -149,6 +160,9 @@ final class Textflow implements FlowableInterface
      * hyphens are honoured.
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public static function fromText(
         TextContext $context,

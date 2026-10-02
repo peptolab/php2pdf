@@ -58,7 +58,11 @@ final class Flate
         return $out;
     }
 
-    /** The inflated data, or null when it is not valid data of this encoding. */
+    /**
+     * The inflated data, or null when it is not valid data of this encoding.
+     *
+     * @throws ParseException
+     */
     private static function inflate(string $data, int $encoding, int $maxBytes): ?string
     {
         $context = Silencer::run(static fn(): InflateContext|false => inflate_init($encoding));

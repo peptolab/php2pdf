@@ -40,6 +40,7 @@ final class Cff2Reader
     /** @var list<int> regions per item variation data */
     private array $regionCounts = [];
 
+    /** @throws ParseException */
     public function __construct(string $data)
     {
         $this->reader = new BinaryReader($data);
@@ -48,7 +49,11 @@ final class Cff2Reader
         }
     }
 
-    /** @param array<int, DictEntry> $dict */
+    /**
+     * @param array<int, DictEntry> $dict
+     *
+     * @throws ParseException
+     */
     private static function offset(array $dict, int $operator): int
     {
         $entry = $dict[$operator] ?? throw new ParseException(sprintf('CFF2 DICT lacks operator %d.', $operator));
@@ -61,6 +66,8 @@ final class Cff2Reader
      * and subrs, and the Font DICT of each glyph.
      *
      * @return array{0: array<int, DictEntry>, 1: list<string>, 2: list<string>, 3: list<array{dict: array<int, DictEntry>, private: array<int, DictEntry>, subrs: list<string>}>, 4: list<int>}
+     *
+     * @throws ParseException
      */
     public function read(): array
     {
@@ -118,6 +125,8 @@ final class Cff2Reader
      * operands are encoded again from its values.
      *
      * @return array<int, DictEntry>
+     *
+     * @throws ParseException
      */
     private function dict(string $data, int $regions): array
     {
@@ -149,6 +158,8 @@ final class Cff2Reader
      * The FDSelect table: formats 0, 3 and 4.
      *
      * @return list<int>
+     *
+     * @throws ParseException
      */
     private function fdSelect(int $offset, int $glyphs): array
     {
@@ -190,6 +201,8 @@ final class Cff2Reader
      * A CFF2 INDEX: a 32-bit count, then offsets and data.
      *
      * @return array{0: list<string>, 1: int}
+     *
+     * @throws ParseException
      */
     private function index(int $offset): array
     {
@@ -232,7 +245,11 @@ final class Cff2Reader
         return 0;
     }
 
-    /** Reads how many regions each item variation data in the variation store blends over. */
+    /**
+     * Reads how many regions each item variation data in the variation store blends over.
+     *
+     * @throws ParseException
+     */
     private function readRegionCounts(int $offset): void
     {
         $r     = $this->reader;

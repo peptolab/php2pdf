@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Exception\ParseException;
+
 use function array_key_exists;
 use function array_keys;
 use function count;
@@ -60,7 +62,11 @@ final class LayoutTables
         return new self($gsub, $gdef, contextType: 5, chainType: 6, extensionType: 7);
     }
 
-    /** @return array<int, int> glyph => class */
+    /**
+     * @return array<int, int> glyph => class
+     *
+     * @throws ParseException
+     */
     public static function readClassDef(BinaryReader $r, int $offset): array
     {
         $map = [];
@@ -84,7 +90,11 @@ final class LayoutTables
         return $map;
     }
 
-    /** @return array<int, int> glyph => coverage index */
+    /**
+     * @return array<int, int> glyph => coverage index
+     *
+     * @throws ParseException
+     */
     public static function readCoverage(BinaryReader $r, int $offset): array
     {
         $count = $r->u16($offset + 2);
@@ -108,19 +118,31 @@ final class LayoutTables
         return $map;
     }
 
-    /** @return array<int, int> glyph => class */
+    /**
+     * @return array<int, int> glyph => class
+     *
+     * @throws ParseException
+     */
     public function classDef(int $offset): array
     {
         return $this->classDefs[$offset] ??= self::readClassDef($this->reader, $offset);
     }
 
-    /** @return array<int, int> glyph => coverage index */
+    /**
+     * @return array<int, int> glyph => coverage index
+     *
+     * @throws ParseException
+     */
     public function coverage(int $offset): array
     {
         return $this->coverages[$offset] ??= self::readCoverage($this->reader, $offset);
     }
 
-    /** The glyphs a lookup passes over, from its flag and mark filtering set. */
+    /**
+     * The glyphs a lookup passes over, from its flag and mark filtering set.
+     *
+     * @throws ParseException
+     */
     public function filter(int $lookup): GlyphFilter
     {
         if (array_key_exists($lookup, $this->filters)) {
@@ -141,7 +163,11 @@ final class LayoutTables
         return $this->filters[$lookup] = new GlyphFilter($this->gdef, $flag, $set);
     }
 
-    /** Whether the table has an entry for a script. */
+    /**
+     * Whether the table has an entry for a script.
+     *
+     * @throws ParseException
+     */
     public function hasScript(string $tag): bool
     {
         $r          = $this->reader;
@@ -156,7 +182,11 @@ final class LayoutTables
         return false;
     }
 
-    /** @return array<int, list<array{0: list<int>, 1: int}>> */
+    /**
+     * @return array<int, list<array{0: list<int>, 1: int}>>
+     *
+     * @throws ParseException
+     */
     public function ligatureSet(int $offset): array
     {
         if (array_key_exists($offset, $this->ligatureSets)) {
@@ -191,7 +221,11 @@ final class LayoutTables
         return $this->ligatureSets[$offset] = $map;
     }
 
-    /** @return list<array{0: int, 1: int}> sequence index and lookup index */
+    /**
+     * @return list<array{0: int, 1: int}> sequence index and lookup index
+     *
+     * @throws ParseException
+     */
     public function lookupRecords(int $at, int $count): array
     {
         $r       = $this->reader;
@@ -210,6 +244,8 @@ final class LayoutTables
      * @param list<string> $features
      *
      * @return list<int>
+     *
+     * @throws ParseException
      */
     public function lookupsFor(array $features, string $script = 'latn'): array
     {
@@ -234,6 +270,8 @@ final class LayoutTables
      * by coverage (format 3) the first input position's coverage.
      *
      * @return array<int, list<array{0: int, 1: int}>>
+     *
+     * @throws ParseException
      */
     public function startGlyphs(int $lookup): array
     {
@@ -264,7 +302,11 @@ final class LayoutTables
         return $this->starts[$lookup] = $starts;
     }
 
-    /** @return list<array{0: int, 1: int}> */
+    /**
+     * @return list<array{0: int, 1: int}>
+     *
+     * @throws ParseException
+     */
     public function subtables(int $lookup): array
     {
         if (array_key_exists($lookup, $this->subtables)) {
@@ -294,6 +336,8 @@ final class LayoutTables
      * The subtables of a lookup that can match at a glyph, in order.
      *
      * @return list<array{0: int, 1: int}>
+     *
+     * @throws ParseException
      */
     public function subtablesAt(int $lookup, int $glyph): array
     {
@@ -305,6 +349,8 @@ final class LayoutTables
      * under ''.
      *
      * @return array<string, list<int>>
+     *
+     * @throws ParseException
      */
     private function readFeatures(string $tag): array
     {

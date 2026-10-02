@@ -86,7 +86,11 @@ final class Lzw
         };
     }
 
-    /** @param array<int, string> $dictionary */
+    /**
+     * @param array<int, string> $dictionary
+     *
+     * @throws ParseException
+     */
     private static function entry(int $code, array $dictionary, ?string $previous, int $next): string
     {
         if ($code < 256) {

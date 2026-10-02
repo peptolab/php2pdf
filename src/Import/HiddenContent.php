@@ -7,7 +7,8 @@ namespace Php2Pdf\Import;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\ParseException;
 
 use function array_fill_keys;
 use function array_filter;
@@ -45,7 +46,11 @@ final class HiddenContent
         private readonly array $off,
     ) {}
 
-    /** The filter for a source file, or null when it switches no layer off. */
+    /**
+     * The filter for a source file, or null when it switches no layer off.
+     *
+     * @throws ParseException
+     */
     public static function of(PdfReader $reader): ?self
     {
         $properties = $reader->dict($reader->catalog(), 'OCProperties');
@@ -95,6 +100,8 @@ final class HiddenContent
      * The groups an OFF base state leaves off: every group not listed in /ON.
      *
      * @return list<int>
+     *
+     * @throws ParseException
      */
     private static function notOn(PdfReader $reader, Dictionary $properties, Dictionary $config): array
     {
@@ -106,7 +113,11 @@ final class HiddenContent
         ));
     }
 
-    /** The content stream with hidden layers cut out. */
+    /**
+     * The content stream with hidden layers cut out.
+     *
+     * @throws ParseException
+     */
     public function filter(string $content, ?Dictionary $resources): string
     {
         $lexer          = new Lexer($content);
@@ -124,7 +135,7 @@ final class HiddenContent
                     break;
                 }
                 $value = $token->is(Token::KEYWORD) ? $token : $parser->parse($token);
-            } catch (PdfException) {
+            } catch (ExceptionInterface) {
                 break;
             }
             if (! $value instanceof Token || ! $value->is(Token::KEYWORD)) {
@@ -147,7 +158,11 @@ final class HiddenContent
         return self::cut($content, $this->cuts);
     }
 
-    /** Whether optional content (a group, or a membership dictionary over groups) is hidden. */
+    /**
+     * Whether optional content (a group, or a membership dictionary over groups) is hidden.
+     *
+     * @throws ParseException
+     */
     public function isHidden(mixed $oc): bool
     {
         $dict = $this->reader->resolve($oc);
@@ -178,6 +193,7 @@ final class HiddenContent
         };
     }
 
+    /** @throws ParseException */
     private function hiddenForm(mixed $name, ?Dictionary $resources): bool
     {
         if (! $name instanceof Name || null === $resources) {
@@ -189,7 +205,11 @@ final class HiddenContent
         return null !== $form && $form->has('OC') && $this->isHidden($form->get('OC'));
     }
 
-    /** @param list<mixed> $operands the operands of a BDC operator */
+    /**
+     * @param list<mixed> $operands the operands of a BDC operator
+     *
+     * @throws ParseException
+     */
     private function hiddenSection(array $operands, ?Dictionary $resources): bool
     {
         $tag      = $operands[0] ?? null;
@@ -237,7 +257,11 @@ final class HiddenContent
         }
     }
 
-    /** Reads an inline image's dictionary up to ID, then skips its data. */
+    /**
+     * Reads an inline image's dictionary up to ID, then skips its data.
+     *
+     * @throws ParseException
+     */
     private function skipInlineImage(Lexer $lexer): void
     {
         do {

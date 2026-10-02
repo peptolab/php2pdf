@@ -16,6 +16,7 @@ use function substr;
 /** @internal */
 final class AsciiHex
 {
+    /** @throws ParseException */
     public static function decode(string $data): string
     {
         $end = strpos($data, needle: '>');

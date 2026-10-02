@@ -6,8 +6,8 @@ namespace Php2PdfTest\Integration\Font;
 
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
-use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\FontInfo;
 use Php2Pdf\Font\FontStyle;
 use Php2PdfTest\TestAsset\PdfTools;
@@ -68,7 +68,7 @@ final class FontRegistryTest extends TestCase
     {
         $doc = new Document(new MemoryOutput());
 
-        $this->expectException(PdfException::class);
+        $this->expectException(InvalidArgumentException::class);
         $doc->fonts()->find('Nope');
     }
 }

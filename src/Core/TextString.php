@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Core;
 
 use DateTimeImmutable;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\InvalidArgumentException;
 
 use function is_string;
 use function mb_convert_encoding;
@@ -39,7 +39,7 @@ final class TextString
         }
         $utf16 = mb_convert_encoding($utf8, to_encoding: 'UTF-16BE', from_encoding: 'UTF-8');
         if (! is_string($utf16)) {
-            throw new PdfException('Text is not valid UTF-8.');
+            throw new InvalidArgumentException('Text is not valid UTF-8.');
         }
 
         return "\xFE\xFF{$utf16}";

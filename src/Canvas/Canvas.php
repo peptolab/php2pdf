@@ -15,7 +15,7 @@ use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\Serializer;
 use Php2Pdf\Exception\InvalidArgumentException;
-use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\StateException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitEngine;
 use Php2Pdf\Fit\FitMethod;
@@ -265,10 +265,10 @@ final class Canvas
     public function finish(): string
     {
         if ($this->finished) {
-            throw new PdfException('Canvas has already been finished.');
+            throw new StateException('Canvas has already been finished.');
         }
         if ([] !== $this->ctmStack) {
-            throw new PdfException(sprintf('Unbalanced save(): %d state(s) not restored.', count($this->ctmStack)));
+            throw new StateException(sprintf('Unbalanced save(): %d state(s) not restored.', count($this->ctmStack)));
         }
         $this->finished = true;
 
@@ -470,7 +470,7 @@ final class Canvas
     public function restore(): self
     {
         if ([] === $this->ctmStack) {
-            throw new PdfException('restore() without a matching save().');
+            throw new StateException('restore() without a matching save().');
         }
         $this->ctm             = array_pop($this->ctmStack);
         $this->text            = array_pop($this->textStack) ?? self::UNKNOWN_STATE;
