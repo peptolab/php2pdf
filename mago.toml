@@ -6,17 +6,87 @@ paths = ["src", "test"]
 includes = ["vendor"]
 
 [linter.rules]
-# Geometry, canvas and document façades carry many small methods and numeric parameters by
-# nature (a 2D matrix has six components, a radial gradient two circles). The base thresholds
-# are tuned for service classes; these fit a drawing library without hiding real complexity.
-too-many-methods = { threshold = 60 }
-too-many-properties = { threshold = 20 }
-cyclomatic-complexity = { threshold = 120, method-threshold = 20 }
-# A text style is a sheet of a few dozen optional, named properties; its constructor is the sheet.
-excessive-parameter-list = { threshold = 8, constructor-threshold = 48 }
-halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 20000 }
-# Kan defect counts branches per class; binary parsers and the canvas are branch-heavy by nature.
-kan-defect = { threshold = 6.0 }
+# Size and complexity limits for the whole library. Each rule lists two kinds of exception:
+#
+# - Honest ones, which stay: binary format readers that follow a format's grammar branch by
+#   branch, geometry formulas, and value objects that are sheets of named settings.
+# - A ratchet: classes the restructuring phases split up. Remove a file from its list when it
+#   passes, and never add one to make new code pass.
+too-many-methods = { threshold = 30, exclude = [
+    # Ratchet: split into a content stream, graphics state, paint and text painters.
+    "src/Canvas/Canvas.php",
+    # Ratchet: catalog contributors and an asset loader take its jobs.
+    "src/Document/Document.php",
+    # Ratchet: the face and its instance split; table accessors go.
+    "src/Font/OpenType/OpenTypeFont.php",
+    # Ratchet: a cascade and a typed computed style.
+    "src/Svg/Style.php",
+] }
+too-many-properties = { threshold = 12, exclude = [
+    # Ratchet, as above.
+    "src/Document/Document.php",
+    "src/Font/OpenType/OpenTypeFont.php",
+    # Ratchet: content and layout state separate.
+    "src/Table/Table.php",
+] }
+cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
+    # Honest: format readers, branch by branch.
+    "src/Font/FontInfo.php",
+    "src/Font/OpenType/Cff/Cff2CharStrings.php",
+    "src/Font/OpenType/Cff/Cff2Reader.php",
+    "src/Image/PngDecoder.php",
+    "src/Svg/PathParser.php",
+    # Ratchet: the glyph buffer and shaping plan replace the tuple pipeline.
+    "src/Font/ArabicFallback.php",
+    "src/Font/OpenType/Gpos.php",
+    "src/Font/OpenType/GposAttachment.php",
+    "src/Font/OpenType/Gsub.php",
+    "src/Font/OpenTypeShaper.php",
+    # Ratchet: the page tree moves to a class of its own.
+    "src/Import/PdfReader.php",
+    # Ratchet: SVG paint resolution, markers and the cascade.
+    "src/Svg/MarkerBuilder.php",
+    "src/Svg/MarkerVertices.php",
+    "src/Svg/PaintServers.php",
+    "src/Svg/Style.php",
+    "src/Svg/StyleSheet.php",
+    # Ratchet: table planning and layout.
+    "src/Table/Layout.php",
+    "src/Table/Planner.php",
+    # Ratchet: the text engine's breaker, assembler, itemiser stages and layout result.
+    "src/Text/Flow/Itemiser.php",
+    "src/Text/Flow/Layout.php",
+    "src/Text/Flow/LineBreaker.php",
+    "src/Text/Flow/ParagraphComposer.php",
+] }
+excessive-parameter-list = { threshold = 8, constructor-threshold = 16, exclude = [
+    # Honest: sheets of named, optional settings.
+    "src/Font/OpenType/Metrics.php",
+    "src/Text/Style/TextStyle.php",
+    # Ratchet: a raster and its soft mask separate.
+    "src/Image/ImageData.php",
+] }
+halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 10000, exclude = [
+    # Honest: the formulas of curves, arcs and charstrings.
+    "src/Font/OpenType/Cff/Cff2CharStrings.php",
+    "src/Svg/PathData.php",
+    "src/Svg/PathParser.php",
+    # Ratchet, as above.
+    "src/Font/OpenType/Gpos.php",
+    "src/Font/OpenType/GposAttachment.php",
+    "src/Table/Planner.php",
+    # Tests build whole documents in one method.
+    "test/",
+] }
+kan-defect = { threshold = 4.5, exclude = [
+    # Ratchet, as above.
+    "src/Font/OpenType/Gsub.php",
+    "src/Font/OpenTypeShaper.php",
+    "src/Import/PdfReader.php",
+    "src/Text/Flow/Itemiser.php",
+    "src/Text/Flow/LineBreaker.php",
+    "src/Text/Textflow.php",
+] }
 # The HarfBuzz adapter's purpose is to call the library through FFI; nothing else may.
 no-ffi = { exclude = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] }
 
