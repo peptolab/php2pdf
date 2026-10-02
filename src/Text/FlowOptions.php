@@ -15,9 +15,10 @@ use Php2Pdf\Text\Style\VerticalAlignment;
 final readonly class FlowOptions
 {
     /**
-     * @param bool  $shrinkToFit reduce the type size (and leading, indents, tab stops, paragraph
-     *                           spacing) uniformly until the remaining text fits the box, but not
-     *                           below $shrinkLimit of the original
+     * @param bool  $shrinkToFit reduce the type size (and leading, character and word spacing,
+     *                           rise, indents, tab stops, paragraph spacing) uniformly until the
+     *                           remaining text fits the box, but not below $shrinkLimit of the
+     *                           original
      */
     public function __construct(
         public FirstBaseline $firstBaseline = FirstBaseline::Ascender,

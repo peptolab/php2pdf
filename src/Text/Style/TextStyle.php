@@ -130,6 +130,9 @@ final readonly class TextStyle
             leading: null === $this->leading || $this->leading->relative
                 ? null
                 : Leading::pt($this->leading->value * $factor),
+            charSpacing: null === $this->charSpacing ? null : $this->charSpacing * $factor,
+            wordSpacing: null === $this->wordSpacing ? null : $this->wordSpacing * $factor,
+            rise: null === $this->rise ? null : $this->rise * $factor,
             firstLineIndent: null === $this->firstLineIndent ? null : $this->firstLineIndent * $factor,
             leftIndent: null === $this->leftIndent ? null : $this->leftIndent * $factor,
             rightIndent: null === $this->rightIndent ? null : $this->rightIndent * $factor,
