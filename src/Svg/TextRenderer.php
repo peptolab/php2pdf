@@ -6,6 +6,7 @@ namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
@@ -14,7 +15,6 @@ use Php2Pdf\Text\Bidi\BidiRuns;
 use function count;
 use function is_string;
 use function ltrim;
-use function mb_strlen;
 use function preg_match;
 use function preg_replace;
 use function rtrim;
@@ -34,9 +34,9 @@ final class TextRenderer
     ) {}
 
     /**
-     * @param list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}> $chunk
+     * @param list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}> $chunk
      *
-     * @return list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}>
+     * @return list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}>
      */
     private static function anchored(array $chunk, float $anchor, float $total): array
     {
@@ -118,12 +118,13 @@ final class TextRenderer
     }
 
     /**
-     * Groups positioned runs into chunks (each starting at an absolute position) with their
-     * measured widths, so anchors can shift whole chunks.
+     * Groups positioned runs into chunks (each starting at an absolute position), shaping each
+     * run once and measuring it from its glyphs, so anchors shift whole chunks by exactly the
+     * width that is drawn.
      *
      * @param list<array{0: string, 1: Style, 2: ?float, 3: ?float, 4: float, 5: float}> $runs
      *
-     * @return list<list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}>> text, style, font, x, y, width
+     * @return list<list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}>> shaped run, style, font, x, y, width, text options
      */
     private function chunks(array $runs, float $x, float $y): array
     {
@@ -153,9 +154,10 @@ final class TextRenderer
                 $this->context->warn('text without an available font');
                 continue;
             }
-            $size      = $style->fontSize();
-            $width     = $font->width($text, $size) + ($style->letterSpacing() * mb_strlen($text, encoding: 'UTF-8'));
-            $current[] = [$text, $style, $font, $x, $y, $width];
+            $options   = new TextOptions(charSpacing: $style->letterSpacing());
+            $run       = BidiRuns::shape($font, $text, $options);
+            $width     = $font->width($run, $style->fontSize(), $options);
+            $current[] = [$run, $style, $font, $x, $y, $width, $options];
             $x         += $width;
         }
         if ([] !== $current) {
@@ -221,10 +223,10 @@ final class TextRenderer
         }
     }
 
-    /** @param list<array{0: string, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float}> $chunk */
+    /** @param list<array{0: GlyphRun, 1: Style, 2: FontInterface, 3: float, 4: float, 5: float, 6: TextOptions}> $chunk */
     private function drawChunk(Canvas $canvas, array $chunk): void
     {
-        foreach ($chunk as [$text, $style, $font, $x, $y, $width]) {
+        foreach ($chunk as [$run, $style, $font, $x, $y, $width, $options]) {
             if (! $style->isVisible()) {
                 continue;
             }
@@ -246,9 +248,8 @@ final class TextRenderer
             if (! $style->stroke()->isNone()) {
                 $this->context->warn('stroked text');
             }
-            $options = new TextOptions(charSpacing: $style->letterSpacing());
             $canvas->showRun(
-                BidiRuns::shape($font, $text, $options),
+                $run,
                 $font,
                 $size,
                 new Matrix(1.0, 0.0, 0.0, -1.0, $x, $y),
