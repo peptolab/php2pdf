@@ -42,10 +42,16 @@ final class Context
         $reference = match ($axis) {
             'x'     => $this->viewportWidth,
             'y'     => $this->viewportHeight,
-            default => sqrt(($this->viewportWidth ** 2 + $this->viewportHeight ** 2) / 2.0),
+            default => $this->viewportDiagonal(),
         };
 
         return Length::parse($value, $reference, $style->fontSize()) ?? $default;
+    }
+
+    /** The viewport's diagonal over the square root of two, which non-axial percentages resolve against. */
+    public function viewportDiagonal(): float
+    {
+        return sqrt(($this->viewportWidth ** 2 + $this->viewportHeight ** 2) / 2.0);
     }
 
     public function warn(string $feature): void

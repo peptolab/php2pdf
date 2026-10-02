@@ -64,17 +64,18 @@ final class MarkerBuilder
         if ([null, null, null] === $ids) {
             return;
         }
-        $vertices = MarkerVertices::of($path);
-        $last     = count($vertices) - 1;
+        $vertices    = MarkerVertices::of($path);
+        $last        = count($vertices) - 1;
+        $strokeWidth = $style->strokeWidth($this->context->viewportDiagonal());
         foreach ($vertices as $i => [$x, $y, $angle]) {
             if (0 === $i && null !== $ids[0]) {
-                $this->marker($canvas, $ids[0], [$x, $y, $angle], $style->strokeWidth(), 'start');
+                $this->marker($canvas, $ids[0], [$x, $y, $angle], $strokeWidth, 'start');
             }
             if (0 !== $i && $last !== $i && null !== $ids[1]) {
-                $this->marker($canvas, $ids[1], [$x, $y, $angle], $style->strokeWidth(), 'mid');
+                $this->marker($canvas, $ids[1], [$x, $y, $angle], $strokeWidth, 'mid');
             }
             if ($last === $i && null !== $ids[2]) {
-                $this->marker($canvas, $ids[2], [$x, $y, $angle], $style->strokeWidth(), 'end');
+                $this->marker($canvas, $ids[2], [$x, $y, $angle], $strokeWidth, 'end');
             }
         }
     }

@@ -15,6 +15,7 @@ use Php2Pdf\Svg\NativeConverter;
 use Php2Pdf\Svg\SvgFile;
 use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
@@ -25,6 +26,7 @@ use function preg_match;
 use function str_contains;
 use function substr_count;
 
+#[Group('unit')]
 final class NativeConverterTest extends TestCase
 {
     private MemoryOutput $out;
@@ -38,6 +40,19 @@ final class NativeConverterTest extends TestCase
             'centre' => ['xMidYMax', '33.333333'],
             'right'  => ['xMaxYMin', '66.666667'],
         ];
+    }
+
+    #[Test]
+    public function aPercentageStrokeWidthResolvesAgainstTheNormalisedViewportDiagonal(): void
+    {
+        $svg = SvgFile::fromData(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 30 40">'
+                . '<path d="M1 1 L20 20" stroke="black" stroke-width="10%"/></svg>',
+        );
+        $this->doc->addPage(PageSize::A4)->place($this->doc->svg($svg), new Box(0.0, 0.0, 300.0, 400.0));
+        $this->doc->close();
+
+        self::assertStringContainsString("3.5355 w\n", $this->out->contents());
     }
 
     #[Test]

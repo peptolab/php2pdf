@@ -89,7 +89,7 @@ final class Painter
     public function stroke(Canvas $canvas, Style $style, Box $bounds): bool
     {
         $paint = $style->stroke();
-        $width = $style->strokeWidth();
+        $width = $style->strokeWidth($this->context->viewportDiagonal());
         if ($paint->isNone() || $width <= 0.0) {
             return false;
         }

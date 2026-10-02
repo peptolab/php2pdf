@@ -320,7 +320,6 @@ final class Style
         };
     }
 
-    /** The id of the mask the element is drawn through, from mask: url(#id). */
     /** The marker for 'start', 'mid' or 'end' vertices, or null. */
     public function markerId(string $position): ?string
     {
@@ -341,6 +340,7 @@ final class Style
         return 'alpha' === strtolower(trim($this->properties['mask-type'] ?? ''));
     }
 
+    /** The id of the mask the element is drawn through, from mask: url(#id). */
     public function maskId(): ?string
     {
         $m = [];
@@ -396,9 +396,10 @@ final class Style
         );
     }
 
-    public function strokeWidth(): float
+    /** The stroke width in user units; a percentage resolves against the normalised viewport diagonal. */
+    public function strokeWidth(float $viewportDiagonal): float
     {
-        return Length::parse($this->properties['stroke-width'] ?? null, 0.0, $this->fontSize()) ?? 1.0;
+        return Length::parse($this->properties['stroke-width'] ?? null, $viewportDiagonal, $this->fontSize()) ?? 1.0;
     }
 
     /** 0.0 for start, 0.5 for middle, 1.0 for end. */
