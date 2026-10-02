@@ -16,7 +16,8 @@ use function is_array;
 /**
  * Deep-copies objects from a source PDF into a document being written. Every source object is
  * written once, so fonts and images shared by several imported pages appear once in the output.
- * When hidden layers are removed, the content of the forms copied is filtered on the way.
+ * When hidden layers are removed, the content of the forms copied is filtered on the way. A
+ * reference the policy does not follow is copied as null, which drops a dictionary entry.
  *
  * @internal
  */
@@ -29,6 +30,7 @@ final class ObjectCopier
         private readonly PdfReader $source,
         private readonly Objects $target,
         private readonly ?HiddenContent $hidden = null,
+        private readonly CopyPolicy $policy = new CopyPolicy(),
     ) {}
 
     /** The target reference of a source object already copied, or null. */
@@ -72,17 +74,25 @@ final class ObjectCopier
         return $out;
     }
 
-    /** @throws ParseException */
-    private function copyReference(Reference $ref): Reference
+    /**
+     * The target reference, allocated before the object is copied so that cycles resolve to it;
+     * null for an object the policy does not follow.
+     *
+     * @throws ParseException
+     */
+    private function copyReference(Reference $ref): ?Reference
     {
         $mapped = $this->map[$ref->id] ?? null;
         if (null !== $mapped) {
             return $mapped;
         }
-        // Allocate before descending so cycles (such as /Parent links) resolve to this object.
+        $object = $this->source->object($ref->id);
+        if (! $this->policy->follows($object)) {
+            return null;
+        }
         $target              = $this->target->allocate();
         $this->map[$ref->id] = $target;
-        $this->target->write($target, $this->copy($this->source->object($ref->id)));
+        $this->target->write($target, $this->copy($object));
 
         return $target;
     }
