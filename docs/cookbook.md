@@ -60,7 +60,7 @@ $doc->close();
 ```
 
 The three header rows repeat on every page, the tax and total rows stay together, and the
-address in the company cell keeps its line breaks. `test/integration/InvoiceTest.php` is this
+address in the company cell keeps its line breaks. `test/Integration/InvoiceTest.php` is this
 invoice as a test.
 
 ## A two-column brochure from a template and plain copy

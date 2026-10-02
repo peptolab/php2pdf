@@ -31,9 +31,10 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Php2PdfTest\\Unit\\": "test/unit/",
-            "Php2PdfTest\\Integration\\": "test/integration/",
-            "Php2PdfTest\\Support\\": "test/support/"
+            "Php2PdfTest\\Unit\\": "test/Unit/",
+            "Php2PdfTest\\Integration\\": "test/Integration/",
+            "Php2PdfTest\\TestAsset\\": "test/TestAsset/",
+            "Php2PdfTest\\Trait\\": "test/Trait/"
         }
     },
     "scripts": {
@@ -51,8 +52,8 @@
             "mago lint --fix"
         ],
         "static-analysis": "mago analyze",
-        "test": "phpunit --colors=always --testsuite \"unit test\"",
-        "test-integration": "phpunit --colors=always --testsuite \"integration test\"",
+        "test": "phpunit --colors=always --testsuite unit",
+        "test-integration": "phpunit --colors=always --testsuite integration",
         "test-coverage": "phpunit --colors=always --coverage-clover clover.xml"
     },
     "config": {

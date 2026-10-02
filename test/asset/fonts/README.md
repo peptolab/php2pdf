@@ -15,6 +15,6 @@
   left to right), one with Arabic presentation forms and no layout features. No outlines from any
   other font are used.
 
-The demo documents in `test/integration` (brochure, invoice, text, table, static layout, image,
+The demo documents in `test/Integration` (brochure, invoice, text, table, static layout, image,
 import and SVG sheets) are set in Source Serif 4 and Source Sans 3, so they exercise both the
 TrueType and the CFF embedding paths. All names in them are fictional.

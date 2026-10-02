@@ -15,10 +15,16 @@ suite on Ubuntu with the PDF tooling installed.
 
 ## Tests
 
-- `test/unit`: fast tests on in-memory documents, inspecting the generated syntax.
-- `test/integration`: end-to-end tests that write files to `test/output`, check them with
-  `qpdf --check`, read them back with poppler, and compare renders pixel by pixel against
-  `test/asset/baseline/*.png`.
+- `test/Unit` (`#[Group('unit')]`, `composer test`): fast tests on in-memory documents that read
+  no files, inspecting the generated syntax.
+- `test/Integration` (`#[Group('integration')]`, `composer test-integration`): tests that read
+  fonts, images and PDFs from `test/asset`, and end-to-end tests that write files to
+  `test/output`, check them with `qpdf --check`, read them back with poppler, and compare renders
+  pixel by pixel against `test/asset/baseline/*.png`.
+- `test/TestAsset`: builders for font tables, images, PDFs and SVG, and the tools the tests share
+  (`PdfTools`, `Visual`, `Golden`). `test/Trait`: shared set-up.
+
+Both mirror `src/`. Run one suite with `vendor/bin/phpunit --testsuite unit` (or `integration`).
 
 A missing baseline is written on the first run and the test is marked incomplete; run the suite
 again to compare. Set `PHP2PDF_UPDATE_BASELINES=1` to regenerate baselines after an intentional

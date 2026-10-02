@@ -20,11 +20,11 @@
          cacheDirectory=".phpunit.cache"
 >
     <testsuites>
-        <testsuite name="unit test">
-            <directory>./test/unit</directory>
+        <testsuite name="unit">
+            <directory>./test/Unit</directory>
         </testsuite>
-        <testsuite name="integration test">
-            <directory>./test/integration</directory>
+        <testsuite name="integration">
+            <directory>./test/Integration</directory>
         </testsuite>
     </testsuites>
     <php>
