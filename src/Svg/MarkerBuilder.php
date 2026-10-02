@@ -7,9 +7,9 @@ namespace Php2Pdf\Svg;
 use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Matrix;
 
-use function array_key_exists;
 use function count;
 use function preg_match;
 use function strtolower;
@@ -23,22 +23,19 @@ use const M_PI;
  * (markerWidth by markerHeight, scaled by the stroke width with the default
  * markerUnits="strokeWidth") is placed with its refX/refY point on the vertex, rotated to the
  * path's direction there with orient="auto" or "auto-start-reverse", or by a fixed angle, and
- * clipped unless overflow is visible.
+ * clipped unless overflow is visible. Markers are expanded through the reference guard.
  *
  * @internal
  */
-final class MarkerBuilder
+final readonly class MarkerBuilder
 {
     /** Elements that take markers. */
     public const array MARKABLE = ['path' => true, 'line' => true, 'polyline' => true, 'polygon' => true];
 
-    /** @var array<string, true> markers being drawn, to break cycles */
-    private array $drawing = [];
-
     /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
     public function __construct(
-        private readonly Context $context,
-        private readonly Closure $children,
+        private Context $context,
+        private Closure $children,
     ) {}
 
     /** An orient angle in degrees: a number with an optional deg, rad, grad or turn unit. */
@@ -58,6 +55,7 @@ final class MarkerBuilder
         };
     }
 
+    /** @throws ParseException for a marker drawn within itself, directly or through other references */
     public function draw(Canvas $canvas, PathData $path, Style $style): void
     {
         $ids = [$style->markerId('start'), $style->markerId('mid'), $style->markerId('end')];
@@ -87,7 +85,7 @@ final class MarkerBuilder
     private function marker(Canvas $canvas, string $id, array $vertex, float $strokeWidth, string $position): void
     {
         $marker = $this->context->file->byId($id);
-        if (null === $marker || 'marker' !== $marker->name || array_key_exists($id, $this->drawing)) {
+        if (null === $marker || 'marker' !== $marker->name) {
             return;
         }
         $width  = Length::parse($marker->attribute('markerWidth') ?? '3', 0.0) ?? 3.0;
@@ -124,9 +122,9 @@ final class MarkerBuilder
             Painter::clipTo($canvas, PathData::rect(0.0, 0.0, $width, $height), FillRule::NonZero);
         }
         $canvas->concat($mapping);
-        $this->drawing[$id] = true;
-        ($this->children)($canvas, $marker, $markerStyle);
-        unset($this->drawing[$id]);
+        $this->context->guard->within('marker', $id, function () use ($canvas, $marker, $markerStyle): void {
+            ($this->children)($canvas, $marker, $markerStyle);
+        });
         $canvas->restore();
     }
 }

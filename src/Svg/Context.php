@@ -12,8 +12,8 @@ use function sqrt;
 
 /**
  * What a conversion shares between its parts: the document and file, the style sheet, font and
- * paint-server resolvers, the current viewport size for percentages, and warnings about
- * features that were skipped.
+ * paint-server resolvers, the guard that references are expanded through, the current viewport
+ * size for percentages, and warnings about features that were skipped.
  *
  * @internal
  */
@@ -21,6 +21,7 @@ final class Context
 {
     public readonly StyleSheet $sheet;
     public readonly PaintServers $servers;
+    public readonly ReferenceGuard $guard;
     public float $viewportWidth  = 0.0;
     public float $viewportHeight = 0.0;
 
@@ -33,6 +34,7 @@ final class Context
         public readonly FontResolver $fonts,
     ) {
         $this->sheet   = $file->styleSheet();
+        $this->guard   = ReferenceGuard::of($file->limits);
         $this->servers = new PaintServers($file);
     }
 

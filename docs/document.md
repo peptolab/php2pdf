@@ -34,11 +34,15 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per imported PDF),
 `maxXrefEntries` (10 million), `maxObjectNesting` (256 levels of PDF arrays and dictionaries,
 page tree levels, reference chains and nested resources), `maxNesting` (256 levels of SVG
-elements) and `maxSvgUses` (10,000 `<use>` expansions). A file over a limit fails with a
-`ParseException`, except that a PDF object nested too deeply is treated like any other broken
-object: it reads as missing, or makes the reader rebuild the cross-reference. The static
-constructors (`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a
-`Limits` too; lower the limits for files from untrusted sources.
+elements), `maxSvgDepth` (512 levels of SVG drawing, counting nested elements and the
+references being expanded within them) and `maxSvgWork` (10,000 `<use>`, mask, pattern and
+marker expansions per SVG). A file over a limit fails with a `ParseException`, except that a PDF
+object nested too deeply is treated like any other broken object: it reads as missing, or
+makes the reader rebuild the cross-reference. SVG that refers back to something it is still
+expanding (a clip path clipped by itself, a mask drawn through a `<use>` of the element it
+masks, and so on) also fails with a `ParseException` naming the loop. The static constructors
+(`PdfFile::fromData()`, `SvgFile::fromData()`, `ImageReader::read()`) take a `Limits` too;
+lower the limits for files from untrusted sources.
 
 ## Handling untrusted files
 
@@ -51,10 +55,11 @@ The library parses these inputs, and any of them may come from a user upload:
   formats, bounded by `maxImagePixels` before anything is decoded; formats other than JPEG and
   PNG go to Imagick or GD, which have their own limits;
 - **SVG** (`svg()`, `SvgFile`): the XML parser and renderer, bounded by `maxNesting`,
-  `maxSvgUses` and, for `.svgz`, `maxDecodedBytes`. `<image>` elements read files only from
-  inside the SVG's own directory: absolute paths, `..` and links that lead out of it are refused,
-  and SVG read from a string reads no files unless `SvgFile::fromData()` is given a directory.
-  Keep untrusted SVG in a directory of its own;
+  `maxSvgDepth`, `maxSvgWork` and, for `.svgz`, `maxDecodedBytes`, with circular references
+  refused. `<image>` elements read files only from inside the SVG's own directory: absolute
+  paths, `..` and links that lead out of it are refused, and SVG read from a string reads no
+  files unless `SvgFile::fromData()` is given a directory. Keep untrusted SVG in a directory of
+  its own;
 - **fonts** (`fonts()->load()`): the OpenType parser. Fonts are not covered by `Limits`; load
   only fonts you trust.
 

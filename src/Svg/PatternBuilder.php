@@ -7,6 +7,7 @@ namespace Php2Pdf\Svg;
 use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
@@ -31,9 +32,6 @@ final class PatternBuilder
     /** @var array<string, array{0: Template, 1: float, 2: float, 3: Matrix}|false> */
     private array $tiles = [];
 
-    /** @var array<string, true> patterns whose tiles are being drawn, to break cycles */
-    private array $building = [];
-
     /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
     public function __construct(
         private readonly Context $context,
@@ -43,18 +41,18 @@ final class PatternBuilder
     /**
      * The tile template, its steps and the matrix mapping it into user space for a pattern id
      * painted over a box: null when the id is not a pattern, false when the pattern paints
-     * nothing (an empty tile, or one that refers to itself).
+     * nothing (an empty tile).
      *
      * @return array{0: Template, 1: float, 2: float, 3: Matrix}|false|null
+     *
+     * @throws ParseException for a pattern that paints itself, directly or through other references,
+     *                        or a circular href chain
      */
     public function tile(string $id, Box $bounds): array|false|null
     {
         $pattern = $this->context->file->byId($id);
         if (null === $pattern || 'pattern' !== $pattern->name) {
             return null;
-        }
-        if (array_key_exists($id, $this->building)) {
-            return false;
         }
         $chain = $this->context->servers->chain($pattern);
         $attrs = [];
@@ -69,9 +67,13 @@ final class PatternBuilder
                 ? $id
                 : implode(':', [$id, $bounds->x, $bounds->y, $bounds->width, $bounds->height]);
         if (! array_key_exists($key, $this->tiles)) {
-            $this->building[$id] = true;
-            $this->tiles[$key]   = $this->draw($pattern, $chain, $attrs, $bounds);
-            unset($this->building[$id]);
+            $this->context->guard->enter('pattern', $id);
+
+            try {
+                $this->tiles[$key] = $this->draw($pattern, $chain, $attrs, $bounds);
+            } finally {
+                $this->context->guard->leave();
+            }
         }
 
         return $this->tiles[$key];

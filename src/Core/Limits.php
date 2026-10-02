@@ -21,7 +21,12 @@ final readonly class Limits
      * @param int $maxPages         the most pages an imported PDF may have
      * @param int $maxXrefEntries   the most cross-reference entries an imported PDF may declare
      * @param int $maxNesting       the deepest SVG elements may nest
-     * @param int $maxSvgUses       the most <use> references one SVG may expand while drawing
+     * @param int $maxSvgDepth      the deepest drawing an SVG may recurse (nested elements together
+     *                              with the <use>, clip path, mask, pattern and marker references
+     *                              being expanded within them), and the longest href chain of
+     *                              paint servers
+     * @param int $maxSvgWork       the most <use>, mask, pattern and marker references one SVG may
+     *                              expand while drawing
      * @param int $maxObjectNesting the deepest an imported PDF's objects may nest: arrays and
      *                              dictionaries within each other, page tree levels, chains of
      *                              references, and resources within forms
@@ -32,7 +37,8 @@ final readonly class Limits
         public int $maxPages = 100_000,
         public int $maxXrefEntries = 10_000_000,
         public int $maxNesting = 256,
-        public int $maxSvgUses = 10_000,
+        public int $maxSvgDepth = 512,
+        public int $maxSvgWork = 10_000,
         public int $maxObjectNesting = 256,
     ) {
         foreach ([
@@ -41,7 +47,8 @@ final readonly class Limits
             $maxPages,
             $maxXrefEntries,
             $maxNesting,
-            $maxSvgUses,
+            $maxSvgDepth,
+            $maxSvgWork,
             $maxObjectNesting,
         ] as $limit) {
             if ($limit < 1) {

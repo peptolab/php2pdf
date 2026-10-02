@@ -13,6 +13,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\PdfFile;
@@ -88,6 +89,15 @@ final class LimitsTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: string}> */
+    public static function svgBombProvider(): array
+    {
+        return [
+            'uses'  => [HostileFiles::useBomb(20)],
+            'masks' => [HostileFiles::maskBomb(20)],
+        ];
+    }
+
     #[Test]
     public function aCrossReferenceTableOverTheLimitIsRepairedAround(): void
     {
@@ -122,6 +132,26 @@ final class LimitsTest extends TestCase
     }
 
     #[Test]
+    public function aGradientHrefChainPastTheDepthLimitIsRejected(): void
+    {
+        $defs = '<linearGradient id="g0"><stop offset="0"/></linearGradient>';
+        for ($i = 1; $i <= 20; ++$i) {
+            $previous = $i - 1;
+            $defs     .= "<linearGradient id=\"g{$i}\" href=\"#g{$previous}\"/>";
+        }
+        $doc = new Document(new MemoryOutput());
+        $svg = SvgFile::fromData(
+            HostileFiles::svg($defs, '<rect width="10" height="10" fill="url(#g20)"/>'),
+            null,
+            new Limits(maxSvgDepth: 10),
+        );
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('chains more than 10 paint servers through href');
+        $doc->svg($svg, new NativeConverter());
+    }
+
+    #[Test]
     public function anImageOverThePixelLimitIsRejectedBeforeDecoding(): void
     {
         $this->expectException(PdfException::class);
@@ -148,14 +178,25 @@ final class LimitsTest extends TestCase
     }
 
     #[Test]
-    public function anSvgThatExpandsTooManyUsesIsRejected(): void
+    public function anSvgThatChainsUsesPastTheDepthLimitIsRejected(): void
     {
         $doc = new Document(new MemoryOutput());
-        $svg = SvgFile::fromData(HostileFiles::useBomb(20), null, new Limits(maxSvgUses: 100));
+        $svg = SvgFile::fromData(HostileFiles::useChain(200), null, new Limits(maxSvgDepth: 100));
 
-        $this->expectException(PdfException::class);
-        $this->expectExceptionMessage('more than 100 <use> references');
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('nests elements and references more than 100 deep');
         $doc->svg($svg, new NativeConverter());
+    }
+
+    #[Test]
+    #[DataProvider('svgBombProvider')]
+    public function anSvgThatExpandsTooManyReferencesIsRejected(string $svg): void
+    {
+        $doc = new Document(new MemoryOutput());
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The SVG expands more than 100 references.');
+        $doc->svg(SvgFile::fromData($svg, null, new Limits(maxSvgWork: 100)), new NativeConverter());
     }
 
     #[Test]

@@ -8,6 +8,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Svg\NativeConverter;
@@ -49,14 +50,14 @@ final class PatternTest extends TestCase
     }
 
     #[Test]
-    public function aPatternThatPaintsItselfStopsAtTheFirstTile(): void
+    public function aPatternThatPaintsItselfIsRejectedAsCircular(): void
     {
-        $pdf = $this->convert(
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The SVG refers to "p" from within itself: pattern #p -> pattern #p.');
+        $this->convert(
             '<pattern id="p" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="2" height="2" fill="url(#p)"/></pattern>',
             '<rect width="10" height="10" fill="url(#p)"/>',
         );
-
-        self::assertSame(1, preg_match_all('#/PatternType 1#', $pdf));
     }
 
     #[Test]

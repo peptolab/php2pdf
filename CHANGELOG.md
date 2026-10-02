@@ -18,7 +18,8 @@ The first release.
 - `objects()` writes PDF objects of your own; custom `PlaceableInterface` artwork is first-class.
 - PDF/X-4: output intents, colour checks against the intent, imported artwork checks, page box rules,
   links allowed only outside the printed area.
-- Resource limits (`Limits`) for hostile PDFs, images and SVG; exception subtypes for parse,
+- Resource limits (`Limits`) for hostile PDFs, images and SVG, covering object nesting, SVG drawing
+  depth and reference expansion; circular SVG references refused; exception subtypes for parse,
   conformance and layout failures.
 
 ### Text

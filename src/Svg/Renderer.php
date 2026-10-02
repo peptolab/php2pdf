@@ -6,7 +6,6 @@ namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Document\Dimensions;
-use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
@@ -14,14 +13,14 @@ use Php2Pdf\Template\Template;
 
 use function array_key_exists;
 use function ltrim;
-use function sprintf;
 use function str_starts_with;
 use function trim;
 
 /**
  * Walks the element tree and draws it on a template's canvas: groups, transforms, clip paths,
  * group opacity through transparency groups, <use> and <symbol>, nested viewports, shapes, text
- * and images.
+ * and images. Every element drawn and every <use> expanded passes through the reference guard,
+ * which refuses circular references and drawing past the depth and work limits.
  *
  * @internal
  */
@@ -55,13 +54,6 @@ final class Renderer
     private readonly MaskBuilder $masks;
     private readonly MarkerBuilder $markers;
     private readonly ImageRenderer $images;
-    private int $depth = 0;
-
-    /** @var array<string, true> ids currently being expanded by <use>, to break cycles */
-    private array $expanding = [];
-
-    /** <use> references expanded so far, against the file's limit */
-    private int $uses = 0;
 
     public function __construct(
         private readonly Context $context,
@@ -114,7 +106,7 @@ final class Renderer
     {
         $clipId = $style->clipPathId();
         if (null !== $clipId) {
-            $this->clips->apply($canvas, $clipId, $element, $style, $this->expanding);
+            $this->clips->apply($canvas, $clipId, $element, $style);
         }
         match (true) {
             Shapes::isShape($element->name) => $this->shape($canvas, $element, $style),
@@ -135,13 +127,13 @@ final class Renderer
             return;
         }
         $style = $parent->derive($element, $this->context->sheet);
-        if (! $style->isDisplayed() || $this->depth > 64) {
+        if (! $style->isDisplayed()) {
             return;
         }
         foreach ($style->unsupported() as $feature) {
             $this->context->warn($feature);
         }
-        ++$this->depth;
+        $this->context->guard->descend();
         $canvas->save();
         $transform = TransformParser::parse($element->attribute('transform'));
         if (! $transform->isIdentity()) {
@@ -159,7 +151,7 @@ final class Renderer
             $this->content($canvas, $element, $style);
         }
         $canvas->restore();
-        --$this->depth;
+        $this->context->guard->ascend();
     }
 
     /** Draws the element's content into a transparency group and composites it with group opacity. */
@@ -223,19 +215,19 @@ final class Renderer
 
             return;
         }
-        $id = ltrim(trim($href), characters: '#');
-        if (array_key_exists($id, $this->expanding)) {
-            return;
-        }
+        $id     = ltrim(trim($href), characters: '#');
         $target = $this->context->file->byId($id);
         if (null === $target) {
             return;
         }
-        $limit = $this->context->file->limits->maxSvgUses;
-        if (++$this->uses > $limit) {
-            throw new ParseException(sprintf('The SVG expands more than %d <use> references.', $limit));
-        }
-        $this->expanding[$id] = true;
+        $this->context->guard->within('use', $id, function () use ($canvas, $use, $target, $style): void {
+            $this->useTarget($canvas, $use, $target, $style);
+        });
+    }
+
+    /** Draws the target of a <use> already entered in the guard, offset by its x and y. */
+    private function useTarget(Canvas $canvas, Element $use, Element $target, Style $style): void
+    {
         $canvas->save();
         $x = $this->context->length($use->attribute('x'), 'x', $style) ?? 0.0;
         $y = $this->context->length($use->attribute('y'), 'y', $style) ?? 0.0;
@@ -250,7 +242,6 @@ final class Renderer
             $this->element($canvas, $target, $style);
         }
         $canvas->restore();
-        unset($this->expanding[$id]);
     }
 
     /** A <symbol> or <svg> referenced by <use>: sized by the use element, then by itself. */

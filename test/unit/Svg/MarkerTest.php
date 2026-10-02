@@ -8,6 +8,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Svg\NativeConverter;
@@ -40,14 +41,14 @@ final class MarkerTest extends TestCase
     }
 
     #[Test]
-    public function aMarkerInsideItselfIsNotDrawnAgain(): void
+    public function aMarkerInsideItselfIsRejectedAsCircular(): void
     {
-        $pdf = $this->convert(
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('The SVG refers to "m" from within itself: marker #m -> marker #m.');
+        $this->convert(
             '<marker id="m"><path d="M0 0 L4 4" stroke="lime" marker-end="url(#m)"/></marker>',
             '<path d="M0 0 L10 0" stroke="black" marker-end="url(#m)"/>',
         );
-
-        self::assertSame(1, preg_match_all('#0 1 0 RG#', $pdf));
     }
 
     #[Test]

@@ -9,15 +9,18 @@ use Php2Pdf\Color\GradientSpread;
 use Php2Pdf\Color\GradientStop;
 use Php2Pdf\Color\LinearGradient;
 use Php2Pdf\Color\RadialGradient;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 
-use function array_key_exists;
 use function count;
 use function hypot;
+use function implode;
+use function in_array;
 use function ltrim;
 use function max;
 use function min;
+use function sprintf;
 use function strtolower;
 use function trim;
 
@@ -149,35 +152,44 @@ final class PaintServers
     }
 
     /**
-     * The element followed by the paint servers it references, nearest first.
+     * The element followed by the paint servers it references, nearest first. Following the
+     * chain draws nothing, so it cannot recurse; a chain that loops is refused all the same, as
+     * is one longer than the depth limit.
      *
      * @return list<Element>
+     *
+     * @throws ParseException for a circular chain, or one longer than the depth limit
      */
     public function chain(Element $element): array
     {
-        $chain = [$element];
-        $seen  = [];
-        $id    = $element->id();
-        if (null !== $id) {
-            $seen[$id] = true;
-        }
+        $chain   = [$element];
+        $path    = [$element->id() ?? ''];
         $current = $element;
-        while (count($chain) < 16) {
+        $limit   = $this->file->limits->maxSvgDepth;
+        while (true) {
             $href = $current->href();
             if (null === $href) {
                 break;
             }
             $target = ltrim(trim($href), characters: '#');
-            if (array_key_exists($target, $seen)) {
-                break;
-            }
-            $next = $this->file->byId($target);
+            $next   = '' === $target ? null : $this->file->byId($target);
             if (null === $next) {
                 break;
             }
-            $seen[$target] = true;
-            $chain[]       = $next;
-            $current       = $next;
+            $looped = in_array($target, $path, strict: true);
+            $path[] = $target;
+            if ($looped) {
+                throw new ParseException(sprintf(
+                    'The SVG refers to "%s" from within itself: href #%s.',
+                    $target,
+                    implode(' -> href #', $path),
+                ));
+            }
+            if (count($chain) >= $limit) {
+                throw new ParseException(sprintf('The SVG chains more than %d paint servers through href.', $limit));
+            }
+            $chain[] = $next;
+            $current = $next;
         }
 
         return $chain;

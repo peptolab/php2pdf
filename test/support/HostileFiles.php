@@ -16,11 +16,21 @@ use function strlen;
 
 /**
  * Small malformed or oversized files for robustness tests: decompression bombs, shared page
- * trees, bad cross-reference streams, deeply nested objects, oversized and inconsistent PNGs, deep
- * and self-expanding SVG.
+ * trees, bad cross-reference streams, deeply nested objects, oversized and inconsistent PNGs, and
+ * deep, circular and self-expanding SVG.
  */
 final class HostileFiles
 {
+    /** SVG whose two clip paths each clip the other. */
+    public static function clipCycle(): string
+    {
+        return self::svg(
+            '<clipPath id="a" clip-path="url(#b)"><rect width="5" height="5"/></clipPath>'
+                . '<clipPath id="b" clip-path="url(#a)"><rect width="5" height="5"/></clipPath>',
+            '<rect width="10" height="10" clip-path="url(#a)"/>',
+        );
+    }
+
     /**
      * A PDF with arrays nested $depth deep: as the page's /Annots object; in an object stream
      * holding it, which the reader only finds by repairing the cross-reference (its offset here
@@ -83,6 +93,32 @@ final class HostileFiles
     public static function gif(int $width, int $height): string
     {
         return 'GIF89a' . pack('vv', $width, $height) . "\x00\x00\x00;";
+    }
+
+    /**
+     * SVG of $levels masks, each with two children masked by the next, so drawing it expands
+     * 2^$levels masks without any of them referring to itself.
+     */
+    public static function maskBomb(int $levels): string
+    {
+        $defs = '';
+        for ($i = 0; $i < $levels; ++$i) {
+            $next = $i + 1;
+            $defs .= "<mask id=\"m{$i}\"><rect width=\"5\" height=\"5\" fill=\"white\" mask=\"url(#m{$next})\"/>"
+            . "<rect width=\"5\" height=\"5\" fill=\"white\" mask=\"url(#m{$next})\"/></mask>";
+        }
+
+        return self::svg($defs, '<rect width="10" height="10" mask="url(#m0)"/>');
+    }
+
+    /** SVG with a mask whose two children are each masked by the mask itself. */
+    public static function maskFanOut(): string
+    {
+        return self::svg(
+            '<mask id="m"><rect width="5" height="5" fill="white" mask="url(#m)"/>'
+                . '<rect width="5" height="5" fill="white" mask="url(#m)"/></mask>',
+            '<rect width="10" height="10" mask="url(#m)"/>',
+        );
     }
 
     /**
@@ -181,6 +217,15 @@ endobj
         return self::pdf($objects);
     }
 
+    /** A 10 by 10 SVG document of the given definitions and content. */
+    public static function svg(string $defs, string $content): string
+    {
+        return (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
+                . "<defs>{$defs}</defs>{$content}</svg>"
+        );
+    }
+
     /**
      * SVG in which each group uses the previous one twice, so drawing it expands 2^$levels
      * references.
@@ -197,6 +242,18 @@ endobj
             '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">'
                 . "<defs>{$defs}</defs><use href=\"#a{$levels}\"/></svg>"
         );
+    }
+
+    /** SVG with a chain of $length groups, each drawing the next through <use>. */
+    public static function useChain(int $length): string
+    {
+        $defs = '<rect id="a0" width="1" height="1"/>';
+        for ($i = 1; $i <= $length; ++$i) {
+            $previous = $i - 1;
+            $defs     .= "<g id=\"a{$i}\"><use href=\"#a{$previous}\"/></g>";
+        }
+
+        return self::svg($defs, "<use href=\"#a{$length}\"/>");
     }
 
     /** A cross-reference stream with the given /W, declaring $size entries. */

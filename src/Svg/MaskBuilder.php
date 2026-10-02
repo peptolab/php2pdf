@@ -9,6 +9,7 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
 use Php2Pdf\Canvas\SoftMaskType;
 use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
@@ -19,7 +20,8 @@ use function trim;
  * Applies <mask> elements as soft masks: the mask's children, drawn in the masked element's user
  * space (or its bounding box with maskContentUnits="objectBoundingBox") and clipped to the mask's
  * region (by default 10% beyond the bounding box on every side), mask what the element draws by
- * their luminance or, with mask-type="alpha", by their alpha.
+ * their luminance or, with mask-type="alpha", by their alpha. Masks are expanded through the
+ * reference guard.
  *
  * @internal
  */
@@ -34,13 +36,22 @@ final readonly class MaskBuilder
         private Closure $children,
     ) {}
 
+    /** @throws ParseException for a mask that masks itself, directly or through other references */
     public function apply(Canvas $canvas, string $id, Element $element, Style $style): void
     {
         $mask = $this->context->file->byId($id);
         if (null === $mask || 'mask' !== $mask->name) {
             return;
         }
-        $bounds   = $this->clips->bounds($element, $style) ?? new Box(0.0, 0.0, 0.0, 0.0);
+        $bounds = $this->clips->bounds($element, $style) ?? new Box(0.0, 0.0, 0.0, 0.0);
+        $this->context->guard->within('mask', $id, function () use ($canvas, $mask, $bounds): void {
+            $this->draw($canvas, $mask, $bounds);
+        });
+    }
+
+    /** Draws a mask already entered in the guard and sets it as the soft mask. */
+    private function draw(Canvas $canvas, Element $mask, Box $bounds): void
+    {
         $region   = $this->region($mask, $bounds);
         $template = $this->context->document->template(
             new Dimensions(1.0, 1.0),
