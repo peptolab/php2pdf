@@ -28,6 +28,9 @@ final class Image implements PlaceableInterface
 {
     private readonly Reference $reference;
 
+    /** The image's description, without its samples once they are written. */
+    private readonly ImageData $data;
+
     /**
      * @param Reference|null $reference the image XObject when it is written already, for another
      *                                  placement of the same pixels
@@ -37,10 +40,11 @@ final class Image implements PlaceableInterface
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
-        private readonly ImageData $data,
+        ImageData $data,
         ?Reference $reference = null,
     ) {
         $this->reference = $reference ?? self::write($objects, $data);
+        $this->data      = $data->withoutSamples();
     }
 
     /**

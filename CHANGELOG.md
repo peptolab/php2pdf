@@ -18,6 +18,9 @@ All notable changes to this project are documented here. The format follows
   each making its own: a 2,000-row table takes about a quarter less time and memory.
 - An SVG marker is drawn once, as a form placed at every vertex it marks, rather than drawn again
   at each one.
+- Streams are written to the output without being copied, and a written image keeps none of its
+  pixels: placing an 11.7 MB JPEG peaks at 1.2 times its size rather than 3.2, and a document with
+  many images no longer holds all of their samples until it closes.
 
 ### Fixed
 

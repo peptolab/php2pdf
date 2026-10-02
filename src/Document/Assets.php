@@ -47,7 +47,7 @@ final class Assets implements CatalogContributorInterface
     /** @var array<string, Image> images by content hash and options */
     private array $images = [];
 
-    /** @var array<string, array{0: ImageData, 1: Reference}> images as read, and their XObjects, by content hash, page and conversion */
+    /** @var array<string, array{0: ImageData, 1: Reference}> images as read (without their samples, once written), and their XObjects, by content hash, page and conversion */
     private array $rasters = [];
 
     /** @var array<string, array{0: int, 1: int, 2: string}> image files by real path: modification time, size and content hash */
@@ -218,7 +218,7 @@ final class Assets implements CatalogContributorInterface
                 $name,
                 $this->options->imageDecoders,
             );
-            $raster              = [$read, Image::write($this->objects, $read)];
+            $raster              = [$read->withoutSamples(), Image::write($this->objects, $read)];
             $this->rasters[$key] = $raster;
         }
 

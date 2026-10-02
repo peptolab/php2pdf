@@ -114,9 +114,12 @@ final class Writer
             throw new StateException(sprintf('Object %d has already been written.', $ref->id));
         }
         $this->offsets[$ref->id] = $this->output->position();
+        if ($object instanceof Stream) {
+            $this->writeStream($ref, $object);
 
-        $body = $object instanceof Stream ? $this->streamBody($object) : Serializer::serialize($object);
-        $this->emit("{$ref->id} 0 obj\n{$body}\nendobj\n");
+            return;
+        }
+        $this->emit("{$ref->id} 0 obj\n" . Serializer::serialize($object) . "\nendobj\n");
     }
 
     public function writeHeader(string $version): void
@@ -132,10 +135,11 @@ final class Writer
     }
 
     /**
-     * Serialises a stream with its /Filter and /Length worked out on a copy of the dictionary,
-     * so the caller's Stream is left as it was and can be written again.
+     * Writes a stream object, its /Filter and /Length worked out on a copy of the dictionary, so
+     * the caller's Stream is left as it was and can be written again. The data goes to the output
+     * as it is, not joined to the rest, so a large stream is not copied on the way.
      */
-    private function streamBody(Stream $stream): string
+    private function writeStream(Reference $ref, Stream $stream): void
     {
         $dict = new Dictionary($stream->dictionary->all());
         $data = $stream->data;
@@ -144,7 +148,8 @@ final class Writer
             $dict->set('Filter', new Name('FlateDecode'));
         }
         $dict->set('Length', strlen($data));
-
-        return Serializer::serialize($dict) . "\nstream\n" . $data . "\nendstream";
+        $this->emit("{$ref->id} 0 obj\n" . Serializer::serialize($dict) . "\nstream\n");
+        $this->emit($data);
+        $this->emit("\nendstream\nendobj\n");
     }
 }

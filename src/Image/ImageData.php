@@ -69,6 +69,37 @@ final readonly class ImageData
     }
 
     /**
+     * The image without its samples, its soft mask's or its ICC profile's bytes: what placing an
+     * image already written needs, so a document keeps no image's pixels once they are written.
+     */
+    public function withoutSamples(): self
+    {
+        $raster = $this->raster;
+
+        return new self(
+            new Raster(
+                $raster->width,
+                $raster->height,
+                $raster->bitsPerComponent,
+                $raster->colorSpace,
+                '',
+                $raster->filter,
+                $raster->decodeParms,
+                $raster->decode,
+                $raster->colorKeyMask,
+                null === $raster->iccProfile ? null : '',
+                $raster->smaskInData,
+            ),
+            null === $this->softMask ? null : new SoftMask('', $this->softMask->bits),
+            $this->dpiX,
+            $this->dpiY,
+            $this->orientation,
+            $this->photoshop,
+            $this->clip,
+        );
+    }
+
+    /**
      * The path to clip to: none, the one Photoshop marks as the clipping path, or one by name.
      *
      * @throws InvalidArgumentException when the image has no such path
