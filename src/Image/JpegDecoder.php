@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Override;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 
@@ -21,7 +22,7 @@ use function substr;
  *
  * @internal
  */
-final class JpegDecoder
+final class JpegDecoder implements ImageDecoderInterface
 {
     /** @var array{precision: int, height: int, width: int, components: int}|null */
     private ?array $frame = null;
@@ -41,46 +42,6 @@ final class JpegDecoder
 
     /** Photoshop image resource blocks from APP13 segments. */
     private string $photoshop = '';
-
-    private function __construct() {}
-
-    /** @throws ParseException for a malformed file or an image over the limits */
-    public static function decode(string $data, ?Limits $limits = null): ImageData
-    {
-        $limits ??= Limits::default();
-        if (! str_starts_with($data, "\xFF\xD8")) {
-            throw new ParseException('Not a JPEG file.');
-        }
-        $decoder = new self();
-        $decoder->scan($data);
-        $frame = $decoder->frame ?? throw new ParseException('JPEG has no frame header.');
-        $limits->assertImagePixels($frame['width'], $frame['height']);
-        if (8 !== $frame['precision']) {
-            throw new ParseException(sprintf('Only 8-bit JPEGs are supported, %d-bit given.', $frame['precision']));
-        }
-        $colorSpace = match ($frame['components']) {
-            1       => ImageColorSpace::gray(),
-            3       => ImageColorSpace::rgb(),
-            4       => ImageColorSpace::cmyk(),
-            default => throw new ParseException(sprintf('Unsupported JPEG component count %d.', $frame['components'])),
-        };
-        ksort($decoder->icc);
-
-        return new ImageData(
-            $frame['width'],
-            $frame['height'],
-            8,
-            $colorSpace,
-            $data,
-            'DCTDecode',
-            decode: 4 === $frame['components'] && $decoder->adobe ? [1, 0, 1, 0, 1, 0, 1, 0] : null,
-            iccProfile: [] === $decoder->icc ? null : implode('', $decoder->icc),
-            dpiX: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[0],
-            dpiY: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[1],
-            orientation: $decoder->orientation,
-            photoshop: '' === $decoder->photoshop ? null : $decoder->photoshop,
-        );
-    }
 
     /**
      * @return array{precision: int, height: int, width: int, components: int}
@@ -128,6 +89,62 @@ final class JpegDecoder
             2       => [$x * 2.54, $y * 2.54],
             default => null,
         };
+    }
+
+    #[Override]
+    public function accepts(string $data): bool
+    {
+        return str_starts_with($data, "\xFF\xD8");
+    }
+
+    /** @throws ParseException for a malformed file or an image over the limits */
+    #[Override]
+    public function decode(string $data, Limits $limits, ImageOptions $options): ImageData
+    {
+        if (! $this->accepts($data)) {
+            throw new ParseException('Not a JPEG file.');
+        }
+        $decoder = new self();
+        $decoder->scan($data);
+        $frame = $decoder->frame ?? throw new ParseException('JPEG has no frame header.');
+        $limits->assertImagePixels($frame['width'], $frame['height']);
+        if (8 !== $frame['precision']) {
+            throw new ParseException(sprintf('Only 8-bit JPEGs are supported, %d-bit given.', $frame['precision']));
+        }
+        $colorSpace = match ($frame['components']) {
+            1       => ImageColorSpace::gray(),
+            3       => ImageColorSpace::rgb(),
+            4       => ImageColorSpace::cmyk(),
+            default => throw new ParseException(sprintf('Unsupported JPEG component count %d.', $frame['components'])),
+        };
+        ksort($decoder->icc);
+
+        return new ImageData(
+            $frame['width'],
+            $frame['height'],
+            8,
+            $colorSpace,
+            $data,
+            'DCTDecode',
+            decode: 4 === $frame['components'] && $decoder->adobe ? [1, 0, 1, 0, 1, 0, 1, 0] : null,
+            iccProfile: [] === $decoder->icc ? null : implode('', $decoder->icc),
+            dpiX: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[0],
+            dpiY: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[1],
+            orientation: $decoder->orientation,
+            photoshop: '' === $decoder->photoshop ? null : $decoder->photoshop,
+        );
+    }
+
+    #[Override]
+    public function hasPages(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function name(): string
+    {
+        return 'JPEG';
     }
 
     /**

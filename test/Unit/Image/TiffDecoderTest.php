@@ -7,6 +7,8 @@ namespace Php2PdfTest\Unit\Image;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Image\ImageData;
+use Php2Pdf\Image\ImageOptions;
+use Php2Pdf\Image\ImageTraits;
 use Php2Pdf\Image\TiffDecoder;
 use Php2PdfTest\TestAsset\TiffFixture;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -71,8 +73,8 @@ final class TiffDecoderTest extends TestCase
 
     private static function decode(TiffFixture $tiff, int $page = 1): ImageData
     {
-        $data = TiffDecoder::decode($tiff->bytes(), Limits::default(), $page);
-        self::assertNotNull($data);
+        $data = (new TiffDecoder())->decode($tiff->bytes(), Limits::default(), new ImageOptions(page: $page));
+        self::assertInstanceOf(ImageData::class, $data);
 
         return $data;
     }
@@ -99,9 +101,10 @@ final class TiffDecoderTest extends TestCase
     {
         $this->expectException(ParseException::class);
         $this->expectExceptionMessage('more than the 4 allowed');
-        TiffDecoder::decode(
+        (new TiffDecoder())->decode(
             (new TiffFixture(4, 2, 2, 8, 3, str_repeat("\x00", times: 24)))->bytes(),
             new Limits(maxImagePixels: 4),
+            new ImageOptions(),
         );
     }
 
@@ -128,7 +131,10 @@ final class TiffDecoderTest extends TestCase
     #[DataProvider('unsupportedProvider')]
     public function leavesOtherLayoutsToTheTranscoder(TiffFixture $tiff): void
     {
-        self::assertNull(TiffDecoder::decode($tiff->bytes(), Limits::default()));
+        self::assertInstanceOf(
+            ImageTraits::class,
+            (new TiffDecoder())->decode($tiff->bytes(), Limits::default(), new ImageOptions()),
+        );
     }
 
     #[Test]

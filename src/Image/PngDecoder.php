@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Override;
 use Php2Pdf\Core\Filter\Flate;
 use Php2Pdf\Core\Filter\PngScanlines;
 use Php2Pdf\Core\Limits;
@@ -36,7 +37,7 @@ use function unpack;
  *
  * @internal
  */
-final class PngDecoder
+final readonly class PngDecoder implements ImageDecoderInterface
 {
     private const string SIGNATURE = "\x89PNG\r\n\x1A\n";
 
@@ -48,85 +49,6 @@ final class PngDecoder
         4 => [8, 16],
         6 => [8, 16],
     ];
-
-    /** @throws PdfException for malformed data or an image over the limits */
-    public static function decode(string $data, ?Limits $limits = null): ImageData
-    {
-        $limits ??= Limits::default();
-        if (! str_starts_with($data, self::SIGNATURE)) {
-            throw new ParseException('Not a PNG file.');
-        }
-        $chunks = self::chunks($data);
-        [$width, $height, $depth, $type, $interlace] = self::header(
-            $chunks['IHDR'][0] ?? throw new ParseException('PNG has no IHDR chunk.'),
-            $limits,
-        );
-        $channels = match ($type) {
-            0, 3    => 1,
-            2       => 3,
-            4       => 2,
-            6       => 4,
-            default => throw new ParseException(sprintf('Unsupported PNG colour type %d.', $type)),
-        };
-        [$palette, $trns, $idat] = self::pixelChunks($chunks, $type);
-        $colorSpace = match ($type) {
-            0, 4    => ImageColorSpace::gray(),
-            3       => ImageColorSpace::indexed($palette ?? ''),
-            default => ImageColorSpace::rgb(),
-        };
-        $meta = [
-            'icc' => self::iccProfile($chunks['iCCP'][0] ?? null, $limits),
-            'dpi' => self::resolution($chunks['pHYs'][0] ?? null),
-        ];
-
-        $needsDecode = 1 === $interlace || 4 === $type || 6 === $type || (3 === $type && null !== $trns);
-        if (! $needsDecode) {
-            return new ImageData(
-                $width,
-                $height,
-                $depth,
-                $colorSpace,
-                $idat,
-                'FlateDecode',
-                Dictionary::of([
-                    'Predictor'        => 15,
-                    'Colors'           => $channels,
-                    'BitsPerComponent' => $depth,
-                    'Columns'          => $width,
-                ]),
-                colorKeyMask: self::colorKey($trns, $type, $depth),
-                iccProfile: $meta['icc'],
-                dpiX: $meta['dpi'][0],
-                dpiY: $meta['dpi'][1],
-            );
-        }
-
-        $factor  = 3 === $type || $depth >= 8 ? 1 : intdiv(255, (1 << $depth) - 1);
-        $samples = PngScanlines::decode(
-            Flate::decode($idat, $limits->maxDecodedBytes),
-            $width,
-            $height,
-            $depth,
-            $channels,
-            $interlace,
-            $factor,
-        );
-        [$color, $alpha] = self::split($samples, $channels, $depth > 8 ? 2 : 1, $type, $trns);
-
-        return new ImageData(
-            $width,
-            $height,
-            max(8, $depth),
-            $colorSpace,
-            Flate::encode($color),
-            'FlateDecode',
-            softMask: $alpha,
-            iccProfile: $meta['icc'],
-            dpiX: $meta['dpi'][0],
-            dpiY: $meta['dpi'][1],
-            softMaskBits: 3 === $type ? 8 : max(8, $depth),
-        );
-    }
 
     /**
      * @return array<string, list<string>> chunk type => data blocks in file order
@@ -290,5 +212,102 @@ final class PngDecoder
         }
 
         return AlphaSplit::split($samples, $channels, $bytes);
+    }
+
+    #[Override]
+    public function accepts(string $data): bool
+    {
+        return str_starts_with($data, self::SIGNATURE);
+    }
+
+    /** @throws PdfException for malformed data or an image over the limits */
+    #[Override]
+    public function decode(string $data, Limits $limits, ImageOptions $options = new ImageOptions()): ImageData
+    {
+        if (! $this->accepts($data)) {
+            throw new ParseException('Not a PNG file.');
+        }
+        $chunks = self::chunks($data);
+        [$width, $height, $depth, $type, $interlace] = self::header(
+            $chunks['IHDR'][0] ?? throw new ParseException('PNG has no IHDR chunk.'),
+            $limits,
+        );
+        $channels = match ($type) {
+            0, 3    => 1,
+            2       => 3,
+            4       => 2,
+            6       => 4,
+            default => throw new ParseException(sprintf('Unsupported PNG colour type %d.', $type)),
+        };
+        [$palette, $trns, $idat] = self::pixelChunks($chunks, $type);
+        $colorSpace = match ($type) {
+            0, 4    => ImageColorSpace::gray(),
+            3       => ImageColorSpace::indexed($palette ?? ''),
+            default => ImageColorSpace::rgb(),
+        };
+        $meta = [
+            'icc' => self::iccProfile($chunks['iCCP'][0] ?? null, $limits),
+            'dpi' => self::resolution($chunks['pHYs'][0] ?? null),
+        ];
+
+        $needsDecode = 1 === $interlace || 4 === $type || 6 === $type || (3 === $type && null !== $trns);
+        if (! $needsDecode) {
+            return new ImageData(
+                $width,
+                $height,
+                $depth,
+                $colorSpace,
+                $idat,
+                'FlateDecode',
+                Dictionary::of([
+                    'Predictor'        => 15,
+                    'Colors'           => $channels,
+                    'BitsPerComponent' => $depth,
+                    'Columns'          => $width,
+                ]),
+                colorKeyMask: self::colorKey($trns, $type, $depth),
+                iccProfile: $meta['icc'],
+                dpiX: $meta['dpi'][0],
+                dpiY: $meta['dpi'][1],
+            );
+        }
+
+        $factor  = 3 === $type || $depth >= 8 ? 1 : intdiv(255, (1 << $depth) - 1);
+        $samples = PngScanlines::decode(
+            Flate::decode($idat, $limits->maxDecodedBytes),
+            $width,
+            $height,
+            $depth,
+            $channels,
+            $interlace,
+            $factor,
+        );
+        [$color, $alpha] = self::split($samples, $channels, $depth > 8 ? 2 : 1, $type, $trns);
+
+        return new ImageData(
+            $width,
+            $height,
+            max(8, $depth),
+            $colorSpace,
+            Flate::encode($color),
+            'FlateDecode',
+            softMask: $alpha,
+            iccProfile: $meta['icc'],
+            dpiX: $meta['dpi'][0],
+            dpiY: $meta['dpi'][1],
+            softMaskBits: 3 === $type ? 8 : max(8, $depth),
+        );
+    }
+
+    #[Override]
+    public function hasPages(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function name(): string
+    {
+        return 'PNG';
     }
 }

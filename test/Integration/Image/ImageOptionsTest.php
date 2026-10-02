@@ -38,7 +38,7 @@ final class ImageOptionsTest extends TestCase
     public function aJpegHasOnePage(): void
     {
         $this->expectException(PdfException::class);
-        $this->expectExceptionMessage('JPEG, JPEG 2000 and PNG files have one page; page 2 was asked for.');
+        $this->expectExceptionMessage('JPEG files have one page; page 2 was asked for.');
         $this->doc->image(PdfTools::assetPath('images/rgb.jpg'), new ImageOptions(page: 2));
     }
 

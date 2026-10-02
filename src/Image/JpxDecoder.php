@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Override;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 
@@ -21,7 +22,7 @@ use function unpack;
  *
  * @internal
  */
-final class JpxDecoder
+final readonly class JpxDecoder implements ImageDecoderInterface
 {
     public const string JP2_SIGNATURE = "\x00\x00\x00\x0CjP  \r\n\x87\n";
 
@@ -30,39 +31,6 @@ final class JpxDecoder
     private const int SRGB      = 16;
     private const int GREYSCALE = 17;
     private const int SYCC      = 18;
-
-    /** @throws ParseException */
-    public static function decode(string $data, Limits $limits): ImageData
-    {
-        [$width, $height, $components, $bits, $enumerated, $icc, $alpha] = str_starts_with($data, self::CODESTREAM)
-            ? self::codestream($data)
-            : self::jp2($data);
-        if ($width < 1 || $height < 1) {
-            throw new ParseException('JPEG 2000 image has no pixels.');
-        }
-        $limits->assertImagePixels($width, $height);
-        $colours = $components - ($alpha ? 1 : 0);
-        $space   = match (true) {
-            self::GREYSCALE === $enumerated, 1 === $colours => ImageColorSpace::gray(),
-            self::SRGB === $enumerated, self::SYCC === $enumerated, 3 === $colours => ImageColorSpace::rgb(),
-            4 === $colours => ImageColorSpace::cmyk(),
-            default => throw new ParseException(sprintf(
-                'JPEG 2000 images with %d components are not supported.',
-                $components,
-            )),
-        };
-
-        return new ImageData(
-            $width,
-            $height,
-            $bits,
-            $space,
-            $data,
-            'JPXDecode',
-            iccProfile: $icc,
-            smaskInData: $alpha,
-        );
-    }
 
     /**
      * Finds a box of a type between two offsets, returning where its contents start and end.
@@ -202,5 +170,57 @@ final class JpxDecoder
         $value = $offset >= 0 && ($offset + 4) <= strlen($data) ? unpack('N', $data, $offset) : false;
 
         return false === $value ? throw new ParseException('Truncated JPEG 2000 data.') : (int) $value[1];
+    }
+
+    #[Override]
+    public function accepts(string $data): bool
+    {
+        return str_starts_with($data, self::JP2_SIGNATURE) || str_starts_with($data, self::CODESTREAM);
+    }
+
+    /** @throws ParseException for a malformed file or an image over the limits */
+    #[Override]
+    public function decode(string $data, Limits $limits, ImageOptions $options): ImageData
+    {
+        [$width, $height, $components, $bits, $enumerated, $icc, $alpha] = str_starts_with($data, self::CODESTREAM)
+            ? self::codestream($data)
+            : self::jp2($data);
+        if ($width < 1 || $height < 1) {
+            throw new ParseException('JPEG 2000 image has no pixels.');
+        }
+        $limits->assertImagePixels($width, $height);
+        $colours = $components - ($alpha ? 1 : 0);
+        $space   = match (true) {
+            self::GREYSCALE === $enumerated, 1 === $colours => ImageColorSpace::gray(),
+            self::SRGB === $enumerated, self::SYCC === $enumerated, 3 === $colours => ImageColorSpace::rgb(),
+            4 === $colours => ImageColorSpace::cmyk(),
+            default => throw new ParseException(sprintf(
+                'JPEG 2000 images with %d components are not supported.',
+                $components,
+            )),
+        };
+
+        return new ImageData(
+            $width,
+            $height,
+            $bits,
+            $space,
+            $data,
+            'JPXDecode',
+            iccProfile: $icc,
+            smaskInData: $alpha,
+        );
+    }
+
+    #[Override]
+    public function hasPages(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function name(): string
+    {
+        return 'JPEG 2000';
     }
 }
