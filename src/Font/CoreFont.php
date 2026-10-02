@@ -199,7 +199,7 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
         }
         $glyphs = [];
         $prev   = null;
-        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $index => $char) {
             $codePoint = mb_ord($char, encoding: 'UTF-8');
             if (false === $codePoint) {
                 continue;
@@ -213,9 +213,9 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
             ));
             $kern = null === $prev || ! $kerning ? 0 : $metrics->kerning[$prev->id][$code] ?? 0;
             if (0 !== $kern && null !== $prev) {
-                $glyphs[count($glyphs) - 1] = new Glyph($prev->id, $prev->codePoint, $prev->advance, $kern);
+                $glyphs[count($glyphs) - 1] = $prev->withKerning($kern);
             }
-            $prev     = new Glyph($code, $codePoint, $this->advance($code));
+            $prev     = new Glyph($code, $codePoint, $this->advance($code), cluster: $index);
             $glyphs[] = $prev;
         }
 

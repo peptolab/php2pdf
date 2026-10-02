@@ -32,7 +32,8 @@ The first release.
   HarfBuzz's default features; every GSUB and GPOS lookup type but cursive attachment, with lookup
   flags and the font's features for each script.
 - Mark positioning: accents placed on their letters by the font's anchors, glyph offsets in `Glyph`,
-  and Unicode normalisation for the font as HarfBuzz does it.
+  and Unicode normalisation for the font as HarfBuzz does it. Each glyph's `cluster` is the
+  character of the text it stands for, so normalised text keeps its word boundaries.
 - Right-to-left text: the Unicode bidi algorithm (passing Unicode's conformance tests) for lines,
   SVG text and Textflow paragraphs, mirrored characters, `TextDirection` on `TextOptions` and
   `TextStyle`; Hebrew shaped as HarfBuzz shapes it.

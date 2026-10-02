@@ -24,6 +24,16 @@ final class NormaliserTest extends TestCase
 {
     private const string FONT = "aeosnAΩáñạÅ\u{0301}\u{0302}\u{0303}\u{0323}\u{0307}\u{0328}\u{0304}\u{030A}";
 
+    /** @return array<string, array{string, list<int>}> */
+    public static function sourceProvider(): array
+    {
+        return [
+            'unchanged'                       => ['abc', [0, 1, 2]],
+            'a mark composed into its letter' => ["xa\u{0301}y", [0, 1, 3]],
+            'a letter the font lacks'         => ["x\u{00E3}y", [0, 1, 1, 2]],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: string}> */
     public static function textProvider(): array
     {
@@ -51,6 +61,23 @@ final class NormaliserTest extends TestCase
         return $out;
     }
 
+    /** @param list<int> $sources */
+    #[Test]
+    #[DataProvider('sourceProvider')]
+    public function eachCharacterKnowsWhichCharacterItCameFrom(string $text, array $sources): void
+    {
+        $font = self::codePoints(self::FONT);
+
+        self::assertSame(
+            $sources,
+            Normaliser::normalise(self::codePoints($text), static fn(int $c): bool => in_array(
+                $c,
+                $font,
+                strict: true,
+            ))[1],
+        );
+    }
+
     #[Test]
     #[DataProvider('textProvider')]
     public function textIsNormalisedForTheFont(string $text, string $expected): void
@@ -63,7 +90,7 @@ final class NormaliserTest extends TestCase
                 $c,
                 $font,
                 strict: true,
-            )),
+            ))[0],
         );
     }
 }

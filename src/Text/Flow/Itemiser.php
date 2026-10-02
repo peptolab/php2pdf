@@ -17,6 +17,7 @@ use function array_slice;
 use function array_values;
 use function count;
 use function explode;
+use function implode;
 use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
@@ -355,24 +356,24 @@ final class Itemiser
         $options = $style->textOptions()->withLigatures(false);
         $chars   = mb_str_split($shaped, length: 1, encoding: 'UTF-8');
         $out     = [];
-        $at      = 0;
         foreach ($glyphs as $glyph) {
-            $length    = $glyph->length();
+            $from      = $glyph->cluster;
+            $to        = $from + $glyph->length();
             $straddles = false;
-            for ($b = $at + 1; $b < ($at + $length); ++$b) {
+            for ($b = $from + 1; $b < $to; ++$b) {
                 $straddles = $straddles || array_key_exists($b, $boundaries);
             }
-            $parts = $straddles
-                ? array_slice(
-                    $font->shape($glyph->text() . ($chars[$at + $length] ?? ''), $options)->glyphs,
-                    offset: 0,
-                    length: $length,
-                )
-                : [$glyph];
-            foreach ($parts as $part) {
-                $out[] = $part;
+            if (! $straddles) {
+                $out[] = $glyph;
+                continue;
             }
-            $at += $length;
+            $text = implode('', array_slice($chars, $from, $to - $from)) . ($chars[$to] ?? '');
+            foreach ($font->shape($text, $options)->glyphs as $part) {
+                if ($part->cluster >= ($to - $from)) {
+                    break;
+                }
+                $out[] = $part->withCluster($from + $part->cluster);
+            }
         }
 
         return $out;
@@ -398,13 +399,12 @@ final class Itemiser
 
         $items  = [];
         $cursor = 0;
+        $end    = 0;
         foreach ($pieces as [$piece, $after]) {
-            $length = mb_strlen($piece, encoding: 'UTF-8');
-            $slice  = [];
-            $count  = 0;
-            while ($count < $length && null !== ($glyph = $glyphs[$cursor] ?? null)) {
+            $end   += mb_strlen($piece, encoding: 'UTF-8');
+            $slice = [];
+            while (null !== ($glyph = $glyphs[$cursor] ?? null) && $glyph->cluster < $end) {
                 $slice[] = $glyph;
-                $count   += $glyph->length();
                 ++$cursor;
             }
             if ($rtl) {

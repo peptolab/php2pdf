@@ -18,6 +18,7 @@ use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
 use function preg_match;
+use function range;
 use function usort;
 
 /**
@@ -91,46 +92,32 @@ final class Normaliser
     ];
 
     /**
-     * @param list<int>             $codePoints
-     * @param Closure(int): bool    $hasGlyph
+     * The normalised code points, each with the index of the character in $codePoints it comes
+     * from: a decomposed character's parts come from it, and a character with combining marks
+     * and its marks, however they are reordered and composed, all come from the character.
      *
-     * @return list<int>
+     * @param list<int>          $codePoints
+     * @param Closure(int): bool $hasGlyph
+     *
+     * @return array{0: list<int>, 1: list<int>}
      */
     public static function normalise(array $codePoints, Closure $hasGlyph): array
     {
-        if (! class_exists(Normalizer::class) || ! class_exists(IntlChar::class)) {
-            return $codePoints;
-        }
-        $out   = [];
         $count = count($codePoints);
-        $marks = false;
-        for ($i = 0; $i < $count; ++$i) {
-            $codePoint = $codePoints[$i] ?? 0;
-            $cluster   = self::isMark($codePoints[$i + 1] ?? -1);
-            if (! $cluster && $hasGlyph($codePoint)) {
-                $out[] = $codePoint;
-                continue;
-            }
-            $decomposed = $cluster
-                ? self::decompose($codePoint, $hasGlyph)
-                : self::shortestDecomposition($codePoint, $hasGlyph);
-            foreach ($decomposed ?? [$codePoint] as $part) {
-                $out[] = $part;
-            }
-            if (! $cluster) {
-                continue;
-            }
-            $marks = true;
-            while (self::isMark($codePoints[$i + 1] ?? -1)) {
-                ++$i;
-                $mark = $codePoints[$i] ?? 0;
-                foreach (self::decompose($mark, $hasGlyph) ?? [$mark] as $part) {
-                    $out[] = $part;
-                }
+        if (! class_exists(Normalizer::class) || ! class_exists(IntlChar::class)) {
+            return [$codePoints, $count > 0 ? range(0, $count - 1) : []];
+        }
+        [$units, $marks] = self::units($codePoints, $hasGlyph);
+        $out     = [];
+        $sources = [];
+        foreach ($units as [$start, $unit]) {
+            foreach ($marks ? self::recompose(self::reorder($unit), $hasGlyph) : $unit as $part) {
+                $out[]     = $part;
+                $sources[] = $start;
             }
         }
 
-        return $marks ? self::recompose(self::reorder($out), $hasGlyph) : $out;
+        return [$out, $sources];
     }
 
     /**
@@ -356,5 +343,47 @@ final class Normaliser
         $deeper = self::shortestDecomposition($a, $hasGlyph);
 
         return null === $deeper ? null : [...$deeper, ...$tail];
+    }
+
+    /**
+     * The text in units, each the index of the character it starts at and the code points it
+     * becomes: a character the font has, a character the font lacks decomposed, or a character
+     * with its combining marks, all decomposed. Also whether any character had marks.
+     *
+     * @param list<int>          $codePoints
+     * @param Closure(int): bool $hasGlyph
+     *
+     * @return array{0: list<array{0: int, 1: list<int>}>, 1: bool}
+     */
+    private static function units(array $codePoints, Closure $hasGlyph): array
+    {
+        $units = [];
+        $marks = false;
+        $count = count($codePoints);
+        for ($i = 0; $i < $count; ++$i) {
+            $start     = $i;
+            $codePoint = $codePoints[$i] ?? 0;
+            if (self::isMark($codePoints[$i + 1] ?? -1)) {
+                $marks = true;
+                $unit  = self::decompose($codePoint, $hasGlyph) ?? [$codePoint];
+                while (self::isMark($codePoints[$i + 1] ?? -1)) {
+                    ++$i;
+                    $mark = $codePoints[$i] ?? 0;
+                    foreach (self::decompose($mark, $hasGlyph) ?? [$mark] as $part) {
+                        $unit[] = $part;
+                    }
+                }
+                $units[] = [$start, $unit];
+                continue;
+            }
+            $units[] = [
+                $start,
+                $hasGlyph($codePoint)
+                    ? [$codePoint]
+                    : self::shortestDecomposition($codePoint, $hasGlyph) ?? [$codePoint],
+            ];
+        }
+
+        return [$units, $marks];
     }
 }

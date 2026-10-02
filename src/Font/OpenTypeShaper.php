@@ -69,6 +69,31 @@ final readonly class OpenTypeShaper
     }
 
     /**
+     * The glyphs, in logical order, with the index in the text of the character each one's
+     * cluster starts at. A glyph that stands for no character of its own (the second of a
+     * multiple substitution) joins the cluster before it.
+     *
+     * @param list<Glyph> $glyphs
+     * @param list<int>   $sources the index in the text of each normalised code point
+     *
+     * @return list<Glyph>
+     */
+    private static function clustered(array $glyphs, array $sources): array
+    {
+        $at      = 0;
+        $cluster = 0;
+        $out     = [];
+        foreach ($glyphs as $glyph) {
+            $length  = $glyph->length();
+            $cluster = $length > 0 ? $sources[$at] ?? $cluster : $cluster;
+            $at      += $length;
+            $out[]   = $glyph->withCluster($cluster);
+        }
+
+        return $out;
+    }
+
+    /**
      * The features of a group that are among those asked for.
      *
      * @param list<string> $features
@@ -110,10 +135,10 @@ final readonly class OpenTypeShaper
      */
     public function shape(string $text, TextOptions $options, array $features): array
     {
-        $rtl        = TextDirection::RightToLeft === $options->direction;
-        $gdef       = $this->program->gdef();
-        $codePoints = $this->codePoints($text);
-        $sequence   = [];
+        $rtl  = TextDirection::RightToLeft === $options->direction;
+        $gdef = $this->program->gdef();
+        [$codePoints, $sources] = $this->codePoints($text);
+        $sequence = [];
         foreach ($codePoints as $codePoint) {
             $shown = $rtl ? $this->mirrored($codePoint) : $codePoint;
             $id    = $this->program->glyphId($shown);
@@ -142,16 +167,16 @@ final readonly class OpenTypeShaper
             }
         }
 
-        $glyphs = $this->hideIgnorables($glyphs);
+        $glyphs = $this->hideIgnorables(self::clustered($glyphs, $sources));
 
         return $rtl ? array_reverse($glyphs) : $glyphs;
     }
 
     /**
      * The text's code points, normalised for the font when it has combining marks or characters
-     * the font lacks.
+     * the font lacks, each with the index in the text of the character it comes from.
      *
-     * @return list<int>
+     * @return array{0: list<int>, 1: list<int>}
      */
     private function codePoints(string $text): array
     {
@@ -166,7 +191,7 @@ final readonly class OpenTypeShaper
             $missing      = $missing || 0 === $this->program->glyphId($codePoint);
         }
         if (! $missing && 1 !== preg_match('/\p{M}/u', $text)) {
-            return $codePoints;
+            return [$codePoints, array_keys($codePoints)];
         }
 
         return Normaliser::normalise(
@@ -267,7 +292,7 @@ final readonly class OpenTypeShaper
             ) {
                 continue;
             }
-            $glyphs[$k] = new Glyph($space, $glyph->codePoint, $width, -$width);
+            $glyphs[$k] = new Glyph($space, $glyph->codePoint, $width, -$width, cluster: $glyph->cluster);
         }
 
         return $glyphs;

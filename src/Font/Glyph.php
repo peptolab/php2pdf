@@ -23,6 +23,9 @@ final readonly class Glyph
      *                              glyph that stands for $codePoint alone
      * @param float     $xOffset    how far the glyph is drawn right of its position
      * @param float     $yOffset    how far the glyph is drawn above the baseline
+     * @param int       $cluster    the index of the first character, in the shaped text, of the
+     *                              characters the glyph stands for with the glyphs around it
+     *                              (a base and its marks, a letter and its decomposition)
      */
     public function __construct(
         public int $id,
@@ -33,6 +36,7 @@ final readonly class Glyph
         public array $components = [],
         public float $xOffset = 0.0,
         public float $yOffset = 0.0,
+        public int $cluster = 0,
     ) {}
 
     /**
@@ -50,10 +54,17 @@ final readonly class Glyph
         return 0x20 === $this->codePoint || 0xA0 === $this->codePoint;
     }
 
-    /** How many characters the glyph stands for. */
+    /**
+     * How many characters the glyph stands for: none for a glyph a character became along with
+     * others (the second of a multiple substitution, a colour layer).
+     */
     public function length(): int
     {
-        return [] === $this->components ? 1 : count($this->components);
+        if ([] !== $this->components) {
+            return count($this->components);
+        }
+
+        return $this->codePoint < 0 ? 0 : 1;
     }
 
     /** The text the glyph stands for, as UTF-8. */
@@ -67,6 +78,20 @@ final readonly class Glyph
         return $text;
     }
 
+    public function withCluster(int $cluster): self
+    {
+        return new self(
+            $this->id,
+            $this->codePoint,
+            $this->advance,
+            $this->kerning,
+            $this->components,
+            $this->xOffset,
+            $this->yOffset,
+            $cluster,
+        );
+    }
+
     public function withKerning(float $kerning): self
     {
         return new self(
@@ -77,6 +102,7 @@ final readonly class Glyph
             $this->components,
             $this->xOffset,
             $this->yOffset,
+            $this->cluster,
         );
     }
 
@@ -90,6 +116,7 @@ final readonly class Glyph
             $this->components,
             $xOffset,
             $yOffset,
+            $this->cluster,
         );
     }
 }
