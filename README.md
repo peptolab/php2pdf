@@ -8,13 +8,13 @@ Requires PHP 8.3+ with `ext-zlib` and `ext-mbstring`. No other runtime dependenc
 
 ## Status
 
-0.1.0 is the first release: the features listed in the [changelog](CHANGELOG.md) work and are
+This is an early release (0.1): the features listed in the [changelog](CHANGELOG.md) work and are
 tested, but the API is not settled. Until 1.0, a minor version may change it.
 
 The library is plain PHP, with no extensions beyond zlib and mbstring, so it is slower than a C
 library and uses more memory. On a 2018 laptop, flowing two columns of text takes about 5 ms a
 page; justified text, set by the whole-paragraph composer, about 7 ms. A 2,000-row table takes
-2.4 s. With opcache and its JIT enabled (`opcache.jit_buffer_size`), long documents take about 40%
+1.7 s. With opcache and its JIT enabled (`opcache.jit_buffer_size`), long documents take about 40%
 less time. `tools/bench` runs the scenarios these numbers come from.
 
 Known gaps are listed in [Limitations](docs/limitations.md).
