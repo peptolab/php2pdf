@@ -32,6 +32,8 @@ use function strtr;
  * Mapping: null/bool/int/float as themselves, PHP strings as literal strings, lists as arrays,
  * Dictionary, Name, Reference, HexString and Raw as their respective syntax. Streams are only
  * valid as indirect objects and are handled by the Writer.
+ *
+ * @internal
  */
 final class Serializer
 {
@@ -50,7 +52,6 @@ final class Serializer
     public static function array(array $items): string
     {
         $parts = [];
-        // @mago-expect analysis:mixed-assignment
         foreach ($items as $item) {
             $parts[] = self::serialize($item);
         }
@@ -61,7 +62,6 @@ final class Serializer
     public static function dictionary(Dictionary $dict): string
     {
         $out = '<<';
-        // @mago-expect analysis:mixed-assignment
         foreach ($dict->all() as $key => $value) {
             $serialized = self::serialize($value);
             // A delimiter-initial value needs no separating space after the key name.

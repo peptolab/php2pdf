@@ -10,6 +10,8 @@ use function strlen;
 
 /**
  * Buffers the document in memory. Handy for tests and HTTP responses of modest size.
+ *
+ * @api
  */
 final class MemoryOutput implements OutputInterface
 {

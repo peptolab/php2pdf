@@ -7,6 +7,12 @@ namespace Php2Pdf\Core;
 use DateTimeImmutable;
 use Override;
 
+/**
+ * A clock that always tells the same time, for documents that must come out byte for byte the
+ * same: their creation date, document ID and subset tags do not change between runs.
+ *
+ * @api
+ */
 final readonly class FixedClock implements ClockInterface
 {
     private DateTimeImmutable $time;

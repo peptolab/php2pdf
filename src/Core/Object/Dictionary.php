@@ -21,7 +21,6 @@ final class Dictionary
     /** @param array<string, mixed> $entries */
     public function __construct(array $entries = [])
     {
-        // @mago-expect analysis:mixed-assignment
         foreach ($entries as $key => $value) {
             $this->set($key, $value);
         }
