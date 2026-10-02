@@ -6,12 +6,12 @@ namespace Php2PdfTest\Unit\Document;
 
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
-use Php2Pdf\Document\Destination;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Navigation\Destination;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;

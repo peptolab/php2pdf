@@ -6,9 +6,9 @@ namespace Php2Pdf\Svg;
 
 use Closure;
 use Php2Pdf\Canvas\Canvas;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Template\Template;

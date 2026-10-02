@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration;
 
 use Php2Pdf\Core\FixedClock;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
+use Php2Pdf\Geometry\Dimensions;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

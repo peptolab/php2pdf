@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Document;
+namespace Php2Pdf\Geometry;
 
 use Php2Pdf\Exception\InvalidArgumentException;
-use Php2Pdf\Geometry\Unit;
 
 /**
  * A page size in points.

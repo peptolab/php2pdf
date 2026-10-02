@@ -6,13 +6,13 @@ namespace Php2PdfTest\Integration;
 
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\FixedClock;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\Position;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Import\HiddenLayers;
 use Php2Pdf\Import\PageBox;
 use Php2Pdf\Import\PdfFile;

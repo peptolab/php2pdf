@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Text;
+namespace Php2Pdf\Canvas;
 
 use Php2Pdf\Geometry\Box;
 

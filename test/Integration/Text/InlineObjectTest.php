@@ -6,13 +6,13 @@ namespace Php2PdfTest\Integration\Text;
 
 use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Output\MemoryOutput;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Template\Template;
 use Php2Pdf\Text\FitInfo;
 use Php2Pdf\Text\FlowOptions;

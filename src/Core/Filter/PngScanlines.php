@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Image;
+namespace Php2Pdf\Core\Filter;
 
 use Php2Pdf\Exception\ParseException;
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Text\Bidi;
+namespace Php2Pdf\Font\Bidi;
 
 use function array_slice;
 use function count;

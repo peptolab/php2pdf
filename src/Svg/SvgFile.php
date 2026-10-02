@@ -6,10 +6,10 @@ namespace Php2Pdf\Svg;
 
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Silencer;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Geometry\Dimensions;
 
 use function array_key_exists;
 use function dirname;

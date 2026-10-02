@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\FixedClock;
@@ -23,7 +24,6 @@ use Php2Pdf\Text\Style\TabStop;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Style\VerticalAlignment;
 use Php2Pdf\Text\TextFormat;
-use Php2Pdf\Text\TextlineOptions;
 use Php2PdfTest\TestAsset\PdfTools;
 use Php2PdfTest\TestAsset\Visual;
 use PHPUnit\Framework\Attributes\Group;

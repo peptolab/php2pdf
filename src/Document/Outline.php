@@ -10,6 +10,7 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\TextString;
 use Php2Pdf\Core\Writer;
+use Php2Pdf\Navigation\Destination;
 
 use function count;
 use function is_int;

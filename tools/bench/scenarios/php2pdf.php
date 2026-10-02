@@ -25,7 +25,7 @@ use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
-use Php2Pdf\Text\TextlineOptions;
+use Php2Pdf\Canvas\TextlineOptions;
 
 require_once dirname(__DIR__, 3) . '/vendor/autoload.php';
 

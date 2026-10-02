@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Template\Template;

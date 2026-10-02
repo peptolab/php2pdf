@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Php2Pdf\Core\Filter;
 
 use Php2Pdf\Exception\ParseException;
-use Php2Pdf\Image\PngScanlines;
 
 use function in_array;
 use function intdiv;

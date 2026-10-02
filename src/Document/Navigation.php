@@ -11,6 +11,7 @@ use Php2Pdf\Core\TextString;
 use Php2Pdf\Core\Writer;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Navigation\Destination;
 
 use function array_key_exists;
 use function count;

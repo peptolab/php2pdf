@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Fit\Position;
 use Php2Pdf\Geometry\Box;
-use Php2Pdf\Text\TextlineOptions;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;

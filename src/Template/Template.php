@@ -12,10 +12,10 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Document\DeferredInterface;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\Resources;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 

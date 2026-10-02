@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\TestAsset;
 
-use Php2Pdf\Text\Bidi\Bidi;
-use Php2Pdf\Text\Bidi\BidiParagraph;
+use Php2Pdf\Font\Bidi\Bidi;
+use Php2Pdf\Font\Bidi\BidiParagraph;
 
 use function array_map;
 use function count;

@@ -12,7 +12,7 @@ declare(strict_types=1);
  * failures. test/asset/bidi holds a sample of each that the unit tests run.
  */
 
-use Php2Pdf\Text\Bidi\BidiParagraph;
+use Php2Pdf\Font\Bidi\BidiParagraph;
 use Php2PdfTest\Support\BidiConformance;
 
 require __DIR__ . '/../vendor/autoload.php';

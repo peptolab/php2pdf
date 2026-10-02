@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration;
 
+use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\FixedClock;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\Page;
@@ -16,6 +16,7 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\Position;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Table\Border;
 use Php2Pdf\Table\Cell;
 use Php2Pdf\Table\CellStyle;
@@ -25,7 +26,6 @@ use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
-use Php2Pdf\Text\TextlineOptions;
 use Php2PdfTest\TestAsset\PdfTools;
 use Php2PdfTest\TestAsset\Visual;
 use PHPUnit\Framework\Attributes\Group;

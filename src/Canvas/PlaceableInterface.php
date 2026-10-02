@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Canvas;
 
-use Php2Pdf\Document\Dimensions;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 
 /**

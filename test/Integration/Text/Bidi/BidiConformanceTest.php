@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Text\Bidi;
 
-use Php2Pdf\Text\Bidi\BidiParagraph;
+use Php2Pdf\Font\Bidi\BidiParagraph;
 use Php2PdfTest\TestAsset\BidiConformance;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\Group;

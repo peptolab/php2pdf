@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Document;
+namespace Php2Pdf\Navigation;
 
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;

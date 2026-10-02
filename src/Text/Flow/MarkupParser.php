@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
-use Php2Pdf\Document\Destination;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
 

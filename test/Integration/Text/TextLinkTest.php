@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Text;
 
 use Php2Pdf\Core\Output\MemoryOutput;
-use Php2Pdf\Document\Destination;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Dimensions;
+use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextFormat;

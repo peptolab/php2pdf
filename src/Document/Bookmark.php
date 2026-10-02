@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Document;
 
+use Php2Pdf\Navigation\Destination;
+
 use function is_int;
 
 /**

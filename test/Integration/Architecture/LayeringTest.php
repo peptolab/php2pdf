@@ -37,21 +37,22 @@ final class LayeringTest extends TestCase
 {
     /** Each top-level namespace's layer, from the bottom. */
     private const array LAYERS = [
-        'Exception' => 0,
-        'Core'      => 1,
-        'Geometry'  => 2,
-        'Color'     => 3,
-        'Fit'       => 3,
-        'Font'      => 4,
-        'Canvas'    => 5,
-        'Template'  => 5,
-        'Image'     => 6,
-        'Import'    => 6,
-        'Flow'      => 7,
-        'Text'      => 7,
-        'Table'     => 7,
-        'Svg'       => 8,
-        'Document'  => 9,
+        'Exception'  => 0,
+        'Core'       => 1,
+        'Geometry'   => 2,
+        'Navigation' => 2,
+        'Color'      => 3,
+        'Fit'        => 3,
+        'Font'       => 4,
+        'Canvas'     => 5,
+        'Template'   => 5,
+        'Image'      => 6,
+        'Import'     => 6,
+        'Flow'       => 7,
+        'Text'       => 7,
+        'Table'      => 7,
+        'Svg'        => 8,
+        'Document'   => 9,
     ];
 
     /** Uses within a layer that are part of the design. */
@@ -65,7 +66,6 @@ final class LayeringTest extends TestCase
 
     /** Uses that break the layering today, and the work that removes each. */
     private const array RATCHET = [
-        'Core>Image'        => 'the PNG predictor moves into Core\Filter',
         'Font>Document'     => 'fonts take a narrow resource interface, not the document',
         'Canvas>Document'   => 'Dimensions and Destination move down; resources go through an interface',
         'Canvas>Flow'       => 'the canvas loses fitTable, fitTextflow and flow',

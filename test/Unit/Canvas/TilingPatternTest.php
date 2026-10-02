@@ -6,11 +6,11 @@ namespace Php2PdfTest\Unit\Canvas;
 
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Core\Output\MemoryOutput;
-use Php2Pdf\Document\Dimensions;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

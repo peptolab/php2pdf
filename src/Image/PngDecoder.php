@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Image;
 
 use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Core\Filter\PngScanlines;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Exception\ParseException;

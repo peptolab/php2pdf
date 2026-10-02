@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Style;
 
 use Php2Pdf\Color\ColorInterface;
-use Php2Pdf\Document\Destination;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
+use Php2Pdf\Navigation\Destination;
 
 use function array_map;
 use function get_object_vars;

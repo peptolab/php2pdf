@@ -6,9 +6,9 @@ namespace Php2PdfTest\Integration\Text\Bidi;
 
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
+use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
-use Php2Pdf\Text\Bidi\BidiRuns;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
-use Php2Pdf\Text\Bidi\BidiRuns;
 
 use function count;
 use function is_string;
