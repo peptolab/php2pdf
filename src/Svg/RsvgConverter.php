@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Override;
-use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Import\ImportedPage;
 use Php2Pdf\Import\PdfFile;
@@ -32,7 +31,7 @@ final class RsvgConverter implements SvgConverterInterface
     ) {}
 
     #[Override]
-    public function convert(SvgFile $svg, Document $document): ImportedPage
+    public function convert(SvgFile $svg, SvgDocumentInterface $document): ImportedPage
     {
         // A file is converted by path so relative image references resolve; data comes via stdin.
         $arguments = ['--format=pdf', '--keep-aspect-ratio', $svg->path ?? '-'];

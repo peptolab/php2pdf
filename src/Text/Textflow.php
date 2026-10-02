@@ -6,7 +6,6 @@ namespace Php2Pdf\Text;
 
 use Override;
 use Php2Pdf\Canvas\Canvas;
-use Php2Pdf\Document\Document;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\Bidi\Bidi;
@@ -64,16 +63,18 @@ final class Textflow implements FlowableInterface
     ) {}
 
     /**
-     * A builder for assembling a flow in code.
+     * A builder for assembling a flow in code. Use Document::textflowBuilder().
+     *
+     * @internal
      *
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
      */
     public static function build(
-        Document $document,
+        TextContext $context,
         TextStyle|string|null $style = null,
         array $hyphenators = [],
     ): TextflowBuilder {
-        $resolver = new StyleResolver($document);
+        $resolver = new StyleResolver($context);
 
         return new TextflowBuilder($resolver, $resolver->named($style) ?? new TextStyle(), new Itemiser($hyphenators));
     }
@@ -84,13 +85,13 @@ final class Textflow implements FlowableInterface
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
      */
     public static function fromMarkup(
-        Document $document,
+        TextContext $context,
         string $markup,
         TextStyle|string|null $style = null,
         array $hyphenators = [],
         TextFormat $format = TextFormat::Markup,
     ): self {
-        $resolver = new StyleResolver($document);
+        $resolver = new StyleResolver($context);
         $base     = $resolver->named($style) ?? new TextStyle();
         $parser   = new MarkupParser($resolver, $base, $format);
         $parsed   = $parser->parse($markup);
@@ -150,7 +151,7 @@ final class Textflow implements FlowableInterface
      * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
      */
     public static function fromText(
-        Document $document,
+        TextContext $context,
         string $text,
         TextStyle|string|null $style = null,
         array $hyphenators = [],
@@ -162,7 +163,7 @@ final class Textflow implements FlowableInterface
             $markup[] = preg_replace('/\R/', replacement: '<br>', subject: $paragraph) ?? $paragraph;
         }
 
-        return self::fromMarkup($document, implode("\n\n", $markup), $style, $hyphenators);
+        return self::fromMarkup($context, implode("\n\n", $markup), $style, $hyphenators);
     }
 
     /**

@@ -22,7 +22,6 @@ use Php2Pdf\Table\Cell;
 use Php2Pdf\Table\CellStyle;
 use Php2Pdf\Table\Column;
 use Php2Pdf\Table\Padding;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
@@ -135,7 +134,7 @@ final class InvoiceTest extends TestCase
         }
         $total = 495.0 * 20;
 
-        $table = new Table([Column::mm(55.0), Column::auto(), Column::mm(30.0), Column::mm(20.0)], $margin(
+        $table = $doc->table([Column::mm(55.0), Column::auto(), Column::mm(30.0), Column::mm(20.0)], $margin(
             top: 0.0,
             bottom: 3.0,
         ));

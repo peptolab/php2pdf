@@ -19,7 +19,6 @@ use Php2Pdf\Table\CellStyle;
 use Php2Pdf\Table\Column;
 use Php2Pdf\Table\FooterContext;
 use Php2Pdf\Table\Padding;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
@@ -53,7 +52,7 @@ final class TableSheetTest extends TestCase
             font: $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf')),
             size: 10.0,
         );
-        $table = new Table([Column::auto(), Column::pt(80.0)], new CellStyle(padding: Padding::all(3.0)), $text);
+        $table = $doc->table([Column::auto(), Column::pt(80.0)], new CellStyle(padding: Padding::all(3.0)), $text);
         $table->addHeaderRow(['Item', 'Amount']);
         $amounts = [];
         for ($i = 1; $i <= 60; ++$i) {
@@ -118,7 +117,7 @@ final class TableSheetTest extends TestCase
             padding: Padding::all(4.0),
             border: new Border(0.5, new Gray(0.6)),
         );
-        $table = new Table(
+        $table = $doc->table(
             [
                 Column::mm(30.0),
                 Column::auto(),

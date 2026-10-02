@@ -133,6 +133,9 @@ final class FontFallbackTest extends TestCase
     /** @return list<Item> */
     private function itemise(string $text, TextStyle $style): array
     {
-        return array_values((new Itemiser())->itemise([[$text, (new StyleResolver($this->doc))->resolve($style)]]));
+        return array_values((new Itemiser())->itemise([[
+            $text,
+            (new StyleResolver($this->doc->text()))->resolve($style),
+        ]]));
     }
 }

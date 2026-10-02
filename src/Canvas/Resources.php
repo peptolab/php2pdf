@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Document;
+namespace Php2Pdf\Canvas;
 
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;

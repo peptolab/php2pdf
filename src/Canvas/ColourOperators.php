@@ -7,6 +7,7 @@ namespace Php2Pdf\Canvas;
 use Php2Pdf\Color\AbstractGradient;
 use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Color\DeviceN;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\IccColor;
@@ -18,8 +19,7 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\Document;
-use Php2Pdf\Document\Resources;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Template\Template;
@@ -41,7 +41,8 @@ use function str_repeat;
 final readonly class ColourOperators
 {
     public function __construct(
-        private Document $document,
+        private Objects $objects,
+        private ColourPolicyInterface $colour,
         private Resources $resources,
     ) {}
 
@@ -94,14 +95,12 @@ final readonly class ColourOperators
     public function ops(ColorInterface $color, array $ops): string
     {
         $components = Num::list($color->components());
-        $this->document->pdfx()->assertOutputIntent();
-        $this->document
-            ->pdfx()
-            ->assertDeviceColour(self::deviceSpace(match (true) {
-                $color instanceof Spot => $color->alternate,
-                $color instanceof DeviceN => $color->alternate(),
-                default => $color,
-            }));
+        $this->colour->assertOutputIntent();
+        $this->colour->assertDeviceColour(self::deviceSpace(match (true) {
+            $color instanceof Spot => $color->alternate,
+            $color instanceof DeviceN => $color->alternate(),
+            default => $color,
+        }));
 
         return match (true) {
             $color instanceof Gray => "{$components} {$ops[0]}",
@@ -120,9 +119,9 @@ final readonly class ColourOperators
 
     public function shading(AbstractGradient $gradient): Reference
     {
-        $this->document->pdfx()->assertOutputIntent();
-        $this->document->pdfx()->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
-        return $this->document->objects()->shared("sh:{$gradient->key()}", $gradient->toShading(...));
+        $this->colour->assertOutputIntent();
+        $this->colour->assertDeviceColour($gradient->colorSpaceName()->value, 'gradients');
+        return $this->objects->shared("sh:{$gradient->key()}", $gradient->toShading(...));
     }
 
     /**
@@ -138,10 +137,10 @@ final readonly class ColourOperators
                 Num::format($yStep),
             ));
         }
-        $this->document->assertOwns($tile->document(), 'A template');
+        $this->objects->assertOwns($tile->objects(), 'A template');
         $ref = $tile->reference();
 
-        return $this->document->objects()->shared(
+        return $this->objects->shared(
             "tile:{$ref->id}:" . Num::format($xStep) . ':' . Num::format($yStep) . ":{$matrix->toPdf()}",
             static fn(): Stream => new Stream(Dictionary::of([
                 'PatternType' => 1,
@@ -185,12 +184,12 @@ final readonly class ColourOperators
             $spots[$colorant->name] = $this->spotColorSpace($colorant);
         }
 
-        return $this->document->objects()->shared($key, function () use ($color, $alternate, $spots): array {
+        return $this->objects->shared($key, function () use ($color, $alternate, $spots): array {
             $space = [
                 new Name('DeviceN'),
                 array_map(static fn(Spot $colorant): Name => new Name($colorant->name), $color->colorants),
                 new Name(self::deviceSpace($alternate)),
-                $this->document->objects()->add(self::mixFunction($color)),
+                $this->objects->add(self::mixFunction($color)),
             ];
             if ([] !== $spots) {
                 $space[] = Dictionary::of(['Colorants' => Dictionary::of($spots)]);
@@ -203,12 +202,12 @@ final readonly class ColourOperators
     private function iccColorSpace(IccColor $color): Reference
     {
         $profile = $color->profile;
-        $stream  = $this->document->objects()->shared(
+        $stream  = $this->objects->shared(
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
 
-        return $this->document->objects()->shared(
+        return $this->objects->shared(
             "icc:{$profile->key()}",
             /** @return array{Name, Reference} */
             static fn(): array => [new Name('ICCBased'), $stream],
@@ -218,7 +217,7 @@ final readonly class ColourOperators
     /** CIE L*a*b* under D50, the white point of colour books and ICC profiles. */
     private function labColorSpace(): Reference
     {
-        return $this->document->objects()->shared(
+        return $this->objects->shared(
             'lab:d50',
             /** @return array{Name, Dictionary} */
             static fn(): array => [
@@ -235,7 +234,7 @@ final readonly class ColourOperators
 
         $lab = $alternate instanceof Lab ? $this->labColorSpace() : null;
 
-        return $this->document->objects()->shared($key, static function () use ($spot, $alternate, $lab): array {
+        return $this->objects->shared($key, static function () use ($spot, $alternate, $lab): array {
             $white = match (true) {
                 $alternate instanceof Gray => [1.0],
                 $alternate instanceof Rgb => [1.0, 1.0, 1.0],

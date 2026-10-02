@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Php2Pdf\Document\Document;
-
 use function array_key_exists;
 use function array_keys;
 use function sqrt;
@@ -29,7 +27,7 @@ final class Context
     private array $warnings = [];
 
     public function __construct(
-        public readonly Document $document,
+        public readonly SvgDocumentInterface $document,
         public readonly SvgFile $file,
         public readonly FontResolver $fonts,
     ) {

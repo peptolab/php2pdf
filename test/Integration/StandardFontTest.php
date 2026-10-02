@@ -11,7 +11,6 @@ use Php2Pdf\Document\PageSize;
 use Php2Pdf\Font\StandardFont;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Table\Column;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 use Php2PdfTest\TestAsset\PdfTools;
@@ -46,10 +45,10 @@ final class StandardFontTest extends TestCase
             size: 10.0,
         );
         $page->fitTextflow(
-            Textflow::fromMarkup($doc, 'Helvetica in a <b>Textflow</b> with kerning: AVATAR To Wave.', $style),
+            Textflow::fromMarkup($doc->text(), 'Helvetica in a <b>Textflow</b> with kerning: AVATAR To Wave.', $style),
             new Box(50.0, 380.0, 400.0, 40.0),
         );
-        $table = new Table([Column::auto(), Column::pt(80.0)], null, $style);
+        $table = $doc->table([Column::auto(), Column::pt(80.0)], null, $style);
         $table->addRow(['Consultation', '€ 120.00']);
         $page->fitTable($table, new Box(50.0, 300.0, 400.0, 60.0));
         $doc->close();

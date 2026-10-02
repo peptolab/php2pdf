@@ -12,7 +12,6 @@ use Php2Pdf\Document\PageSize;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Table\Column;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
@@ -81,7 +80,7 @@ final class PerformanceTest extends TestCase
                 $doc->textflow("<p style=\"h2\">Page {$pages}</p>", 'body', TextFormat::Markup),
                 Box::fromMm(15.0, 268.0, 100.0, 12.0),
             );
-            $table = new Table([Column::mm(30.0), Column::auto(), Column::mm(25.0)], null, 'body');
+            $table = $doc->table([Column::mm(30.0), Column::auto(), Column::mm(25.0)], null, 'body');
             $table->addHeaderRow(['Key', 'Description', 'Value']);
             for ($i = 0; $i < 4; ++$i) {
                 $table->addRow([

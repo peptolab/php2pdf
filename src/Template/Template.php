@@ -7,13 +7,14 @@ namespace Php2Pdf\Template;
 use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Canvas\Resources;
+use Php2Pdf\Color\ColourPolicyInterface;
+use Php2Pdf\Core\DeferredInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\DeferredInterface;
-use Php2Pdf\Document\Document;
-use Php2Pdf\Document\Resources;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
@@ -40,21 +41,23 @@ final class Template implements PlaceableInterface, DeferredInterface
      * @param Box|null $bbox the form's bounding box when it differs from [0 0 width height]
      */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly ColourPolicyInterface $colour,
         private readonly Dimensions $size,
         private readonly Origin $origin,
         private readonly ?Box $bbox = null,
     ) {
-        $this->reference = $document->writer()->allocate();
-        $this->resources = new Resources($document->defaultRgb());
+        $this->reference = $objects->allocate();
+        $this->resources = new Resources($colour->defaultRgb());
         $this->canvas    = new Canvas(
-            $document,
+            $objects,
+            $colour,
             $this->resources,
             $size->height,
             $origin->isTopDown(),
             inheritsState: true,
         );
-        $document->defer($this);
+        $objects->defer($this);
     }
 
     /**
@@ -85,22 +88,16 @@ final class Template implements PlaceableInterface, DeferredInterface
         return $this->canvas;
     }
 
-    /** @internal */
-    public function document(): Document
-    {
-        return $this->document;
-    }
-
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
-        $canvas->document()->assertOwns($this->document, 'A template');
+        $canvas->objects()->assertOwns($this->objects, 'A template');
         $canvas->drawXObject($this->reference, $matrix);
     }
 
     /** @internal */
     #[Override]
-    public function finalize(Document $document): void
+    public function finalize(): void
     {
         $dict = Dictionary::of([
             'Type'      => new Name('XObject'),
@@ -112,11 +109,11 @@ final class Template implements PlaceableInterface, DeferredInterface
         if ($this->transparencyGroup) {
             $dict->set('Group', Dictionary::of([
                 'S'  => new Name('Transparency'),
-                'CS' => $document->blendingColorSpace(),
+                'CS' => $this->colour->blendingColorSpace(),
                 'I'  => true,
             ]));
         }
-        $document->writer()->write($this->reference, new Stream($dict, $this->canvas->finish()));
+        $this->objects->write($this->reference, new Stream($dict, $this->canvas->finish()));
     }
 
     public function height(): float
@@ -128,6 +125,16 @@ final class Template implements PlaceableInterface, DeferredInterface
     public function naturalSize(?float $dpi = null): Dimensions
     {
         return $this->size;
+    }
+
+    /**
+     * The document objects the template is written with.
+     *
+     * @internal
+     */
+    public function objects(): Objects
+    {
+        return $this->objects;
     }
 
     public function origin(): Origin

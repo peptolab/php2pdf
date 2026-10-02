@@ -8,12 +8,12 @@ use Closure;
 use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
-use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextContext;
 use Php2Pdf\Text\Textflow;
 
 use function array_sum;
@@ -55,7 +55,6 @@ final class Table implements FlowableInterface
 
     private ?Grid         $headerGrid = null;
     private ?Grid         $bodyGrid   = null;
-    private ?Document     $document   = null;
     private int           $nextRow    = 0;
     private bool          $continuing = false;
     private ?TableFitInfo $last       = null;
@@ -64,11 +63,16 @@ final class Table implements FlowableInterface
     private ?array $contentWidths = null;
 
     /**
+     * Use Document::table().
+     *
+     * @internal
+     *
      * @param list<Column>          $columns
      * @param CellStyle|null        $style   the base style of every cell
      * @param TextStyle|string|null $text    the base text style of every text cell
      */
     public function __construct(
+        private readonly TextContext $context,
         array $columns,
         ?CellStyle $style = null,
         private readonly TextStyle|string|null $text = null,
@@ -137,7 +141,7 @@ final class Table implements FlowableInterface
     #[Override]
     public function fitInto(Canvas $canvas, Box $box): FlowResult
     {
-        [$headers, $body, $footers] = $this->grids($canvas->document());
+        [$headers, $body, $footers] = $this->grids();
         // Header and footer rows are drawn afresh in every box.
         $headers->reset();
         $footers->reset();
@@ -155,7 +159,7 @@ final class Table implements FlowableInterface
 
             return FlowResult::BoxEmpty;
         }
-        $boxFooters = $this->boxFooters($footers, $firstRow, $plan, $canvas->document());
+        $boxFooters = $this->boxFooters($footers, $firstRow, $plan);
         $edges      = [$painter->edgeY(0.0)];
         $top        = 0.0;
         $placed     = 0;
@@ -222,9 +226,9 @@ final class Table implements FlowableInterface
      * The height the remaining rows (and the headers and footers) would take at the given width,
      * without placing anything.
      */
-    public function measure(Document $document, float $width): float
+    public function measure(float $width): float
     {
-        [$headers, $body, $footers] = $this->grids($document);
+        [$headers, $body, $footers] = $this->grids();
         $headers->reset();
         $footers->reset();
         $layout = $this->layout($headers, $body, $footers, $width);
@@ -280,7 +284,7 @@ final class Table implements FlowableInterface
     /**
      * The footer rows to draw in this box: the callback's, when it gives any, or the footer grid.
      */
-    private function boxFooters(Grid $footers, int $firstRow, Plan $plan, Document $document): Grid
+    private function boxFooters(Grid $footers, int $firstRow, Plan $plan): Grid
     {
         if (null === $this->footerCallback || [] === $plan->footerHeights || null === $plan->lastBodyRow) {
             return $footers;
@@ -305,19 +309,15 @@ final class Table implements FlowableInterface
             $built[] = $row instanceof Row ? $row : new Row($row);
         }
 
-        return new Grid($built, $this->columns, $this->style, $this->text, $document);
+        return new Grid($built, $this->columns, $this->style, $this->text, $this->context);
     }
 
     /** @return array{0: Grid, 1: Grid, 2: Grid} */
-    private function grids(Document $document): array
+    private function grids(): array
     {
-        if (null !== $this->document && $this->document !== $document) {
-            throw new InvalidArgumentException('A table belongs to the document it was first fitted into.');
-        }
-        $this->document   ??= $document;
-        $this->headerGrid ??= new Grid($this->headers, $this->columns, $this->style, $this->text, $document);
-        $this->bodyGrid   ??= new Grid($this->rows, $this->columns, $this->style, $this->text, $document);
-        $this->footerGrid ??= new Grid($this->footers, $this->columns, $this->style, $this->text, $document);
+        $this->headerGrid ??= new Grid($this->headers, $this->columns, $this->style, $this->text, $this->context);
+        $this->bodyGrid   ??= new Grid($this->rows, $this->columns, $this->style, $this->text, $this->context);
+        $this->footerGrid ??= new Grid($this->footers, $this->columns, $this->style, $this->text, $this->context);
 
         return [$this->headerGrid, $this->bodyGrid, $this->footerGrid];
     }

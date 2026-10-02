@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Import;
 
-use Php2Pdf\Document\Document;
+use Php2Pdf\Color\ColourPolicyInterface;
+use Php2Pdf\Core\Objects;
 
 /**
  * An existing PDF bound to a document being written: each page can be placed as artwork, and
@@ -23,12 +24,13 @@ final class ImportedDocument
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly ColourPolicyInterface $colour,
         public readonly PdfFile $file,
         public readonly HiddenLayers $hiddenLayers = HiddenLayers::Keep,
     ) {
         $this->hidden = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
-        $this->copier = new ObjectCopier($file->reader(), $document->writer(), $this->hidden);
+        $this->copier = new ObjectCopier($file->reader(), $objects, $this->hidden);
     }
 
     /**
@@ -45,7 +47,8 @@ final class ImportedDocument
     public function page(int $number, PageBox $box = PageBox::Crop): ImportedPage
     {
         return $this->pages["{$number}:{$box->value}"] ??= new ImportedPage(
-            $this->document,
+            $this->objects,
+            $this->colour,
             $this->copier,
             $this->file->page($number),
             $box,

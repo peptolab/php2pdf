@@ -44,7 +44,7 @@ final class ShapingClusterTest extends TestCase
     #[Test]
     public function wordsKeepTheirGlyphsWhenACombiningMarkIsComposed(): void
     {
-        $style = (new StyleResolver($this->document))->resolve(null, new TextStyle(
+        $style = (new StyleResolver($this->document->text()))->resolve(null, new TextStyle(
             font: $this->font,
             size: 10.0,
         ));

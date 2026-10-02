@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Php2Pdf\Font;
 
 use Override;
+use Php2Pdf\Core\DeferredInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\DeferredInterface;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\Standard\AfmMetrics;
@@ -54,21 +54,21 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        FontOptions $options,
         private readonly StandardFont $font,
     ) {
-        $pdfx = $document->options()->pdfx;
-        if (null !== $pdfx) {
+        if (null !== $options->embeddingRequiredBy) {
             throw new ConformanceException(sprintf(
                 '%s requires every font to be embedded, and the standard font "%s" is not; load a font file instead.',
-                $pdfx->value,
+                $options->embeddingRequiredBy,
                 $font->value,
             ));
         }
         $this->metrics   = AfmMetrics::of($font);
         $this->text      = new TextMapping();
-        $this->reference = $document->writer()->allocate();
-        $document->defer($this);
+        $this->reference = $objects->allocate();
+        $objects->defer($this);
     }
 
     private static function scale(int $units, float $size): float
@@ -107,13 +107,6 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
         return self::scale($this->metrics->descender, $size);
     }
 
-    /** @internal */
-    #[Override]
-    public function document(): Document
-    {
-        return $this->document;
-    }
-
     /**
      * @internal
      *
@@ -127,10 +120,10 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
 
     /** @internal */
     #[Override]
-    public function finalize(Document $document): void
+    public function finalize(): void
     {
         $encoding = $this->metrics->encoding;
-        $writer   = $document->writer();
+        $writer   = $this->objects;
         $writer->write($this->reference, Dictionary::of([
             'Type'      => new Name('Font'),
             'Subtype'   => new Name('Type1'),
@@ -172,6 +165,13 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
     public function name(): string
     {
         return $this->font->value;
+    }
+
+    /** @internal */
+    #[Override]
+    public function objects(): Objects
+    {
+        return $this->objects;
     }
 
     /** @internal */

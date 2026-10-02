@@ -8,7 +8,7 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Core\Writer;
+use Php2Pdf\Core\Objects;
 
 use function is_array;
 
@@ -26,7 +26,7 @@ final class ObjectCopier
 
     public function __construct(
         private readonly PdfReader $source,
-        private readonly Writer $target,
+        private readonly Objects $target,
         private readonly ?HiddenContent $hidden = null,
     ) {}
 

@@ -6,7 +6,7 @@ namespace Php2Pdf\Font;
 
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\Object\Reference;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 
 /**
  * A font a document embeds and draws with: what writing text needs on top of the metrics and
@@ -25,11 +25,6 @@ interface PdfFontInterface extends FontInterface
     public function colourLayers(GlyphRun $run): array;
 
     /**
-     * The document the font is embedded in.
-     */
-    public function document(): Document;
-
-    /**
      * The bytes that select these glyphs in a content stream string.
      *
      * @param list<int> $glyphIds
@@ -41,6 +36,9 @@ interface PdfFontInterface extends FontInterface
      * run's text; when it does not, the run's text is written with it as ActualText.
      */
     public function markUsed(GlyphRun $run): bool;
+
+    /** The document objects the font is embedded with. */
+    public function objects(): Objects;
 
     /** The font dictionary's object. */
     public function reference(): Reference;

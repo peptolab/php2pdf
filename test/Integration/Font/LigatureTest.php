@@ -69,7 +69,7 @@ final class LigatureTest extends TestCase
     #[Test]
     public function aStyleChangeBreaksTheLigature(): void
     {
-        $style = (new StyleResolver($this->doc))->resolve(null, new TextStyle(
+        $style = (new StyleResolver($this->doc->text()))->resolve(null, new TextStyle(
             font: $this->serif,
             size: 10.0,
         ));
@@ -128,7 +128,7 @@ final class LigatureTest extends TestCase
     /** @return list<list<string>|string> boxes as their glyphs' texts, penalties as "-" */
     private function itemise(string $text, Itemiser $itemiser, bool $hyphenate): array
     {
-        $style = (new StyleResolver($this->doc))->resolve(null, new TextStyle(
+        $style = (new StyleResolver($this->doc->text()))->resolve(null, new TextStyle(
             font: $this->serif,
             size: 10.0,
             hyphenate: $hyphenate,

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Override;
-use Php2Pdf\Document\Document;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Template\Template;
 
@@ -34,7 +33,7 @@ final class NativeConverter implements SvgConverterInterface
     ) {}
 
     #[Override]
-    public function convert(SvgFile $svg, Document $document): Template
+    public function convert(SvgFile $svg, SvgDocumentInterface $document): Template
     {
         $context        = new Context($document, $svg, new FontResolver($document, $this->fallbackFont));
         $renderer       = new Renderer($context);

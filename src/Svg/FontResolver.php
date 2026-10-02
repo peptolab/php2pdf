@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
-use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\FontStyle;
@@ -25,7 +24,7 @@ final class FontResolver
     private array $cache = [];
 
     public function __construct(
-        private readonly Document $document,
+        private readonly SvgDocumentInterface $document,
         private readonly ?FontInterface $fallback,
     ) {}
 

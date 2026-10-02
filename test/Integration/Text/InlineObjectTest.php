@@ -120,7 +120,8 @@ final class InlineObjectTest extends TestCase
     #[Test]
     public function theBuilderSetsArtworkInTheText(): void
     {
-        $flow = Textflow::build($this->doc, $this->style)
+        $flow = $this->doc
+            ->textflowBuilder($this->style)
             ->text('Call ')
             ->inline($this->icon, height: 8.0)
             ->text(' now')

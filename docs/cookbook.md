@@ -28,7 +28,7 @@ $styles->define('amount-title', new TextStyle(alignment: Alignment::Right), base
 $rule   = new CellStyle(borderBottom: new Border(0.25, $ink));
 $margin = static fn (float $top, float $bottom): CellStyle => new CellStyle(padding: Padding::mm($top, 0, $bottom, 0));
 
-$table = new Table([Column::mm(55), Column::auto(), Column::mm(30), Column::mm(20)], $margin(0, 3));
+$table = $doc->table([Column::mm(55), Column::auto(), Column::mm(30), Column::mm(20)], $margin(0, 3));
 $table->addHeaderRow([Cell::text('CLIENT', 'cell-title'), Cell::text($customer->name, 'cell-text')->spanning(3)]);
 $table->addHeaderRow([Cell::text('COMPANY', 'cell-title'), Cell::text($customer->address, 'cell-text')->spanning(3)]);
 $table->addHeaderRow([

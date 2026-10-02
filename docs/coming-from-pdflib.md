@@ -61,7 +61,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 
 | PDFlib | Php2Pdf |
 |---|---|
-| `add_table_cell($tbl, $col, $row, $text, 'colwidth=..')` | `new Table([Column::mm(55), Column::auto()], ...)`, `$table->addRow([...])` |
+| `add_table_cell($tbl, $col, $row, $text, 'colwidth=..')` | `$doc->table([Column::mm(55), Column::auto()], ...)`, `$table->addRow([...])` |
 | `header=1` | `$table->addHeaderRow([...])` |
 | `footer=1` | `$table->addFooterRow([...])`, filled per box with `$table->onFooter(fn (FooterContext $box) => ...)` |
 | `colspan`, `rowspan` | `Cell::text('...')->spanning(columns: 2, rows: 3)` |

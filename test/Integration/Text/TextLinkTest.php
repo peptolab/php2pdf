@@ -118,7 +118,8 @@ final class TextLinkTest extends TestCase
     #[Test]
     public function matchedTextReportsAnAreaPerLine(): void
     {
-        $flow = Textflow::build($this->doc, $this->style())
+        $flow = $this->doc
+            ->textflowBuilder($this->style())
             ->text('Go ')
             ->match('m', 'there and back again by the long road')
             ->build();
@@ -172,7 +173,7 @@ final class TextLinkTest extends TestCase
     #[Test]
     public function theBuilderLinksToADestination(): void
     {
-        $flow = Textflow::build($this->doc, $this->style())->text('Go ')->link(Destination::page(1), 'there')->build();
+        $flow = $this->doc->textflowBuilder($this->style())->text('Go ')->link(Destination::page(1), 'there')->build();
         $this->doc->addPage(new Dimensions(200.0, 100.0))->fitTextflow($flow, new Box(0.0, 0.0, 200.0, 100.0));
         $this->doc->close();
 

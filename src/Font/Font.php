@@ -6,12 +6,12 @@ namespace Php2Pdf\Font;
 
 use Override;
 use Php2Pdf\Color\Rgb;
+use Php2Pdf\Core\DeferredInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\DeferredInterface;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\OpenType\Cff\CffSubsetter;
@@ -66,7 +66,6 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     private readonly float $scale;
 
-    private readonly FontRegistry $registry;
     private readonly GlyphCheck $glyphCheck;
 
     /** @var array<int, true> code points already reported as missing */
@@ -81,7 +80,9 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly FontRegistry $registry,
+        private readonly FontOptions $options,
         private readonly OpenTypeFont $program,
     ) {
         if (! $program->hasOutlines()) {
@@ -95,13 +96,12 @@ final class Font implements PdfFontInterface, DeferredInterface
                 [] === $bitmaps ? '' : ': its glyphs are ' . implode(', ', $bitmaps) . ' bitmaps',
             ));
         }
-        $this->registry    = $document->fonts();
-        $this->glyphCheck  = $document->options()->glyphCheck;
-        $this->scriptCheck = $document->options()->scriptCheck;
-        $this->reference   = $document->writer()->allocate();
+        $this->glyphCheck  = $options->glyphCheck;
+        $this->scriptCheck = $options->scriptCheck;
+        $this->reference   = $objects->allocate();
         $this->scale       = 1000.0 / $program->unitsPerEm;
         $this->text        = new TextMapping();
-        $document->defer($this);
+        $objects->defer($this);
         if ($program->hasColrVersion1Glyphs()) {
             $this->registry->warn(sprintf(
                 'Font "%s" has colour glyphs defined only in COLR version 1; they are drawn in one colour.',
@@ -161,13 +161,6 @@ final class Font implements PdfFontInterface, DeferredInterface
         return $this->program->metrics->scale($this->program->metrics->descender, $size);
     }
 
-    /** @internal */
-    #[Override]
-    public function document(): Document
-    {
-        return $this->document;
-    }
-
     /**
      * @internal
      *
@@ -181,14 +174,14 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     /** @internal */
     #[Override]
-    public function finalize(Document $document): void
+    public function finalize(): void
     {
-        $writer   = $document->writer();
+        $writer   = $this->objects;
         $program  = $this->program;
         $baseFont = "{$this->subsetTag()}+{$program->postScriptName()}";
         $cff      = $program->isCff;
 
-        $fontFile = $cff ? $this->cffStream($document) : $this->subsetStream($document);
+        $fontFile = $cff ? $this->cffStream() : $this->subsetStream();
 
         $descriptor = $writer->add(Dictionary::of([
             'Type'                           => new Name('FontDescriptor'),
@@ -263,6 +256,13 @@ final class Font implements PdfFontInterface, DeferredInterface
         return $this->program->postScriptName();
     }
 
+    /** @internal */
+    #[Override]
+    public function objects(): Objects
+    {
+        return $this->objects;
+    }
+
     public function program(): OpenTypeFont
     {
         return $this->program;
@@ -295,7 +295,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             $this->program,
             $this->advance(...),
             $this->missingGlyph(...),
-            $this->document->options()->complexShaper,
+            $this->options->complexShaper,
         );
         $glyphs = $this->shaper->shape($text, $options, $features);
 
@@ -352,7 +352,7 @@ final class Font implements PdfFontInterface, DeferredInterface
      * converted to CFF at their default instance first; when that fails the font cannot be used,
      * since few readers draw CFF2.
      */
-    private function cffStream(Document $document): Reference
+    private function cffStream(): Reference
     {
         try {
             $data    = CffSubsetter::subsetTable($this->cffTable(), $this->used);
@@ -365,7 +365,7 @@ final class Font implements PdfFontInterface, DeferredInterface
                     $e->getMessage(),
                 ), previous: $e);
             }
-            $document->fonts()
+            $this->registry
                 ->warn(sprintf(
                     'Font "%s" is embedded whole because its CFF outlines could not be subset: %s',
                     $this->program->postScriptName(),
@@ -375,7 +375,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             $subtype = 'OpenType';
         }
 
-        return $document->writer()->add(new Stream(Dictionary::of(['Subtype' => new Name($subtype)]), $data));
+        return $this->objects->add(new Stream(Dictionary::of(['Subtype' => new Name($subtype)]), $data));
     }
 
     /**
@@ -401,7 +401,7 @@ final class Font implements PdfFontInterface, DeferredInterface
      */
     private function checkScript(string $text): void
     {
-        if (ScriptCheck::Ignore === $this->scriptCheck || null !== $this->document->options()->complexShaper) {
+        if (ScriptCheck::Ignore === $this->scriptCheck || null !== $this->options->complexShaper) {
             return;
         }
         $found = ComplexScripts::find($text);
@@ -468,11 +468,11 @@ final class Font implements PdfFontInterface, DeferredInterface
         return (int) round(50 + ($this->program->metrics->weightClass / 65.0) ** 2);
     }
 
-    private function subsetStream(Document $document): Reference
+    private function subsetStream(): Reference
     {
         $data = TrueTypeSubsetter::subset($this->program, $this->used);
 
-        return $document->writer()->add(new Stream(Dictionary::of(['Length1' => strlen($data)]), $data));
+        return $this->objects->add(new Stream(Dictionary::of(['Length1' => strlen($data)]), $data));
     }
 
     /** Six uppercase letters derived from the glyph set, so identical input yields identical tags. */

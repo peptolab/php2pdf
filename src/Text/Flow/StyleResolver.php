@@ -6,11 +6,11 @@ namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Color\Gray;
-use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextContext;
 
 use function is_string;
 
@@ -25,7 +25,7 @@ final class StyleResolver
     private readonly TextStyle $defaults;
 
     public function __construct(
-        private readonly Document $document,
+        private readonly TextContext $context,
     ) {
         $this->defaults = new TextStyle(
             size: 10.0,
@@ -73,13 +73,13 @@ final class StyleResolver
     /** Artwork defined for markup by name. */
     public function inline(string $name): PlaceableInterface
     {
-        return $this->document->inlines()->get($name);
+        return $this->context->inlines->get($name);
     }
 
     /** A style by name from the registry, or the style itself. */
     public function named(TextStyle|string|null $style): ?TextStyle
     {
-        return is_string($style) ? $this->document->styles()->get($style) : $style;
+        return is_string($style) ? $this->context->styles->get($style) : $style;
     }
 
     /** Layers $style over $base and the defaults, resolving fonts. */
@@ -107,7 +107,7 @@ final class StyleResolver
     {
         $resolved = [];
         foreach ($fonts as $font) {
-            $resolved[] = is_string($font) ? $this->document->fonts()->find($font) : $font;
+            $resolved[] = is_string($font) ? $this->context->fonts->find($font) : $font;
         }
 
         return $resolved;
@@ -115,6 +115,6 @@ final class StyleResolver
 
     private function font(FontInterface|string|null $font): ?FontInterface
     {
-        return is_string($font) ? $this->document->fonts()->find($font) : $font;
+        return is_string($font) ? $this->context->fonts->find($font) : $font;
     }
 }

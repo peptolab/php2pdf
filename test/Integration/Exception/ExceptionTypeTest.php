@@ -19,7 +19,6 @@ use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Svg\SvgFile;
 use Php2Pdf\Table\Column;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
 use Php2PdfTest\TestAsset\PdfTools;
@@ -82,7 +81,7 @@ final class ExceptionTypeTest extends TestCase
             'columns wider than the table'     => [
                 static function () use ($doc): void {
                     $d     = $doc();
-                    $table = new Table([Column::pt(300.0)]);
+                    $table = $d->table([Column::pt(300.0)]);
                     $table->addRow(['x']);
                     $d->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 100.0, 100.0));
                 },

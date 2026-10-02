@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\PlaceableInterface;
-use Php2Pdf\Document\Document;
 
 /**
  * Turns an SVG into artwork that can be placed through the fit engine.
@@ -14,5 +13,5 @@ use Php2Pdf\Document\Document;
  */
 interface SvgConverterInterface
 {
-    public function convert(SvgFile $svg, Document $document): PlaceableInterface;
+    public function convert(SvgFile $svg, SvgDocumentInterface $document): PlaceableInterface;
 }

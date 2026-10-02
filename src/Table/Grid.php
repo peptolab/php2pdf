@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Table;
 
-use Php2Pdf\Document\Document;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Text\Flow\StyleResolver;
 use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextContext;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextFormat;
 
@@ -39,10 +39,10 @@ final class Grid
         private readonly array $columns,
         private readonly ?CellStyle $tableStyle,
         TextStyle|string|null $tableText,
-        Document $document,
+        TextContext $context,
     ) {
         $this->sources = $rows;
-        $resolver      = new StyleResolver($document);
+        $resolver      = new StyleResolver($context);
         $base          = $resolver->resolve(null, $tableText);
         $occupied      = [];
         foreach ($rows as $r => $row) {
@@ -64,7 +64,7 @@ final class Grid
                         $occupied[($r + $dr) . ':' . ($c + $dc)] = true;
                     }
                 }
-                $this->rows[$r][] = $this->place($document, $resolver, $base, $row, $cell, $r, $c);
+                $this->rows[$r][] = $this->place($context, $resolver, $base, $row, $cell, $r, $c);
                 $c                += $cell->colspan;
             }
         }
@@ -98,7 +98,7 @@ final class Grid
     }
 
     private function place(
-        Document $document,
+        TextContext $context,
         StyleResolver $resolver,
         TextStyle $base,
         Row $row,
@@ -125,11 +125,11 @@ final class Grid
         $flow    = match (true) {
             $content instanceof Textflow => $content,
             is_string($content) && TextFormat::Markup === $cell->format => Textflow::fromMarkup(
-                $document,
+                $context,
                 $content,
                 $text,
             ),
-            is_string($content) => Textflow::fromText($document, $content, $text),
+            is_string($content) => Textflow::fromText($context, $content, $text),
             default             => null,
         };
 

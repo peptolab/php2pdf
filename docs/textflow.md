@@ -102,7 +102,7 @@ line breaks, and tabs as tabs.
 ## The builder
 
 ```php
-$flow = Textflow::build($doc, 'body')
+$flow = $doc->textflowBuilder('body')
     ->paragraph('h2')->text('Heading')
     ->paragraph()->text('Body with ')->bold('bold')->text(' and ')->italic('italic')->text('.')
     ->lineBreak()->text('Second line')->tab()->text('after a tab')
@@ -150,7 +150,7 @@ there is refused when the page is finished. Style links as you like; they draw n
 
 ```php
 $flow = $doc->textflow('<p>See <a href="https://example.com/" title="Opens a browser">our site</a> or <a href="#prices">the prices</a>.</p>', 'body', TextFormat::Markup);
-$flow = Textflow::build($doc, 'body')->text('See ')->link('https://example.com/', 'our site')->build();
+$flow = $doc->textflowBuilder('body')->text('See ')->link('https://example.com/', 'our site')->build();
 ```
 
 Text marked with a match name reports its areas after each fit (PDFlib's matchboxes), one box
@@ -176,7 +176,7 @@ baseline:
 $doc->inlines()->define('phone', $doc->image('phone.png'));
 $flow = $doc->textflow('Call us <img src="phone" height="9"> any day', 'body', TextFormat::Markup);
 
-Textflow::build($doc, 'body')->text('Call us ')->inline($phone, height: 9.0)->text(' any day');
+$doc->textflowBuilder('body')->text('Call us ')->inline($phone, height: 9.0)->text(' any day');
 ```
 
 `width` and `height` are in points; give one and the other keeps the artwork's proportions, give

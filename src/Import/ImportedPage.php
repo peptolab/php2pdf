@@ -7,11 +7,12 @@ namespace Php2Pdf\Import;
 use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
@@ -31,7 +32,8 @@ final class ImportedPage implements PlaceableInterface
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly ColourPolicyInterface $colour,
         private readonly ObjectCopier $copier,
         public readonly PdfPage $page,
         public readonly PageBox $box,
@@ -55,10 +57,10 @@ final class ImportedPage implements PlaceableInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
-        $canvas->document()->assertOwns($this->document, 'An imported page');
-        if (null === $this->reference && null !== $this->document->options()->pdfx) {
+        $canvas->objects()->assertOwns($this->objects, 'An imported page');
+        if (null === $this->reference && $this->colour->checksColour()) {
             foreach ($this->page->deviceColourSpaces() as $space) {
-                $this->document->pdfx()->assertImportedColour($space, $this->page->number);
+                $this->colour->assertImportedColour($space, $this->page->number);
             }
         }
         $this->reference ??= $this->write();
@@ -92,6 +94,6 @@ final class ImportedPage implements PlaceableInterface
             $content = $this->hidden->filter($content, $page->resources());
         }
 
-        return $this->document->writer()->add(new Stream($dict, $content));
+        return $this->objects->add(new Stream($dict, $content));
     }
 }

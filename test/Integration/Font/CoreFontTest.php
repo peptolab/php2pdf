@@ -17,7 +17,6 @@ use Php2Pdf\Font\StandardFont;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Table\Column;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 use Php2PdfTest\TestAsset\PdfTools;
@@ -163,8 +162,8 @@ final class CoreFontTest extends TestCase
             font: 'Helvetica',
             size: 10.0,
         );
-        $flow  = Textflow::fromText($this->doc, 'Standard fonts flow like any other.', $style);
-        $table = new Table([Column::auto(), Column::auto()], null, $style);
+        $flow  = Textflow::fromText($this->doc->text(), 'Standard fonts flow like any other.', $style);
+        $table = $this->doc->table([Column::auto(), Column::auto()], null, $style);
         $table->addRow(['Reference', 'Total']);
         $page = $this->doc->addPage(PageSize::A4);
 

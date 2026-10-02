@@ -7,6 +7,7 @@ namespace Php2Pdf\Document;
 use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Canvas\Resources;
 use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Canvas\TextlinePlacement;
 use Php2Pdf\Core\Object\Dictionary;
@@ -65,10 +66,11 @@ final class Page
         private readonly int $number,
     ) {
         $this->mediaBox  = new Box(0.0, 0.0, $size->width, $size->height);
-        $this->resources = new Resources($document->defaultRgb());
+        $this->resources = new Resources($document->colour()->defaultRgb());
         $page            = WeakReference::create($this);
         $this->canvas    = new Canvas(
-            $document,
+            $document->objects(),
+            $document->colour(),
             $this->resources,
             $size->height,
             $topDown,
@@ -146,7 +148,7 @@ final class Page
         }
         $this->finished = true;
 
-        $writer   = $this->document->writer();
+        $writer   = $this->document->objects();
         $contents = $writer->add(Stream::of($this->canvas->finish()));
         $annots   = [];
         foreach ($this->links as [$area, $target, $tooltip]) {
@@ -168,7 +170,7 @@ final class Page
                 ? null
                 : Dictionary::of([
                     'S'  => new Name('Transparency'),
-                    'CS' => $this->document->blendingColorSpace(),
+                    'CS' => $this->document->colour()->blendingColorSpace(),
                     'I'  => true,
                 ]),
         ]);

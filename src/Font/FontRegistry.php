@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Font;
 
 use Php2Pdf\Core\Lru;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
@@ -56,7 +56,8 @@ final class FontRegistry
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly FontOptions $options = new FontOptions(),
     ) {}
 
     /**
@@ -131,7 +132,12 @@ final class FontRegistry
     /** Embeds an already parsed font program. */
     public function embed(OpenTypeFont $program): Font
     {
-        return $this->fonts['program#' . spl_object_id($program)] ??= new Font($this->document, $program);
+        return $this->fonts['program#' . spl_object_id($program)] ??= new Font(
+            $this->objects,
+            $this,
+            $this->options,
+            $program,
+        );
     }
 
     /**
@@ -200,7 +206,9 @@ final class FontRegistry
         $resolved = $this->resolvePath($path);
 
         return $this->fonts["{$resolved}#{$faceIndex}"] ??= new Font(
-            $this->document,
+            $this->objects,
+            $this,
+            $this->options,
             OpenTypeFont::fromFile($resolved, $faceIndex),
         );
     }
@@ -218,7 +226,7 @@ final class FontRegistry
      */
     public function standard(StandardFont $font): CoreFont
     {
-        return $this->standard[$font->value] ??= new CoreFont($this->document, $font);
+        return $this->standard[$font->value] ??= new CoreFont($this->objects, $this->options, $font);
     }
 
     /**

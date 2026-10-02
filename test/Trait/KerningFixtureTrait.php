@@ -29,7 +29,7 @@ trait KerningFixtureTrait
     {
         $doc         = new Document(new MemoryOutput());
         $this->serif = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSerif4-Regular.ttf'));
-        $this->style = (new StyleResolver($doc))->resolve(null, new TextStyle(
+        $this->style = (new StyleResolver($doc->text()))->resolve(null, new TextStyle(
             font: $this->serif,
             size: 10.0,
             hyphenate: true,

@@ -7,13 +7,13 @@ namespace Php2Pdf\Canvas;
 use Closure;
 use Php2Pdf\Color\AbstractGradient;
 use Php2Pdf\Color\ColorInterface;
+use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\Serializer;
-use Php2Pdf\Document\Document;
-use Php2Pdf\Document\Resources;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Fit\Fit;
@@ -68,14 +68,15 @@ final class Canvas
      *                            sends link areas, in default user space; artwork cannot carry links
      */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly ColourPolicyInterface $colour,
         private readonly Resources $resources,
         private readonly float $height,
         private readonly bool $topDown,
         bool $inheritsState = false,
         private readonly ?Closure $links = null,
     ) {
-        $this->colours = new ColourOperators($this->document, $this->resources);
+        $this->colours = new ColourOperators($this->objects, $this->colour, $this->resources);
         $this->text    = $inheritsState ? self::UNKNOWN_STATE : self::PAGE_STATE;
         $this->ctm     = Matrix::identity();
         if ($topDown) {
@@ -180,12 +181,6 @@ final class Canvas
     public function disableOverprint(): self
     {
         return $this->extGState(['op' => false, 'OP' => false]);
-    }
-
-    /** @internal */
-    public function document(): Document
-    {
-        return $this->document;
     }
 
     /**
@@ -405,6 +400,16 @@ final class Canvas
         return $this;
     }
 
+    /**
+     * The document objects this canvas draws with, which what is drawn on it must belong to.
+     *
+     * @internal
+     */
+    public function objects(): Objects
+    {
+        return $this->objects;
+    }
+
     public function origin(): Origin
     {
         return $this->topDown ? Origin::TopLeft : Origin::BottomLeft;
@@ -438,8 +443,6 @@ final class Canvas
 
         return $placement;
     }
-
-    private readonly ColourOperators $colours;
 
     /** Appends raw content-stream syntax. A newline is added. */
     public function raw(string $syntax): self
@@ -517,6 +520,8 @@ final class Canvas
     {
         return $this->concat(Matrix::scaling($sx, $sy));
     }
+
+    private readonly ColourOperators $colours;
 
     public function setBlendMode(BlendMode $mode): self
     {
@@ -668,7 +673,7 @@ final class Canvas
      */
     public function setSoftMask(Template $mask, SoftMaskType $type = SoftMaskType::Luminosity): self
     {
-        $this->document->assertOwns($mask->document(), 'A template');
+        $this->objects->assertOwns($mask->objects(), 'A template');
         $mask->asTransparencyGroup();
 
         return $this->extGState(['SMask' => Dictionary::of([
@@ -787,7 +792,7 @@ final class Canvas
     private function extGState(array $entries): self
     {
         $dict = Dictionary::of(['Type' => new Name('ExtGState'), ...$entries]);
-        $ref  = $this->document->objects()->shared(
+        $ref  = $this->objects->shared(
             'gs:' . Serializer::serialize($dict),
             static fn(): Dictionary => $dict,
         );
@@ -808,7 +813,7 @@ final class Canvas
     {
         $shading = $this->colours->shading($gradient);
         $matrix  = null === $matrix ? $this->ctm : $matrix->then($this->ctm);
-        $pattern = $this->document->objects()->shared(
+        $pattern = $this->objects->shared(
             "pat:{$gradient->key()}:{$matrix->toPdf()}",
             static fn(): Dictionary => Dictionary::of([
                 'PatternType' => 2,
@@ -834,7 +839,7 @@ final class Canvas
         TextOptions $options,
         array $hidden,
     ): void {
-        $this->document->assertOwns($font->document(), 'A font');
+        $this->objects->assertOwns($font->objects(), 'A font');
         $faithful = $font->markUsed($run);
         $ops      = 'BT';
         $tf       = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';

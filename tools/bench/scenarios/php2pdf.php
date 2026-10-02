@@ -111,7 +111,7 @@ return [
         $doc  = $newDoc($out);
         $sans = $doc->fonts()->load("{$fx}/DejaVuSans.ttf");
         $doc->styles()->define('body', new TextStyle(font: $sans, size: 9.0, leading: Leading::pt(11.5)));
-        $table = new Table(
+        $table = $doc->table(
             [Column::pt(BENCH_TABLE_COLS[0]), Column::pt(BENCH_TABLE_COLS[1]), Column::pt(BENCH_TABLE_COLS[2], new CellStyle(alignment: Alignment::Right))],
             new CellStyle(padding: Padding::all(2.0)),
             'body',

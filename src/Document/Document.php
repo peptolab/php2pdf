@@ -6,13 +6,16 @@ namespace Php2Pdf\Document;
 
 use Closure;
 use DateTimeImmutable;
+use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Core\ClockInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\Output\FileOutput;
 use Php2Pdf\Core\Output\OutputInterface;
 use Php2Pdf\Core\TextString;
@@ -23,6 +26,7 @@ use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
+use Php2Pdf\Font\FontOptions;
 use Php2Pdf\Font\FontRegistry;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
@@ -37,12 +41,19 @@ use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Svg\NativeConverter;
 use Php2Pdf\Svg\SvgConverterInterface;
+use Php2Pdf\Svg\SvgDocumentInterface;
 use Php2Pdf\Svg\SvgFile;
+use Php2Pdf\Table\CellStyle;
+use Php2Pdf\Table\Column;
+use Php2Pdf\Table\Table;
+use Php2Pdf\Table\TableOptions;
 use Php2Pdf\Template\Template;
+use Php2Pdf\Text\Flow\TextflowBuilder;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\InlineRegistry;
 use Php2Pdf\Text\Style\StyleRegistry;
 use Php2Pdf\Text\Style\TextStyle;
+use Php2Pdf\Text\TextContext;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextFormat;
 
@@ -62,7 +73,7 @@ use function sprintf;
  *
  * @api
  */
-final class Document
+final class Document implements SvgDocumentInterface
 {
     private readonly Writer $writer;
     private readonly Reference $pagesRef;
@@ -71,12 +82,10 @@ final class Document
     private readonly DateTimeImmutable $createdAt;
     private readonly Objects $objects;
     private readonly PdfXRules $pdfx;
+    private readonly DocumentColour $colour;
 
     /** @var list<Reference> */
     private array $pageRefs = [];
-
-    /** @var list<DeferredInterface> */
-    private array $deferred = [];
 
     /** @var list<string> extra XMP descriptions */
     private array $xmpDescriptions = [];
@@ -100,6 +109,7 @@ final class Document
     private ?Page           $current    = null;
     private bool            $closed     = false;
     private ?Navigation     $navigation = null;
+    private ?TextContext    $text       = null;
 
     public function __construct(OutputInterface|string $output, ?DocumentOptions $options = null)
     {
@@ -115,6 +125,7 @@ final class Document
         $this->pagesRef = $this->writer->allocate();
         $this->objects  = new Objects($this->writer);
         $this->pdfx     = new PdfXRules($this->options);
+        $this->colour   = new DocumentColour($this->options, $this->pdfx, $this->objects);
     }
 
     /**
@@ -188,41 +199,6 @@ final class Document
         $this->xmpDescriptions[] = $rdf;
     }
 
-    /**
-     * Refuses a resource made by another document, which would refer to objects this one never
-     * writes.
-     *
-     * @internal
-     */
-    public function assertOwns(self $owner, string $what): void
-    {
-        if ($owner !== $this) {
-            throw new InvalidArgumentException(sprintf(
-                '%s belongs to the document that created it and cannot be drawn into another.',
-                $what,
-            ));
-        }
-    }
-
-    /**
-     * The colour space transparency groups blend in: the output intent's space under PDF/X,
-     * otherwise RGB.
-     *
-     * @internal
-     */
-    public function blendingColorSpace(): Name|Reference
-    {
-        if (null === $this->options->pdfx) {
-            return new Name('DeviceRGB');
-        }
-
-        return match ($this->pdfx->intent()->components ?? 3) {
-            1       => new Name('DeviceGray'),
-            4       => new Name('DeviceCMYK'),
-            default => $this->defaultRgb() ?? new Name('DeviceRGB'),
-        };
-    }
-
     public function clock(): ClockInterface
     {
         return $this->options->clock;
@@ -250,9 +226,7 @@ final class Document
             $this->xmpDescriptions[] = $description;
         }
 
-        foreach ($this->deferred as $deferred) {
-            $deferred->finalize($this);
-        }
+        $this->objects->finalize();
 
         $this->writer->write($this->pagesRef, Dictionary::of([
             'Type'  => new Name('Pages'),
@@ -266,7 +240,10 @@ final class Document
         foreach ($this->imports as $import) {
             $import->addOptionalContent($layers);
         }
-        $layers->write($catalog, $this->options->pdfx);
+        if (null !== $this->options->pdfx) {
+            $layers->dropAutoStates();
+        }
+        $layers->write($catalog);
         if ($this->options->xmp) {
             $xmp = new Xmp($this->info, $this->options->producer, $this->createdAt);
             foreach ($this->xmpDescriptions as $description) {
@@ -290,42 +267,19 @@ final class Document
         $this->closed = true;
     }
 
+    /**
+     * What the document asks of colour drawn into it, and its colour spaces.
+     *
+     * @internal
+     */
+    public function colour(): ColourPolicyInterface
+    {
+        return $this->colour;
+    }
+
     public function currentPage(): ?Page
     {
         return $this->current;
-    }
-
-    /**
-     * The ICCBased colour space DeviceRGB is interpreted in, when an RGB profile was given.
-     *
-     * @internal
-     */
-    public function defaultRgb(): ?Reference
-    {
-        $profile = $this->options->rgbProfile;
-        if (null === $profile) {
-            return null;
-        }
-        $stream = $this->objects->shared(
-            "iccstream:{$profile->key()}",
-            static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
-        );
-
-        return $this->objects->shared(
-            "icc:{$profile->key()}",
-            /** @return array{Name, Reference} */
-            static fn(): array => [new Name('ICCBased'), $stream],
-        );
-    }
-
-    /**
-     * Registers an object to be written when the document closes.
-     *
-     * @internal
-     */
-    public function defer(DeferredInterface $deferred): void
-    {
-        $this->deferred[] = $deferred;
     }
 
     /**
@@ -365,9 +319,15 @@ final class Document
     }
 
     /** Fonts for this document: load by path, find by name, or group into families. */
+    #[Override]
     public function fonts(): FontRegistry
     {
-        return $this->fonts ??= new FontRegistry($this);
+        return $this->fonts ??= new FontRegistry($this->objects, new FontOptions(
+            $this->options->glyphCheck,
+            $this->options->scriptCheck,
+            $this->options->complexShaper,
+            $this->options->pdfx?->value,
+        ));
     }
 
     /**
@@ -386,6 +346,7 @@ final class Document
     }
 
     /** Loads an image from memory. */
+    #[Override]
     public function imageFromData(string $data, ?ImageOptions $options = null): Image
     {
         $this->assertOpen();
@@ -399,13 +360,14 @@ final class Document
      * file switches off stay off; HiddenLayers::Remove removes their content instead, so viewers
      * that ignore layers in placed artwork (macOS Preview) do not show them either.
      */
+    #[Override]
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument
     {
         $this->assertOpen();
         $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
         $key  = ($file->path ?? 'object#' . spl_object_id($file)) . '#' . $hiddenLayers->name;
 
-        return $this->imports[$key] ??= new ImportedDocument($this, $file, $hiddenLayers);
+        return $this->imports[$key] ??= new ImportedDocument($this->objects, $this->colour, $file, $hiddenLayers);
     }
 
     public function info(): Info
@@ -520,18 +482,48 @@ final class Document
     }
 
     /**
+     * Creates a table with the given columns, base cell style and base text style (a style or
+     * the name of one defined in styles()). Add rows to it, then fit it with Page::fitTable() or
+     * flow it across pages with flow().
+     *
+     * @param list<Column> $columns
+     */
+    public function table(
+        array $columns,
+        ?CellStyle $style = null,
+        TextStyle|string|null $text = null,
+        ?TableOptions $options = null,
+    ): Table {
+        $this->assertOpen();
+
+        return new Table($this->text(), $columns, $style, $text, $options);
+    }
+
+    /**
      * Creates reusable artwork of the given size. Draw on its canvas, then place it on pages.
      */
+    #[Override]
     public function template(Dimensions $size, ?Origin $origin = null, ?Box $bbox = null): Template
     {
         $this->assertOpen();
 
         return new Template(
-            $this,
+            $this->objects,
+            $this->colour,
             $size,
             $origin ?? ($this->options->topDown ? Origin::TopLeft : Origin::BottomLeft),
             $bbox,
         );
+    }
+
+    /**
+     * The fonts, styles and inline objects text is set with.
+     *
+     * @internal
+     */
+    public function text(): TextContext
+    {
+        return $this->text ??= new TextContext($this->fonts(), $this->styles(), $this->inlines());
     }
 
     /**
@@ -549,14 +541,21 @@ final class Document
         $this->assertOpen();
 
         return TextFormat::Plain === $format
-            ? Textflow::fromText($this, $text, $style, $hyphenators)
-            : Textflow::fromMarkup($this, $text, $style, $hyphenators, $format);
+            ? Textflow::fromText($this->text(), $text, $style, $hyphenators)
+            : Textflow::fromMarkup($this->text(), $text, $style, $hyphenators, $format);
     }
 
-    /** @internal */
-    public function writer(): Writer
+    /**
+     * A builder for assembling a Textflow in code: text, styled runs, links, inline objects and
+     * breaks, then build().
+     *
+     * @param array<string, Hyphenator> $hyphenators pattern hyphenators by language code
+     */
+    public function textflowBuilder(TextStyle|string|null $style = null, array $hyphenators = []): TextflowBuilder
     {
-        return $this->writer;
+        $this->assertOpen();
+
+        return Textflow::build($this->text(), $style, $hyphenators);
     }
 
     private function assertOpen(): void
@@ -607,7 +606,8 @@ final class Document
     private function loadImage(string $data, ImageOptions $options, ?string $name): Image
     {
         return $this->images[md5($data) . $options->key()] ??= new Image(
-            $this,
+            $this->objects,
+            $this->colour,
             ImageReader::read($data, $this->options->limits, $options, $name)->withOptions($options),
         );
     }

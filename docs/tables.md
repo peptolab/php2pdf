@@ -4,7 +4,7 @@ A `Table` flows through boxes exactly like a Textflow: each `fitTable()` places 
 fit and returns `Done`, `BoxFull` or `BoxEmpty`.
 
 ```php
-$table = new Table(
+$table = $doc->table(
     [Column::mm(55), Column::auto(), Column::mm(30), Column::mm(20, new CellStyle(alignment: Alignment::Right))],
     new CellStyle(padding: Padding::mm(1, 0, 3, 0)),   // every cell's base style
     'body',                                           // every text cell's base text style

@@ -28,9 +28,9 @@ use function substr;
 
 /**
  * The library's namespaces in layers: each may use those in lower layers, and the namespaces of
- * its own layer only where listed. Uses that break the layering today are listed with the work
- * that removes them; the test fails when a new one appears, and when a listed one is gone, so
- * the list only shrinks.
+ * its own layer only where listed. A lower layer that needs something of a higher one declares
+ * an interface for it instead (see docs/development.md). RATCHET would list breaks being worked
+ * off; it is empty, and should stay so.
  */
 #[Group('integration')]
 final class LayeringTest extends TestCase
@@ -65,16 +65,7 @@ final class LayeringTest extends TestCase
     ];
 
     /** Uses that break the layering today, and the work that removes each. */
-    private const array RATCHET = [
-        'Font>Document'     => 'fonts take a narrow resource interface, not the document',
-        'Canvas>Document'   => 'Dimensions and Destination move down; resources go through an interface',
-        'Image>Document'    => 'Dimensions moves down; images take a resource interface',
-        'Import>Document'   => 'Dimensions moves down; PdfX moves to the conformance profiles',
-        'Template>Document' => 'Dimensions moves down; templates take a resource interface',
-        'Text>Document'     => 'Destination moves down; textflows take the font and style registries',
-        'Table>Document'    => 'tables take the font and style registries',
-        'Svg>Document'      => 'Dimensions moves down; SVG takes a resource interface',
-    ];
+    private const array RATCHET = [];
 
     /**
      * The top-level namespaces each namespace uses, with the files that use them.

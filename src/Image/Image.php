@@ -8,11 +8,12 @@ use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
-use Php2Pdf\Document\Document;
+use Php2Pdf\Core\Objects;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 
@@ -29,10 +30,11 @@ final class Image implements PlaceableInterface
 
     /** @internal */
     public function __construct(
-        private readonly Document $document,
+        private readonly Objects $objects,
+        private readonly ColourPolicyInterface $colour,
         private readonly ImageData $data,
     ) {
-        $this->reference = $this->write($document);
+        $this->reference = $this->write();
     }
 
     /**
@@ -66,10 +68,10 @@ final class Image implements PlaceableInterface
     #[Override]
     public function drawAt(Canvas $canvas, Matrix $matrix, Dimensions $size): void
     {
-        $canvas->document()->assertOwns($this->document, 'An image');
-        $this->document->pdfx()->assertOutputIntent();
+        $canvas->objects()->assertOwns($this->objects, 'An image');
+        $this->colour->assertOutputIntent();
         if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
-            $this->document->pdfx()->assertDeviceColour($this->data->colorSpace->device, 'images');
+            $this->colour->assertDeviceColour($this->data->colorSpace->device, 'images');
         }
         $placement = self::orientation($this->data->orientation)
             ->then(Matrix::scaling($size->width, $size->height))
@@ -116,16 +118,16 @@ final class Image implements PlaceableInterface
         return $this->data->width;
     }
 
-    private function write(Document $document): Reference
+    private function write(): Reference
     {
-        $writer = $document->writer();
+        $writer = $this->objects;
         $data   = $this->data;
 
         $icc = null;
         if (null !== $data->iccProfile && ! $data->colorSpace->isIndexed()) {
             $profile = $data->iccProfile;
             $n       = $data->colorSpace->components;
-            $icc     = $document->objects()->shared(
+            $icc     = $this->objects->shared(
                 'iccstream:' . md5($profile),
                 static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
             );

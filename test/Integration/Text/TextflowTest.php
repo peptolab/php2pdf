@@ -95,7 +95,8 @@ final class TextflowTest extends TestCase
     #[Test]
     public function aLineIsAsTallAsItsTallestStyle(): void
     {
-        $flow = Textflow::build($this->doc, 'body')
+        $flow = $this->doc
+            ->textflowBuilder('body')
             ->paragraph()
             ->text('small ')
             ->text('big', new TextStyle(size: 20.0))
@@ -116,7 +117,9 @@ final class TextflowTest extends TestCase
             hyphenate: true,
             language: 'en',
         );
-        $flow  = Textflow::fromMarkup($this->doc, '<p>hyphenation hyphenation</p>', $style, ['en' => $hyphenator]);
+        $flow = Textflow::fromMarkup($this->doc->text(), '<p>hyphenation hyphenation</p>', $style, [
+            'en' => $hyphenator,
+        ]);
         $width = $this->doc->fonts()->find('DejaVuSans')->width('hyphenation hyphen-', 10.0);
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, $width + 0.5, 100.0));
         self::assertSame(2, $flow->lastFit()?->lineCount);
@@ -132,7 +135,8 @@ final class TextflowTest extends TestCase
     #[Test]
     public function buildsFlowsInCode(): void
     {
-        $flow = Textflow::build($this->doc, 'body')
+        $flow = $this->doc
+            ->textflowBuilder('body')
             ->paragraph('h1')
             ->text('Title')
             ->paragraph()
@@ -338,7 +342,8 @@ final class TextflowTest extends TestCase
     #[Test]
     public function risenTextRaisesTheLine(): void
     {
-        $flow = Textflow::build($this->doc, 'body')
+        $flow = $this->doc
+            ->textflowBuilder('body')
             ->paragraph()
             ->text('base ')
             ->text('up', new TextStyle(rise: 5.0))

@@ -8,7 +8,6 @@ use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\HexString;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
-use Php2Pdf\Document\PdfX;
 
 use function array_filter;
 use function array_values;
@@ -71,10 +70,19 @@ final class OptionalContent
     }
 
     /**
+     * Drops the layers' automatic states (AS), which PDF/X does not allow: what prints must not
+     * change with the viewer's events.
+     */
+    public function dropAutoStates(): void
+    {
+        $this->auto = [];
+    }
+
+    /**
      * Sets /OCProperties on the catalog when any imported page uses optional content. PDF/X-4
      * forbids automatic states (/AS), so they are left out there.
      */
-    public function write(Dictionary $catalog, ?PdfX $pdfx): void
+    public function write(Dictionary $catalog): void
     {
         if ([] === $this->groups) {
             return;
@@ -85,7 +93,7 @@ final class OptionalContent
             'OFF'      => [] === $this->off ? null : $this->off,
             'Locked'   => [] === $this->locked ? null : $this->locked,
             'RBGroups' => [] === $this->radio ? null : $this->radio,
-            'AS'       => null !== $pdfx || [] === $this->auto ? null : $this->auto,
+            'AS'       => [] === $this->auto ? null : $this->auto,
         ]);
         $catalog->set('OCProperties', Dictionary::of(['OCGs' => $this->groups, 'D' => $config]));
     }

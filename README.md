@@ -81,7 +81,7 @@ and a row too tall for the space left continues its text in the next box. `Docum
 drains any flowable across pages, making each page through a closure.
 
 ```php
-$table = new Table([Column::mm(55), Column::auto(), Column::mm(20, new CellStyle(alignment: Alignment::Right))], $base, 'body');
+$table = $doc->table([Column::mm(55), Column::auto(), Column::mm(20, new CellStyle(alignment: Alignment::Right))], $base, 'body');
 $table->addHeaderRow(['Reference', 'Project', 'Price'], new CellStyle(borderBottom: new Border(0.25)));
 foreach ($entries as $entry) {
     $table->addRow([$entry->reference, $entry->name, sprintf('$%0.2f', $entry->price)]);

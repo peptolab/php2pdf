@@ -24,7 +24,6 @@ use Php2Pdf\Table\CellStyle;
 use Php2Pdf\Table\Column;
 use Php2Pdf\Table\Padding;
 use Php2Pdf\Table\Row;
-use Php2Pdf\Table\Table;
 use Php2Pdf\Table\TableOptions;
 use Php2Pdf\Text\FirstBaseline;
 use Php2Pdf\Text\Style\Alignment;
@@ -79,11 +78,11 @@ final class TableTest extends TestCase
     #[Test]
     public function anUngroupedRowspanCellGetsTheHeightItNeeds(): void
     {
-        $table = new Table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $table = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
         $table->addRow([Cell::text(str_repeat('tall spanning text ', times: 8))->spanning(1, 3), 'a']);
         $table->addRow(['b']);
         $table->addRow(['c']);
-        $measured = $table->measure($this->doc, 160.0);
+        $measured = $table->measure(160.0);
         $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 160.0, 500.0));
 
         self::assertEqualsWithDelta($measured, $table->lastFit()->height ?? 0.0, 1.0e-6);
@@ -92,7 +91,7 @@ final class TableTest extends TestCase
     #[Test]
     public function autoColumnsKeepTheirWidthsInEveryBox(): void
     {
-        $table = new Table([Column::auto(), Column::auto()], null, $this->body);
+        $table = $this->doc->table([Column::auto(), Column::auto()], null, $this->body);
         for ($i = 0; $i < 6; ++$i) {
             $table->addRow([str_repeat('long words here ', times: 3), 'x']);
         }
@@ -116,7 +115,7 @@ final class TableTest extends TestCase
     public function cellImagesFollowVerticalAlignment(VerticalAlignment $alignment, float $y): void
     {
         $template = $this->doc->template(new Dimensions(100.0, 20.0));
-        $table    = new Table([Column::pt(100.0), Column::pt(100.0)], null, $this->body);
+        $table    = $this->doc->table([Column::pt(100.0), Column::pt(100.0)], null, $this->body);
         $table->addRow(
             [Cell::of($template, null, new CellStyle(verticalAlignment: $alignment)), null],
             null,
@@ -132,8 +131,8 @@ final class TableTest extends TestCase
     #[Test]
     public function cellStyleFirstBaselineOverridesTheTableOption(): void
     {
-        $flow  = Textflow::fromText($this->doc, 'a', $this->body);
-        $table = new Table(
+        $flow  = Textflow::fromText($this->doc->text(), 'a', $this->body);
+        $table = $this->doc->table(
             [Column::auto(), Column::auto()],
             null,
             $this->body,
@@ -153,8 +152,8 @@ final class TableTest extends TestCase
     #[DataProvider('firstBaselineProvider')]
     public function cellTextIsDrawnAtTheTableFirstBaseline(FirstBaseline $mode): void
     {
-        $flow  = Textflow::fromText($this->doc, 'a', $this->body);
-        $table = new Table(
+        $flow  = Textflow::fromText($this->doc->text(), 'a', $this->body);
+        $table = $this->doc->table(
             [Column::auto()],
             new CellStyle(padding: Padding::all(2.0)),
             $this->body,
@@ -170,7 +169,7 @@ final class TableTest extends TestCase
     #[Test]
     public function documentFlowDrainsAcrossPages(): void
     {
-        $table = new Table([Column::auto()], null, $this->body);
+        $table = $this->doc->table([Column::auto()], null, $this->body);
         for ($i = 0; $i < 30; ++$i) {
             $table->addRow(["row {$i}"]);
         }
@@ -186,7 +185,7 @@ final class TableTest extends TestCase
     #[Test]
     public function fixedPercentAndAutoColumnsShareTheWidth(): void
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::pt(100.0), Column::percent(25.0), Column::auto(), Column::auto()],
             null,
             $this->body,
@@ -207,7 +206,7 @@ final class TableTest extends TestCase
     #[Test]
     public function groupsStayTogetherAndATallRowSplits(): void
     {
-        $table = new Table([Column::auto()], null, $this->body);
+        $table = $this->doc->table([Column::auto()], null, $this->body);
         $table->addRow(['one']);
         $table->addRow(['two']);
         $table->addRow(['total a'], null, 1);
@@ -239,7 +238,7 @@ final class TableTest extends TestCase
     #[Test]
     public function headersRepeatAndRowsFlowAcrossBoxes(): void
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::auto(), Column::pt(60.0)],
             new CellStyle(padding: Padding::symmetric(2.0, 0.0)),
             $this->body,
@@ -264,23 +263,23 @@ final class TableTest extends TestCase
     #[Test]
     public function measuresRemainingHeight(): void
     {
-        $table = new Table([Column::auto()], new CellStyle(padding: Padding::all(1.0)), $this->body);
+        $table = $this->doc->table([Column::auto()], new CellStyle(padding: Padding::all(1.0)), $this->body);
         $table->addRow(['a']);
         $table->addRow(['b'], null, null, 30.0);
         $font = $this->body->font;
         self::assertInstanceOf(Font::class, $font);
         $line = $font->ascender(10.0) - $font->descender(10.0);
-        self::assertEqualsWithDelta($line + 2.0 + 30.0, $table->measure($this->doc, 200.0), 1.0e-6);
+        self::assertEqualsWithDelta($line + 2.0 + 30.0, $table->measure(200.0), 1.0e-6);
     }
 
     #[Test]
     #[DataProvider('firstBaselineProvider')]
     public function placedRowsMatchTheirMeasuredHeight(FirstBaseline $mode): void
     {
-        $table = new Table([Column::auto()], null, $this->body, new TableOptions(firstBaseline: $mode));
+        $table = $this->doc->table([Column::auto()], null, $this->body, new TableOptions(firstBaseline: $mode));
         $table->addRow(['a']);
         $table->addRow(['b']);
-        $measured = $table->measure($this->doc, 200.0);
+        $measured = $table->measure(200.0);
         $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 500.0));
         self::assertEqualsWithDelta($measured, $table->lastFit()->height ?? 0.0, 1.0e-6);
     }
@@ -288,7 +287,7 @@ final class TableTest extends TestCase
     #[Test]
     public function rejectsColumnsWiderThanTheBox(): void
     {
-        $table = new Table([Column::pt(300.0), Column::pt(300.0)], null, $this->body);
+        $table = $this->doc->table([Column::pt(300.0), Column::pt(300.0)], null, $this->body);
         $table->addRow(['a', 'b']);
         $this->expectException(PdfException::class);
         $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 400.0, 500.0));
@@ -297,7 +296,7 @@ final class TableTest extends TestCase
     #[Test]
     public function rejectsRowsWithTooManyCells(): void
     {
-        $table = new Table([Column::auto()], null, $this->body);
+        $table = $this->doc->table([Column::auto()], null, $this->body);
         $table->addRow(['a', 'b']);
         $this->expectException(InvalidArgumentException::class);
         $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 400.0, 500.0));
@@ -306,7 +305,7 @@ final class TableTest extends TestCase
     #[Test]
     public function reportsBoxEmptyAndNeverSplitsWhenDisabled(): void
     {
-        $table = new Table([Column::auto()], null, $this->body, new TableOptions(splitRows: false));
+        $table = $this->doc->table([Column::auto()], null, $this->body, new TableOptions(splitRows: false));
         $table->addRow([str_repeat('many lines ', times: 100)]);
         $page = $this->doc->addPage(PageSize::A4);
         self::assertSame(FlowResult::BoxEmpty, $page->fitTable($table, new Box(0.0, 0.0, 100.0, 30.0)));
@@ -317,7 +316,7 @@ final class TableTest extends TestCase
     #[Test]
     public function resetMeasuresAutoColumnsAgainFromTheWholeTable(): void
     {
-        $table = new Table([Column::auto(), Column::auto()], null, $this->body);
+        $table = $this->doc->table([Column::auto(), Column::auto()], null, $this->body);
         $table->addRow(['short', str_repeat('a longer cell ', times: 4)]);
         $page = $this->doc->addPage(PageSize::A4);
         $page->fitTable($table, new Box(0.0, 0.0, 300.0, 400.0));
@@ -332,7 +331,7 @@ final class TableTest extends TestCase
     #[DataProvider('firstBaselineProvider')]
     public function rowsAreMeasuredFromTheTableFirstBaseline(FirstBaseline $mode): void
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::auto()],
             new CellStyle(padding: Padding::all(1.0)),
             $this->body,
@@ -340,18 +339,18 @@ final class TableTest extends TestCase
         );
         $table->addRow(['a']);
         $expected = $this->firstBaselineOffset($mode) - $this->bodyFont()->descender(10.0) + 2.0;
-        self::assertEqualsWithDelta($expected, $table->measure($this->doc, 200.0), 1.0e-6);
+        self::assertEqualsWithDelta($expected, $table->measure(200.0), 1.0e-6);
     }
 
     #[Test]
     public function rowsASpanningCellCoversMoveToTheNextBoxTogether(): void
     {
-        $table = new Table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $table = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
         $table->addRow(['first', 'row']);
         $table->addRow([Cell::text('span')->spanning(1, 3), 'b']);
         $table->addRow(['c']);
         $table->addRow(['d']);
-        $line = $table->measure($this->doc, 160.0) / 4.0;
+        $line = $table->measure(160.0) / 4.0;
         $page = $this->doc->addPage(PageSize::A4);
         $page->fitTable($table, new Box(0.0, 0.0, 160.0, $line * 2.5));
 
@@ -365,7 +364,7 @@ final class TableTest extends TestCase
     #[Test]
     public function spansCoverColumnsAndRows(): void
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::pt(50.0), Column::pt(50.0), Column::pt(50.0)],
             new CellStyle(border: new Border(1.0)),
             $this->body,
@@ -389,7 +388,7 @@ final class TableTest extends TestCase
     #[Test]
     public function stylesLayerTableColumnRowAndCell(): void
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::pt(80.0), Column::pt(80.0, new CellStyle(alignment: Alignment::Right))],
             new CellStyle(
                 background: new Gray(0.9),

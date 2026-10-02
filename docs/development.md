@@ -26,14 +26,6 @@ suite on Ubuntu with the PDF tooling installed.
 
 Both mirror `src/`. Run one suite with `vendor/bin/phpunit --testsuite unit` (or `integration`).
 
-Two tests in `test/Integration/Architecture` keep the structure honest. `LayeringTest` holds the
-namespaces to their layers (each may use only the layers below it); `TestLayoutTest` checks that
-unit tests read no files and that every test declares its suite's group. Uses that break the
-layering today are listed in `LayeringTest::RATCHET` with the work that removes them, and the
-classes excused from Mago's size and complexity limits are listed per rule in `mago.toml`. Both
-lists only shrink: remove an entry when its class passes, and never add one to make new code
-pass.
-
 A missing baseline is written on the first run and the test is marked incomplete; run the suite
 again to compare. Set `PHP2PDF_UPDATE_BASELINES=1` to regenerate baselines after an intentional
 change. Comparison tolerates a small share of differing pixels so anti-aliasing differences
@@ -42,3 +34,36 @@ between poppler versions do not fail the build.
 Fixtures live in `test/asset`: DejaVu, Source Serif 4 and Source Sans 3 fonts (see its README), image variants, a PDF corpus (classic, object
 streams, linearized, incremental updates, broken xref, inherited attributes, ImageMagick and
 cairo output, an encrypted file), SVG sheets and brochure copy.
+
+## Architecture
+
+The namespaces sit in layers, and each uses only the layers below it:
+
+| Layer | Namespaces |
+|-------|------------|
+| 0 | `Exception` |
+| 1 | `Core`: the object model, `Objects`, the writer, filters, output |
+| 2 | `Geometry`, `Navigation` |
+| 3 | `Color`, `Fit` |
+| 4 | `Font` (with `Font\Bidi`) |
+| 5 | `Canvas`, `Template` |
+| 6 | `Image`, `Import` |
+| 7 | `Flow`, `Text`, `Table` |
+| 8 | `Svg` |
+| 9 | `Document` |
+
+A lower layer that needs something of the document declares a narrow interface for it, and the
+document implements it: `Core\Objects` writes objects (fonts, images, templates and imported
+pages hold the one they were made with, and refuse to be drawn into another document's canvas),
+`Color\ColourPolicyInterface` checks colour against PDF/X and gives the document's colour
+spaces, `Font\FontOptions` carries the font settings, `Text\TextContext` the fonts, styles
+and inline objects text is set with, and `Svg\SvgDocumentInterface` what an SVG conversion
+makes. The document makes textflows and tables (`textflow()`, `textflowBuilder()`, `table()`)
+with its text context.
+
+Three tests in `test/Integration/Architecture` keep the structure honest. `LayeringTest` holds the
+namespaces to their layers, `ApiBoundaryTest` checks that every type says whether it is `@api` or
+`@internal`, and `TestLayoutTest` checks that unit tests read no files and that every test
+declares its suite's group. The classes excused from Mago's size and complexity limits are listed
+per rule in `mago.toml`, as a ratchet: remove an entry when its class passes, and never add one
+to make new code pass.

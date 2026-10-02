@@ -48,7 +48,7 @@ final class TableFooterTest extends TestCase
     #[Test]
     public function measureIncludesTheFooter(): void
     {
-        self::assertEqualsWithDelta(5.0 * $this->rowHeight(), $this->table(3)->measure($this->doc, 200.0), 1.0e-6);
+        self::assertEqualsWithDelta(5.0 * $this->rowHeight(), $this->table(3)->measure(200.0), 1.0e-6);
     }
 
     #[Test]
@@ -125,7 +125,7 @@ final class TableFooterTest extends TestCase
 
     private function table(int $rows): Table
     {
-        $table = new Table(
+        $table = $this->doc->table(
             [Column::auto(), Column::pt(60.0)],
             new CellStyle(padding: Padding::symmetric(2.0, 0.0)),
             $this->body,
