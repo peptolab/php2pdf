@@ -131,9 +131,13 @@ final class Writer
         $this->output->write($bytes);
     }
 
+    /**
+     * Serialises a stream with its /Filter and /Length worked out on a copy of the dictionary,
+     * so the caller's Stream is left as it was and can be written again.
+     */
     private function streamBody(Stream $stream): string
     {
-        $dict = $stream->dictionary;
+        $dict = new Dictionary($stream->dictionary->all());
         $data = $stream->data;
         if ($this->compress && $stream->compress && ! $dict->has('Filter')) {
             $data = Flate::encode($data, $this->compressionLevel);

@@ -10,13 +10,20 @@ use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Core\Writer;
 use Php2Pdf\Exception\PdfException;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function gzuncompress;
 use function preg_match;
+use function preg_match_all;
 use function str_repeat;
+use function strlen;
 use function substr;
 
+use const PREG_OFFSET_CAPTURE;
+
+#[Group('unit')]
 final class WriterTest extends TestCase
 {
     #[Test]
@@ -103,5 +110,35 @@ final class WriterTest extends TestCase
         self::assertSame('2 0 obj', substr($pdf, (int) $offsets[2], length: 7));
         self::assertMatchesRegularExpression('/\/ID\[<[0-9a-f]{32}> <[0-9a-f]{32}>\]/', $pdf);
         self::assertStringContainsString('/Size 3', $pdf);
+    }
+
+    #[Test]
+    public function writesTheSameStreamTwiceWithoutChangingIt(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out);
+        $writer->writeHeader('1.7');
+        $data   = str_repeat('php2pdf ', times: 100);
+        $stream = Stream::of($data);
+        $writer->add($stream);
+        $writer->add($stream);
+        $writer->finish(new Dictionary());
+
+        self::assertFalse($stream->dictionary->has('Filter'));
+        self::assertSame(2, preg_match_all(
+            '/<<\/Filter\/FlateDecode\/Length (\d+)>>\nstream\n/',
+            $out->contents(),
+            $matches,
+            PREG_OFFSET_CAPTURE,
+        ));
+        $bodies = [];
+        foreach ($matches[0] as $i => [$header, $offset]) {
+            $bodies[] = gzuncompress(substr(
+                $out->contents(),
+                $offset + strlen($header),
+                (int) $matches[1][$i][0],
+            ));
+        }
+        self::assertSame([$data, $data], $bodies);
     }
 }
