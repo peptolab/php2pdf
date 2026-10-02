@@ -380,6 +380,17 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function shrunkTextOfOneStyleIsShownAsOneRunPerLine(): void
+    {
+        $flow = $this->doc->textflow(str_repeat('word ', times: 60), 'body');
+        $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 200.0, 60.0), FlowOptions::shrinkToFit(0.3));
+        $lines = $flow->lastFit()->lineCount ?? 0;
+        $this->doc->close();
+
+        self::assertSame($lines, preg_match_all('/\]\s*TJ|\)\s*Tj/', $this->out->contents()));
+    }
+
+    #[Test]
     public function strictMarkupAcceptsEveryKnownTag(): void
     {
         $markup = '<p>a <b>b</b> <i>i</i> <u>u</u> <s>s</s> x<sup>2</sup> H<sub>2</sub>O <span>s</span><br><tab>t</p><columnbreak><pagebreak>';

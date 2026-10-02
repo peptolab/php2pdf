@@ -8,6 +8,7 @@ use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Style\TextStyle;
+use WeakMap;
 
 /**
  * Copy fitting: the largest scale, down to the shrink limit, at which the rest of a flow fits a
@@ -110,19 +111,23 @@ final class CopyFitter
     }
 
     /**
+     * The paragraphs at a scale. Items of one style share one scaled style, so a line of them is
+     * set as one run, as it is unscaled.
+     *
      * @param list<Paragraph> $paragraphs
      *
      * @return list<Paragraph>
      */
     private static function scaledParagraphs(array $paragraphs, float $scale): array
     {
-        $out = [];
+        $out    = [];
+        $styles = new WeakMap();
+        $scaled = static fn(TextStyle $style): TextStyle => $styles[$style] ??= $style->scaled($scale);
         foreach ($paragraphs as $paragraph) {
-            $style = $paragraph->style->scaled($scale);
+            $style = $scaled($paragraph->style);
             $items = [];
             foreach ($paragraph->items as $item) {
-                $itemStyle = $item->style->scaled($scale);
-                $items[]   = self::scaledItem($item, $itemStyle);
+                $items[] = self::scaledItem($item, $scaled($item->style));
             }
             $out[] = new Paragraph($style, $items, $paragraph->level);
         }
