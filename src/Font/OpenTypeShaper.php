@@ -135,8 +135,7 @@ final readonly class OpenTypeShaper
      */
     public function shape(string $text, TextOptions $options, array $features): array
     {
-        $rtl  = TextDirection::RightToLeft === $options->direction;
-        $gdef = $this->program->gdef();
+        $rtl = TextDirection::RightToLeft === $options->direction;
         [$codePoints, $sources] = $this->codePoints($text);
         $sequence = [];
         foreach ($codePoints as $codePoint) {
@@ -145,7 +144,6 @@ final readonly class OpenTypeShaper
             if (0 === $id) {
                 ($this->missing)((string) mb_chr($codePoint, encoding: 'UTF-8'), $codePoint);
             }
-            $gdef->learn($id, $codePoint);
             $sequence[] = [$id, [$shown]];
         }
         $gsub   = $this->program->gsub();

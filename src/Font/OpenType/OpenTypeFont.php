@@ -222,7 +222,7 @@ final class OpenTypeFont
     /** The font's glyph definitions (GDEF), synthesised from characters when it has none. */
     public function gdef(): Gdef
     {
-        return $this->gdef ??= new Gdef($this->tableReader('GDEF'));
+        return $this->gdef ??= new Gdef($this->tableReader('GDEF'), $this->cmap);
     }
 
     /** Raw glyf data for a glyph (empty for glyphs without outlines). */
