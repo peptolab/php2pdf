@@ -6,6 +6,7 @@ namespace Php2PdfTest\Integration\Text\Flow;
 
 use Override;
 use Php2Pdf\Text\Flow\Item;
+use Php2Pdf\Text\Flow\ItemFactory;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
@@ -64,7 +65,7 @@ final class ItemiserTest extends TestCase
                 static fn(Item $item): bool => ItemKind::Penalty === $item->kind,
             ))[0] ?? null;
         self::assertNotNull($penalty);
-        $hyphen = Itemiser::box('-', $this->style);
+        $hyphen = ItemFactory::box('-', $this->style);
 
         self::assertSame(
             [60.0, $hyphen->width + 0.6],

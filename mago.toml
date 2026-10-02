@@ -139,7 +139,6 @@ cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
     "src/Table/Layout.php",
     "src/Table/Planner.php",
     # Ratchet: the text engine's breaker, assembler, itemiser stages and layout result.
-    "src/Text/Flow/Itemiser.php",
     "src/Text/Flow/GreedyBreaker.php",
     "src/Text/Flow/LineAssembler.php",
     "src/Text/Flow/ParagraphComposer.php",
@@ -168,7 +167,6 @@ kan-defect = { threshold = 4.5, exclude = [
     "src/Font/OpenType/Gsub.php",
     "src/Font/OpenTypeShaper.php",
     "src/Import/PdfReader.php",
-    "src/Text/Flow/Itemiser.php",
     "src/Text/Flow/GreedyBreaker.php",
     "src/Text/Flow/LineAssembler.php",
 ] }

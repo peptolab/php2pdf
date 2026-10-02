@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
-use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Font\Glyph;
-use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\TextStyle;
@@ -14,20 +12,11 @@ use Php2Pdf\Text\Style\TextStyle;
 use function array_key_exists;
 use function array_reverse;
 use function array_slice;
-use function array_values;
 use function count;
-use function explode;
 use function implode;
-use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
-use function preg_match;
-use function preg_match_all;
-use function preg_split;
-use function spl_object_id;
 use function str_replace;
-
-use const PREG_SPLIT_NO_EMPTY;
 
 /**
  * Splits styled text into boxes, glue and penalties: words, spaces, tabs, explicit breaks, soft
@@ -42,75 +31,12 @@ use const PREG_SPLIT_NO_EMPTY;
  */
 final class Itemiser
 {
-    private const string SOFT_HYPHEN = "\u{00AD}";
-
-    /** Spaces of fixed width that allow a break: en, em, three-, four- and six-per-em, punctuation, thin, hair. */
-    private const string FIXED_SPACES = '[\x{2002}-\x{2006}\x{2008}-\x{200A}]';
-
-    /** A run of word spaces: glue. */
-    private const string GLUE = 'glue';
-
-    /** A hyphenation point: a penalty showing a hyphen. */
-    private const string HYPHEN = 'hyphen';
-
-    /** A break that shows nothing. */
-    private const string BREAK = 'break';
+    private readonly WordBreaks $breaks;
 
     /** @param array<string, Hyphenator> $hyphenators by language */
-    public function __construct(
-        private readonly array $hyphenators = [],
-    ) {}
-
-    /** A box of text at a bidi level, shaped right to left when the level is odd. */
-    public static function box(string $text, TextStyle $style, int $level = 0): Item
+    public function __construct(array $hyphenators = [])
     {
-        $font    = StyleResolver::fontOf($style);
-        $options = 1 === ($level & 1)
-            ? $style->textOptions()->withDirection(TextDirection::RightToLeft)
-            : $style->textOptions();
-        $run = $font->shape($text, $options);
-
-        return new Item(
-            ItemKind::Box,
-            $style,
-            $text,
-            $run,
-            $font->width($run, $style->fontSize(), $style->textOptions()),
-            level: $level,
-        );
-    }
-
-    public static function glue(TextStyle $style): Item
-    {
-        $font = StyleResolver::fontOf($style);
-        $run  = $font->shape(' ', $style->textOptions());
-
-        return new Item(
-            ItemKind::Glue,
-            $style,
-            ' ',
-            $run,
-            $font->width($run, $style->fontSize(), $style->textOptions()),
-        );
-    }
-
-    /** The width in points of a kerning change of $kerning thousandths of an em. */
-    public static function kerningWidth(float $kerning, TextStyle $style): float
-    {
-        return (($kerning / 1000.0) * $style->fontSize() * ($style->horizontalScale ?? 100.0)) / 100.0;
-    }
-
-    /**
-     * An item for glyphs cut from a shaped run.
-     *
-     * @param list<Glyph> $glyphs
-     */
-    private static function cut(ItemKind $kind, TextStyle $style, string $text, array $glyphs): Item
-    {
-        $font = StyleResolver::fontOf($style);
-        $run  = new GlyphRun($glyphs);
-
-        return new Item($kind, $style, $text, $run, $font->width($run, $style->fontSize(), $style->textOptions()));
+        $this->breaks = new WordBreaks($hyphenators);
     }
 
     /**
@@ -143,6 +69,37 @@ final class Itemiser
     }
 
     /**
+     * The items of one piece of a stretch: a run of word spaces as one glue, kerned like its last
+     * space towards the next word; otherwise a box, and the break after it.
+     *
+     * @param list<Glyph> $glyphs the piece's glyphs, in logical order
+     *
+     * @return list<Item>
+     */
+    private static function pieceItems(string $piece, ?string $after, array $glyphs, TextStyle $style): array
+    {
+        if (WordBreaks::GLUE === $after) {
+            $first = $glyphs[0] ?? null;
+            $last  = $glyphs[count($glyphs) - 1] ?? null;
+
+            return (
+                null === $first || null === $last
+                    ? []
+                    : [ItemFactory::cut(ItemKind::Glue, $style, ' ', [$first->withKerning($last->kerning)])]
+            );
+        }
+        $items = '' === $piece ? [] : [ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs)];
+        if (WordBreaks::HYPHEN === $after) {
+            $items[] = ItemFactory::penalty($glyphs, $style);
+        }
+        if (WordBreaks::BREAK === $after) {
+            $items[] = new Item(ItemKind::Penalty, $style);
+        }
+
+        return $items;
+    }
+
+    /**
      * @param list<array{0: string, 1: TextStyle}> $spans  text with its resolved style
      * @param list<int>                            $levels the bidi level of each character of the
      *                                                     spans' text; none for left-to-right text
@@ -153,9 +110,9 @@ final class Itemiser
     {
         $items  = [];
         $offset = 0;
-        foreach ($this->byFont($spans) as [$text, $style]) {
+        foreach (FontRuns::split($spans) as [$text, $style]) {
             $text = str_replace(["\r\n", "\r"], replace: "\n", subject: $text);
-            foreach ($this->stretches($text) as $stretch) {
+            foreach (WordBreaks::stretches($text) as $stretch) {
                 $length = mb_strlen($stretch, encoding: 'UTF-8');
                 $level  = $levels[$offset] ?? 0;
                 $offset += $length;
@@ -175,164 +132,6 @@ final class Itemiser
         }
 
         return $items;
-    }
-
-    /**
-     * Spans split where the font changes: each character goes to the first font in its style's
-     * font and fallback list that has it, or to the font when none does. Spaces, tabs and line
-     * breaks stay with the run they are in.
-     *
-     * @param list<array{0: string, 1: TextStyle}> $spans
-     *
-     * @return list<array{0: string, 1: TextStyle}>
-     */
-    private function byFont(array $spans): array
-    {
-        $out = [];
-        foreach ($spans as [$text, $style]) {
-            $fallback = $style->fallback ?? [];
-            if ([] === $fallback) {
-                $out[] = [$text, $style];
-                continue;
-            }
-            $font   = StyleResolver::fontOf($style);
-            $styles = [spl_object_id($font) => $style];
-            $run    = '';
-            $using  = $font;
-            foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
-                $choice = $this->fontFor($char, $font, $fallback, $using);
-                if ($choice !== $using && '' !== $run) {
-                    $out[] = [$run, $styles[spl_object_id($using)] ??= $style->merge(new TextStyle(font: $using))];
-                    $run   = '';
-                }
-                $using = $choice;
-                $run   .= $char;
-            }
-            if ('' !== $run) {
-                $out[] = [$run, $styles[spl_object_id($using)] ??= $style->merge(new TextStyle(font: $using))];
-            }
-        }
-
-        return $out;
-    }
-
-    /**
-     * The font that sets a character: the current one for spaces and breaks, otherwise the first
-     * of the font and its fallbacks that has it, or the font itself when none does.
-     *
-     * @param list<FontInterface|string> $fallback resolved, so fonts only
-     */
-    private function fontFor(string $char, FontInterface $font, array $fallback, FontInterface $current): FontInterface
-    {
-        $codePoint = mb_ord($char, encoding: 'UTF-8');
-        if (false === $codePoint || $codePoint <= 0x20 || self::SOFT_HYPHEN === $char) {
-            return $current;
-        }
-        if ($font->hasGlyph($codePoint)) {
-            return $font;
-        }
-        foreach ($fallback as $candidate) {
-            if ($candidate instanceof FontInterface && $candidate->hasGlyph($codePoint)) {
-                return $candidate;
-            }
-        }
-
-        return $font;
-    }
-
-    /**
-     * A word's hyphenation points from the patterns for its language. Punctuation before and after
-     * the letters stays attached, so "(typography," hyphenates like "typography".
-     *
-     * @return list<string>
-     */
-    private function patternPieces(string $word, TextStyle $style): array
-    {
-        $hyphenator = $this->hyphenators[$style->language ?? ''] ?? null;
-        $parts      = [];
-        if (
-            null === $hyphenator
-            || true !== $style->hyphenate
-            || preg_match('/^([^\p{L}]*)(\p{L}+)([^\p{L}]*)$/u', $word, $parts) !== 1
-        ) {
-            return [$word];
-        }
-        $lead    = $parts[1] ?? '';
-        $letters = $parts[2] ?? '';
-        $trail   = $parts[3] ?? '';
-        if (mb_strlen($letters, encoding: 'UTF-8') < ($style->minHyphenatedWordLength ?? 6)) {
-            return [$word];
-        }
-        $syllables        = $hyphenator->syllables($letters, $style->hyphenLeftMin ?? 2, $style->hyphenRightMin ?? 2);
-        $syllables[0]     = $lead . ($syllables[0] ?? '');
-        $last             = count($syllables) - 1;
-        $syllables[$last] = ($syllables[$last] ?? '') . $trail;
-
-        return $syllables;
-    }
-
-    /**
-     * A hyphenation point: the hyphen, and how the kerning of the last glyph before it changes
-     * when the line breaks there (from the next piece to the hyphen).
-     *
-     * @param list<Glyph> $before the glyphs of the piece before the break
-     */
-    private function penalty(array $before, TextStyle $style): Item
-    {
-        $hyphen = self::box('-', $style);
-        $last   = $before[count($before) - 1] ?? null;
-        $change = 0.0;
-        if (null !== $last) {
-            $pair   = StyleResolver::fontOf($style)->shape("{$last->text()}-", $style->textOptions());
-            $first  = $pair->glyphs[count($pair->glyphs) - 2] ?? null;
-            $change = (null === $first ? 0.0 : $first->kerning) - $last->kerning;
-        }
-
-        return new Item(
-            ItemKind::Penalty,
-            $style,
-            '',
-            null,
-            0.0,
-            $hyphen->run,
-            $hyphen->width + self::kerningWidth($change, $style),
-            $change,
-        );
-    }
-
-    /**
-     * The pieces of a stretch, each with the break after it (glue, a break showing nothing, a
-     * hyphen, or none), and the text to shape for them: fixed spaces the font lacks become word
-     * spaces. Right-to-left words are not hyphenated.
-     *
-     * @return array{0: list<array{0: string, 1: ?string}>, 1: string}
-     */
-    private function pieces(string $text, TextStyle $style, int $level): array
-    {
-        $font    = StyleResolver::fontOf($style);
-        $matches = [];
-        preg_match_all('/[ ]+|' . self::FIXED_SPACES . '|(?:(?!' . self::FIXED_SPACES . ')[^ ])+/u', $text, $matches);
-        $pieces = [];
-        $shaped = '';
-        foreach ($matches[0] ?? [] as $chunk) {
-            if (' ' === $chunk[0]) {
-                $pieces[] = [$chunk, self::GLUE];
-                $shaped   .= $chunk;
-                continue;
-            }
-            if (preg_match('/^' . self::FIXED_SPACES . '$/u', $chunk) === 1) {
-                $pieces[]  = [$chunk, self::BREAK];
-                $codePoint = mb_ord($chunk, encoding: 'UTF-8');
-                $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
-                continue;
-            }
-            foreach (1 === ($level & 1) ? [[$chunk, null]] : $this->wordPieces($chunk, $style) as $piece) {
-                $pieces[] = $piece;
-                $shaped   .= $piece[0];
-            }
-        }
-
-        return [$pieces, $shaped];
     }
 
     /**
@@ -391,7 +190,7 @@ final class Itemiser
     {
         $rtl  = 1 === ($level & 1);
         $font = StyleResolver::fontOf($style);
-        [$pieces, $shaped] = $this->pieces($text, $style, $level);
+        [$pieces, $shaped] = $this->breaks->pieces($text, $style, $level);
         $options = $style->textOptions()
             ->withDirection($rtl ? TextDirection::RightToLeft : TextDirection::LeftToRight);
         $shapedRun = $font->shape($shaped, $options)->glyphs;
@@ -407,77 +206,11 @@ final class Itemiser
                 $slice[] = $glyph;
                 ++$cursor;
             }
-            if ($rtl) {
-                $slice = array_reverse($slice);
-            }
-            if (self::GLUE === $after) {
-                $first = $slice[0] ?? null;
-                $last  = $slice[count($slice) - 1] ?? null;
-                if (null !== $first && null !== $last) {
-                    $space   = $first->withKerning($last->kerning);
-                    $items[] = self::cut(ItemKind::Glue, $style, ' ', [$space]);
-                }
-                continue;
-            }
-            if ('' !== $piece) {
-                $items[] = self::cut(ItemKind::Box, $style, $piece, $slice);
-            }
-            if (self::HYPHEN === $after) {
-                $items[] = $this->penalty($slice, $style);
-            }
-            if (self::BREAK === $after) {
-                $items[] = new Item(ItemKind::Penalty, $style);
+            foreach (self::pieceItems($piece, $after, $rtl ? array_reverse($slice) : $slice, $style) as $item) {
+                $items[] = $item;
             }
         }
 
         return $items;
-    }
-
-    /**
-     * The text split at tabs and line breaks, which are returned as single characters.
-     *
-     * @return list<string>
-     */
-    private function stretches(string $text): array
-    {
-        $matches = [];
-        preg_match_all('/\n|\t|[^\n\t]+/u', $text, $matches);
-
-        return array_values($matches[0] ?? []);
-    }
-
-    /**
-     * A word cut where it may break: after hard hyphens, en dashes and slashes (not before a
-     * digit), on both sides of an em dash, and at soft hyphens or, failing those, pattern
-     * hyphenation points within each part.
-     *
-     * @return list<array{0: string, 1: ?string}> pieces, each with the break that follows it
-     */
-    private function wordPieces(string $word, TextStyle $style): array
-    {
-        $parts = preg_split(
-            '/(?<=[^\s\-\x{2010}\x{2013}\x{2014}\/])(?=\x{2014})|(?<=[\-\x{2010}\x{2013}\/])(?=[^\d\-\x{2010}\x{2013}\x{2014}\/])|(?<=\x{2014})(?=[^\x{2014}])/u',
-            $word,
-            flags: PREG_SPLIT_NO_EMPTY,
-        );
-        $parts  = false === $parts || [] === $parts ? [$word] : $parts;
-        $pieces = [];
-        $last   = count($parts) - 1;
-        foreach ($parts as $p => $part) {
-            $syllables = explode(self::SOFT_HYPHEN, $part);
-            if (1 === count($syllables)) {
-                $syllables = $this->patternPieces($part, $style);
-            }
-            $final = count($syllables) - 1;
-            foreach ($syllables as $s => $syllable) {
-                $after = $p < $last ? self::BREAK : null;
-                if ($s < $final) {
-                    $after = self::HYPHEN;
-                }
-                $pieces[] = [$syllable, $after];
-            }
-        }
-
-        return $pieces;
     }
 }

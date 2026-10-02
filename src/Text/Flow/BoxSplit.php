@@ -40,7 +40,11 @@ final class BoxSplit
         $hi    = max(1, count($chars) - 1);
         while ($lo < $hi) {
             $mid = intdiv($lo + $hi + 1, num2: 2);
-            $box = Itemiser::box(implode('', array_slice($chars, offset: 0, length: $mid)), $item->style, $item->level);
+            $box = ItemFactory::box(
+                implode('', array_slice($chars, offset: 0, length: $mid)),
+                $item->style,
+                $item->level,
+            );
             if ($box->width > $width) {
                 $hi = $mid - 1;
                 continue;
@@ -48,7 +52,7 @@ final class BoxSplit
             $lo = $mid;
         }
 
-        return Itemiser::box(implode('', array_slice($chars, offset: 0, length: $lo)), $item->style, $item->level);
+        return ItemFactory::box(implode('', array_slice($chars, offset: 0, length: $lo)), $item->style, $item->level);
     }
 
     /**
@@ -80,7 +84,7 @@ final class BoxSplit
     /** What is left of a box once its first $carry characters are on earlier lines. */
     public static function rest(Item $item, int $carry): Item
     {
-        return Itemiser::box(mb_substr($item->text, $carry, encoding: 'UTF-8'), $item->style, $item->level);
+        return ItemFactory::box(mb_substr($item->text, $carry, encoding: 'UTF-8'), $item->style, $item->level);
     }
 
     /**

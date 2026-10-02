@@ -122,7 +122,7 @@ final class LineAssembler
         $kerning       = null === $change ? 0.0 : $glyph->kerning + $change;
         $glyphs[$last] = $glyph->withKerning($kerning);
         $width         = $item->width
-        - (null === $change ? Itemiser::kerningWidth($glyph->kerning, $item->style) : 0.0);
+        - (null === $change ? ItemFactory::kerningWidth($glyph->kerning, $item->style) : 0.0);
         $items[$index] = new Item(
             ItemKind::Box,
             $item->style,

@@ -101,7 +101,7 @@ final class CopyFitter
                 null,
                 0.0,
                 $hyphen,
-                $font->width($hyphen, $size, $options) + Itemiser::kerningWidth($item->hyphenKerning, $style),
+                $font->width($hyphen, $size, $options) + ItemFactory::kerningWidth($item->hyphenKerning, $style),
                 $item->hyphenKerning,
             ),
             default => new Item($item->kind, $style),

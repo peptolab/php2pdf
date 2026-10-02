@@ -59,7 +59,7 @@ final class TabRuler
         if (null === $text) {
             return null;
         }
-        $unit = Itemiser::box($text, $style);
+        $unit = ItemFactory::box($text, $style);
         if (null === $unit->run || $unit->width <= 0.0) {
             return null;
         }
@@ -101,7 +101,7 @@ final class TabRuler
                 $segmentWidth += $item->width;
                 continue;
             }
-            $prefix       = Itemiser::box(substr($item->text, offset: 0, length: $pos), $item->style);
+            $prefix       = ItemFactory::box(substr($item->text, offset: 0, length: $pos), $item->style);
             $decimalWidth = $segmentWidth + $prefix->width;
             $segmentWidth += $item->width;
         }
