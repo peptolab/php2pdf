@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Document;
 
+use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Core\Object\Dictionary;
@@ -71,9 +72,7 @@ final class Page
             $topDown,
             links: static function (Box $area, Destination|string $target, ?string $tooltip) use ($page): void {
                 $owner = $page->get();
-                if (null !== $owner) {
-                    $owner->links[] = [$area, $target, $tooltip];
-                }
+                $owner?->link($area, $target, $tooltip);
             },
         );
     }
@@ -83,10 +82,12 @@ final class Page
      * in this document. The link draws nothing; style the content underneath as you like. Under
      * PDF/X a link must lie outside the bleed box (the trim box when no bleed box is set). A
      * tooltip is shown by viewers when the pointer rests on the link.
+     *
+     * @throws ConformanceException under PDF/X when the link overlaps a page box already set
      */
     public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): self
     {
-        $this->links[] = [$this->toPdfBox($area), $target, $tooltip];
+        $this->link($this->toPdfBox($area), $target, $tooltip);
 
         return $this;
     }
@@ -119,7 +120,9 @@ final class Page
     }
 
     /**
-     * Writes the content stream and page dictionary.
+     * Writes the content stream and page dictionary. Under PDF/X the page boxes and links are
+     * checked first, so a page that fails is left unwritten and open. PDF/X needs a trim or art
+     * box on every page; without either, the crop box (or media box) becomes the trim box.
      *
      * @internal
      */
@@ -128,21 +131,22 @@ final class Page
         if ($this->finished) {
             throw new PdfException(sprintf('Page %d has already been finished.', $this->number));
         }
+
+        $pdfx = $this->document->options()->pdfx;
+        if (null !== $pdfx) {
+            $trim =
+                null === $this->trimBox && null === $this->artBox
+                    ? $this->cropBox ?? $this->mediaBox
+                    : $this->trimBox;
+            $this->assertPdfXBoxes($pdfx, $trim);
+            $this->assertPdfXLinks($pdfx, $this->links, $trim);
+            $this->trimBox = $trim;
+        }
         $this->finished = true;
 
         $writer   = $this->document->writer();
         $contents = $writer->add(Stream::of($this->canvas->finish()));
-
-        $pdfx = $this->document->options()->pdfx;
-        if (null !== $pdfx && null === $this->trimBox && null === $this->artBox) {
-            // PDF/X needs a trim or art box on every page: the crop box (or media box) is the trim.
-            $this->trimBox = $this->cropBox ?? $this->mediaBox;
-        }
-        if (null !== $pdfx) {
-            $this->assertPdfXBoxes($pdfx);
-            $this->assertPdfXLinks($pdfx);
-        }
-        $annots = [];
+        $annots   = [];
         foreach ($this->links as [$area, $target, $tooltip]) {
             $annots[] = $this->document->addLinkAnnotation($area, $target, $tooltip);
         }
@@ -237,23 +241,38 @@ final class Page
         return $this->rotation;
     }
 
+    /** @throws ConformanceException under PDF/X when the box breaks the PDF/X box rules */
     public function setArtBox(?Box $box): self
     {
+        $previous     = $this->artBox;
         $this->artBox = $this->clamp($box);
+        $this->checkBoxes(static function (Page $page) use ($previous): void {
+            $page->artBox = $previous;
+        });
 
         return $this;
     }
 
+    /** @throws ConformanceException under PDF/X when the box breaks the PDF/X box rules */
     public function setBleedBox(?Box $box): self
     {
+        $previous       = $this->bleedBox;
         $this->bleedBox = $this->clamp($box);
+        $this->checkBoxes(static function (Page $page) use ($previous): void {
+            $page->bleedBox = $previous;
+        });
 
         return $this;
     }
 
+    /** @throws ConformanceException under PDF/X when the box breaks the PDF/X box rules */
     public function setCropBox(?Box $box): self
     {
+        $previous      = $this->cropBox;
         $this->cropBox = $this->clamp($box);
+        $this->checkBoxes(static function (Page $page) use ($previous): void {
+            $page->cropBox = $previous;
+        });
 
         return $this;
     }
@@ -270,9 +289,14 @@ final class Page
         return $this;
     }
 
+    /** @throws ConformanceException under PDF/X when the box breaks the PDF/X box rules */
     public function setTrimBox(?Box $box): self
     {
+        $previous      = $this->trimBox;
         $this->trimBox = $this->clamp($box);
+        $this->checkBoxes(static function (Page $page) use ($previous): void {
+            $page->trimBox = $previous;
+        });
 
         return $this;
     }
@@ -308,11 +332,11 @@ final class Page
      * PDF/X boxes: a TrimBox or an ArtBox but not both, inside the BleedBox (which defaults to
      * the CropBox), inside the MediaBox.
      *
-     * @throws PdfException when the boxes do not nest
+     * @throws ConformanceException when the boxes do not nest
      */
-    private function assertPdfXBoxes(PdfX $pdfx): void
+    private function assertPdfXBoxes(PdfX $pdfx, ?Box $trimBox): void
     {
-        if (null !== $this->trimBox && null !== $this->artBox) {
+        if (null !== $trimBox && null !== $this->artBox) {
             throw new ConformanceException(sprintf(
                 '%s page %d has both a TrimBox and an ArtBox; set one.',
                 $pdfx->value,
@@ -327,7 +351,7 @@ final class Page
                 $this->number,
             ));
         }
-        foreach (['TrimBox' => $this->trimBox, 'ArtBox' => $this->artBox] as $name => $box) {
+        foreach (['TrimBox' => $trimBox, 'ArtBox' => $this->artBox] as $name => $box) {
             if (null !== $box && ! $bleed->encloses($box, self::BOX_TOLERANCE)) {
                 throw new ConformanceException(sprintf(
                     '%s page %d: the %s must lie within the BleedBox.',
@@ -339,11 +363,18 @@ final class Page
         }
     }
 
-    /** PDF/X allows annotations only outside the printed area. */
-    private function assertPdfXLinks(PdfX $pdfx): void
+    /**
+     * PDF/X allows annotations only outside the printed area. Link areas are in PDF space; the
+     * boxes are in the page's coordinate mode.
+     *
+     * @param list<array{0: Box, 1: Destination|string, 2: string|null}> $links
+     *
+     * @throws ConformanceException when a link overlaps the printed area
+     */
+    private function assertPdfXLinks(PdfX $pdfx, array $links, ?Box $trimBox): void
     {
-        $printed = $this->bleedBox ?? $this->trimBox ?? $this->artBox ?? $this->mediaBox;
-        foreach ($this->links as [$area]) {
+        $printed = $this->toPdfBox($this->bleedBox ?? $trimBox ?? $this->artBox ?? $this->mediaBox);
+        foreach ($links as [$area]) {
             if ($printed->intersect($area)->isEmpty()) {
                 continue;
             }
@@ -354,6 +385,33 @@ final class Page
                 implode(' ', $area->toRect()),
                 null === $this->bleedBox ? 'TrimBox' : 'BleedBox',
             ));
+        }
+    }
+
+    /**
+     * Under PDF/X, checks the boxes as they stand and any links against a printed box that has
+     * been set, undoing the change that broke a rule before throwing. Links added before any
+     * printed box is set are checked when the page is finished, against the default trim box.
+     *
+     * @param Closure(Page): void $undo
+     *
+     * @throws ConformanceException when the boxes or links break the PDF/X rules
+     */
+    private function checkBoxes(Closure $undo): void
+    {
+        $pdfx = $this->document->options()->pdfx;
+        if (null === $pdfx) {
+            return;
+        }
+        try {
+            $this->assertPdfXBoxes($pdfx, $this->trimBox);
+            if (null !== $this->bleedBox || null !== $this->trimBox || null !== $this->artBox) {
+                $this->assertPdfXLinks($pdfx, $this->links, $this->trimBox);
+            }
+        } catch (ConformanceException $e) {
+            $undo($this);
+
+            throw $e;
         }
     }
 
@@ -368,6 +426,23 @@ final class Page
         }
 
         return $clamped;
+    }
+
+    /**
+     * Records a link area given in PDF space, checking it at once under PDF/X when a printed box
+     * has been set.
+     *
+     * @throws ConformanceException when the link overlaps the printed area
+     */
+    private function link(Box $area, Destination|string $target, ?string $tooltip): void
+    {
+        $this->assertOpen();
+        $link = [$area, $target, $tooltip];
+        $pdfx = $this->document->options()->pdfx;
+        if (null !== $pdfx && (null !== $this->bleedBox || null !== $this->trimBox || null !== $this->artBox)) {
+            $this->assertPdfXLinks($pdfx, [$link], $this->trimBox);
+        }
+        $this->links[] = $link;
     }
 
     /** @return list<float>|null */

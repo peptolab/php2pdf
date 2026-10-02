@@ -57,6 +57,13 @@ What the option does:
 - refuses a page with both a trim box and an art box, a bleed box outside the media box, and a
   trim or art box outside the bleed box.
 
+Page boxes are checked as they are set, and a link as soon as it is added once the page has a
+bleed, trim or art box, so the exception comes from the call that broke the rule and the refused
+box or link is not kept. When moving boxes that are already set, keep each step valid: enlarge
+the bleed box before the trim box, and shrink the trim box before the bleed box. A link added
+before any box is set is checked when the page is finished, before anything of the page is
+written; a page that fails stays open, so it can be corrected and the document closed.
+
 Fonts are always embedded. The structure follows ISO 15930-7; check files with Acrobat Preflight
 or callas pdfToolbox (veraPDF validates PDF/A and PDF/UA, not PDF/X).
 

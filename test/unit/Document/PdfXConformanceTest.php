@@ -18,6 +18,7 @@ use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Document\PdfX;
+use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Geometry\Box;
 use Php2PdfTest\Support\PdfTools;
@@ -70,16 +71,51 @@ final class PdfXConformanceTest extends TestCase
     }
 
     #[Test]
+    public function aBoxThatBreaksTheRulesIsNotKept(): void
+    {
+        $page = $this->document('CMYK')
+            ->addPage(PageSize::A4)
+            ->setBleedBox(new Box(20.0, 20.0, 100.0, 100.0));
+        try {
+            $page->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0));
+            self::fail('Expected the TrimBox to be refused.');
+        } catch (ConformanceException) {
+            self::assertEquals($page->mediaBox(), $page->trimBox());
+        }
+    }
+
+    #[Test]
     public function aPageMayNotHaveBothATrimBoxAndAnArtBox(): void
     {
-        $doc = $this->document('CMYK');
-        $doc->addPage(PageSize::A4)
-            ->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0))
-            ->setArtBox(new Box(10.0, 10.0, 100.0, 100.0));
+        $page = $this->document('CMYK')
+            ->addPage(PageSize::A4)
+            ->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0));
 
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('PDF/X-4 page 1 has both a TrimBox and an ArtBox');
+        $page->setArtBox(new Box(10.0, 10.0, 100.0, 100.0));
+    }
+
+    #[Test]
+    public function aPageThatFailsIsLeftUnwrittenAndOpen(): void
+    {
+        $doc  = $this->document('CMYK');
+        $page = $doc->addPage(PageSize::A4)->addLink(new Box(0.0, 0.0, 20.0, 10.0), 'https://example.com/');
+        $page->canvas()->fillRect(100.0, 100.0, 50.0, 50.0);
+        $written = $this->out->contents();
+        try {
+            $doc->addPage(PageSize::A4);
+            self::fail('Expected page 1 to be refused.');
+        } catch (ConformanceException $e) {
+            self::assertStringContainsString('PDF/X-4 page 1: a link at [0 0 20 10]', $e->getMessage());
+        }
+        self::assertSame($written, $this->out->contents());
+
+        $page->setCropBox(new Box(30.0, 30.0, 500.0, 700.0))
+            ->canvas()
+            ->fillRect(200.0, 200.0, 50.0, 50.0);
         $doc->close();
+        self::assertStringContainsString("100 100 50 50 re\nf\n200 200 50 50 re\nf", $this->out->contents());
     }
 
     #[Test]
@@ -150,16 +186,27 @@ final class PdfXConformanceTest extends TestCase
     }
 
     #[Test]
-    public function linksInsideTheTrimBoxAreRefused(): void
+    public function linksAreRefusedWhenAddedOverAPrintedBox(): void
     {
-        $doc = $this->document('CMYK');
-        $doc->addPage(PageSize::A4)
-            ->addLink(new Box(0.0, 0.0, 40.0, 40.0), 'https://example.com/')
+        $page = $this->document('CMYK')
+            ->addPage(PageSize::A4)
             ->setTrimBox(new Box(30.0, 30.0, 500.0, 700.0));
 
         $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('PDF/X-4 page 1: a link at [100 100 120 110] overlaps the TrimBox');
+        $page->addLink(new Box(100.0, 100.0, 20.0, 10.0), 'https://example.com/');
+    }
+
+    #[Test]
+    public function linksInsideTheTrimBoxAreRefused(): void
+    {
+        $page = $this->document('CMYK')
+            ->addPage(PageSize::A4)
+            ->addLink(new Box(0.0, 0.0, 40.0, 40.0), 'https://example.com/');
+
+        $this->expectException(PdfException::class);
         $this->expectExceptionMessage('PDF/X-4 page 1: a link at [0 0 40 40] overlaps the TrimBox');
-        $doc->close();
+        $page->setTrimBox(new Box(30.0, 30.0, 500.0, 700.0));
     }
 
     #[Test]
@@ -171,6 +218,18 @@ final class PdfXConformanceTest extends TestCase
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('overlaps the TrimBox');
         $doc->close();
+    }
+
+    #[Test]
+    public function linksOnATopDownPageAreCheckedInPageCoordinates(): void
+    {
+        $doc = $this->document('CMYK');
+        $doc->addPage(PageSize::A4, topDown: true)
+            ->setTrimBox(new Box(30.0, 30.0, 500.0, 700.0))
+            ->addLink(new Box(100.0, 750.0, 20.0, 10.0), 'https://example.com/');
+        $doc->close();
+
+        self::assertStringContainsString('/Subtype/Link', $this->out->contents());
     }
 
     #[Test]
@@ -204,14 +263,13 @@ final class PdfXConformanceTest extends TestCase
     #[Test]
     public function theTrimBoxMustLieWithinTheBleedBox(): void
     {
-        $doc = $this->document('CMYK');
-        $doc->addPage(PageSize::A4)
-            ->setBleedBox(new Box(20.0, 20.0, 100.0, 100.0))
-            ->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0));
+        $page = $this->document('CMYK')
+            ->addPage(PageSize::A4)
+            ->setBleedBox(new Box(20.0, 20.0, 100.0, 100.0));
 
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('page 1: the TrimBox must lie within the BleedBox');
-        $doc->close();
+        $page->setTrimBox(new Box(10.0, 10.0, 100.0, 100.0));
     }
 
     private function document(string $intent, ?string $rgbProfile = null): Document
