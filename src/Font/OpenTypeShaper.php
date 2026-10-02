@@ -247,18 +247,7 @@ final readonly class OpenTypeShaper
                 ? []
                 : array_slice($codePoints, $first, ($ends[$cluster] ?? count($codePoints)) - $first);
             $seen[$cluster] = true;
-            $advance        = ($this->advance)($id);
-            $natural        = $this->program->advance($id);
-            $kerning        = 0 === $xAdvance && 0 !== $natural ? -$advance : ($xAdvance - $natural) * $this->scale;
-            $glyphs[]       = new Glyph(
-                $id,
-                $chars[0] ?? -1,
-                $advance,
-                $kerning,
-                count($chars) > 1 ? $chars : [],
-                $xOffset * $this->scale,
-                $yOffset * $this->scale,
-            );
+            $glyphs[]       = $this->placed($id, $chars, $xAdvance, $xOffset, $yOffset);
         }
 
         return $glyphs;
@@ -363,6 +352,30 @@ final readonly class OpenTypeShaper
     }
 
     /**
+     * A glyph placed as a shaper positioned it, in font units: its advance and offsets become
+     * kerning and offsets in thousandths of an em. A glyph with no advance takes none (a mark
+     * over the glyph before it). The first of its code points is the character it stands for.
+     *
+     * @param list<int> $codePoints
+     */
+    private function placed(int $id, array $codePoints, int $xAdvance, int $xOffset, int $yOffset): Glyph
+    {
+        $advance = ($this->advance)($id);
+        $natural = $this->program->advance($id);
+        $kerning = 0 === $xAdvance && 0 !== $natural ? -$advance : ($xAdvance - $natural) * $this->scale;
+
+        return new Glyph(
+            $id,
+            $codePoints[0] ?? -1,
+            $advance,
+            $kerning,
+            count($codePoints) > 1 ? $codePoints : [],
+            $xOffset * $this->scale,
+            $yOffset * $this->scale,
+        );
+    }
+
+    /**
      * Glyphs for a substituted sequence, positioned by the font's GPOS (kerning when it has a kern
      * feature, mark and cursive attachment, and the requested features), else kerned from its
      * kern table. A glyph's kerning carries what positioning adds to its advance; a mark
@@ -408,14 +421,8 @@ final readonly class OpenTypeShaper
             && $this->program->hasKerning();
         $glyphs = [];
         foreach ($sequence as $k => [$id, $codePoints]) {
-            $advance = ($this->advance)($id);
-            $glyph   = new Glyph($id, $codePoints[0] ?? -1, $advance, 0.0, count($codePoints) > 1 ? $codePoints : []);
-            if (null !== $positions) {
-                [$xAdvance, , $xOffset, $yOffset] = $positions[$k] ?? [0, 0, 0, 0];
-                $natural = $this->program->advance($id);
-                $kerning = 0 === $xAdvance && 0 !== $natural ? -$advance : ($xAdvance - $natural) * $this->scale;
-                $glyph   = $glyph->withKerning($kerning)->withOffset($xOffset * $this->scale, $yOffset * $this->scale);
-            }
+            [$xAdvance, , $xOffset, $yOffset] = $positions[$k] ?? [$this->program->advance($id), 0, 0, 0];
+            $glyph    = $this->placed($id, $codePoints, $xAdvance, $xOffset, $yOffset);
             $previous = $glyphs[$k - 1] ?? null;
             if ($legacyKern && null !== $previous) {
                 $kern = $this->program->kerning($previous->id, $id);
