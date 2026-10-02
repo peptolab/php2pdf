@@ -40,6 +40,7 @@ final class Layout
         private readonly float $width,
         private readonly float $boxHeight,
         private readonly FlowOptions $options,
+        private readonly LineBreaker $breaker,
     ) {
         $this->paragraphIndex = $cursor->paragraph;
         $this->itemIndex      = $cursor->item;
@@ -130,7 +131,7 @@ final class Layout
                     $carry,
                 );
             }
-            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
+            $line = $this->breaker->nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
             if (null === $line) {
                 break;
             }
@@ -167,7 +168,7 @@ final class Layout
     {
         $count = 0;
         while ($count <= $limit) {
-            $line = LineBreaker::nextLine($paragraph, $offset, $this->width, 1, $carry);
+            $line = $this->breaker->nextLine($paragraph, $offset, $this->width, 1, $carry);
             if (null === $line) {
                 break;
             }
@@ -196,7 +197,7 @@ final class Layout
         if (null === $next) {
             return true;
         }
-        $line = LineBreaker::nextLine($next, 0, $this->width, 0);
+        $line = $this->breaker->nextLine($next, 0, $this->width, 0);
         if (null === $line) {
             return true;
         }

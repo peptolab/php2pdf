@@ -47,8 +47,8 @@ final class ParagraphComposer
         private readonly array $items,
         private readonly int $start,
         private readonly int $end,
-        private readonly float $firstWidth,
-        private readonly float $width,
+        private readonly LineWidths $widths,
+        private readonly int $firstLine,
     ) {
         $natural = 0.0;
         $stretch = 0.0;
@@ -73,12 +73,11 @@ final class ParagraphComposer
      * The ends of the lines from $start to the paragraph's next forced break, or null when the
      * text needs the line-by-line breaker: it has a tab or a word wider than a line.
      *
-     * @param float $firstWidth the first line's width
-     * @param float $width      the other lines' width
+     * @param int $firstLine the number in the paragraph of the line starting at $start
      *
      * @return list<LineEnd>|null
      */
-    public static function breaks(Paragraph $paragraph, int $start, float $firstWidth, float $width): ?array
+    public static function breaks(Paragraph $paragraph, int $start, LineWidths $widths, int $firstLine): ?array
     {
         $items = $paragraph->items;
         $end   = $start;
@@ -87,14 +86,14 @@ final class ParagraphComposer
                 ItemKind::Tab === $item->kind
                 || (
                     ItemKind::Glue !== $item->kind
-                    && $item->width > min($firstWidth, $width)
+                    && $item->width > min($widths->available($firstLine), $widths->available($firstLine + 1))
                 )
             ) {
                 return null;
             }
             ++$end;
         }
-        $composer = new self($items, $start, $end, $firstWidth, $width);
+        $composer = new self($items, $start, $end, $widths, $firstLine);
 
         return $composer->compose(self::TOLERANCE) ?? $composer->compose(null);
     }
@@ -232,7 +231,7 @@ final class ParagraphComposer
         $survivor = [];
         $best     = [];
         foreach ($active as $node) {
-            $lineWidth = 0 === $node->line ? $this->firstWidth : $this->width;
+            $lineWidth = $this->widths->available($this->firstLine + $node->line);
             $ratio     = $this->ratio($this->lineStart($node->position), $i, $lineWidth, $extra ?? 0.0);
             if ($ratio >= -1.0) {
                 $survivor[] = $node;

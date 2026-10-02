@@ -24,14 +24,19 @@ final class CopyFitter
      *
      * @return array{0: LayoutResult, 1: float}
      */
-    public static function shrink(array $paragraphs, FlowCursor $cursor, Box $box, FlowOptions $options): array
-    {
+    public static function shrink(
+        array $paragraphs,
+        FlowCursor $cursor,
+        Box $box,
+        FlowOptions $options,
+        LineBreaker $breaker,
+    ): array {
         $lo   = $options->shrinkLimit;
         $hi   = 1.0;
         $best = null;
         for ($i = 0; $i < 8; ++$i) {
             $mid    = ($lo + $hi) / 2.0;
-            $layout = self::layout($paragraphs, $cursor, $mid, $box, $options);
+            $layout = self::layout($paragraphs, $cursor, $mid, $box, $options, $breaker);
             if (FlowResult::Done !== $layout->result) {
                 $hi = $mid;
                 continue;
@@ -41,7 +46,7 @@ final class CopyFitter
         }
 
         return $best ?? [
-            self::layout($paragraphs, $cursor, $options->shrinkLimit, $box, $options),
+            self::layout($paragraphs, $cursor, $options->shrinkLimit, $box, $options, $breaker),
             $options->shrinkLimit,
         ];
     }
@@ -53,6 +58,7 @@ final class CopyFitter
         float $scale,
         Box $box,
         FlowOptions $options,
+        LineBreaker $breaker,
     ): LayoutResult {
         return (new Layout(
             self::scaledParagraphs($paragraphs, $scale),
@@ -60,6 +66,7 @@ final class CopyFitter
             $box->width,
             $box->height,
             $options,
+            $breaker,
         ))->run();
     }
 

@@ -12,11 +12,13 @@ use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\Flow\BoxSplit;
+use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\CopyFitter;
 use Php2Pdf\Text\Flow\FlowCursor;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\Layout;
+use Php2Pdf\Text\Flow\LineBreaker;
 use Php2Pdf\Text\Flow\LinePainter;
 use Php2Pdf\Text\Flow\MarkupParser;
 use Php2Pdf\Text\Flow\Paragraph;
@@ -49,6 +51,9 @@ final class Textflow implements FlowableInterface
     /** Where the next fit starts. */
     private FlowCursor $cursor;
 
+    /** Breaks lines with the composer's plans kept from one fit to the next. */
+    private readonly LineBreaker $breaker;
+
     private ?FitInfo $last = null;
 
     /**
@@ -57,7 +62,8 @@ final class Textflow implements FlowableInterface
     private function __construct(
         private readonly array $paragraphs,
     ) {
-        $this->cursor = new FlowCursor();
+        $this->cursor  = new FlowCursor();
+        $this->breaker = new LineBreaker(new BreakPlanner());
     }
 
     /**
@@ -154,9 +160,16 @@ final class Textflow implements FlowableInterface
     {
         $options ??= new FlowOptions();
         $scale   = 1.0;
-        $layout  = (new Layout($this->paragraphs, $this->cursor, $box->width, $box->height, $options))->run();
+        $layout  = (new Layout(
+            $this->paragraphs,
+            $this->cursor,
+            $box->width,
+            $box->height,
+            $options,
+            $this->breaker,
+        ))->run();
         if ($options->shrinkToFit && FlowResult::Done !== $layout->result) {
-            [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options);
+            [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options, $this->breaker);
         }
 
         $shift = 0.0;
@@ -244,6 +257,7 @@ final class Textflow implements FlowableInterface
             $width,
             PHP_FLOAT_MAX,
             $options ?? new FlowOptions(),
+            $this->breaker,
         ))->run()
             ->height;
     }

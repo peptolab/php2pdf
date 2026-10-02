@@ -7,6 +7,7 @@ namespace Php2PdfTest\Unit\Text\Flow;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\LineEnd;
+use Php2Pdf\Text\Flow\LineWidths;
 use Php2Pdf\Text\Flow\Paragraph;
 use Php2Pdf\Text\Flow\ParagraphComposer;
 use Php2Pdf\Text\Style\TextStyle;
@@ -35,6 +36,18 @@ final class ParagraphComposerTest extends TestCase
     private static function box(float $width): Item
     {
         return new Item(ItemKind::Box, new TextStyle(), width: $width);
+    }
+
+    /**
+     * The composer's line ends from $start, with the first line $first wide and the others $rest.
+     *
+     * @return list<LineEnd>|null
+     */
+    private static function breaks(Paragraph $paragraph, int $start, float $first, float $rest): ?array
+    {
+        $widths = new LineWidths($rest, new TextStyle(firstLineIndent: $rest - $first));
+
+        return ParagraphComposer::breaks($paragraph, $start, $widths, 0);
     }
 
     private static function glue(): Item
@@ -83,7 +96,7 @@ final class ParagraphComposerTest extends TestCase
             $hyphen,
             self::box(6.0),
         ]);
-        $ends = ParagraphComposer::breaks($paragraph, 0, 18.0, 18.0);
+        $ends = self::breaks($paragraph, 0, 18.0, 18.0);
 
         self::assertSame([3, $hyphen], [$ends[0]->index ?? null, $ends[0]->hyphen ?? null]);
     }
@@ -95,7 +108,7 @@ final class ParagraphComposerTest extends TestCase
 
         self::assertSame(
             [7, 9],
-            self::indexes(ParagraphComposer::breaks($paragraph, 0, 20.0, 20.0)),
+            self::indexes(self::breaks($paragraph, 0, 20.0, 20.0)),
             'Filling the first line to 17 pt stretches its two spaces by 1.5 pt each; '
                 . 'taking the third word shrinks its three by 0.33 pt.',
         );
@@ -106,7 +119,7 @@ final class ParagraphComposerTest extends TestCase
     {
         $paragraph = self::paragraph([self::box(9.0), self::box(15.0)]);
 
-        self::assertSame([1, 3], self::indexes(ParagraphComposer::breaks($paragraph, 0, 20.0, 20.0)));
+        self::assertSame([1, 3], self::indexes(self::breaks($paragraph, 0, 20.0, 20.0)));
     }
 
     #[Test]
@@ -121,7 +134,7 @@ final class ParagraphComposerTest extends TestCase
             self::box(5.0),
         ]);
 
-        self::assertSame([7, 11], self::indexes(ParagraphComposer::breaks($paragraph, 0, 20.0, 20.0)));
+        self::assertSame([7, 11], self::indexes(self::breaks($paragraph, 0, 20.0, 20.0)));
     }
 
     /** @param list<Item> $items */
@@ -129,7 +142,7 @@ final class ParagraphComposerTest extends TestCase
     #[DataProvider('lineByLineProvider')]
     public function textTheComposerCannotSetIsLeftToTheLineBreaker(array $items): void
     {
-        self::assertNull(ParagraphComposer::breaks(new Paragraph(new TextStyle(), $items), 0, 20.0, 20.0));
+        self::assertNull(self::breaks(new Paragraph(new TextStyle(), $items), 0, 20.0, 20.0));
     }
 
     #[Test]
@@ -137,7 +150,7 @@ final class ParagraphComposerTest extends TestCase
     {
         $paragraph = self::paragraph([self::box(9.0), self::box(2.0), self::box(2.0), self::box(2.0), self::box(9.0)]);
 
-        self::assertSame([3, 9], self::indexes(ParagraphComposer::breaks($paragraph, 0, 15.0, 20.0)));
+        self::assertSame([3, 9], self::indexes(self::breaks($paragraph, 0, 15.0, 20.0)));
     }
 
     #[Test]
@@ -145,7 +158,7 @@ final class ParagraphComposerTest extends TestCase
     {
         $paragraph = self::paragraph([self::box(9.0), self::box(2.0), self::box(2.0), self::box(2.0), self::box(9.0)]);
 
-        self::assertSame([9], self::indexes(ParagraphComposer::breaks($paragraph, 8, 20.0, 20.0)));
+        self::assertSame([9], self::indexes(self::breaks($paragraph, 8, 20.0, 20.0)));
     }
 
     #[Test]
@@ -159,6 +172,6 @@ final class ParagraphComposerTest extends TestCase
             self::box(5.0),
         ]);
 
-        self::assertEquals([new LineEnd(3, null, true)], ParagraphComposer::breaks($paragraph, 0, 100.0, 100.0));
+        self::assertEquals([new LineEnd(3, null, true)], self::breaks($paragraph, 0, 100.0, 100.0));
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Text\Flow;
 
 use Php2Pdf\Font\Glyph;
+use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\Line;
 use Php2Pdf\Text\Flow\LineBreaker;
@@ -104,7 +105,15 @@ final class LineBreakerTest extends TestCase
         $lines     = [];
         $offset    = 0;
         $carry     = 0;
-        while (null !== ($line = LineBreaker::nextLine($paragraph, $offset, $width, count($lines), $carry))) {
+        while (
+            null !== ($line = (new LineBreaker(new BreakPlanner()))->nextLine(
+                $paragraph,
+                $offset,
+                $width,
+                count($lines),
+                $carry,
+            ))
+        ) {
             $lines[] = self::text($line);
             $offset  += $line->itemsConsumed;
             $carry   = $line->carry;
@@ -136,7 +145,7 @@ final class LineBreakerTest extends TestCase
     {
         $items     = (new Itemiser($this->hyphenators))->itemise([[$text, $this->style]]);
         $paragraph = new Paragraph($this->style, $items);
-        $line      = LineBreaker::nextLine($paragraph, 0, $width, 0);
+        $line      = (new LineBreaker(new BreakPlanner()))->nextLine($paragraph, 0, $width, 0);
         self::assertNotNull($line);
 
         return $line;
