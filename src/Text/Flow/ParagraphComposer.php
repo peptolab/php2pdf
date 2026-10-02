@@ -40,6 +40,12 @@ final class ParagraphComposer
     /** @var array<int, float> running shrink */
     private array $shrink = [];
 
+    /** @var list<int> the positions a line may end at, in order */
+    private array $breaks = [];
+
+    /** @var array<int, float> the width of each line, by its number from $firstLine, as it is needed */
+    private array $lineWidths = [];
+
     /** @param array<int, Item> $items */
     private function __construct(
         private readonly array $items,
@@ -64,6 +70,12 @@ final class ParagraphComposer
                 $stretch += $item->spaceWidth() * Justification::stretchOf($item->style->justification);
                 $shrink  += $item->spaceWidth() * Justification::shrinkOf($item->style->justification);
             }
+        }
+        for ($i = $start; $i <= $end; ++$i) {
+            if (! $this->isBreak($i)) {
+                continue;
+            }
+            $this->breaks[] = $i;
         }
     }
 
@@ -96,15 +108,31 @@ final class ParagraphComposer
         return $composer->compose(self::TOLERANCE) ?? $composer->compose(null);
     }
 
-    /** TeX's fitness classes: very loose, loose, decent, tight. */
-    private static function fitness(float $ratio): int
-    {
-        return match (true) {
-            $ratio < -0.5 => 3,
-            $ratio <= 0.5 => 2,
-            $ratio <= 1.0 => 1,
-            default => 0,
-        };
+    /**
+     * A breakpoint at $position, carrying the running measures where the line after it starts:
+     * past the glue it broke at.
+     */
+    private function breakpoint(
+        int $position,
+        int $line,
+        int $fitness,
+        float $demerits,
+        bool $hyphen,
+        ?Breakpoint $previous,
+    ): Breakpoint {
+        $from = $this->lineStart($position);
+
+        return new Breakpoint(
+            $position,
+            $line,
+            $fitness,
+            $demerits,
+            $hyphen,
+            $previous,
+            $this->natural[$from] ?? 0.0,
+            $this->stretch[$from] ?? 0.0,
+            $this->shrink[$from] ?? 0.0,
+        );
     }
 
     /**
@@ -115,11 +143,8 @@ final class ParagraphComposer
      */
     private function compose(?float $tolerance): ?array
     {
-        $active = [new Breakpoint($this->start, 0, 1, 0.0, false, null)];
-        for ($i = $this->start; $i <= $this->end; ++$i) {
-            if (! $this->isBreak($i)) {
-                continue;
-            }
+        $active = [$this->breakpoint($this->start, 0, 1, 0.0, false, null)];
+        foreach ($this->breaks as $i) {
             [$active, $best] = $this->tryBreak($i, $active, $tolerance);
             foreach ($best as $node) {
                 $active[] = $node;
@@ -190,26 +215,10 @@ final class ParagraphComposer
         return $position;
     }
 
-    /**
-     * How far the spaces of the line from $from to $to stretch (positive) or shrink (negative) to
-     * fill it, as a fraction of what they can; the last line is set at its natural width.
-     */
-    private function ratio(int $from, int $to, float $lineWidth, float $extra): float
+    /** The width of line $line from the first, worked out once. */
+    private function lineWidth(int $line): float
     {
-        $missing = $lineWidth - ($this->natural[$to] ?? 0.0) + ($this->natural[$from] ?? 0.0) - $extra;
-        $stretch = ($this->stretch[$to] ?? 0.0) - ($this->stretch[$from] ?? 0.0);
-        $shrink  = ($this->shrink[$to] ?? 0.0) - ($this->shrink[$from] ?? 0.0);
-        if ($to === $this->end && $missing >= -1.0e-6) {
-            return 0.0;
-        }
-        if ($missing < 0.0) {
-            return $shrink > 0.0 ? $missing / $shrink : -2.0;
-        }
-        if ($stretch > 0.0) {
-            return $missing / $stretch;
-        }
-
-        return $missing < 1.0e-6 ? 0.0 : 1.0e3;
+        return $this->lineWidths[$line] = $this->widths->available($this->firstLine + $line);
     }
 
     /**
@@ -225,12 +234,24 @@ final class ParagraphComposer
         $item     = $this->items[$i] ?? null;
         $extra    = null !== $item && ItemKind::Penalty === $item->kind ? $item->hyphenWidth : null;
         $hyphen   = null !== $extra;
+        $extra    ??= 0.0;
         $last     = $i === $this->end;
+        $natural  = $this->natural[$i] ?? 0.0;
+        $stretchI = $this->stretch[$i] ?? 0.0;
+        $shrinkI  = $this->shrink[$i] ?? 0.0;
         $survivor = [];
         $best     = [];
         foreach ($active as $node) {
-            $lineWidth = $this->widths->available($this->firstLine + $node->line);
-            $ratio     = $this->ratio($this->lineStart($node->position), $i, $lineWidth, $extra ?? 0.0);
+            $lineWidth = $this->lineWidths[$node->line] ?? $this->lineWidth($node->line);
+            $missing   = $lineWidth - $natural + $node->natural - $extra;
+            $stretch   = $stretchI - $node->stretch;
+            $shrink    = $shrinkI - $node->shrink;
+            $ratio     = match (true) {
+                $last && $missing >= -1.0e-6 => 0.0,
+                $missing < 0.0 => $shrink > 0.0 ? $missing / $shrink : -2.0,
+                $stretch > 0.0 => $missing / $stretch,
+                default => $missing < 1.0e-6 ? 0.0 : 1.0e3,
+            };
             if ($ratio >= -1.0) {
                 $survivor[] = $node;
             }
@@ -238,15 +259,23 @@ final class ParagraphComposer
             if ($ratio < -1.0 || (null !== $tolerance && $badness > $tolerance)) {
                 continue;
             }
-            $fitness  = $last ? 1 : self::fitness($ratio);
-            $demerits = (self::LINE_PENALTY + $badness) ** 2
-            + ($hyphen ? self::HYPHEN_PENALTY ** 2 : 0.0)
-            + ($hyphen && $node->hyphen ? self::DOUBLE_HYPHEN : 0.0)
-            + (abs($fitness - $node->fitness) > 1 ? self::FITNESS_PENALTY : 0.0)
-            + $node->demerits;
+            $fitness = $last
+                ? 1
+                : match (true) {
+                    $ratio < -0.5 => 3,
+                    $ratio <= 0.5 => 2,
+                    $ratio <= 1.0 => 1,
+                    default => 0,
+                };
+            $demerits =
+                (self::LINE_PENALTY + $badness) ** 2
+                + ($hyphen ? self::HYPHEN_PENALTY ** 2 : 0.0)
+                + ($hyphen && $node->hyphen ? self::DOUBLE_HYPHEN : 0.0)
+                + (abs($fitness - $node->fitness) > 1 ? self::FITNESS_PENALTY : 0.0)
+                + $node->demerits;
             $current = $best[$fitness] ?? null;
             if (null === $current || $demerits < $current->demerits) {
-                $best[$fitness] = new Breakpoint($i, $node->line + 1, $fitness, $demerits, $hyphen, $node);
+                $best[$fitness] = $this->breakpoint($i, $node->line + 1, $fitness, $demerits, $hyphen, $node);
             }
         }
 

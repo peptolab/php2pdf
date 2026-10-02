@@ -6,7 +6,9 @@ namespace Php2Pdf\Text\Flow;
 
 /**
  * A place the paragraph composer may break a line, with the cheapest way to reach it: the line
- * it ends, how tightly that line is set, the demerits so far, and the break before it.
+ * it ends, how tightly that line is set, the demerits so far, and the break before it; and the
+ * running natural width, stretch and shrink where the next line starts, so that a line from
+ * here to any later break is measured by subtraction.
  *
  * @internal
  */
@@ -20,5 +22,8 @@ final readonly class Breakpoint
         public float $demerits,
         public bool $hyphen,
         public ?self $previous,
+        public float $natural,
+        public float $stretch,
+        public float $shrink,
     ) {}
 }
