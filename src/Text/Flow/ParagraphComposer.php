@@ -89,16 +89,11 @@ final class ParagraphComposer
      */
     public static function breaks(Paragraph $paragraph, int $start, LineWidths $widths, int $firstLine): ?array
     {
-        $items = $paragraph->items;
-        $end   = $start;
+        $items  = $paragraph->items;
+        $end    = $start;
+        $widest = min($widths->available($firstLine), $widths->available($firstLine + 1));
         while (null !== ($item = $items[$end] ?? null) && ! $item->isForcedBreak()) {
-            if (
-                ItemKind::Tab === $item->kind
-                || (
-                    ItemKind::Glue !== $item->kind
-                    && $item->width > min($widths->available($firstLine), $widths->available($firstLine + 1))
-                )
-            ) {
+            if (ItemKind::Tab === $item->kind || (ItemKind::Glue !== $item->kind && $item->width > $widest)) {
                 return null;
             }
             ++$end;
