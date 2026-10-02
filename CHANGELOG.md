@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format follows
 
 - Text styles are resolved once, and the cells of a table share their resolved styles rather than
   each making its own: a 2,000-row table takes about a quarter less time and memory.
+- An SVG marker is drawn once, as a form placed at every vertex it marks, rather than drawn again
+  at each one.
 
 ## [0.1.0] - 2026-10-02
 

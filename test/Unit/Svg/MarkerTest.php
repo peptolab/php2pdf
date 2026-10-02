@@ -22,7 +22,10 @@ use PHPUnit\Framework\TestCase;
 use function preg_match;
 use function preg_match_all;
 
-/** SVG markers drawn at path vertices (#37). The marker below is a 4 by 4 green square. */
+/**
+ * SVG markers drawn at path vertices (#37), each drawn once as a form placed at every vertex. The
+ * marker below is a 4 by 4 green square.
+ */
 #[Group('unit')]
 final class MarkerTest extends TestCase
 {
@@ -35,10 +38,16 @@ final class MarkerTest extends TestCase
     public static function orientProvider(): array
     {
         return [
-            'fixed angle in turns' => ['0.25turn', "\n0 1 -1 0 10 5 cm\n"],
-            'auto'                 => ['auto', "\n1 0 0 1 10 5 cm\n"],
-            'auto-start-reverse'   => ['auto-start-reverse', "\n-1 0 0 -1 0 5 cm\n"],
+            'fixed angle in turns' => ['0.25turn', "\nq 0 1 -1 0 10 5 cm /X"],
+            'auto'                 => ['auto', "\nq 1 0 0 1 10 5 cm /X"],
+            'auto-start-reverse'   => ['auto-start-reverse', "\nq -1 0 0 -1 0 5 cm /X"],
         ];
+    }
+
+    /** How many times markers are placed: forms drawn, less the one that places the SVG on the page. */
+    private static function placements(string $pdf): int
+    {
+        return (int) preg_match_all('#\nq [-\d. ]+ cm /X\d+ Do Q(?=\n)#', $pdf) - 1;
     }
 
     #[Test]
@@ -53,6 +62,18 @@ final class MarkerTest extends TestCase
     }
 
     #[Test]
+    public function aMarkerIsDrawnOnceHoweverOftenItIsPlaced(): void
+    {
+        $pdf = $this->convert(
+            '<marker id="m">' . self::SQUARE . '</marker>',
+            '<polyline points="0,0 5,5 10,0" fill="none" stroke="black" style="marker: url(#m)"/>'
+                . '<path d="M0 8 L10 8" stroke="black" stroke-width="2" marker-end="url(#m)"/>',
+        );
+
+        self::assertSame([4, 1], [self::placements($pdf), preg_match_all('#0 1 0 rg#', $pdf)]);
+    }
+
+    #[Test]
     public function aMarkerIsPlacedWithItsReferencePointOnTheVertex(): void
     {
         $pdf = $this->convert(
@@ -63,11 +84,11 @@ final class MarkerTest extends TestCase
         );
 
         self::assertSame(
-            [1, 1, 2],
+            [1, 1, 1],
             [
-                preg_match("#\n1 0 0 1 -2 4 cm\n0 0 m\n4 0 l\n4 4 l\n0 4 l\nh\nW n\n#", $pdf),
-                preg_match("#\n1 0 0 1 8 4 cm\n#", $pdf),
-                preg_match_all('#0 1 0 rg#', $pdf),
+                preg_match("#\nq 1 0 0 1 -2 4 cm /X\\d+ Do Q\n#", $pdf),
+                preg_match("#\nq 1 0 0 1 8 4 cm /X\\d+ Do Q\n#", $pdf),
+                preg_match("#stream\n0 0 m\n4 0 l\n4 4 l\n0 4 l\nh\nW n\n#", $pdf),
             ],
         );
     }
@@ -80,7 +101,7 @@ final class MarkerTest extends TestCase
             '<g marker-end="url(#m)"><path d="M0 0 L10 0" stroke="black"/></g>',
         );
 
-        self::assertSame(1, preg_match_all('#0 1 0 rg#', $pdf));
+        self::assertSame(1, self::placements($pdf));
     }
 
     #[Test]
@@ -94,8 +115,8 @@ final class MarkerTest extends TestCase
         self::assertSame(
             [1, 1],
             [
-                preg_match("#\n3 0 0 3 1 5 cm\n0 0 m\n2 0 l\n2 2 l\n0 2 l\nh\nW n\n#", $pdf),
-                preg_match("#\n0\.25 0 0 0\.25 0 0 cm\n#", $pdf),
+                preg_match("#\nq 3 0 0 3 1 5 cm /X\\d+ Do Q\n#", $pdf),
+                preg_match("#stream\n0 0 m\n2 0 l\n2 2 l\n0 2 l\nh\nW n\n0\.25 0 0 0\.25 0 0 cm\n#", $pdf),
             ],
         );
     }
@@ -108,7 +129,7 @@ final class MarkerTest extends TestCase
             '<polyline points="0,0 5,5 10,0 10,10" fill="none" stroke="black" marker-mid="url(#m)"/>',
         );
 
-        self::assertSame(2, preg_match_all('#0 1 0 rg#', $pdf));
+        self::assertSame(2, self::placements($pdf));
     }
 
     #[Test]
@@ -131,7 +152,7 @@ final class MarkerTest extends TestCase
             '<path d="M0 0 L10 0" stroke="black" marker-end="url(#m)"/>',
         );
 
-        self::assertSame([1, 0], [preg_match_all('#0 1 0 rg#', $pdf), preg_match('#h\nW n#', $pdf)]);
+        self::assertSame([1, 0], [self::placements($pdf), preg_match('#h\nW n#', $pdf)]);
     }
 
     #[Test]
@@ -147,7 +168,7 @@ final class MarkerTest extends TestCase
                 . '<path d="M0 0 L10 0" stroke="black" marker-end="url(#missing)"/>',
         );
 
-        self::assertSame(0, preg_match_all('#0 1 0 rg#', $pdf));
+        self::assertSame([0, 0], [self::placements($pdf), preg_match_all('#0 1 0 rg#', $pdf)]);
     }
 
     #[Test]
@@ -158,7 +179,7 @@ final class MarkerTest extends TestCase
             '<polyline points="0,0 5,5 10,0" fill="none" stroke="black" style="marker: url(#m)"/>',
         );
 
-        self::assertSame(3, preg_match_all('#0 1 0 rg#', $pdf));
+        self::assertSame(3, self::placements($pdf));
     }
 
     #[Override]
