@@ -109,9 +109,11 @@ final class BidiConformance
             [$input, $bits] = array_map(trim(...), explode(';', $line));
             $classes = array_map(static fn(string $c): int => self::CLASSES[$c] ?? 0, explode(' ', $input));
             foreach ([1 => null, 2 => 0, 4 => 1] as $bit => $level) {
-                if (0 !== ((int) $bits & $bit)) {
-                    $cases[] = [$classes, $level, $levels, $order, $input];
+                if (0 === ((int) $bits & $bit)) {
+                    continue;
                 }
+
+                $cases[] = [$classes, $level, $levels, $order, $input];
             }
         }
 
@@ -133,9 +135,11 @@ final class BidiConformance
         }
         $order = [];
         foreach ($bidi->visualOrder(0, $count) as $i) {
-            if (! $bidi->isRemoved($i)) {
-                $order[] = (string) $i;
+            if ($bidi->isRemoved($i)) {
+                continue;
             }
+
+            $order[] = (string) $i;
         }
 
         return [implode(' ', $levels), implode(' ', $order)];

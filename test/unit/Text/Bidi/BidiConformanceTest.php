@@ -32,7 +32,7 @@ final class BidiConformanceTest extends TestCase
             $label,
         ]) {
             $result = BidiConformance::characterResult($codePoints, $level);
-            if ($result !== [$levels, $order]) {
+            if ([$levels, $order] !== $result) {
                 $failures[] = "{$label} @" . ($level ?? 'auto') . ": {$result[0]} / {$result[1]}";
             }
         }
@@ -52,7 +52,7 @@ final class BidiConformanceTest extends TestCase
             $label,
         ]) {
             $result = BidiConformance::result(new BidiParagraph($classes, level: $level), count($classes));
-            if ($result !== [$levels, $order]) {
+            if ([$levels, $order] !== $result) {
                 $failures[] = "{$label} @" . ($level ?? 'auto') . ": {$result[0]} / {$result[1]}";
             }
         }
