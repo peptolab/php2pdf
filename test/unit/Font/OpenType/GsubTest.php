@@ -172,7 +172,7 @@ final class GsubTest extends TestCase
         $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature([1 => [[[2], 13]]])], false, 0x0008]]);
         $out  = $gsub->apply([[1, [0x66]], [20, [0x301]], [2, [0x69]]], ['liga']);
 
-        self::assertSame([[13, [0x66, 0x69], 1, 0], [20, [0x301], 1, 1]], $out);
+        self::assertSame([[13, [0x66, 0x69], 1, 0, ''], [20, [0x301], 1, 1, '']], $out);
     }
 
     #[Test]
@@ -227,7 +227,7 @@ final class GsubTest extends TestCase
         $gsub = self::gsub(['ccmp' => [0]], [[2, [GsubBuilder::multiple([4 => [40, 41]])]]]);
 
         self::assertSame(
-            [[1, [0x66]], [40, [0x6F], 0, 0], [41, [], 0, 0]],
+            [[1, [0x66]], [40, [0x6F], 0, 0, ''], [41, [], 0, 0, '']],
             $gsub->apply(self::glyphs([1, 4]), ['ccmp']),
         );
     }

@@ -8,9 +8,11 @@ use Closure;
 use IntlChar;
 use Normalizer;
 
+use function array_splice;
 use function array_values;
 use function class_exists;
 use function count;
+use function in_array;
 use function mb_chr;
 use function mb_ord;
 use function mb_str_split;
@@ -30,6 +32,24 @@ use function usort;
  */
 final class Normaliser
 {
+    /** Arabic modifier combining marks, which HarfBuzz moves before the other marks of their class. */
+    private const array MODIFIERS = [
+        0x0654,
+        0x0655,
+        0x0658,
+        0x06DC,
+        0x06E3,
+        0x06E7,
+        0x06E8,
+        0x08CA,
+        0x08CB,
+        0x08CD,
+        0x08CE,
+        0x08CF,
+        0x08D3,
+        0x08F3,
+    ];
+
     /** HarfBuzz's modified combining classes: Unicode class => the class marks are ordered by. */
     private const array MODIFIED_CLASSES = [
         10  => 22,
@@ -181,6 +201,47 @@ final class Normaliser
     }
 
     /**
+     * Arabic modifier combining marks (hamza above and below, and the like) moved to the start of
+     * their marks of combining class 220 and 230, as HarfBuzz's Arabic shaper orders them, so they
+     * reach the font next to the letter they modify.
+     *
+     * @param list<int> $marks in canonical order
+     *
+     * @return list<int>
+     */
+    private static function modifiersFirst(array $marks): array
+    {
+        $count = count($marks);
+        $start = 0;
+        $i     = 0;
+        foreach ([220, 230] as $class) {
+            while ($i < $count && self::combiningClass($marks[$i] ?? 0) < $class) {
+                ++$i;
+            }
+            if ($i === $count) {
+                break;
+            }
+            $j = $i;
+            while (
+                $j < $count
+                && $class === self::combiningClass($marks[$j] ?? 0)
+                && in_array($marks[$j] ?? 0, self::MODIFIERS, strict: true)
+            ) {
+                ++$j;
+            }
+            if ($i === $j) {
+                continue;
+            }
+            $moved = array_splice($marks, $i, $j - $i);
+            array_splice($marks, $start, length: 0, replacement: $moved);
+            $start += $j - $i;
+            $i     = $j;
+        }
+
+        return $marks;
+    }
+
+    /**
      * Composes each mark into the character before it, unless a mark between them has a combining
      * class as high, when Unicode composes them and the font has the composed glyph.
      *
@@ -248,7 +309,11 @@ final class Normaliser
                     [self::combiningClass($x[0]), $x[1]] <=> [self::combiningClass($y[0]), $y[1]]
                 ),
             );
+            $marks = [];
             foreach ($run as [$mark]) {
+                $marks[] = $mark;
+            }
+            foreach (self::modifiersFirst($marks) as $mark) {
                 $out[] = $mark;
             }
         }

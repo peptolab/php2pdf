@@ -36,6 +36,9 @@ The first release.
 - Right-to-left text: the Unicode bidi algorithm (passing Unicode's conformance tests) for lines,
   SVG text and Textflow paragraphs, mirrored characters, `TextDirection` on `TextOptions` and
   `TextStyle`; Hebrew shaped as HarfBuzz shapes it.
+- Arabic, Syriac, NKo, Adlam and the other joining scripts: joining forms, the Arabic shaper's
+  feature stages, presentation-form fallback, cursive attachment and modifier mark ordering, as
+  HarfBuzz does them.
 - Fallback font stacks; a missing-glyph policy (`GlyphCheck`), and a policy for scripts the engine cannot shape yet (`ScriptCheck`, refusing them by default).
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and

@@ -141,6 +141,21 @@ final class LayoutTables
         return $this->filters[$lookup] = new GlyphFilter($this->gdef, $flag, $set);
     }
 
+    /** Whether the table has an entry for a script. */
+    public function hasScript(string $tag): bool
+    {
+        $r          = $this->reader;
+        $scriptList = $r->u16(4);
+        $count      = $r->u16($scriptList);
+        for ($k = 0; $k < $count; ++$k) {
+            if ($r->tag($scriptList + 2 + (6 * $k)) === $tag) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** @return array<int, list<array{0: list<int>, 1: int}>> */
     public function ligatureSet(int $offset): array
     {

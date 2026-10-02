@@ -10,6 +10,7 @@ use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\ComplexScripts;
 use Php2Pdf\Font\FontInterface;
+use Php2Pdf\Font\GlyphCheck;
 use Php2Pdf\Font\ScriptCheck;
 use Php2PdfTest\Support\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,12 +26,10 @@ final class ScriptCheckTest extends TestCase
     public static function complexProvider(): array
     {
         return [
-            'Arabic'                   => ["\u{0633}\u{0644}\u{0627}\u{0645}", [0x0633, 'Arabic']],
-            'Arabic presentation form' => ["\u{FEF5}", [0xFEF5, 'Arabic']],
-            'Devanagari'               => ["\u{0928}\u{092E}\u{0938}\u{094D}\u{0924}\u{0947}", [0x0928, 'Devanagari']],
-            'Thai'                     => ["\u{0E2A}\u{0E27}\u{0E31}\u{0E2A}\u{0E14}\u{0E35}", [0x0E2A, 'Thai']],
-            'Hangul jamo'              => ["\u{1100}\u{1161}", [0x1100, 'Hangul jamo']],
-            'beyond the BMP'           => ["\u{1E900}", [0x1_E900, 'right-to-left']],
+            'Devanagari'            => ["\u{0928}\u{092E}\u{0938}\u{094D}\u{0924}\u{0947}", [0x0928, 'Devanagari']],
+            'Thai'                  => ["\u{0E2A}\u{0E27}\u{0E31}\u{0E2A}\u{0E14}\u{0E35}", [0x0E2A, 'Thai']],
+            'Hangul jamo'           => ["\u{1100}\u{1161}", [0x1100, 'Hangul jamo']],
+            'Brahmi beyond the BMP' => ["\u{11013}", [0x1_1013, 'Brahmic']],
         ];
     }
 
@@ -42,6 +41,9 @@ final class ScriptCheckTest extends TestCase
             'Greek and Cyrillic'         => ["\u{03B1}\u{03B2}\u{03B3} \u{0434}\u{0430}"],
             'Han and Kana'               => ["\u{6F22}\u{5B57} \u{304B}\u{306A}"],
             'Hebrew'                     => ["Shalom \u{05E9}\u{05DC}\u{05D5}\u{05DD}"],
+            'Arabic'                     => ["\u{0633}\u{0644}\u{0627}\u{0645}"],
+            'Syriac'                     => ["\u{0710}\u{0712}"],
+            'Adlam beyond the BMP'       => ["\u{1E900}"],
             'precomposed Hangul'         => ["\u{D55C}\u{AE00}"],
         ];
     }
@@ -50,14 +52,14 @@ final class ScriptCheckTest extends TestCase
     public function aWarningIsRecordedOncePerScript(): void
     {
         [$doc, $font] = $this->document(ScriptCheck::Warn);
-        $font->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
-        $font->shape("\u{0628}");
+        $font->shape("\u{0928}\u{092E}\u{0938}\u{0947}");
+        $font->shape("\u{0915}");
         $run = $font->shape("\u{0E81}\u{0E82}\u{0E84}\u{0E87}");
 
         self::assertSame(
             [
                 [
-                    'Arabic text (U+0633) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
+                    'Devanagari text (U+0928) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
                     'Lao text (U+0E81) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans"; it is set unshaped.',
                 ],
                 4,
@@ -79,16 +81,16 @@ final class ScriptCheckTest extends TestCase
     {
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage(
-            'Arabic text (U+0633) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans".',
+            'Devanagari text (U+0928) needs shaping that Php2Pdf cannot do yet, so it would be set wrongly in font "DejaVuSans".',
         );
-        $this->font(null)->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
+        $this->font(null)->shape("\u{0928}\u{092E}\u{0938}\u{0947}");
     }
 
     #[Test]
     public function ignoringSetsTheTextSilently(): void
     {
         [$doc, $font] = $this->document(ScriptCheck::Ignore);
-        $font->shape("\u{0633}\u{0644}\u{0627}\u{0645}");
+        $font->shape("\u{0E81}\u{0E82}");
 
         self::assertSame([], $doc->fonts()->warnings());
     }
@@ -103,7 +105,13 @@ final class ScriptCheckTest extends TestCase
     /** @return array{0: Document, 1: FontInterface} */
     private function document(?ScriptCheck $check): array
     {
-        $doc = new Document(new MemoryOutput(), new DocumentOptions(scriptCheck: $check));
+        $doc = new Document(
+            new MemoryOutput(),
+            new DocumentOptions(
+                glyphCheck: GlyphCheck::Ignore,
+                scriptCheck: $check,
+            ),
+        );
 
         return [$doc, $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'))];
     }

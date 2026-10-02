@@ -8,10 +8,10 @@ use function mb_ord;
 use function preg_match;
 
 /**
- * The scripts whose text needs shaping beyond what the font engine does: Arabic and the other
- * joining scripts, Indic and other South and South East Asian scripts (reordering, conjuncts and
- * mark placement), and conjoining Hangul jamo. Hebrew is shaped: bidi reordering, marks and
- * mirroring.
+ * The scripts whose text needs shaping beyond what the font engine does: Indic and other South
+ * and South East Asian scripts (reordering, conjuncts and mark placement), Tibetan, Mongolian and
+ * conjoining Hangul jamo. Right-to-left and joining scripts (Hebrew, Arabic, Syriac, NKo and the
+ * rest) are shaped.
  *
  * @internal
  */
@@ -19,15 +19,6 @@ final class ComplexScripts
 {
     /** @var list<array{0: int, 1: int, 2: string}> first and last code point, and the script */
     private const array RANGES = [
-        [0x0600,   0x06FF,   'Arabic'],
-        [0x0700,   0x074F,   'Syriac'],
-        [0x0750,   0x077F,   'Arabic'],
-        [0x0780,   0x07BF,   'Thaana'],
-        [0x07C0,   0x07FF,   'NKo'],
-        [0x0800,   0x083F,   'Samaritan'],
-        [0x0840,   0x085F,   'Mandaic'],
-        [0x0860,   0x086F,   'Syriac'],
-        [0x0870,   0x08FF,   'Arabic'],
         [0x0900,   0x097F,   'Devanagari'],
         [0x0980,   0x09FF,   'Bengali'],
         [0x0A00,   0x0A7F,   'Gurmukhi'],
@@ -57,18 +48,13 @@ final class ComplexScripts
         [0xA9E0,   0xA9FF,   'Myanmar'],
         [0xAA60,   0xAA7F,   'Myanmar'],
         [0xD7B0,   0xD7FF,   'Hangul jamo'],
-        [0xFB50,   0xFDFF,   'Arabic'],
-        [0xFE70,   0xFEFF,   'Arabic'],
-        [0x1_0800, 0x1_0FFF, 'right-to-left'],
         [0x1_1000, 0x1_1FFF, 'Brahmic'],
-        [0x1_E800, 0x1_EFFF, 'right-to-left'],
     ];
 
     private const string PATTERN =
-        '/[\x{0600}-\x{08FF}\x{0900}-\x{0FFF}\x{1000}-\x{109F}\x{1100}-\x{11FF}'
-            . '\x{1780}-\x{18AF}\x{19E0}-\x{19FF}\x{1A20}-\x{1AAF}\x{1B00}-\x{1C4F}\x{A8E0}-\x{A8FF}\x{A960}-\x{A97F}'
-            . '\x{A980}-\x{A9FF}\x{AA60}-\x{AA7F}\x{D7B0}-\x{D7FF}\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}'
-            . '\x{10800}-\x{11FFF}\x{1E800}-\x{1EFFF}]/u';
+        '/[\x{0900}-\x{0FFF}\x{1000}-\x{109F}\x{1100}-\x{11FF}\x{1780}-\x{18AF}\x{19E0}-\x{19FF}\x{1A20}-\x{1AAF}'
+            . '\x{1B00}-\x{1C4F}\x{A8E0}-\x{A8FF}\x{A960}-\x{A97F}\x{A980}-\x{A9FF}\x{AA60}-\x{AA7F}\x{D7B0}-\x{D7FF}'
+            . '\x{11000}-\x{11FFF}]/u';
 
     /**
      * The first character of the text in a script that needs complex shaping, and its script.

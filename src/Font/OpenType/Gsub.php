@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Font\ArabicJoining;
+
 use function array_column;
 use function array_key_exists;
 use function array_map;
@@ -22,7 +24,7 @@ use function max;
  * the code points it stands for, and the ligature it belongs to (an id, and for a mark the
  * component it follows) for mark positioning.
  *
- * @phpstan-type Entry array{0: int, 1: list<int>, 2?: int, 3?: int}
+ * @phpstan-type Entry array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}
  *
  * @internal
  */
@@ -115,8 +117,28 @@ final class Gsub
      */
     public function apply(array $glyphs, array $features, string $script = 'latn'): array
     {
-        foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
-            $glyphs = $this->applyLookup($lookup, $glyphs);
+        return $this->applyStages($glyphs, [$features], $script);
+    }
+
+    /**
+     * Applies features in stages, each stage's lookups in lookup list order, as HarfBuzz's
+     * shapers stage them. A stage of one Arabic joining form (isol, init, medi...) applies only to
+     * the glyphs given that form (entry 4).
+     *
+     * @param list<Entry>        $glyphs
+     * @param list<list<string>> $stages
+     *
+     * @return list<Entry>
+     */
+    public function applyStages(array $glyphs, array $stages, string $script = 'latn'): array
+    {
+        foreach ($stages as $features) {
+            $form = 1 === count($features) && in_array($features[0] ?? '', ArabicJoining::FEATURES, strict: true)
+                ? $features[0]
+                : null;
+            foreach ($this->tables->lookupsFor($features, $script) as $lookup) {
+                $glyphs = $this->applyLookup($lookup, $glyphs, $form);
+            }
         }
 
         return $glyphs;
@@ -126,6 +148,11 @@ final class Gsub
     public function has(array $features, string $script = 'latn'): bool
     {
         return [] !== $this->tables->lookupsFor($features, $script);
+    }
+
+    public function hasScript(string $tag): bool
+    {
+        return $this->tables->hasScript($tag);
     }
 
     /**
@@ -189,7 +216,7 @@ final class Gsub
      *
      * @return list<Entry>
      */
-    private function applyLookup(int $lookup, array $glyphs): array
+    private function applyLookup(int $lookup, array $glyphs, ?string $form = null): array
     {
         $starts = $this->tables->startGlyphs($lookup);
         if ([] === $starts) {
@@ -207,7 +234,13 @@ final class Gsub
         }
         $i = 0;
         while ($i < count($glyphs)) {
-            if (! array_key_exists($glyphs[$i][0] ?? -1, $starts)) {
+            if (
+                ! array_key_exists($glyphs[$i][0] ?? -1, $starts)
+                || (
+                    null !== $form
+                    && $form !== ($glyphs[$i][4] ?? '')
+                )
+            ) {
                 ++$i;
                 continue;
             }
@@ -293,9 +326,9 @@ final class Gsub
                     }
                     continue;
                 }
-                $kept[] = [$entry[0], $entry[1], $id, $component];
+                $kept[] = [$entry[0], $entry[1], $id, $component, $entry[4] ?? ''];
             }
-            array_splice($glyphs, $i, $p - $i + 1, [[$ligature, $codePoints, $id, 0], ...$kept]);
+            array_splice($glyphs, $i, $p - $i + 1, [[$ligature, $codePoints, $id, 0, $glyphs[$i][4] ?? ''], ...$kept]);
 
             return [$glyphs, $i + 1];
         }
@@ -321,7 +354,7 @@ final class Gsub
         $sequence    = $offset + $r->u16($offset + 6 + (2 * $index));
         $replacement = [];
         foreach ($r->u16List($sequence + 2, $r->u16($sequence)) as $k => $glyph) {
-            $replacement[] = [$glyph, 0 === $k ? $entry[1] : [], $entry[2] ?? 0, $entry[3] ?? 0];
+            $replacement[] = [$glyph, 0 === $k ? $entry[1] : [], $entry[2] ?? 0, $entry[3] ?? 0, $entry[4] ?? ''];
         }
         array_splice($glyphs, $i, length: 1, replacement: $replacement);
 

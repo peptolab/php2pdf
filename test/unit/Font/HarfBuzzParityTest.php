@@ -26,16 +26,65 @@ use function round;
 #[Group('unit')]
 final class HarfBuzzParityTest extends TestCase
 {
-    /** @return array<string, array{0: string, 1: string}> */
+    /** @return array<string, array{0: string, 1: string, 2: string}> */
     public static function rightToLeftProvider(): array
     {
         return [
-            'Hebrew: marks reordered'   => ['שָׁלוֹם', '[1332+1359|1306+0|1324+558|1331+1164|1305+0|1314+0|1344+1451]'],
-            'Hebrew: marks on marks'    => [
+            'Hebrew: marks reordered'         => [
+                'DejaVuSans.ttf',
+                'שָׁלוֹם',
+                '[1332+1359|1306+0|1324+558|1331+1164|1305+0|1314+0|1344+1451]',
+            ],
+            'Hebrew: marks on marks'          => [
+                'DejaVuSans.ttf',
                 'וַיֹּאמֶר אֱלֹהִים',
                 '[1332+1359|1328+458|1301@28,0+0|1323+1338|1306+0|1331+1164|1298@79,0+0|1319+1369|3+651|1343+1156|1303@111,0+0|1333+1391|1319+1369|1306+0|1309@-659,235+0|1328+458|1304@-384,0+0|1324+558]',
             ],
-            'Hebrew: mirrored brackets' => ['(א) [ב]', '[62+799|1320+1184|64+799|3+651|11+799|1319+1369|12+799]'],
+            'Hebrew: mirrored brackets'       => [
+                'DejaVuSans.ttf',
+                '(א) [ב]',
+                '[62+799|1320+1184|64+799|3+651|11+799|1319+1369|12+799]',
+            ],
+            'Arabic: joining'                 => [
+                'DejaVuSans.ttf',
+                'مرحبا بالعالم',
+                '[5340+1363|5337+624|5256+624|5318+988|5337+624|5256+624|5259+570|3+651|5256+624|5260+618|5277+1266|5288+1130|5341+1097]',
+            ],
+            'Arabic: lam-alef'                => [
+                'DejaVuSans.ttf',
+                'لا إله إلا الله',
+                '[5348+1098|5338+678|5337+624|1365+569|3+651|5365+1168|1363+569|3+651|5348+1098|5337+624|1363+569|3+651|5365+1168]',
+            ],
+            'Arabic: vowel marks'             => [
+                'DejaVuSans.ttf',
+                'سَلَامٌ عَلَيْكُمْ',
+                '[1403@138,-350+0|5340+1363|1400@-262,350+0|5334+1131|1403@-213,-200+0|5358+618|1399@-173,450+0|5338+678|1399@-62,-50+0|5317+1222|3+651|1397@138,-250+0|1390+1268|1399@355,450+0|5366+1222|1399@138,-300+0|5293+1716]',
+            ],
+            'Persian: a non-joiner'           => [
+                'DejaVuSans.ttf',
+                "پیام\u{200C}رسان",
+                '[1391+1504|5256+624|5293+1716|1375+989|3+0|1390+1268|5256+624|5206+618|5105+570]',
+            ],
+            'Arabic: a modifier mark first'   => [
+                'DejaVuSans.ttf',
+                "ب\u{064C}\u{0654}",
+                '[1397@388,-200+0|1405@388,-200+0|1366+1928]',
+            ],
+            'cursive attachment with marks'   => [
+                'PhpPdfCursiveTest.ttf',
+                "س\u{064E}با",
+                '[3+120|2@-650,-150+-650|7@-290,-500+0|4@-760,-450+40]',
+            ],
+            'cursive attachment'              => [
+                'PhpPdfCursiveTest.ttf',
+                'بسب',
+                '[2+0|4@-760,-300+-730|2@-650,-600+50]',
+            ],
+            'presentation forms and lam-alef' => [
+                'PhpPdfArabicFallbackTest.ttf',
+                'بلا لا',
+                '[15+855|1+250|16+892|7+559]',
+            ],
         ];
     }
 
@@ -125,14 +174,19 @@ final class HarfBuzzParityTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('rightToLeftProvider')]
-    public function rightToLeftShapingMatchesHarfBuzz(string $text, string $expected): void
+    public function leftToRightCursiveAttachmentMatchesHarfBuzz(): void
     {
-        self::assertSame($expected, self::shaped(
-            'DejaVuSans.ttf',
-            $text,
-            new TextOptions(direction: TextDirection::RightToLeft),
-        ));
+        self::assertSame(
+            '[5+480|6@-40,60+480|5@-20,20+460|6@-40,80+510|1+250|6+520|5@-20,-40+480]',
+            self::shaped('PhpPdfCursiveTest.ttf', 'abab ba', new TextOptions()),
+        );
+    }
+
+    #[Test]
+    #[DataProvider('rightToLeftProvider')]
+    public function rightToLeftShapingMatchesHarfBuzz(string $font, string $text, string $expected): void
+    {
+        self::assertSame($expected, self::shaped($font, $text, new TextOptions(direction: TextDirection::RightToLeft)));
     }
 
     #[Test]

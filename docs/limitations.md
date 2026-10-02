@@ -2,12 +2,13 @@
 
 Known gaps, in rough order of how often they matter.
 
-- **Scripts.** Latin, Greek, Cyrillic, Hebrew and other scripts without complex shaping are
-  shaped with all of the font's substitutions and positioning, including mark attachment, matching
-  HarfBuzz, and right-to-left text is ordered by the Unicode bidi algorithm. Cursive attachment,
-  Arabic joining, Indic scripts and CJK vertical text are not supported yet; text in those scripts
-  is refused unless `DocumentOptions::$scriptCheck` says otherwise. Tab stops measure from the left
-  in right-to-left lines, and right-to-left words are not hyphenated.
+- **Scripts.** Latin, Greek, Cyrillic, Hebrew, Arabic and the other joining scripts are shaped
+  with all of the font's substitutions and positioning, matching HarfBuzz, and right-to-left text
+  is ordered by the Unicode bidi algorithm. Indic and South East Asian scripts, Tibetan, Mongolian,
+  conjoining Hangul jamo and CJK vertical text are not supported yet; text in those scripts is
+  refused unless `DocumentOptions::$scriptCheck` says otherwise. Tab stops measure from the left in
+  right-to-left lines, right-to-left words are not hyphenated, Arabic justification does not
+  stretch letters with kashida, and Syriac abbreviation marks (`stch`) are not stretched.
 - **Variable fonts** draw their default instance only; named instances and axis values are not
   supported.
 - **Soft masks** (and SVG masks) are placed wrongly by macOS Preview inside artwork placed scaled or

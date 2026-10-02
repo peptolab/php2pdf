@@ -49,9 +49,11 @@ final class WeakTypes
             }
         }
         foreach ($types as $k => $type) {
-            if (BidiClass::AL === $type) {
-                $types[$k] = BidiClass::R;
+            if (BidiClass::AL !== $type) {
+                continue;
             }
+
+            $types[$k] = BidiClass::R;
         }
 
         return $types;
@@ -159,9 +161,11 @@ final class WeakTypes
             $k = $end - 1;
         }
         foreach ($types as $k => $type) {
-            if (BidiClass::ES === $type || BidiClass::CS === $type) {
-                $types[$k] = BidiClass::ON;
+            if (! (BidiClass::ES === $type || BidiClass::CS === $type)) {
+                continue;
             }
+
+            $types[$k] = BidiClass::ON;
         }
 
         return $types;
