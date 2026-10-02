@@ -7,35 +7,22 @@ namespace Php2Pdf\Font;
 use Override;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\DeferredInterface;
-use Php2Pdf\Core\Object\Dictionary;
-use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
-use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
-use Php2Pdf\Font\OpenType\Cff\CffSubsetter;
-use Php2Pdf\Font\OpenType\Cff\CffTable;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
-use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
 
 use function array_filter;
 use function array_key_exists;
-use function array_keys;
-use function array_map;
 use function array_values;
-use function chr;
 use function count;
 use function implode;
 use function max;
 use function mb_chr;
-use function md5;
-use function ord;
 use function pack;
 use function round;
-use function sort;
 use function sprintf;
-use function strlen;
 
 /**
  * A font embedded in one document. Text is shaped to glyph ids; the glyphs used are tracked so
@@ -188,50 +175,11 @@ final class Font implements PdfFontInterface, DeferredInterface
     #[Override]
     public function finalize(): void
     {
-        $writer   = $this->objects;
-        $program  = $this->program;
-        $baseFont = "{$this->subsetTag()}+{$program->postScriptName()}";
-        $cff      = $program->isCff;
-
-        $fontFile = $cff ? $this->cffStream() : $this->subsetStream();
-
-        $descriptor = $writer->add(Dictionary::of([
-            'Type'                           => new Name('FontDescriptor'),
-            'FontName'                       => new Name($baseFont),
-            'Flags'                          => $this->flags(),
-            'FontBBox'                       => array_map(
-                fn(int $v): int => (int) round($v * $this->scale),
-                $program->metrics->bbox,
-            ),
-            'ItalicAngle'                    => $program->metrics->italicAngle,
-            'Ascent'                         => (int) round($program->metrics->ascender * $this->scale),
-            'Descent'                        => (int) round($program->metrics->descender * $this->scale),
-            'CapHeight'                      => (int) round($program->metrics->capHeight * $this->scale),
-            'XHeight'                        => (int) round($program->metrics->xHeight * $this->scale),
-            'StemV'                          => $this->stemV(),
-            $cff ? 'FontFile3' : 'FontFile2' => $fontFile,
-        ]));
-
-        $descendant = $writer->add(Dictionary::of([
-            'Type'           => new Name('Font'),
-            'Subtype'        => new Name($cff ? 'CIDFontType0' : 'CIDFontType2'),
-            'BaseFont'       => new Name($baseFont),
-            'CIDSystemInfo'  => Dictionary::of(['Registry' => 'Adobe', 'Ordering' => 'Identity', 'Supplement' => 0]),
-            'FontDescriptor' => $descriptor,
-            'DW'             => 1000,
-            'W'              => $this->widths(),
-            'CIDToGIDMap'    => $cff ? null : new Name('Identity'),
-        ]));
-        $toUnicode = $writer->add(Stream::of(ToUnicode::build($this->text->map())));
-
-        $writer->write($this->reference, Dictionary::of([
-            'Type'            => new Name('Font'),
-            'Subtype'         => new Name('Type0'),
-            'BaseFont'        => new Name($baseFont),
-            'Encoding'        => new Name('Identity-H'),
-            'DescendantFonts' => [$descendant],
-            'ToUnicode'       => $toUnicode,
-        ]));
+        (new Type0FontWriter($this->program, $this->objects, $this->registry, $this->advance(...)))->write(
+            $this->reference,
+            $this->used,
+            $this->text->map(),
+        );
     }
 
     #[Override]
@@ -370,57 +318,6 @@ final class Font implements PdfFontInterface, DeferredInterface
     }
 
     /**
-     * The CFF outlines subset to the glyphs used, or the whole font program when they cannot be
-     * subset; the font registry then records a warning. A variable font's CFF2 outlines are
-     * converted to CFF at their default instance first; when that fails the font cannot be used,
-     * since few readers draw CFF2.
-     *
-     * @throws ParseException
-     */
-    private function cffStream(): Reference
-    {
-        try {
-            $data    = CffSubsetter::subsetTable($this->cffTable(), $this->used);
-            $subtype = 'CIDFontType0C';
-        } catch (PdfException $e) {
-            if (null === $this->program->table('CFF ')) {
-                throw new ParseException(sprintf(
-                    'Variable font "%s" cannot be embedded: its CFF2 outlines could not be converted: %s',
-                    $this->program->postScriptName(),
-                    $e->getMessage(),
-                ), previous: $e);
-            }
-            $this->registry
-                ->warn(sprintf(
-                    'Font "%s" is embedded whole because its CFF outlines could not be subset: %s',
-                    $this->program->postScriptName(),
-                    $e->getMessage(),
-                ));
-            $data    = $this->program->data();
-            $subtype = 'OpenType';
-        }
-
-        return $this->objects->add(new Stream(Dictionary::of(['Subtype' => new Name($subtype)]), $data));
-    }
-
-    /**
-     * The font's CFF outlines: the CFF table, or a variable font's CFF2 outlines at their default
-     * instance.
-     *
-     * @throws ParseException
-     */
-    private function cffTable(): CffTable
-    {
-        $cff = $this->program->table('CFF ');
-        if (null !== $cff) {
-            return CffTable::parse($cff);
-        }
-        $cff2 = $this->program->table('CFF2') ?? throw new ParseException('The font has no CFF or CFF2 table.');
-
-        return CffTable::fromCff2($cff2, $this->program->postScriptName());
-    }
-
-    /**
      * Applies the document's script check to text in a script that needs shaping the library
      * cannot do yet.
      *
@@ -447,23 +344,6 @@ final class Font implements PdfFontInterface, DeferredInterface
         }
         $this->unshaped[$script] = true;
         $this->registry->warn("{$what}; it is set unshaped.");
-    }
-
-    private function flags(): int
-    {
-        $metrics = $this->program->metrics;
-        $flags   = 32; // Nonsymbolic
-        if ($metrics->isFixedPitch) {
-            $flags |= 1;
-        }
-        if ($metrics->isSerif) {
-            $flags |= 2;
-        }
-        if ($metrics->isItalic || 0.0 !== $metrics->italicAngle) {
-            $flags |= 64;
-        }
-
-        return $flags;
     }
 
     /**
@@ -502,65 +382,5 @@ final class Font implements PdfFontInterface, DeferredInterface
             }
             $this->missingGlyph((string) mb_chr($glyph->codePoint, encoding: 'UTF-8'), $glyph->codePoint);
         }
-    }
-
-    private function stemV(): int
-    {
-        // A common estimate; real stem widths live in the outlines, which readers do not need.
-        return (int) round(50 + ($this->program->metrics->weightClass / 65.0) ** 2);
-    }
-
-    /** @throws ParseException */
-    private function subsetStream(): Reference
-    {
-        $data = TrueTypeSubsetter::subset($this->program, $this->used);
-
-        return $this->objects->add(new Stream(Dictionary::of(['Length1' => strlen($data)]), $data));
-    }
-
-    /** Six uppercase letters derived from the glyph set, so identical input yields identical tags. */
-    private function subsetTag(): string
-    {
-        $ids = array_keys($this->used);
-        sort($ids);
-        $hash = md5($this->program->postScriptName() . ':' . implode(',', $ids), binary: true);
-        $tag  = '';
-        for ($i = 0; $i < 6; ++$i) {
-            $tag .= chr(65 + (ord($hash[$i]) % 26));
-        }
-
-        return $tag;
-    }
-
-    /**
-     * The W array: runs of consecutive glyph ids with their widths.
-     *
-     * @return list<int|list<int>>
-     */
-    private function widths(): array
-    {
-        $ids = array_keys($this->used);
-        sort($ids);
-
-        /** @var list<array{0: int, 1: list<int>}> $runs */
-        $runs = [];
-        $prev = null;
-        foreach ($ids as $id) {
-            $continues = null !== $prev && $id === ($prev + 1) && [] !== $runs;
-            $prev      = $id;
-            if ($continues) {
-                $runs[count($runs) - 1][1][] = $this->advance($id);
-                continue;
-            }
-            $runs[] = [$id, [$this->advance($id)]];
-        }
-
-        $w = [];
-        foreach ($runs as [$start, $advances]) {
-            $w[] = $start;
-            $w[] = $advances;
-        }
-
-        return $w;
     }
 }
