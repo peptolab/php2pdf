@@ -3,3 +3,5 @@
 /build/
 /test/output/
 .phpunit.result.cache
+/tools/bench/fixtures/
+/tools/bench/out/
