@@ -196,6 +196,10 @@ final class TiffFile
         return null === $numerator || null === $denominator || 0 === $denominator ? null : $numerator / $denominator;
     }
 
+    /**
+     * In the file's byte order, or null past its end, where a damaged tag falls back to its
+     * default rather than failing as Core\BinaryReader would.
+     */
     private function u16(int $at): ?int
     {
         $bytes = $this->bytes($at, 2);

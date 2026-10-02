@@ -124,11 +124,16 @@ final class PhotoshopResources
         return $path->build();
     }
 
+    /**
+     * Reads past the end as zero rather than failing, as Core\BinaryReader would: a damaged
+     * resource block should cost its paths, not the image.
+     */
     private static function u16(string $data, int $at): int
     {
         return (int) unpack('n', substr($data, $at, length: 2) . "\0\0")[1];
     }
 
+    /** Reads past the end as zero, as u16() does. */
     private static function u32(string $data, int $at): int
     {
         return (int) unpack('N', substr($data, $at, length: 4) . "\0\0\0\0")[1];

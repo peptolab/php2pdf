@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
 
 use function array_key_exists;
@@ -84,6 +85,6 @@ final readonly class TableDirectory
     {
         $table = $this->get($tag);
 
-        return new BinaryReader($reader->bytes($table['offset'], $table['length']));
+        return new BinaryReader($reader->bytes($table['offset'], $table['length']), what: 'the font data');
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Color;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -29,7 +30,6 @@ use function strlen;
 use function strtolower;
 use function substr;
 use function trim;
-use function unpack;
 
 /**
  * Named spot colours from swatch data of your own, such as a colour book exported from InDesign
@@ -76,12 +76,13 @@ final class SpotLibrary
         if (strlen($data) < 12 || 'ASEF' !== substr($data, offset: 0, length: 4)) {
             throw new ParseException('Not an Adobe Swatch Exchange file.');
         }
-        $blocks  = self::u32($data, offset: 8);
+        $file    = new BinaryReader($data, what: 'the swatch file');
+        $blocks  = $file->u32(8);
         $offset  = 12;
         $library = new self();
         for ($k = 0; $k < $blocks; ++$k) {
-            $type   = self::u16($data, $offset);
-            $length = self::u32($data, $offset + 2);
+            $type   = $file->u16($offset);
+            $length = $file->u32($offset + 2);
             $body   = substr($data, $offset + 6, $length);
             if (strlen($body) !== $length) {
                 throw new ParseException('The swatch file ends inside a block.');
@@ -155,8 +156,9 @@ final class SpotLibrary
      */
     private static function aseColour(string $body): array
     {
-        $chars = self::u16($body, offset: 0);
-        $name  = rtrim(
+        $swatch = new BinaryReader($body, what: 'a swatch');
+        $chars  = $swatch->u16(0);
+        $name   = rtrim(
             (string) mb_convert_encoding(
                 substr($body, offset: 2, length: $chars * 2),
                 to_encoding: 'UTF-8',
@@ -176,7 +178,7 @@ final class SpotLibrary
                 $model,
             )),
         };
-        $v      = /** @throws ParseException */ static fn(int $i): float => self::f32($body, $at + 4 + ($i * 4));
+        $v      = /** @throws ParseException */ static fn(int $i): float => $swatch->f32($at + 4 + ($i * 4));
         $colour = match ($model) {
             'CMYK'  => new Cmyk($v(0), $v(1), $v(2), $v(3)),
             'RGB '  => new Rgb($v(0), $v(1), $v(2)),
@@ -184,7 +186,7 @@ final class SpotLibrary
             default => new Gray($v(0)),
         };
 
-        return [$name, $colour, self::u16($body, $at + 4 + ($count * 4))];
+        return [$name, $colour, $swatch->u16($at + 4 + ($count * 4))];
     }
 
     /**
@@ -256,18 +258,6 @@ final class SpotLibrary
         return $values;
     }
 
-    /** @throws ParseException */
-    private static function f32(string $data, int $offset): float
-    {
-        if (strlen($data) < ($offset + 4)) {
-            throw new ParseException('A swatch is cut short.');
-        }
-        /** @var array{1: float} $value */
-        $value = unpack('G', substr($data, $offset, length: 4));
-
-        return $value[1];
-    }
-
     private static function looseKey(string $name): string
     {
         return strtolower((string) preg_replace('/\s+/', replacement: ' ', subject: trim($name)));
@@ -282,30 +272,6 @@ final class SpotLibrary
         }
 
         return $data;
-    }
-
-    /** @throws ParseException */
-    private static function u16(string $data, int $offset): int
-    {
-        if (strlen($data) < ($offset + 2)) {
-            throw new ParseException('The swatch file is cut short.');
-        }
-        /** @var array{1: int} $value */
-        $value = unpack('n', substr($data, $offset, length: 2));
-
-        return $value[1];
-    }
-
-    /** @throws ParseException */
-    private static function u32(string $data, int $offset): int
-    {
-        if (strlen($data) < ($offset + 4)) {
-            throw new ParseException('The swatch file is cut short.');
-        }
-        /** @var array{1: int} $value */
-        $value = unpack('N', substr($data, $offset, length: 4));
-
-        return $value[1];
     }
 
     public function count(): int

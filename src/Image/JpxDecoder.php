@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Php2Pdf\Image;
 
 use Override;
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 
 use function ord;
 use function sprintf;
 use function str_starts_with;
-use function strlen;
 use function substr;
-use function unpack;
 
 /**
  * Reads the header of a JPEG 2000 image (a JP2 file or a bare codestream). The data is passed
@@ -39,15 +38,15 @@ final readonly class JpxDecoder implements ImageDecoderInterface
      *
      * @throws ParseException
      */
-    private static function box(string $data, int $from, int $to, string $type): ?array
+    private static function box(BinaryReader $r, int $from, int $to, string $type): ?array
     {
         $at = $from;
         while (($at + 8) <= $to) {
-            $length = self::u32($data, $at);
-            $kind   = substr($data, $at + 4, length: 4);
+            $length = $r->u32($at);
+            $kind   = substr($r->data, $at + 4, length: 4);
             $start  = $at + 8;
             if (1 === $length) {
-                $length = (self::u32($data, $at + 8) << 32) | self::u32($data, $at + 12);
+                $length = ($r->u32($at + 8) << 32) | $r->u32($at + 12);
                 $start  = $at + 16;
             }
             $end = 0 === $length ? $to : $at + $length;
@@ -70,16 +69,16 @@ final readonly class JpxDecoder implements ImageDecoderInterface
      *
      * @throws ParseException
      */
-    private static function codestream(string $data): array
+    private static function codestream(BinaryReader $r): array
     {
-        if (strlen($data) < 43) {
+        if ($r->length < 43) {
             throw new ParseException('Truncated JPEG 2000 codestream.');
         }
         return [
-            self::u32($data, 8) - self::u32($data, 16),
-            self::u32($data, 12) - self::u32($data, 20),
-            self::u16($data, 40),
-            (ord($data[42]) & 0x7F) + 1,
+            $r->u32(8) - $r->u32(16),
+            $r->u32(12) - $r->u32(20),
+            $r->u16(40),
+            (ord($r->data[42]) & 0x7F) + 1,
             null,
             null,
             false,
@@ -93,18 +92,18 @@ final readonly class JpxDecoder implements ImageDecoderInterface
      *
      * @throws ParseException
      */
-    private static function hasAlpha(string $data, ?array $cdef): bool
+    private static function hasAlpha(BinaryReader $r, ?array $cdef): bool
     {
         if (null === $cdef || ($cdef[1] - $cdef[0]) < 2) {
             return false;
         }
-        $count = self::u16($data, $cdef[0]);
+        $count = $r->u16($cdef[0]);
         for ($i = 0; $i < $count; ++$i) {
             $at = $cdef[0] + 2 + ($i * 6);
             if (($at + 6) > $cdef[1]) {
                 return false;
             }
-            $type = self::u16($data, $at + 2);
+            $type = $r->u16($at + 2);
             if (1 === $type || 2 === $type) {
                 return true;
             }
@@ -121,15 +120,15 @@ final readonly class JpxDecoder implements ImageDecoderInterface
      *
      * @throws ParseException
      */
-    private static function jp2(string $data): array
+    private static function jp2(BinaryReader $r): array
     {
-        if (! str_starts_with($data, self::JP2_SIGNATURE)) {
+        if (! str_starts_with($r->data, self::JP2_SIGNATURE)) {
             throw new ParseException('Not a JPEG 2000 file.');
         }
-        $header = self::box($data, 12, strlen($data), 'jp2h') ?? throw new ParseException(
+        $header = self::box($r, 12, $r->length, 'jp2h') ?? throw new ParseException(
             'JPEG 2000 file has no header box.',
         );
-        $ihdr = self::box($data, $header[0], $header[1], 'ihdr') ?? throw new ParseException(
+        $ihdr = self::box($r, $header[0], $header[1], 'ihdr') ?? throw new ParseException(
             'JPEG 2000 file has no image header.',
         );
         if (($ihdr[1] - $ihdr[0]) < 11) {
@@ -137,39 +136,23 @@ final readonly class JpxDecoder implements ImageDecoderInterface
         }
         $enumerated = null;
         $icc        = null;
-        $colr       = self::box($data, $header[0], $header[1], 'colr');
-        if (null !== $colr && 1 === ord($data[$colr[0]] ?? "\0") && ($colr[1] - $colr[0]) >= 7) {
-            $enumerated = self::u32($data, $colr[0] + 3);
+        $colr       = self::box($r, $header[0], $header[1], 'colr');
+        if (null !== $colr && 1 === ord($r->data[$colr[0]] ?? "\0") && ($colr[1] - $colr[0]) >= 7) {
+            $enumerated = $r->u32($colr[0] + 3);
         }
-        if (null !== $colr && 2 === ord($data[$colr[0]] ?? "\0")) {
-            $icc = substr($data, $colr[0] + 3, $colr[1] - $colr[0] - 3);
+        if (null !== $colr && 2 === ord($r->data[$colr[0]] ?? "\0")) {
+            $icc = substr($r->data, $colr[0] + 3, $colr[1] - $colr[0] - 3);
         }
 
         return [
-            self::u32($data, $ihdr[0] + 4),
-            self::u32($data, $ihdr[0]),
-            self::u16($data, $ihdr[0] + 8),
-            (ord($data[$ihdr[0] + 10] ?? "\0") & 0x7F) + 1,
+            $r->u32($ihdr[0] + 4),
+            $r->u32($ihdr[0]),
+            $r->u16($ihdr[0] + 8),
+            (ord($r->data[$ihdr[0] + 10] ?? "\0") & 0x7F) + 1,
             $enumerated,
             $icc,
-            self::hasAlpha($data, self::box($data, $header[0], $header[1], 'cdef')),
+            self::hasAlpha($r, self::box($r, $header[0], $header[1], 'cdef')),
         ];
-    }
-
-    /** @throws ParseException */
-    private static function u16(string $data, int $offset): int
-    {
-        $value = $offset >= 0 && ($offset + 2) <= strlen($data) ? unpack('n', $data, $offset) : false;
-
-        return false === $value ? throw new ParseException('Truncated JPEG 2000 data.') : (int) $value[1];
-    }
-
-    /** @throws ParseException */
-    private static function u32(string $data, int $offset): int
-    {
-        $value = $offset >= 0 && ($offset + 4) <= strlen($data) ? unpack('N', $data, $offset) : false;
-
-        return false === $value ? throw new ParseException('Truncated JPEG 2000 data.') : (int) $value[1];
     }
 
     #[Override]
@@ -182,9 +165,10 @@ final readonly class JpxDecoder implements ImageDecoderInterface
     #[Override]
     public function decode(string $data, Limits $limits, ImageOptions $options): ImageData
     {
+        $reader = new BinaryReader($data, what: 'the JPEG 2000 data');
         [$width, $height, $components, $bits, $enumerated, $icc, $alpha] = str_starts_with($data, self::CODESTREAM)
-            ? self::codestream($data)
-            : self::jp2($data);
+            ? self::codestream($reader)
+            : self::jp2($reader);
         if ($width < 1 || $height < 1) {
             throw new ParseException('JPEG 2000 image has no pixels.');
         }

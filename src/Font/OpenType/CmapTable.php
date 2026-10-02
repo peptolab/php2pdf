@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
 
 /**

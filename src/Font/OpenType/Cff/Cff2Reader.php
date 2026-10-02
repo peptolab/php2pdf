@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType\Cff;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
-use Php2Pdf\Font\OpenType\BinaryReader;
 
 use function array_fill;
 use function array_key_exists;
@@ -43,7 +43,7 @@ final class Cff2Reader
     /** @throws ParseException */
     public function __construct(string $data)
     {
-        $this->reader = new BinaryReader($data);
+        $this->reader = new BinaryReader($data, what: 'the font data');
         if (2 !== $this->reader->u8(0)) {
             throw new ParseException(sprintf('CFF2 version %d is not supported.', $this->reader->u8(0)));
         }

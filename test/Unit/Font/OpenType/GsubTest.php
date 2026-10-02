@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Font\OpenType;
 
-use Php2Pdf\Font\OpenType\BinaryReader;
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Font\OpenType\Gdef;
 use Php2Pdf\Font\OpenType\Gsub;
 use Php2PdfTest\TestAsset\GsubBuilder;

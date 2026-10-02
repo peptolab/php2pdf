@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Font\OpenType;
+namespace Php2Pdf\Core;
 
 use Php2Pdf\Exception\ParseException;
 
@@ -11,10 +11,13 @@ use function ord;
 use function sprintf;
 use function strlen;
 use function substr;
+use function ucfirst;
 use function unpack;
 
 /**
- * Big-endian reads from a byte string, as OpenType tables need.
+ * Reads big-endian integers, fixed-point and floating-point numbers from a byte string, as
+ * OpenType, JPEG 2000 and swatch files store them. A read past the end is an error that says what
+ * was cut short.
  *
  * @internal
  */
@@ -22,8 +25,10 @@ final readonly class BinaryReader
 {
     public int $length;
 
+    /** @param string $what the data, as an error names it: "the font data", "the swatch file" */
     public function __construct(
         public string $data,
+        private string $what = 'the data',
     ) {
         $this->length = strlen($data);
     }
@@ -34,6 +39,20 @@ final readonly class BinaryReader
         $this->check($offset, $length);
 
         return substr($this->data, $offset, $length);
+    }
+
+    /**
+     * A 32-bit IEEE floating-point number.
+     *
+     * @throws ParseException
+     */
+    public function f32(int $offset): float
+    {
+        $this->check($offset, 4);
+        /** @var array{1: float} $value */
+        $value = unpack('G', $this->data, $offset);
+
+        return $value[1];
     }
 
     /**
@@ -97,13 +116,10 @@ final readonly class BinaryReader
     public function u32(int $offset): int
     {
         $this->check($offset, 4);
+        /** @var array{1: int} $value */
+        $value = unpack('N', $this->data, $offset);
 
-        return (
-            (ord($this->data[$offset]) << 24)
-                | (ord($this->data[$offset + 1]) << 16)
-                | (ord($this->data[$offset + 2]) << 8)
-                | ord($this->data[$offset + 3])
-        );
+        return $value[1];
     }
 
     /**
@@ -136,7 +152,8 @@ final readonly class BinaryReader
     {
         if ($offset < 0 || ($offset + $length) > $this->length) {
             throw new ParseException(sprintf(
-                'Read of %d bytes at offset %d is outside the font data.',
+                '%s is cut short: it has no %d bytes at offset %d.',
+                ucfirst($this->what),
                 $length,
                 $offset,
             ));

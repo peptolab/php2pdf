@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
-use Php2Pdf\Font\OpenType\BinaryReader;
 use Php2Pdf\Font\OpenType\NameTable;
 use Php2Pdf\Font\OpenType\TableDirectory;
 
@@ -86,10 +86,10 @@ final readonly class FontInfo
     private static function collectionFaces(mixed $handle): array
     {
         fseek($handle, offset: 8);
-        $header  = new BinaryReader((string) fread($handle, length: 4));
+        $header  = new BinaryReader((string) fread($handle, length: 4), what: 'the font data');
         $count   = min(64, $header->u32(0));
         $offsets = (string) fread($handle, length: 4 * $count);
-        $reader  = new BinaryReader($offsets);
+        $reader  = new BinaryReader($offsets, what: 'the font data');
 
         return $reader->u32List(0, intdiv(strlen($offsets), num2: 4));
     }
@@ -147,10 +147,10 @@ final readonly class FontInfo
         if (strlen($directory) < 12) {
             return null;
         }
-        $header    = new BinaryReader($directory);
+        $header    = new BinaryReader($directory, what: 'the font data');
         $count     = $header->u16(4);
         $directory .= (string) fread($handle, length: 16 * $count);
-        $tables    = new TableDirectory(new BinaryReader($directory), dataLength: PHP_INT_MAX);
+        $tables    = new TableDirectory(new BinaryReader($directory, what: 'the font data'), dataLength: PHP_INT_MAX);
         $tables    = $tables->tables;
 
         $read = static function (string $tag) use ($handle, $tables): ?BinaryReader {
@@ -161,7 +161,7 @@ final readonly class FontInfo
             fseek($handle, $table['offset']);
             $data = (string) fread($handle, $table['length']);
 
-            return strlen($data) === $table['length'] ? new BinaryReader($data) : null;
+            return strlen($data) === $table['length'] ? new BinaryReader($data, what: 'the font data') : null;
         };
 
         $name = $read('name');

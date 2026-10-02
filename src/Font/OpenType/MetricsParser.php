@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
 
 use function round;
@@ -77,7 +78,7 @@ final readonly class MetricsParser
         if (0 !== $glyph && ! $this->font->isCff) {
             $data = $this->font->glyphData($glyph);
             if (strlen($data) >= 10) {
-                $reader = new BinaryReader($data);
+                $reader = new BinaryReader($data, what: 'the font data');
 
                 return $reader->i16(8);
             }

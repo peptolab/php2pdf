@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Core\Lru;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -92,7 +93,7 @@ final class OpenTypeFont
         string $data,
         public readonly int $faceIndex,
     ) {
-        $this->reader = new BinaryReader($data);
+        $this->reader = new BinaryReader($data, what: 'the font data');
         $this->tables = new TableDirectory($this->reader, $faceIndex);
         $this->isCff  = $this->tables->isCff;
 
@@ -199,7 +200,7 @@ final class OpenTypeFont
         if (strlen($data) < 12) {
             return [];
         }
-        $r = new BinaryReader($data);
+        $r = new BinaryReader($data, what: 'the font data');
         if ($r->i16(0) >= 0) {
             return [];
         }

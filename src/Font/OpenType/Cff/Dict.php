@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font\OpenType\Cff;
 
+use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
-use Php2Pdf\Font\OpenType\BinaryReader;
 
 use function abs;
 use function chr;
@@ -126,7 +126,7 @@ final class Dict
      */
     public static function parse(string $data): array
     {
-        $reader = new BinaryReader($data);
+        $reader = new BinaryReader($data, what: 'the font data');
         $dict   = [];
         $start  = 0;
         $values = [];
@@ -167,7 +167,7 @@ final class Dict
      */
     public static function tokens(string $data): array
     {
-        $reader = new BinaryReader($data);
+        $reader = new BinaryReader($data, what: 'the font data');
         $tokens = [];
         $i      = 0;
         while ($i < $reader->length) {
