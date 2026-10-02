@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-02
+
 ### Added
 
 - Letter spacing and glyph scaling in justification, as in InDesign:
@@ -124,6 +126,7 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.1...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.2...HEAD
+[0.1.2]: https://github.com/peptolab/php2pdf/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/peptolab/php2pdf/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/peptolab/php2pdf/releases/tag/0.1.0
