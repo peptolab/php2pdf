@@ -18,6 +18,7 @@ use function in_array;
 use function intdiv;
 use function is_float;
 use function is_int;
+use function max;
 use function ord;
 use function preg_replace;
 use function sprintf;
@@ -72,6 +73,11 @@ final class TiffDecoder
     private const int RGB           = 2;
     private const int PALETTE       = 3;
     private const int SEPARATED     = 5;
+    private const int CIE_LAB       = 8;
+    private const int ICC_LAB       = 9;
+    private const int ITU_LAB       = 10;
+    private const int LOG_L         = 32_844;
+    private const int LOG_LUV       = 32_845;
 
     private function __construct(
         private readonly TiffFile $file,
@@ -96,6 +102,41 @@ final class TiffDecoder
         }
 
         return (new self($file, $page - 1, $limits))->read();
+    }
+
+    /**
+     * What converting a page the decoder does not read could lose, from its directory: a colour
+     * model other than grey, RGB or a palette (YCbCr is RGB encoded), an ICC profile, the depth
+     * and any alpha channel.
+     *
+     * @throws ParseException for a malformed file or a missing page
+     */
+    public static function traits(string $data, int $page = 1): ImageTraits
+    {
+        $file = new TiffFile($data);
+        $ifd  = $page - 1;
+        if ($page > $file->directoryCount()) {
+            throw new ParseException(sprintf(
+                'The image has %d pages; page %d was asked for.',
+                $file->directoryCount(),
+                $page,
+            ));
+        }
+        $photometric = $file->value($ifd, self::PHOTOMETRIC, -1);
+        $extra       = $file->values($ifd, self::EXTRA_SAMPLES);
+        $bits        = $file->values($ifd, self::BITS);
+
+        return new ImageTraits(
+            match ($photometric) {
+                self::SEPARATED => 1 === $file->value($ifd, self::INK_SET, 1) ? 'CMYK' : 'a multi-ink separation',
+                self::CIE_LAB, self::ICC_LAB, self::ITU_LAB => 'CIELab',
+                self::LOG_L, self::LOG_LUV => 'LogLuv',
+                default => null,
+            },
+            null !== $file->raw($ifd, self::ICC_PROFILE),
+            (int) max([1, ...$bits]),
+            in_array(1, $extra, strict: true) || in_array(2, $extra, strict: true),
+        );
     }
 
     /** Decodes PackBits run-length data. */

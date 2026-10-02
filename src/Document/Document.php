@@ -380,19 +380,15 @@ final class Document
             throw new IoException(sprintf('Cannot read image file "%s".', $path));
         }
 
-        return $this->imageFromData($data, $options);
+        return $this->loadImage($data, $options ?? new ImageOptions(), $path);
     }
 
     /** Loads an image from memory. */
     public function imageFromData(string $data, ?ImageOptions $options = null): Image
     {
         $this->assertOpen();
-        $options ??= new ImageOptions();
 
-        return $this->images[md5($data) . $options->key()] ??= new Image(
-            $this,
-            ImageReader::read($data, $this->options->limits, $options->page)->withOptions($options),
-        );
+        return $this->loadImage($data, $options ?? new ImageOptions(), name: null);
     }
 
     /**
@@ -604,6 +600,14 @@ final class Document
         }
 
         return $dict;
+    }
+
+    private function loadImage(string $data, ImageOptions $options, ?string $name): Image
+    {
+        return $this->images[md5($data) . $options->key()] ??= new Image(
+            $this,
+            ImageReader::read($data, $this->options->limits, $options, $name)->withOptions($options),
+        );
     }
 
     private function navigation(): Navigation
