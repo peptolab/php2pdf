@@ -26,6 +26,14 @@ suite on Ubuntu with the PDF tooling installed.
 
 Both mirror `src/`. Run one suite with `vendor/bin/phpunit --testsuite unit` (or `integration`).
 
+Two tests in `test/Integration/Architecture` keep the structure honest. `LayeringTest` holds the
+namespaces to their layers (each may use only the layers below it); `TestLayoutTest` checks that
+unit tests read no files and that every test declares its suite's group. Uses that break the
+layering today are listed in `LayeringTest::RATCHET` with the work that removes them, and the
+classes excused from Mago's size and complexity limits are listed per rule in `mago.toml`. Both
+lists only shrink: remove an entry when its class passes, and never add one to make new code
+pass.
+
 A missing baseline is written on the first run and the test is marked incomplete; run the suite
 again to compare. Set `PHP2PDF_UPDATE_BASELINES=1` to regenerate baselines after an intentional
 change. Comparison tolerates a small share of differing pixels so anti-aliasing differences

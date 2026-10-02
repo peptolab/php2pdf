@@ -32,6 +32,8 @@ use function str_repeat;
  * A 500-page document: flowing text, a table on every page, a template and an image, written
  * in bounded memory because pages stream out as they finish.
  */
+#[Group('integration')]
+#[Group('slow')]
 final class PerformanceTest extends TestCase
 {
     #[Test]
