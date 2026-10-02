@@ -72,7 +72,13 @@ final class JpxDecoderTest extends TestCase
 
         self::assertSame(
             $expected,
-            [$data->width, $data->height, $data->colorSpace->device, null !== $data->iccProfile, $data->smaskInData],
+            [
+                $data->raster->width,
+                $data->raster->height,
+                $data->raster->colorSpace->device,
+                null !== $data->raster->iccProfile,
+                $data->raster->smaskInData,
+            ],
         );
     }
 

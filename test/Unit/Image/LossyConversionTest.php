@@ -128,7 +128,7 @@ final class LossyConversionTest extends TestCase
         imagegif($gif);
         $image = ImageReader::read((string) ob_get_clean());
 
-        self::assertSame([3, 2], [$image->width, $image->height]);
+        self::assertSame([3, 2], [$image->raster->width, $image->raster->height]);
     }
 
     #[Test]
@@ -142,7 +142,7 @@ final class LossyConversionTest extends TestCase
             ->bytes();
         $image = ImageReader::read($tiff, options: new ImageOptions(allowLossyConversion: true));
 
-        self::assertSame(['DeviceRGB', null], [$image->colorSpace->device, $image->iccProfile]);
+        self::assertSame(['DeviceRGB', null], [$image->raster->colorSpace->device, $image->raster->iccProfile]);
     }
 
     #[Test]

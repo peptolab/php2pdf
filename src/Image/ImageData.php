@@ -4,57 +4,37 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
-use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Path;
 
 use function sprintf;
 
 /**
- * A decoded (or passed-through) image ready to be written as an image XObject.
+ * A decoded (or passed-through) image: its samples, its soft mask, and how it is shown (its
+ * resolution, orientation, and the path it is clipped to).
  *
  * @api
  */
 final readonly class ImageData
 {
     /**
-     * @param string          $data         sample data, already encoded with $filter when one is set
-     * @param string|null     $filter       DCTDecode, JPXDecode, FlateDecode, or null for raw samples
-     * @param Dictionary|null $decodeParms  predictor parameters for FlateDecode
-     * @param list<int>|null  $decode       a /Decode array, e.g. to invert Adobe CMYK JPEGs
-     * @param string|null     $softMask     alpha samples at $softMaskBits, uncompressed
-     * @param list<int>|null  $colorKeyMask /Mask ranges for colour-key transparency
-     * @param string|null     $iccProfile   an embedded ICC profile matching the colour space
-     * @param int             $orientation  the EXIF orientation (1 to 8) the image is shown in
-     * @param bool            $smaskInData  whether JPEG 2000 data carries its own alpha channel
-     * @param string|null     $photoshop    Photoshop image resource blocks, which may hold paths
-     * @param Path|null $clip               the path the image is clipped to when drawn
-     * @param int             $softMaskBits the soft mask's bits per sample, 8 or 16
+     * @param int         $orientation the EXIF orientation (1 to 8) the image is shown in
+     * @param string|null $photoshop   Photoshop image resource blocks, which may hold paths
+     * @param Path|null   $clip        the path the image is clipped to when drawn
      */
     public function __construct(
-        public int $width,
-        public int $height,
-        public int $bitsPerComponent,
-        public ImageColorSpace $colorSpace,
-        public string $data,
-        public ?string $filter = null,
-        public ?Dictionary $decodeParms = null,
-        public ?array $decode = null,
-        public ?string $softMask = null,
-        public ?array $colorKeyMask = null,
-        public ?string $iccProfile = null,
+        public Raster $raster,
+        public ?SoftMask $softMask = null,
         public float $dpiX = 72.0,
         public float $dpiY = 72.0,
         public int $orientation = 1,
-        public bool $smaskInData = false,
         public ?string $photoshop = null,
         public ?Path $clip = null,
-        public int $softMaskBits = 8,
     ) {}
 
     public function hasTransparency(): bool
     {
-        return null !== $this->softMask || null !== $this->colorKeyMask || $this->smaskInData;
+        return null !== $this->softMask || null !== $this->raster->colorKeyMask || $this->raster->smaskInData;
     }
 
     /** Whether the orientation turns the image a quarter turn, swapping its width and height. */
@@ -78,24 +58,13 @@ final readonly class ImageData
         }
 
         return new self(
-            $this->width,
-            $this->height,
-            $this->bitsPerComponent,
-            $this->colorSpace,
-            $this->data,
-            $this->filter,
-            $this->decodeParms,
-            $this->decode,
+            $this->raster,
             $this->softMask,
-            $this->colorKeyMask,
-            $this->iccProfile,
             $options->dpi ?? $this->dpiX,
             $options->dpi ?? $this->dpiY,
             $options->orientation ? $this->orientation : 1,
-            $this->smaskInData,
             $this->photoshop,
             $this->clippingPath($options->clippingPath),
-            $this->softMaskBits,
         );
     }
 

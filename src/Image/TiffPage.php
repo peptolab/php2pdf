@@ -242,13 +242,7 @@ final class TiffPage
         ]);
 
         return new ImageData(
-            $width,
-            $height,
-            1,
-            ImageColorSpace::gray(),
-            $strips[0],
-            'CCITTFaxDecode',
-            $parms,
+            new Raster($width, $height, 1, ImageColorSpace::gray(), $strips[0], 'CCITTFaxDecode', $parms),
             dpiX: $this->dpi(self::X_RESOLUTION),
             dpiY: $this->dpi(self::Y_RESOLUTION),
             orientation: $this->orientation(),
@@ -368,19 +362,20 @@ final class TiffPage
         }
 
         return new ImageData(
-            $width,
-            $height,
-            $bits,
-            $this->colorSpace($photometric, $bits),
-            $raw,
-            decode: self::WHITE_IS_ZERO === $photometric ? [1, 0] : null,
-            softMask: $softMask,
-            iccProfile: $this->file->raw($this->ifd, self::ICC_PROFILE),
+            new Raster(
+                $width,
+                $height,
+                $bits,
+                $this->colorSpace($photometric, $bits),
+                $raw,
+                decode: self::WHITE_IS_ZERO === $photometric ? [1, 0] : null,
+                iccProfile: $this->file->raw($this->ifd, self::ICC_PROFILE),
+            ),
+            null === $softMask ? null : new SoftMask($softMask, $bits),
             dpiX: $this->dpi(self::X_RESOLUTION),
             dpiY: $this->dpi(self::Y_RESOLUTION),
             orientation: $this->orientation(),
             photoshop: $this->file->raw($this->ifd, self::PHOTOSHOP),
-            softMaskBits: $bits,
         );
     }
 

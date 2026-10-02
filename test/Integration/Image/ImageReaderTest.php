@@ -117,8 +117,8 @@ final class ImageReaderTest extends TestCase
         // interlaced-rgb.png holds the same pixels as rgb8.png; decoding must reproduce them.
         $plain      = self::read('rgb8.png');
         $interlaced = self::read('interlaced-rgb.png');
-        $decoded    = Flate::decode($interlaced->data);
-        $reference  = self::unfilterReference(Flate::decode($plain->data), 64, 48, 3);
+        $decoded    = Flate::decode($interlaced->raster->data);
+        $reference  = self::unfilterReference(Flate::decode($plain->raster->data), 64, 48, 3);
 
         self::assertSame($reference, $decoded);
     }
@@ -156,15 +156,18 @@ final class ImageReaderTest extends TestCase
         $interlaced = ImageReader::read($png(true));
         $plain      = ImageReader::read($png(false));
 
-        self::assertSame([$plain->data, $plain->softMask], [$interlaced->data, $interlaced->softMask]);
+        self::assertSame(
+            [$plain->raster->data, $plain->softMask?->data],
+            [$interlaced->raster->data, $interlaced->softMask?->data],
+        );
     }
 
     #[Test]
     public function readsColorKeyAndResolution(): void
     {
         $key = self::read('colorkey.png');
-        self::assertNotNull($key->colorKeyMask);
-        self::assertCount(6, $key->colorKeyMask);
+        self::assertNotNull($key->raster->colorKeyMask);
+        self::assertCount(6, $key->raster->colorKeyMask);
         self::assertTrue($key->hasTransparency());
 
         $dpi = self::read('rgb-150dpi.png');
@@ -176,23 +179,23 @@ final class ImageReaderTest extends TestCase
     {
         $rgb = self::read('rgb.jpg');
         self::assertSame([64, 48, 8, 'DeviceRGB', 'DCTDecode'], [
-            $rgb->width,
-            $rgb->height,
-            $rgb->bitsPerComponent,
-            $rgb->colorSpace->device,
-            $rgb->filter,
+            $rgb->raster->width,
+            $rgb->raster->height,
+            $rgb->raster->bitsPerComponent,
+            $rgb->raster->colorSpace->device,
+            $rgb->raster->filter,
         ]);
-        self::assertNull($rgb->decode);
+        self::assertNull($rgb->raster->decode);
         self::assertSame(72.0, $rgb->dpiX);
 
         $gray = self::read('gray.jpg');
-        self::assertSame(1, $gray->colorSpace->components);
+        self::assertSame(1, $gray->raster->colorSpace->components);
 
         $cmyk = self::read('cmyk.jpg');
-        self::assertSame('DeviceCMYK', $cmyk->colorSpace->device);
-        self::assertSame([1, 0, 1, 0, 1, 0, 1, 0], $cmyk->decode, 'Adobe CMYK JPEGs are inverted.');
+        self::assertSame('DeviceCMYK', $cmyk->raster->colorSpace->device);
+        self::assertSame([1, 0, 1, 0, 1, 0, 1, 0], $cmyk->raster->decode, 'Adobe CMYK JPEGs are inverted.');
 
-        self::assertSame(64, self::read('progressive.jpg')->width);
+        self::assertSame(64, self::read('progressive.jpg')->raster->width);
         self::assertSame(150.0, self::read('rgb-150dpi.jpg')->dpiX);
     }
 
@@ -210,20 +213,20 @@ final class ImageReaderTest extends TestCase
         $softMask    = 'smask' === $transparency;
         $passthrough = 'passthrough' === $encoding;
 
-        self::assertSame([64, 48], [$image->width, $image->height]);
-        self::assertSame($device, $image->colorSpace->device);
-        self::assertSame($bits, $image->bitsPerComponent);
-        self::assertSame($components, $image->colorSpace->components);
-        self::assertSame('FlateDecode', $image->filter);
+        self::assertSame([64, 48], [$image->raster->width, $image->raster->height]);
+        self::assertSame($device, $image->raster->colorSpace->device);
+        self::assertSame($bits, $image->raster->bitsPerComponent);
+        self::assertSame($components, $image->raster->colorSpace->components);
+        self::assertSame('FlateDecode', $image->raster->filter);
         self::assertSame($softMask, null !== $image->softMask);
-        self::assertSame($passthrough, null !== $image->decodeParms);
+        self::assertSame($passthrough, null !== $image->raster->decodeParms);
         if ($softMask) {
-            self::assertSame(64 * 48, strlen((string) $image->softMask));
+            self::assertSame(64 * 48, strlen($image->softMask->data ?? ''));
         }
         // Decoded data has exactly the expected number of samples.
         $expectedBytes = 64 * 48 * $components * intdiv($bits, num2: 8);
         if (! $passthrough) {
-            self::assertSame($expectedBytes, strlen(Flate::decode($image->data)));
+            self::assertSame($expectedBytes, strlen(Flate::decode($image->raster->data)));
         }
     }
 

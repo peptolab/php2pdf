@@ -70,8 +70,8 @@ final class Image implements PlaceableInterface
     {
         $canvas->objects()->assertOwns($this->objects, 'An image');
         $this->colour->assertOutputIntent();
-        if (null === $this->data->iccProfile || $this->data->colorSpace->isIndexed()) {
-            $this->colour->assertDeviceColour($this->data->colorSpace->device, 'images');
+        if (null === $this->data->raster->iccProfile || $this->data->raster->colorSpace->isIndexed()) {
+            $this->colour->assertDeviceColour($this->data->raster->colorSpace->device, 'images');
         }
         $placement = self::orientation($this->data->orientation)
             ->then(Matrix::scaling($size->width, $size->height))
@@ -97,14 +97,14 @@ final class Image implements PlaceableInterface
 
     public function heightPx(): int
     {
-        return $this->data->height;
+        return $this->data->raster->height;
     }
 
     #[Override]
     public function naturalSize(?float $dpi = null): Dimensions
     {
-        $width  = ($this->data->width * 72.0) / ($dpi ?? $this->data->dpiX);
-        $height = ($this->data->height * 72.0) / ($dpi ?? $this->data->dpiY);
+        $width  = ($this->data->raster->width * 72.0) / ($dpi ?? $this->data->dpiX);
+        $height = ($this->data->raster->height * 72.0) / ($dpi ?? $this->data->dpiY);
 
         return $this->data->isTransposed() ? new Dimensions($height, $width) : new Dimensions($width, $height);
     }
@@ -117,18 +117,19 @@ final class Image implements PlaceableInterface
 
     public function widthPx(): int
     {
-        return $this->data->width;
+        return $this->data->raster->width;
     }
 
     private function write(): Reference
     {
         $writer = $this->objects;
-        $data   = $this->data;
+        $raster = $this->data->raster;
+        $mask   = $this->data->softMask;
 
         $icc = null;
-        if (null !== $data->iccProfile && ! $data->colorSpace->isIndexed()) {
-            $profile = $data->iccProfile;
-            $n       = $data->colorSpace->components;
+        if (null !== $raster->iccProfile && ! $raster->colorSpace->isIndexed()) {
+            $profile = $raster->iccProfile;
+            $n       = $raster->colorSpace->components;
             $icc     = $this->objects->shared(
                 'iccstream:' . md5($profile),
                 static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
@@ -138,32 +139,32 @@ final class Image implements PlaceableInterface
         $dict = Dictionary::of([
             'Type'             => new Name('XObject'),
             'Subtype'          => new Name('Image'),
-            'Width'            => $data->width,
-            'Height'           => $data->height,
-            'ColorSpace'       => $data->colorSpace->toPdf($icc),
-            'BitsPerComponent' => $data->bitsPerComponent,
-            'Filter'           => null === $data->filter ? null : new Name($data->filter),
-            'DecodeParms'      => $data->decodeParms,
-            'Decode'           => $data->decode,
-            'Mask'             => $data->colorKeyMask,
-            'SMaskInData'      => $data->smaskInData ? 1 : null,
+            'Width'            => $raster->width,
+            'Height'           => $raster->height,
+            'ColorSpace'       => $raster->colorSpace->toPdf($icc),
+            'BitsPerComponent' => $raster->bitsPerComponent,
+            'Filter'           => null === $raster->filter ? null : new Name($raster->filter),
+            'DecodeParms'      => $raster->decodeParms,
+            'Decode'           => $raster->decode,
+            'Mask'             => $raster->colorKeyMask,
+            'SMaskInData'      => $raster->smaskInData ? 1 : null,
         ]);
-        if (null !== $data->softMask) {
+        if (null !== $mask) {
             $dict->set(
                 'SMask',
                 $writer->add(
                     new Stream(Dictionary::of([
                         'Type'             => new Name('XObject'),
                         'Subtype'          => new Name('Image'),
-                        'Width'            => $data->width,
-                        'Height'           => $data->height,
+                        'Width'            => $raster->width,
+                        'Height'           => $raster->height,
                         'ColorSpace'       => new Name('DeviceGray'),
-                        'BitsPerComponent' => $data->softMaskBits,
-                    ]), $data->softMask),
+                        'BitsPerComponent' => $mask->bits,
+                    ]), $mask->data),
                 ),
             );
         }
 
-        return $writer->add(new Stream($dict, $data->data, compress: null === $data->filter));
+        return $writer->add(new Stream($dict, $raster->data, compress: null === $raster->filter));
     }
 }

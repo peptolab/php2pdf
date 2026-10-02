@@ -93,7 +93,7 @@ final class TiffDecoderTest extends TestCase
         $map  = [65_535, 0, 0, 65_535, 0, 0, 0, 0, 0, 0, 65_535, 0];
         $data = self::decode((new TiffFixture(4, 1, 3, 2, 1, "\x1B"))->withTags([320 => [3, $map]]));
 
-        self::assertSame("\xFF\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x00\x00", $data->colorSpace->palette);
+        self::assertSame("\xFF\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x00\x00", $data->raster->colorSpace->palette);
     }
 
     #[Test]
@@ -120,7 +120,7 @@ final class TiffDecoderTest extends TestCase
         ]));
 
         self::assertSame(['ICC-PROFILE', 300.0, 600.0, 6], [
-            $data->iccProfile,
+            $data->raster->iccProfile,
             $data->dpiX,
             $data->dpiY,
             $data->orientation,
@@ -142,7 +142,9 @@ final class TiffDecoderTest extends TestCase
     {
         self::assertSame(
             4,
-            self::decode((new TiffFixture(4, 2, 2, 8, 3, str_repeat("\x00", times: 24)))->pages(3), page: 3)->width,
+            self::decode((new TiffFixture(4, 2, 2, 8, 3, str_repeat("\x00", times: 24)))->pages(3), page: 3)
+                ->raster
+                ->width,
         );
     }
 
@@ -153,7 +155,11 @@ final class TiffDecoderTest extends TestCase
     {
         $data = self::decode($tiff);
 
-        self::assertSame($expected, [$data->colorSpace->device, $data->bitsPerComponent, $data->data]);
+        self::assertSame($expected, [
+            $data->raster->colorSpace->device,
+            $data->raster->bitsPerComponent,
+            $data->raster->data,
+        ]);
     }
 
     #[Test]
@@ -171,12 +177,12 @@ final class TiffDecoderTest extends TestCase
             338 => [3, [2]],
         ]));
 
-        self::assertSame(["\x01\x02\x03\x04\x05\x06", "\x80\xFF"], [$data->data, $data->softMask]);
+        self::assertSame(["\x01\x02\x03\x04\x05\x06", "\x80\xFF"], [$data->raster->data, $data->softMask?->data]);
     }
 
     #[Test]
     public function whiteIsZeroGreyIsInvertedWithADecodeArray(): void
     {
-        self::assertSame([1, 0], self::decode(new TiffFixture(2, 1, 0, 8, 1, "\x00\xFF"))->decode);
+        self::assertSame([1, 0], self::decode(new TiffFixture(2, 1, 0, 8, 1, "\x00\xFF"))->raster->decode);
     }
 }

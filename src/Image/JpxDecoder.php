@@ -200,7 +200,7 @@ final readonly class JpxDecoder implements ImageDecoderInterface
             )),
         };
 
-        return new ImageData(
+        return new ImageData(new Raster(
             $width,
             $height,
             $bits,
@@ -209,7 +209,7 @@ final readonly class JpxDecoder implements ImageDecoderInterface
             'JPXDecode',
             iccProfile: $icc,
             smaskInData: $alpha,
-        );
+        ));
     }
 
     #[Override]

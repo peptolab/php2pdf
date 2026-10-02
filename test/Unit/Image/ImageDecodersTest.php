@@ -14,6 +14,7 @@ use Php2Pdf\Image\ImageTraits;
 use Php2Pdf\Image\JpegDecoder;
 use Php2Pdf\Image\JpxDecoder;
 use Php2Pdf\Image\PngDecoder;
+use Php2Pdf\Image\Raster;
 use Php2Pdf\Image\TiffDecoder;
 use Php2PdfTest\TestAsset\FakeImageDecoder;
 use Php2PdfTest\TestAsset\TiffFixture;
@@ -38,7 +39,7 @@ final class ImageDecodersTest extends TestCase
 
     private static function image(): ImageData
     {
-        return new ImageData(1, 1, 8, ImageColorSpace::gray(), "\x00");
+        return new ImageData(new Raster(1, 1, 8, ImageColorSpace::gray(), "\x00"));
     }
 
     #[Test]
@@ -101,7 +102,7 @@ final class ImageDecodersTest extends TestCase
 
         self::assertSame(
             "\x7F",
-            ImageDecoders::default()->read($tiff, Limits::default(), new ImageOptions(page: 2))->data,
+            ImageDecoders::default()->read($tiff, Limits::default(), new ImageOptions(page: 2))->raster->data,
         );
     }
 

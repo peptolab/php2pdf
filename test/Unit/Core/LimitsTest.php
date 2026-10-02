@@ -165,8 +165,8 @@ final class LimitsTest extends TestCase
         self::assertSame(
             [300, 200],
             [
-                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->width,
-                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->height,
+                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->raster->width,
+                ImageReader::read(HostileFiles::jpeg(300, 200), new Limits(maxImagePixels: 60_000))->raster->height,
             ],
         );
     }

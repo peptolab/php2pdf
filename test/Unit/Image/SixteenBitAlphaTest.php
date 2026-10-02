@@ -60,7 +60,7 @@ final class SixteenBitAlphaTest extends TestCase
 
     private static function colour(ImageData $image): string
     {
-        return null === $image->filter ? $image->data : Flate::decode($image->data);
+        return null === $image->raster->filter ? $image->raster->data : Flate::decode($image->raster->data);
     }
 
     /** A 16-bit PNG of one row, unfiltered. */
@@ -86,7 +86,7 @@ final class SixteenBitAlphaTest extends TestCase
 
         self::assertSame(
             [16, $colour, 16, $alpha],
-            [$image->bitsPerComponent, self::colour($image), $image->softMaskBits, $image->softMask],
+            [$image->raster->bitsPerComponent, self::colour($image), $image->softMask?->bits, $image->softMask?->data],
         );
     }
 

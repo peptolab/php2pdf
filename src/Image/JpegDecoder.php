@@ -120,14 +120,16 @@ final class JpegDecoder implements ImageDecoderInterface
         ksort($decoder->icc);
 
         return new ImageData(
-            $frame['width'],
-            $frame['height'],
-            8,
-            $colorSpace,
-            $data,
-            'DCTDecode',
-            decode: 4 === $frame['components'] && $decoder->adobe ? [1, 0, 1, 0, 1, 0, 1, 0] : null,
-            iccProfile: [] === $decoder->icc ? null : implode('', $decoder->icc),
+            new Raster(
+                $frame['width'],
+                $frame['height'],
+                8,
+                $colorSpace,
+                $data,
+                'DCTDecode',
+                decode: 4 === $frame['components'] && $decoder->adobe ? [1, 0, 1, 0, 1, 0, 1, 0] : null,
+                iccProfile: [] === $decoder->icc ? null : implode('', $decoder->icc),
+            ),
             dpiX: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[0],
             dpiY: ($decoder->dpi ?? $decoder->exifDpi ?? [72.0, 72.0])[1],
             orientation: $decoder->orientation,

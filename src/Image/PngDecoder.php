@@ -253,20 +253,22 @@ final readonly class PngDecoder implements ImageDecoderInterface
         $needsDecode = 1 === $interlace || 4 === $type || 6 === $type || (3 === $type && null !== $trns);
         if (! $needsDecode) {
             return new ImageData(
-                $width,
-                $height,
-                $depth,
-                $colorSpace,
-                $idat,
-                'FlateDecode',
-                Dictionary::of([
-                    'Predictor'        => 15,
-                    'Colors'           => $channels,
-                    'BitsPerComponent' => $depth,
-                    'Columns'          => $width,
-                ]),
-                colorKeyMask: self::colorKey($trns, $type, $depth),
-                iccProfile: $meta['icc'],
+                new Raster(
+                    $width,
+                    $height,
+                    $depth,
+                    $colorSpace,
+                    $idat,
+                    'FlateDecode',
+                    Dictionary::of([
+                        'Predictor'        => 15,
+                        'Colors'           => $channels,
+                        'BitsPerComponent' => $depth,
+                        'Columns'          => $width,
+                    ]),
+                    colorKeyMask: self::colorKey($trns, $type, $depth),
+                    iccProfile: $meta['icc'],
+                ),
                 dpiX: $meta['dpi'][0],
                 dpiY: $meta['dpi'][1],
             );
@@ -285,17 +287,18 @@ final readonly class PngDecoder implements ImageDecoderInterface
         [$color, $alpha] = self::split($samples, $channels, $depth > 8 ? 2 : 1, $type, $trns);
 
         return new ImageData(
-            $width,
-            $height,
-            max(8, $depth),
-            $colorSpace,
-            Flate::encode($color),
-            'FlateDecode',
-            softMask: $alpha,
-            iccProfile: $meta['icc'],
+            new Raster(
+                $width,
+                $height,
+                max(8, $depth),
+                $colorSpace,
+                Flate::encode($color),
+                'FlateDecode',
+                iccProfile: $meta['icc'],
+            ),
+            null === $alpha ? null : new SoftMask($alpha, 3 === $type ? 8 : max(8, $depth)),
             dpiX: $meta['dpi'][0],
             dpiY: $meta['dpi'][1],
-            softMaskBits: 3 === $type ? 8 : max(8, $depth),
         );
     }
 

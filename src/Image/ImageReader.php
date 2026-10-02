@@ -38,7 +38,7 @@ final class ImageReader
     ): ImageData {
         $limits ??= Limits::default();
         $image  = ImageDecoders::default()->read($data, $limits, $options ?? new ImageOptions(), $name);
-        $limits->assertImagePixels($image->width, $image->height);
+        $limits->assertImagePixels($image->raster->width, $image->raster->height);
 
         return $image;
     }
