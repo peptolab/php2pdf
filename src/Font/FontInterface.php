@@ -10,7 +10,8 @@ namespace Php2Pdf\Font;
  *
  * Metrics are returned in points for a given size; advances are in thousandths of an em. Get
  * fonts from the document's FontRegistry (load(), find(), standard()): text is drawn only with
- * the library's own fonts, which also know how to embed themselves.
+ * the library's own fonts, which also know how to embed themselves. Use it as a type; do not
+ * implement it, as a canvas refuses fonts other than Font and CoreFont.
  *
  * @api
  */

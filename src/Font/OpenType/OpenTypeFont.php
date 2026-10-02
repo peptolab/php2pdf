@@ -170,6 +170,8 @@ final class OpenTypeFont
      * @return list<array{0: int, 1: int}>
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function colourLayers(int $glyph): array
     {
@@ -184,6 +186,8 @@ final class OpenTypeFont
      * @return list<int>
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function componentGlyphs(int $glyphId): array
     {
@@ -236,6 +240,8 @@ final class OpenTypeFont
      * The font's glyph definitions (GDEF), synthesised from characters when it has none.
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function gdef(): Gdef
     {
@@ -246,6 +252,8 @@ final class OpenTypeFont
      * Raw glyf data for a glyph (empty for glyphs without outlines).
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function glyphData(int $glyphId): string
     {
@@ -270,6 +278,8 @@ final class OpenTypeFont
      * The font's glyph positioning (GPOS), or null when it has none.
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function gpos(): ?Gpos
     {
@@ -285,6 +295,8 @@ final class OpenTypeFont
      * The font's glyph substitutions (GSUB), or null when it has none.
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function gsub(): ?Gsub
     {
@@ -378,6 +390,8 @@ final class OpenTypeFont
      * @return array{0: int, 1: int, 2: int, 3: int}|null
      *
      * @throws ParseException
+     *
+     * @internal
      */
     public function paletteColour(int $index): ?array
     {

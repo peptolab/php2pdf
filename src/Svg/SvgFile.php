@@ -127,6 +127,8 @@ final class SvgFile
     /**
      * The combined rules of every <style> element.
      *
+     * @internal
+     *
      * @throws ParseException
      */
     public function styleSheet(): StyleSheet
