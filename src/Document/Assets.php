@@ -22,9 +22,12 @@ use Php2Pdf\Svg\NativeConverter;
 use Php2Pdf\Svg\SvgConverterInterface;
 use Php2Pdf\Svg\SvgDocumentInterface;
 use Php2Pdf\Svg\SvgFile;
+use WeakMap;
 
 use function file_get_contents;
+use function is_string;
 use function md5;
+use function realpath;
 use function spl_object_id;
 use function sprintf;
 
@@ -42,14 +45,23 @@ final class Assets implements CatalogContributorInterface
     /** @var array<string, ImportedDocument> */
     private array $imports = [];
 
-    /** @var array<string, PlaceableInterface> */
-    private array $svgs = [];
+    /** @var WeakMap<SvgConverterInterface, array<string, PlaceableInterface>> conversions of files by path */
+    private WeakMap $svgPaths;
+
+    /** @var WeakMap<SvgConverterInterface, WeakMap<SvgFile, PlaceableInterface>> conversions of files without a path */
+    private WeakMap $svgFiles;
+
+    /** The converter for SVGs given none, made the first time one is. */
+    private ?NativeConverter $nativeConverter = null;
 
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
         private readonly DocumentOptions $options,
-    ) {}
+    ) {
+        $this->svgPaths = new WeakMap();
+        $this->svgFiles = new WeakMap();
+    }
 
     /**
      * Lists the layers the imported pages use, without automatic states under PDF/X.
@@ -95,6 +107,9 @@ final class Assets implements CatalogContributorInterface
     }
 
     /**
+     * An SVG converted once for each converter: a file named by its path is read and converted
+     * once however it is given, an SvgFile without a path once for as long as it lives.
+     *
      * @throws IoException
      * @throws ParseException
      */
@@ -103,15 +118,28 @@ final class Assets implements CatalogContributorInterface
         ?SvgConverterInterface $converter,
         SvgDocumentInterface $document,
     ): PlaceableInterface {
-        $file      = $source instanceof SvgFile ? $source : SvgFile::open($source, $this->options->limits);
-        $converter ??= new NativeConverter();
-        $key       = ($file->path ?? 'object#' . spl_object_id($file))
-        . '|'
-        . $converter::class
-        . '#'
-        . spl_object_id($converter);
+        $converter ??= $this->nativeConverter();
+        $path      = is_string($source) ? $source : $source->path;
+        if (null === $path && $source instanceof SvgFile) {
+            $byFile                     = $this->svgFiles[$converter] ?? new WeakMap();
+            $this->svgFiles[$converter] = $byFile;
 
-        return $this->svgs[$key] ??= $converter->convert($file, $document);
+            return $byFile[$source] ??= $converter->convert($source, $document);
+        }
+        $real   = realpath((string) $path);
+        $key    = false === $real ? (string) $path : $real;
+        $byPath = $this->svgPaths[$converter] ?? [];
+        $done   = $byPath[$key] ?? null;
+        if (null !== $done) {
+            return $done;
+        }
+        $file = $source instanceof SvgFile
+            ? $source
+            : SvgFile::open($key, $this->options->limits);
+        $byPath[$key]               = $converter->convert($file, $document);
+        $this->svgPaths[$converter] = $byPath;
+
+        return $byPath[$key];
     }
 
     private function load(string $data, ImageOptions $options, ?string $name): Image
@@ -121,5 +149,10 @@ final class Assets implements CatalogContributorInterface
             $this->colour,
             ImageReader::read($data, $this->options->limits, $options, $name)->withOptions($options),
         );
+    }
+
+    private function nativeConverter(): NativeConverter
+    {
+        return $this->nativeConverter ??= new NativeConverter();
     }
 }
