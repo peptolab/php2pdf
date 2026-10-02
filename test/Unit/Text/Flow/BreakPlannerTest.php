@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Text\Flow;
 
+use Override;
 use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\ItemKind;
@@ -130,6 +131,7 @@ final class BreakPlannerTest extends TestCase
         self::assertSame(9, $this->lineEnd($paragraph, 8, 20.0, 1)?->index);
     }
 
+    #[Override]
     protected function setUp(): void
     {
         $this->planner = new BreakPlanner();
