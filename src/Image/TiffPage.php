@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Generator;
 use Php2Pdf\Core\Filter\Flate;
 use Php2Pdf\Core\Filter\Lzw;
 use Php2Pdf\Core\Filter\Predictor;
@@ -19,6 +20,7 @@ use function intdiv;
 use function is_float;
 use function is_int;
 use function max;
+use function min;
 use function ord;
 use function preg_replace;
 use function sprintf;
@@ -317,32 +319,60 @@ final class TiffPage
     }
 
     /**
-     * The strips decompressed, unpredicted and in big-endian byte order.
+     * The samples, decompressed, unpredicted and in big-endian byte order, and the alpha split from
+     * them when there is one ($alphaBytes per sample): read a strip at a time from the file and worked on in whole rows (a row
+     * cut between strips waits for the rest), so the file's strips and the samples are never all
+     * held twice over.
+     *
+     * @return array{0: string, 1: string|null} the colour samples, and the alpha
      *
      * @throws ParseException
      */
-    private function pixels(int $width, int $height, int $bits, int $samples, int $compression): string
-    {
-        $strips = $this->strips() ?? throw new ParseException('TIFF strips lie outside the file.');
-        $raw    = '';
-        foreach ($strips as $strip) {
-            $raw .= $this->decompress($strip, $compression);
+    private function pixels(
+        int $width,
+        int $height,
+        int $bits,
+        int $samples,
+        int $compression,
+        ?int $alphaBytes,
+    ): array {
+        $rowBytes  = intdiv(($width * $samples * $bits) + 7, num2: 8);
+        $predictor = 2 === $this->int(self::PREDICTOR, 1);
+        $swap      = 16 === $bits && $this->file->isLittleEndian();
+        $buffer    = '';
+        $color     = '';
+        $mask      = null === $alphaBytes ? null : '';
+        $rows      = 0;
+        foreach ($this->stripBytes() as $strip) {
+            $buffer .= $this->decompress($strip, $compression);
+            $take   = min(intdiv(strlen($buffer), $rowBytes), $height - $rows);
+            if ($take < 1) {
+                continue;
+            }
+            $chunk  = substr($buffer, offset: 0, length: $take * $rowBytes);
+            $buffer = substr($buffer, $take * $rowBytes);
+            $rows   += $take;
+            if ($predictor) {
+                $chunk = 16 === $bits
+                    ? Predictor::tiff16($chunk, $samples, $width, $this->file->isLittleEndian() ? 'v' : 'n')
+                    : Predictor::decode($chunk, 2, $samples, $bits, $width);
+            }
+            if ($swap) {
+                $chunk = preg_replace('/(.)(.)/s', replacement: '$2$1', subject: $chunk) ?? $chunk;
+            }
+            if (null === $mask) {
+                $color .= $chunk;
+                continue;
+            }
+            [$chunkColor, $chunkAlpha] = AlphaSplit::split($chunk, $samples, $alphaBytes ?? 1);
+            $color .= $chunkColor;
+            $mask  .= $chunkAlpha;
         }
-        $rowBytes = intdiv(($width * $samples * $bits) + 7, num2: 8);
-        if (strlen($raw) < ($rowBytes * $height)) {
+        if ($rows < $height) {
             throw new ParseException('TIFF image data is truncated.');
         }
-        $raw = substr($raw, offset: 0, length: $rowBytes * $height);
-        if (2 === $this->int(self::PREDICTOR, 1)) {
-            $raw = 16 === $bits
-                ? Predictor::tiff16($raw, $samples, $width, $this->file->isLittleEndian() ? 'v' : 'n')
-                : Predictor::decode($raw, 2, $samples, $bits, $width);
-        }
-        if (16 === $bits && $this->file->isLittleEndian()) {
-            $raw = preg_replace('/(.)(.)/s', replacement: '$2$1', subject: $raw) ?? $raw;
-        }
 
-        return $raw;
+        return [$color, $mask];
     }
 
     /**
@@ -357,11 +387,14 @@ final class TiffPage
         if (null === $alpha) {
             return null;
         }
-        $raw      = $this->pixels($width, $height, $bits, $samples, $compression);
-        $softMask = null;
-        if ($alpha) {
-            [$raw, $softMask] = AlphaSplit::split($raw, $samples, intdiv($bits, num2: 8));
-        }
+        [$raw, $softMask] = $this->pixels(
+            $width,
+            $height,
+            $bits,
+            $samples,
+            $compression,
+            $alpha ? intdiv($bits, num2: 8) : null,
+        );
 
         return new ImageData(
             new Raster(
@@ -379,6 +412,26 @@ final class TiffPage
             orientation: $this->orientation(),
             photoshop: $this->file->raw($this->ifd, self::PHOTOSHOP),
         );
+    }
+
+    /**
+     * The strips' bytes, one at a time, read from the file as they are needed.
+     *
+     * @return Generator<int, string>
+     *
+     * @throws ParseException for a strip outside the file
+     */
+    private function stripBytes(): Generator
+    {
+        $offsets = $this->file->values($this->ifd, self::STRIP_OFFSETS);
+        $counts  = $this->file->values($this->ifd, self::STRIP_COUNTS);
+        if ([] === $offsets || count($offsets) !== count($counts)) {
+            throw new ParseException('TIFF image has no strips.');
+        }
+        foreach ($offsets as $i => $offset) {
+            yield $this->file->bytes((int) $offset, (int) ($counts[$i] ?? 0))
+            ?? throw new ParseException('TIFF strips lie outside the file.');
+        }
     }
 
     /**

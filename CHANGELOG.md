@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format follows
   many images no longer holds all of their samples until it closes.
 - A PNG with an alpha channel is decoded a row at a time, its colour compressed as it is read: a
   65 MB file peaks at 3.4 times its size rather than 7.
+- A TIFF is read a strip at a time from the file, its predictor, byte order and alpha worked on in
+  whole rows as they come: a 37 MB CMYK file peaks at 3.6 times its size rather than 4.6.
 
 ### Fixed
 

@@ -183,6 +183,48 @@ final class TiffDecoderTest extends TestCase
     }
 
     #[Test]
+    public function rowsCutBetweenStripsAreReadWhole(): void
+    {
+        $rgb = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\x10\x11\x12";
+
+        self::assertSame($rgb, self::decode((new TiffFixture(2, 3, 2, 8, 3, $rgb))->inStrips(4))->raster->data);
+    }
+
+    #[Test]
+    public function stripsCutThroughRowsWithAlphaAndThePredictor(): void
+    {
+        $tiff = (new TiffFixture(
+            2,
+            2,
+            2,
+            16,
+            4,
+            "\x00\x01\x00\x02\x00\x03\x00\x04\x00\x00\x00\x01\x00\x01\x00\x01"
+                . "\x00\x01\x00\x02\x00\x03\x00\x04\x00\x01\x00\x01\x00\x01\x00\x01",
+        ))->bigEndian()
+            ->inStrips(6)
+            ->withTags([317 => [3, [2]], 338 => [3, [2]]]);
+        $image = self::decode($tiff);
+
+        self::assertSame(
+            [
+                "\x00\x01\x00\x02\x00\x03\x00\x01\x00\x03\x00\x04\x00\x01\x00\x02\x00\x03\x00\x02\x00\x03\x00\x04",
+                "\x00\x04\x00\x05\x00\x04\x00\x05",
+            ],
+            [$image->raster->data, $image->softMask?->data],
+        );
+    }
+
+    #[Test]
+    public function stripsEndingBeforeTheLastRowAreTruncated(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('TIFF image data is truncated.');
+
+        self::decode((new TiffFixture(2, 3, 2, 8, 3, str_repeat("\x00", times: 15)))->inStrips(4));
+    }
+
+    #[Test]
     public function truncatedSamplesAreAnError(): void
     {
         $this->expectException(ParseException::class);

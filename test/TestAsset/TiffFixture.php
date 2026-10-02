@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\TestAsset;
 
 use function array_fill;
+use function array_map;
 use function chr;
 use function count;
 use function get_object_vars;
@@ -44,6 +45,7 @@ final readonly class TiffFixture
         private string $byteOrder = 'II',
         private int $pages = 1,
         private bool $planar = false,
+        private ?int $stripBytes = null,
     ) {}
 
     /** PackBits with literal runs only, which every decoder reads. */
@@ -75,17 +77,21 @@ final readonly class TiffFixture
             default => $this->pixels,
         };
         $planes = $this->planar ? $this->samples : 1;
-        $tags   = $this->tags
+        $counts = array_fill(0, $planes, intdiv(strlen($strip), max(1, $planes)));
+        if (null !== $this->stripBytes) {
+            $counts = array_map(strlen(...), str_split($strip, max(1, $this->stripBytes)));
+        }
+        $tags = $this->tags
         + [
             256 => [4, [$this->width]],
             257 => [4, [$this->height]],
             258 => [3, array_fill(0, $this->samples, $this->bits)],
             259 => [3, [$this->compression]],
             262 => [3, [$this->photometric]],
-            273 => [4, array_fill(0, $planes, value: 0)],
+            273 => [4, array_fill(0, count($counts), value: 0)],
             277 => [3, [$this->samples]],
             278 => [4, [$this->height]],
-            279 => [4, array_fill(0, $planes, intdiv(strlen($strip), max(1, $planes)))],
+            279 => [4, $counts],
             284 => [3, [$this->planar ? 2 : 1]],
         ];
         ksort($tags);
@@ -100,6 +106,15 @@ final readonly class TiffFixture
     public function compressed(int $compression): self
     {
         return new self(...[...get_object_vars($this), 'compression' => $compression]);
+    }
+
+    /**
+     * The same image with its samples, uncompressed, in strips of $bytes each (the last shorter),
+     * whatever rows they cut through.
+     */
+    public function inStrips(int $bytes): self
+    {
+        return new self(...[...get_object_vars($this), 'stripBytes' => $bytes]);
     }
 
     public function pages(int $pages): self
@@ -147,7 +162,9 @@ final readonly class TiffFixture
         $extra   = '';
         $entries = '';
         foreach ($values as $tag => [$type, $count, $bytes]) {
-            $bytes = 273 === $tag ? $this->stripOffsets($stripAt, $count, intdiv(strlen($strip), $count)) : $bytes;
+            $bytes = 273 === $tag
+                ? $this->stripOffsets($stripAt, $count, $this->stripBytes ?? intdiv(strlen($strip), $count))
+                : $bytes;
             $value = str_pad($bytes, length: 4, pad_string: "\0");
             if (strlen($bytes) > 4) {
                 $value = $this->u32($extraAt + strlen($extra));
