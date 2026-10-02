@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Php2Pdf\Canvas;
 
 use Php2Pdf\Core\Num;
+use Php2Pdf\Core\Serializer;
+use Php2Pdf\Core\TextString;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\PdfFontInterface;
+use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 
+use function array_reverse;
 use function count;
 use function implode;
 use function in_array;
@@ -22,6 +26,26 @@ use function strtr;
  */
 final class TextOperators
 {
+    /**
+     * Text operations wrapped in a span whose ActualText is the run's text, in reading order:
+     * for text whose glyphs the font's ToUnicode map cannot read back.
+     */
+    public static function actualText(GlyphRun $run, TextOptions $options, string $operations): string
+    {
+        $glyphs = TextDirection::RightToLeft === $options->direction ? array_reverse($run->glyphs) : $run->glyphs;
+        $text   = '';
+        foreach ($glyphs as $glyph) {
+            if ($glyph->codePoint < 0 && [] === $glyph->components) {
+                continue;
+            }
+            $text .= $glyph->text();
+        }
+
+        return (
+            '/Span <</ActualText ' . Serializer::literalString(TextString::encode($text)) . ">> BDC {$operations} EMC"
+        );
+    }
+
     /**
      * The text-showing operation for a run: one Tj string when nothing adjusts the glyph
      * positions, otherwise a TJ array of strings interleaved with kerning, tracking, word spacing

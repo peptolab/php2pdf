@@ -49,8 +49,8 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
 
     private readonly AfmMetrics $metrics;
 
-    /** @var array<int, list<int>> code => code point, for ToUnicode */
-    private array $codeToCodePoint = [];
+    /** The text each code stands for, for ToUnicode. */
+    private readonly TextMapping $text;
 
     /** @internal */
     public function __construct(
@@ -66,6 +66,7 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
             ));
         }
         $this->metrics   = AfmMetrics::of($font);
+        $this->text      = new TextMapping();
         $this->reference = $document->writer()->allocate();
         $document->defer($this);
     }
@@ -135,8 +136,8 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
             'Subtype'   => new Name('Type1'),
             'BaseFont'  => new Name($this->font->value),
             'Encoding'  => null === $encoding ? null : new Name($encoding),
-            'ToUnicode' => null === $encoding && [] !== $this->codeToCodePoint
-                ? $writer->add(Stream::of(ToUnicode::build($this->codeToCodePoint, 1)))
+            'ToUnicode' => null === $encoding && [] !== $this->text->map()
+                ? $writer->add(Stream::of(ToUnicode::build($this->text->map(), 1)))
                 : null,
         ]));
     }
@@ -162,11 +163,9 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
 
     /** @internal */
     #[Override]
-    public function markUsed(GlyphRun $run): void
+    public function markUsed(GlyphRun $run): bool
     {
-        foreach ($run->glyphs as $glyph) {
-            $this->codeToCodePoint[$glyph->id] ??= $glyph->codePoints();
-        }
+        return $this->text->record($run);
     }
 
     #[Override]

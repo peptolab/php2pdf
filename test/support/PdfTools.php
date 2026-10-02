@@ -213,13 +213,24 @@ final class PdfTools
         return [$code, (string) $stdout . (string) $stderr];
     }
 
-    /** Extracts text from a page with pdftotext. */
+    /** Extracts text from a page with pdftotext, laid out as on the page. */
     public static function text(string $path, int $page = 1): string
+    {
+        return self::pdftotext($path, $page, '-layout');
+    }
+
+    /** Extracts text from a page with pdftotext, in the order the content stream gives it. */
+    public static function textInReadingOrder(string $path, int $page = 1): string
+    {
+        return self::pdftotext($path, $page, '-raw');
+    }
+
+    private static function pdftotext(string $path, int $page, string $mode): string
     {
         if (null === self::which('pdftotext')) {
             Assert::markTestSkipped('pdftotext is not installed.');
         }
-        [$code, $output] = self::run(['pdftotext', '-f', (string) $page, '-l', (string) $page, '-layout', $path, '-']);
+        [$code, $output] = self::run(['pdftotext', '-f', (string) $page, '-l', (string) $page, $mode, $path, '-']);
         Assert::assertSame(0, $code, "pdftotext failed for {$path}:\n{$output}");
 
         return $output;

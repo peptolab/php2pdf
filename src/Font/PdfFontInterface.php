@@ -37,9 +37,10 @@ interface PdfFontInterface extends FontInterface
     public function encode(array $glyphIds): string;
 
     /**
-     * Records the glyphs of a run as used.
+     * Records the glyphs of a run as used, and whether the font's ToUnicode map gives back the
+     * run's text; when it does not, the run's text is written with it as ActualText.
      */
-    public function markUsed(GlyphRun $run): void;
+    public function markUsed(GlyphRun $run): bool;
 
     /** The font dictionary's object. */
     public function reference(): Reference;

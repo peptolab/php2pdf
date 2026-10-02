@@ -58,8 +58,8 @@ final class Font implements PdfFontInterface, DeferredInterface
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
 
-    /** @var array<int, list<int>> glyph id => the code points it stands for, for ToUnicode */
-    private array $glyphToCodePoint = [];
+    /** The text each glyph stands for, for ToUnicode. */
+    private TextMapping $text;
 
     /** @var array<int, int> glyph id => advance in thousandths of an em, memoised */
     private array $advances = [];
@@ -100,6 +100,7 @@ final class Font implements PdfFontInterface, DeferredInterface
         $this->scriptCheck = $document->options()->scriptCheck;
         $this->reference   = $document->writer()->allocate();
         $this->scale       = 1000.0 / $program->unitsPerEm;
+        $this->text        = new TextMapping();
         $document->defer($this);
         if ($program->hasColrVersion1Glyphs()) {
             $this->registry->warn(sprintf(
@@ -216,7 +217,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             'W'              => $this->widths(),
             'CIDToGIDMap'    => $cff ? null : new Name('Identity'),
         ]));
-        $toUnicode = $writer->add(Stream::of(ToUnicode::build($this->glyphToCodePoint)));
+        $toUnicode = $writer->add(Stream::of(ToUnicode::build($this->text->map())));
 
         $writer->write($this->reference, Dictionary::of([
             'Type'            => new Name('Font'),
@@ -241,23 +242,19 @@ final class Font implements PdfFontInterface, DeferredInterface
     }
 
     /**
-     * Records the glyphs of a run as used.
+     * Records the glyphs of a run as used, and whether the font's ToUnicode map gives back the
+     * run's text.
      *
      * @internal
      */
     #[Override]
-    public function markUsed(GlyphRun $run): void
+    public function markUsed(GlyphRun $run): bool
     {
         foreach ($run->glyphs as $glyph) {
             $this->used[$glyph->id] = true;
-            if (0 === $glyph->id) {
-                continue;
-            }
-            if ($glyph->codePoint < 0) {
-                continue;
-            }
-            $this->glyphToCodePoint[$glyph->id] ??= $glyph->codePoints();
         }
+
+        return $this->text->record($run);
     }
 
     #[Override]

@@ -862,9 +862,9 @@ final class Canvas
         array $hidden,
     ): void {
         $this->document->assertOwns($font->document(), 'A font');
-        $font->markUsed($run);
-        $ops = 'BT';
-        $tf  = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
+        $faithful = $font->markUsed($run);
+        $ops      = 'BT';
+        $tf       = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
         if ($tf !== $this->text['Tf']) {
             $ops              .= " {$tf}";
             $this->text['Tf'] = $tf;
@@ -886,10 +886,11 @@ final class Canvas
         $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
             ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
             : "{$m->toPdf()} Tm";
-        $this->ops .=
+        $text =
             "{$ops} {$position} "
             . TextOperators::show($run, $font, $size, $options, $hidden, $this->text['Tr'] ?? '0 Tr')
-            . " ET\n";
+            . ' ET';
+        $this->ops .= ($faithful ? $text : TextOperators::actualText($run, $options, $text)) . "\n";
     }
 
     private function tileName(Template $tile, float $xStep, float $yStep, ?Matrix $matrix): string
