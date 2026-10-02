@@ -12,8 +12,10 @@ use function array_key_exists;
 
 /**
  * The paragraph composer's plans: for each paragraph, the breaks it chose, kept while the
- * paragraph is laid out at the same widths, so each line of a plan is set as it was planned. A
- * flow keeps one planner for all its fits; a plan goes with its paragraph.
+ * paragraph is laid out at the same widths, so each line of a plan is set as it was planned and a
+ * paragraph laid out again is not composed again. A paragraph with forced breaks is planned one
+ * stretch at a time, each stretch added to its plan. A flow keeps one planner for all its fits;
+ * a plan goes with its paragraph.
  *
  * @internal
  */
@@ -44,9 +46,9 @@ final class BreakPlanner
 
     /**
      * Where the line starting at $start ends by the paragraph composer, when the paragraph uses
-     * it: from the plan of its breaks, made from the line it starts at, and made again when a line
-     * does not start at a planned break or the frame's width differs. Null when the paragraph is set line by line, or the composer cannot
-     * set it.
+     * it: from the plan of its breaks, made from the line it starts at. A line not starting at a
+     * planned break has the stretch from it planned and added; a different frame width starts the
+     * plan again. Null when the paragraph is set line by line, or the composer cannot set it.
      */
     public function lineEnd(Paragraph $paragraph, int $start, LineWidths $widths, int $lineNumber): ?LineEnd
     {
@@ -63,7 +65,7 @@ final class BreakPlanner
             if (null === $ends) {
                 return null;
             }
-            $plan = [$key, []];
+            $plan = null === $plan || $key !== $plan[0] ? [$key, []] : $plan;
             $from = $start;
             foreach ($ends as $end) {
                 $plan[1][$from] = $end;
