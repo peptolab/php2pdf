@@ -11,7 +11,6 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
-use Php2Pdf\Template\Template;
 
 use function array_key_exists;
 use function implode;
@@ -29,7 +28,7 @@ use function trim;
  */
 final class PatternBuilder
 {
-    /** @var array<string, array{0: Template, 1: float, 2: float, 3: Matrix}|false> */
+    /** @var array<string, PatternTile|null> */
     private array $tiles = [];
 
     /** @param Closure(Canvas, Element, Style): void $children draws an element's children */
@@ -39,21 +38,14 @@ final class PatternBuilder
     ) {}
 
     /**
-     * The tile template, its steps and the matrix mapping it into user space for a pattern id
-     * painted over a box: null when the id is not a pattern, false when the pattern paints
-     * nothing (an empty tile).
-     *
-     * @return array{0: Template, 1: float, 2: float, 3: Matrix}|false|null
+     * The tile for a <pattern> painted over a box, or null when the pattern paints nothing (an
+     * empty tile).
      *
      * @throws ParseException for a pattern that paints itself, directly or through other references,
      *                        or a circular href chain
      */
-    public function tile(string $id, Box $bounds): array|false|null
+    public function tile(string $id, Element $pattern, Box $bounds): ?PatternTile
     {
-        $pattern = $this->context->file->byId($id);
-        if (null === $pattern || 'pattern' !== $pattern->name) {
-            return null;
-        }
         $chain = $this->context->servers->chain($pattern);
         $attrs = [];
         foreach ($chain as $link) {
@@ -109,14 +101,12 @@ final class PatternBuilder
      *
      * @param list<Element>         $chain
      * @param array<string, string> $attrs
-     *
-     * @return array{0: Template, 1: float, 2: float, 3: Matrix}|false
      */
-    private function draw(Element $pattern, array $chain, array $attrs, Box $bounds): array|false
+    private function draw(Element $pattern, array $chain, array $attrs, Box $bounds): ?PatternTile
     {
         $tile = $this->tileBox($attrs, $bounds);
         if ($tile->width <= 0.0 || $tile->height <= 0.0) {
-            return false;
+            return null;
         }
         $source = $pattern;
         foreach ($chain as $link) {
@@ -137,7 +127,7 @@ final class PatternBuilder
             TransformParser::parse($attrs['patternTransform'] ?? null),
         );
 
-        return [$template, $tile->width, $tile->height, $matrix];
+        return new PatternTile($template, $tile->width, $tile->height, $matrix);
     }
 
     /**

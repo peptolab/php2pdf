@@ -20,7 +20,7 @@ final class Painter
 {
     public function __construct(
         private readonly Context $context,
-        private readonly PatternBuilder $patterns,
+        private readonly PaintResolver $paints,
     ) {}
 
     /** Clips to a path with the given rule. */
@@ -37,33 +37,7 @@ final class Painter
      */
     public function fill(Canvas $canvas, Style $style, Box $bounds): bool
     {
-        $paint = $style->fill();
-        if ($paint->isNone()) {
-            return false;
-        }
-        if (null !== $paint->serverId) {
-            $tile = $this->patterns->tile($paint->serverId, $bounds);
-            if (false === $tile) {
-                return false;
-            }
-            if (null !== $tile) {
-                $canvas->setFillPattern(...$tile);
-
-                return true;
-            }
-            $gradient = $this->context->servers->gradient($paint->serverId, $bounds, $style, $this->context->sheet);
-            if (null !== $gradient) {
-                $canvas->setFillGradient($gradient[0], $gradient[1]);
-
-                return true;
-            }
-        }
-        if (null === $paint->color) {
-            return false;
-        }
-        $canvas->setFillColor($paint->color);
-
-        return true;
+        return $this->paints->resolve($style->fill(), $bounds, $style)->fill($canvas);
     }
 
     /** @throws ParseException */
@@ -99,30 +73,9 @@ final class Painter
      */
     public function stroke(Canvas $canvas, Style $style, Box $bounds): bool
     {
-        $paint = $style->stroke();
         $width = $style->strokeWidth($this->context->viewportDiagonal());
-        if ($paint->isNone() || $width <= 0.0) {
+        if ($width <= 0.0 || ! $this->paints->resolve($style->stroke(), $bounds, $style)->stroke($canvas)) {
             return false;
-        }
-        $tile = null === $paint->serverId ? null : $this->patterns->tile($paint->serverId, $bounds);
-        if (false === $tile) {
-            return false;
-        }
-        $gradient =
-            null !== $tile || null === $paint->serverId
-                ? null
-                : $this->context->servers->gradient($paint->serverId, $bounds, $style, $this->context->sheet);
-        if (null !== $tile) {
-            $canvas->setStrokePattern(...$tile);
-        }
-        if (null !== $gradient) {
-            $canvas->setStrokeGradient($gradient[0], $gradient[1]);
-        }
-        if (null === $gradient && null === $tile) {
-            if (null === $paint->color) {
-                return false;
-            }
-            $canvas->setStrokeColor($paint->color);
         }
         $canvas->setLineWidth($width)
             ->setLineCap($style->lineCap())

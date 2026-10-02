@@ -58,7 +58,10 @@ final class Renderer
     public function __construct(
         private readonly Context $context,
     ) {
-        $this->painter = new Painter($context, new PatternBuilder($context, $this->children(...)));
+        $this->painter = new Painter(
+            $context,
+            new PaintResolver($context, new PatternBuilder($context, $this->children(...))),
+        );
         $this->text    = new TextRenderer($context, $this->painter);
         $this->clips   = new ClipBuilder($context);
         $this->masks   = new MaskBuilder($context, $this->clips, $this->children(...));
