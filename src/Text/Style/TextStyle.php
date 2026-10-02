@@ -36,6 +36,9 @@ final readonly class TextStyle
      *                                                  on a page
      * @param string|null                     $match    a name under which the text's areas are
      *                                                  reported in FitInfo::$matchboxes
+     * @param Composer|null                   $composer how a paragraph is broken into lines: the
+     *                                                  paragraph composer for justified text and
+     *                                                  line by line otherwise, unless set
      * @param TextDirection|null              $direction a paragraph's direction (Auto takes it
      *                                                   from its first letter with one); a
      *                                                   right-to-left paragraph aligns right
@@ -83,6 +86,7 @@ final readonly class TextStyle
         public ?string $linkTooltip = null,
         public ?string $match = null,
         public ?TextDirection $direction = null,
+        public ?Composer $composer = null,
     ) {}
 
     public function fontSize(): float

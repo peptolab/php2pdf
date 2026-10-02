@@ -50,7 +50,16 @@ an optional leader),
 `defaultTabWidth`, `keepWithNext`, `keepTogether`, `orphans`, `widows`, `fallback` (fonts for
 characters the font lacks), `ligatures` and `features` (OpenType features by tag; see
 [fonts-and-text.md](fonts-and-text.md)), and `direction` (a paragraph's direction; right-to-left
-paragraphs align right unless an alignment is set).
+paragraphs align right unless an alignment is set), and `composer` (how a paragraph is broken
+into lines).
+
+Justified paragraphs are composed whole, as InDesign's Paragraph Composer and TeX compose them:
+the breaks are chosen together so that no line's spaces are much wider or narrower than the
+others', rather than filling each line in turn. Word spaces may stretch to 133% and shrink to 80%
+of their width; hyphens, consecutive hyphens and a loose line next to a tight one cost more. Other
+alignments are set line by line. `composer: Composer::SingleLine` sets a justified paragraph line
+by line, and `Composer::Paragraph` composes ragged text too, which evens its rag. A paragraph with
+tabs, or a word wider than its lines, is set line by line.
 
 A tab stop can carry a leader, repeated across the space the tab jumps: dots to a page number
 in a contents list, for example. Its repeats sit on a grid of their own width from the start of

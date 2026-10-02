@@ -56,7 +56,11 @@ final class LineBreaker
         while (ItemKind::Glue === ($items[$start] ?? null)?->kind) {
             ++$start;
         }
-        $end = self::measure($paragraph, $start, $available);
+        $end = $paragraph->plannedEnd($start, $width, 0 === $lineNumber) ?? self::measure(
+            $paragraph,
+            $start,
+            $available,
+        );
         if ($end->splitAt >= 0) {
             $items = $paragraph->items;
             $count = count($items);

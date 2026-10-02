@@ -20,7 +20,8 @@ Known gaps, in rough order of how often they matter.
   operators are embedded whole, with a warning in `$doc->fonts()->warnings()`; others are subset.
 - **Standard 14 fonts** cover WinAnsiEncoding only (Symbol and ZapfDingbats have their own
   sets), and are not allowed under PDF/X.
-- **Line breaking** is greedy (first fit). A Knuth–Plass option for justified text is planned.
+- **Line breaking** composes justified paragraphs whole (Knuth–Plass); word spaces stretch and
+  shrink, but letter spacing and glyph scaling do not yet take part.
 - **Text wrap around shapes** is not supported; use several boxes instead.
 - **Hyphenation patterns** are not bundled. Load TeX or hunspell pattern files whose licence
   suits you with `Hyphenator::fromFile()`.

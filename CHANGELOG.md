@@ -43,6 +43,8 @@ The first release.
 - Textflow: styles, markup, a builder, box chaining, copy fitting, tabs with leaders, hyphenation, widows and
   orphans, inline artwork, the end-of-text point; breaks after hyphens, dashes and slashes, and
   fixed-width Unicode spaces.
+- Justified paragraphs are composed whole (Knuth–Plass), evening their word spacing; `composer`
+  chooses per style.
 - Links over Textflow text (`<a href>`, `->link()`), and matchboxes: the areas of marked text after a fit.
 - `fitTextline()` for single lines with fit methods.
 
