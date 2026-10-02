@@ -8,6 +8,7 @@ use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Core\ClockInterface;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\SystemClock;
+use Php2Pdf\Font\ExternalShaperInterface;
 use Php2Pdf\Font\GlyphCheck;
 use Php2Pdf\Font\ScriptCheck;
 
@@ -33,7 +34,8 @@ final readonly class DocumentOptions
      *                                    PDF/X and Warn otherwise, unless set
      * @param Limits|null     $limits     resource limits for the PDFs, images and SVG the document reads
      * @param ScriptCheck|null $scriptCheck what to do with text in a script that needs shaping the
-     *                                     library cannot do yet: Error unless set
+     *                                     library cannot do yet: Error unless set; not consulted
+     *                                     when a complex shaper is set
      */
     public function __construct(
         string $version = '1.7',
@@ -49,6 +51,8 @@ final readonly class DocumentOptions
         ?GlyphCheck $glyphCheck = null,
         ?Limits $limits = null,
         ?ScriptCheck $scriptCheck = null,
+        /** Shapes the scripts the font engine does not (Indic, South East Asian, Tibetan...); see HarfBuzz::detect(). */
+        public ?ExternalShaperInterface $complexShaper = null,
     ) {
         $this->limits      = $limits ?? Limits::default();
         $this->clock       = $clock ?? new SystemClock();

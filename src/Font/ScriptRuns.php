@@ -36,6 +36,18 @@ final class ScriptRuns
     /** @var array<int, string> ICU script value => tag ('' for common and inherited) */
     private static array $tags = [];
 
+    /** The ISO 15924 code (in lower case) of a script's OpenType tag. */
+    public static function iso(string $tag): string
+    {
+        return match ($tag) {
+            'lao '  => 'laoo',
+            'yi  '  => 'yiii',
+            'nko '  => 'nkoo',
+            'vai '  => 'vaii',
+            default => $tag,
+        };
+    }
+
     /**
      * The runs of a sequence of code points: tag, first index and length.
      *

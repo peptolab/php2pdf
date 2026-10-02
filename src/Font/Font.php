@@ -294,8 +294,13 @@ final class Font implements PdfFontInterface, DeferredInterface
             return $cached;
         }
         $this->checkScript($text);
-        $this->shaper ??= new OpenTypeShaper($this->program, $this->advance(...), $this->missingGlyph(...));
-        $glyphs       = $this->shaper->shape($text, $options, $features);
+        $this->shaper ??= new OpenTypeShaper(
+            $this->program,
+            $this->advance(...),
+            $this->missingGlyph(...),
+            $this->document->options()->complexShaper,
+        );
+        $glyphs = $this->shaper->shape($text, $options, $features);
 
         if (count($this->shapes) >= self::SHAPE_CACHE_SIZE) {
             $this->shapes = [];
@@ -399,7 +404,7 @@ final class Font implements PdfFontInterface, DeferredInterface
      */
     private function checkScript(string $text): void
     {
-        if (ScriptCheck::Ignore === $this->scriptCheck) {
+        if (ScriptCheck::Ignore === $this->scriptCheck || null !== $this->document->options()->complexShaper) {
             return;
         }
         $found = ComplexScripts::find($text);

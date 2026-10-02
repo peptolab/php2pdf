@@ -9,16 +9,20 @@ use IntlChar;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function array_diff;
+use function array_key_exists;
+use function array_keys;
 use function array_reverse;
 use function array_slice;
 use function array_values;
 use function class_exists;
 use function count;
 use function in_array;
+use function ksort;
 use function mb_chr;
 use function mb_ord;
 use function mb_str_split;
 use function preg_match;
+use function strlen;
 
 /**
  * Shapes text with an OpenType font as HarfBuzz does: normalises it for the font, splits it into
@@ -53,11 +57,13 @@ final readonly class OpenTypeShaper
      * @param Closure(int): int          $advance a glyph's advance in thousandths of an em, as the
      *                                            font's widths carry it
      * @param Closure(string, int): void $missing reports a character the font has no glyph for
+     * @param ExternalShaperInterface|null $external shapes the scripts the engine does not
      */
     public function __construct(
         private OpenTypeFont $program,
         private Closure $advance,
         private Closure $missing,
+        private ?ExternalShaperInterface $external = null,
     ) {
         $this->scale = 1000.0 / $program->unitsPerEm;
     }
@@ -82,6 +88,17 @@ final readonly class OpenTypeShaper
         }
 
         return $out;
+    }
+
+    /** @param list<int> $codePoints */
+    private static function text(array $codePoints): string
+    {
+        $text = '';
+        foreach ($codePoints as $codePoint) {
+            $text .= (string) mb_chr($codePoint, encoding: 'UTF-8');
+        }
+
+        return $text;
     }
 
     /**
@@ -109,6 +126,13 @@ final readonly class OpenTypeShaper
         $gsub   = $this->program->gsub();
         $glyphs = [];
         foreach (ScriptRuns::of($codePoints) as [$script, $start, $length]) {
+            $runCodePoints = array_slice($codePoints, $start, $length);
+            if (null !== $this->external && null !== ComplexScripts::find(self::text($runCodePoints))) {
+                foreach ($this->externallyShaped($runCodePoints, $options, $script) as $glyph) {
+                    $glyphs[] = $glyph;
+                }
+                continue;
+            }
             $run = array_slice($sequence, $start, $length);
             $run = $this->joins($script)
                 ? $this->joined($run, array_slice($codePoints, $start, $length), $features, $script)
@@ -149,6 +173,75 @@ final readonly class OpenTypeShaper
             $codePoints,
             fn(int $codePoint): bool => 0 !== $this->program->glyphId($codePoint),
         );
+    }
+
+    /**
+     * A run shaped by the external shaper, in logical order: each glyph positioned as the shaper
+     * places it, the first glyph of each cluster standing for the cluster's characters.
+     *
+     * @param list<int> $codePoints
+     *
+     * @return list<Glyph>
+     */
+    private function externallyShaped(array $codePoints, TextOptions $options, string $script): array
+    {
+        $text   = '';
+        $starts = [];
+        foreach ($codePoints as $k => $codePoint) {
+            $starts[strlen($text)] = $k;
+            $text                  .= (string) mb_chr($codePoint, encoding: 'UTF-8');
+        }
+        $features = [
+            ...$options->features,
+            ...($options->useLigatures() ? [] : ['-liga', '-clig']),
+            ...($options->kerning ? [] : ['-kern']),
+        ];
+        $shaped = $this->external?->shape(
+            $this->program,
+            $text,
+            ScriptRuns::iso($script),
+            $options->direction,
+            $features,
+        ) ?? [];
+        if (TextDirection::RightToLeft === $options->direction) {
+            $shaped = array_reverse($shaped);
+        }
+        $clusters = [];
+        foreach ($shaped as [, $cluster]) {
+            $clusters[$cluster] = true;
+        }
+        ksort($clusters);
+        $ends  = [];
+        $prior = null;
+        foreach (array_keys($clusters) as $cluster) {
+            if (null !== $prior) {
+                $ends[$prior] = $starts[$cluster] ?? count($codePoints);
+            }
+            $prior = $cluster;
+        }
+        $seen   = [];
+        $glyphs = [];
+        foreach ($shaped as [$id, $cluster, $xAdvance, , $xOffset, $yOffset]) {
+            $first = $starts[$cluster] ?? 0;
+            $chars = array_key_exists($cluster, $seen)
+                ? []
+                : array_slice($codePoints, $first, ($ends[$cluster] ?? count($codePoints)) - $first);
+            $seen[$cluster] = true;
+            $advance        = ($this->advance)($id);
+            $natural        = $this->program->advance($id);
+            $kerning        = 0 === $xAdvance && 0 !== $natural ? -$advance : ($xAdvance - $natural) * $this->scale;
+            $glyphs[]       = new Glyph(
+                $id,
+                $chars[0] ?? -1,
+                $advance,
+                $kerning,
+                count($chars) > 1 ? $chars : [],
+                $xOffset * $this->scale,
+                $yOffset * $this->scale,
+            );
+        }
+
+        return $glyphs;
     }
 
     /**

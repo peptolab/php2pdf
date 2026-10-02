@@ -78,8 +78,11 @@ final class OpenTypeFont
 
     private readonly BinaryReader $reader;
 
-    private function __construct(string $data, int $faceIndex)
-    {
+    /** @param int $faceIndex the font's index in a collection (0 for a single font) */
+    private function __construct(
+        string $data,
+        public readonly int $faceIndex,
+    ) {
         $this->reader = new BinaryReader($data);
         $this->tables = new TableDirectory($this->reader, $faceIndex);
         $this->isCff  = $this->tables->isCff;

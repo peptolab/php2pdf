@@ -17,6 +17,8 @@ excessive-parameter-list = { threshold = 8, constructor-threshold = 48 }
 halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 20000 }
 # Kan defect counts branches per class; binary parsers and the canvas are branch-heavy by nature.
 kan-defect = { threshold = 6.0 }
+# The HarfBuzz adapter's purpose is to call the library through FFI; nothing else may.
+no-ffi = { exclude = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] }
 
 [analyzer]
 # Library errors are runtime failures callers handle at the boundary, not checked exceptions.
@@ -24,4 +26,20 @@ unchecked-exceptions = ["Php2Pdf\\Exception\\PdfException"]
 # The object model and the import layer handle arbitrary PDF objects, which are `mixed` by nature.
 ignore = [
     { code = "mixed-assignment", in = ["src/Import/", "src/Core/Object/", "src/Core/Serializer.php", "src/Core/Filter/FilterChain.php"] },
+    # Values coming back from C through FFI are untyped to the analyser.
+    { code = "mixed-assignment", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "mixed-array-access", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "mixed-property-access", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "mixed-property-type-coercion", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "mixed-return-statement", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "non-existent-property", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "null-operand", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "impossible-condition", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "invalid-array-access", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "null-argument", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "string-member-selector", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "possibly-null-array-access", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "possibly-undefined-int-array-index", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "invalid-array-index", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
+    { code = "no-value", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
 ]
