@@ -24,8 +24,9 @@ final class TextOperators
 {
     /**
      * The text-showing operation for a run: one Tj string when nothing adjusts the glyph
-     * positions, otherwise a TJ array of strings interleaved with kerning, tracking and word
-     * spacing adjustments in thousandths of an em.
+     * positions, otherwise a TJ array of strings interleaved with kerning, tracking, word spacing
+     * and offset adjustments in thousandths of an em. Glyphs raised or lowered by an offset are
+     * shown with the text rise set for them and restored after.
      */
     public static function operation(
         GlyphRun $run,
@@ -34,29 +35,45 @@ final class TextOperators
         TextOptions $options,
     ): string {
         $wordAdjust = 0.0 === $options->wordSpacing || $size <= 0.0 ? 0.0 : ($options->wordSpacing / $size) * 1000.0;
-        $tracking   = $options->tracking;
+        $segments   = [];
         $parts      = [];
         $ids        = [];
+        $rise       = null;
+        $pending    = 0.0;
         foreach ($run->glyphs as $glyph) {
-            $ids[]  = $glyph->id;
-            $adjust = $glyph->kerning + $tracking;
-            if (0.0 !== $wordAdjust && $glyph->isSpace()) {
-                $adjust += $wordAdjust;
+            if (null !== $rise && $glyph->yOffset !== $rise) {
+                $segments[] = [$rise ?? 0.0, self::flush($parts, $ids, $font)];
+                $parts      = [];
+                $ids        = [];
             }
-            if (0.0 !== $adjust) {
-                $parts[] = self::literal($font->encode($ids));
-                $parts[] = Num::format(-$adjust, 2);
+            $rise = $glyph->yOffset;
+            $move = $pending + $glyph->xOffset;
+            if (0.0 !== $move) {
+                $parts   = self::flush($parts, $ids, $font);
                 $ids     = [];
+                $parts[] = Num::format(-$move, 2);
             }
+            $ids[]   = $glyph->id;
+            $pending = $glyph->kerning + $options->tracking - $glyph->xOffset
+            + (0.0 !== $wordAdjust && $glyph->isSpace() ? $wordAdjust : 0.0);
         }
-        if ([] !== $ids) {
-            $parts[] = self::literal($font->encode($ids));
+        $parts = self::flush($parts, $ids, $font);
+        if (0.0 !== $pending) {
+            $parts[] = Num::format(-$pending, 2);
         }
-        if (1 === count($parts)) {
-            return "{$parts[0]} Tj";
+        $segments[] = [$rise ?? 0.0, $parts];
+        $ops        = [];
+        foreach ($segments as [$offset, $segment]) {
+            $show  = 1 === count($segment) ? "{$segment[0]} Tj" : '[' . implode(' ', $segment) . '] TJ';
+            $ops[] = 0.0 === $offset
+                ? $show
+                : Num::format($options->rise + (($offset / 1000.0) * $size))
+                . " Ts {$show} "
+                . Num::format($options->rise)
+                . ' Ts';
         }
 
-        return '[' . implode(' ', $parts) . '] TJ';
+        return implode(' ', $ops);
     }
 
     /**
@@ -97,6 +114,23 @@ final class TextOperators
             . ($visible ? '' : " {$mode}");
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * The parts with the glyphs collected so far as one string.
+     *
+     * @param list<string> $parts
+     * @param list<int>    $ids
+     *
+     * @return list<string>
+     */
+    private static function flush(array $parts, array $ids, PdfFontInterface $font): array
+    {
+        if ([] !== $ids) {
+            $parts[] = self::literal($font->encode($ids));
+        }
+
+        return $parts;
     }
 
     /** Bytes as a PDF literal string; carriage returns are escaped so readers do not normalise them. */

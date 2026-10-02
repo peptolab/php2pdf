@@ -350,7 +350,7 @@ final class Itemiser
                 $first = $slice[0] ?? null;
                 $last  = $slice[count($slice) - 1] ?? null;
                 if (null !== $first && null !== $last) {
-                    $space   = new Glyph($first->id, $first->codePoint, $first->advance, $last->kerning);
+                    $space   = $first->withKerning($last->kerning);
                     $items[] = self::cut(ItemKind::Glue, $style, ' ', [$space]);
                 }
                 continue;

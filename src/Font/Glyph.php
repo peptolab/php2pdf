@@ -8,7 +8,9 @@ use function count;
 use function mb_chr;
 
 /**
- * One positioned glyph in a shaped run. Advance and kerning are in thousandths of an em.
+ * One positioned glyph in a shaped run. Advance, kerning and offsets are in thousandths of an em.
+ * The offsets move the glyph alone, as mark positioning places an accent over its base; kerning
+ * moves everything after it.
  *
  * @api
  */
@@ -19,6 +21,8 @@ final readonly class Glyph
      *                              for no text (a colour layer)
      * @param list<int> $components the code points a ligature stands for, in order; empty for a
      *                              glyph that stands for $codePoint alone
+     * @param float     $xOffset    how far the glyph is drawn right of its position
+     * @param float     $yOffset    how far the glyph is drawn above the baseline
      */
     public function __construct(
         public int $id,
@@ -27,6 +31,8 @@ final readonly class Glyph
         /** Adjustment applied after this glyph (negative pulls the next glyph closer). */
         public float $kerning = 0.0,
         public array $components = [],
+        public float $xOffset = 0.0,
+        public float $yOffset = 0.0,
     ) {}
 
     /**
@@ -63,6 +69,27 @@ final readonly class Glyph
 
     public function withKerning(float $kerning): self
     {
-        return new self($this->id, $this->codePoint, $this->advance, $kerning, $this->components);
+        return new self(
+            $this->id,
+            $this->codePoint,
+            $this->advance,
+            $kerning,
+            $this->components,
+            $this->xOffset,
+            $this->yOffset,
+        );
+    }
+
+    public function withOffset(float $xOffset, float $yOffset): self
+    {
+        return new self(
+            $this->id,
+            $this->codePoint,
+            $this->advance,
+            $this->kerning,
+            $this->components,
+            $xOffset,
+            $yOffset,
+        );
     }
 }

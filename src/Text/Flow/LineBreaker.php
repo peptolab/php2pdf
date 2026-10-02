@@ -396,12 +396,7 @@ final class LineBreaker
                     if ($space instanceof Glyph) {
                         $scale    = ($runStyle->horizontalScale ?? 100.0) / 100.0;
                         $adjust   = (($extraPerGlue / $scale) / $runStyle->fontSize()) * 1000.0;
-                        $glyphs[] = new Glyph(
-                            $space->id,
-                            $space->codePoint,
-                            $space->advance,
-                            $space->kerning + $adjust,
-                        );
+                        $glyphs[] = $space->withKerning($space->kerning + $adjust);
                     }
                     $width += $extraPerGlue;
                 }
