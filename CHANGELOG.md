@@ -19,6 +19,11 @@ All notable changes to this project are documented here. The format follows
 - An SVG marker is drawn once, as a form placed at every vertex it marks, rather than drawn again
   at each one.
 
+### Fixed
+
+- TIFFs with 16-bit samples and the horizontal predictor (as ImageMagick writes LZW TIFFs) are read
+  natively; they were refused as needing a conversion that would lose data.
+
 ## [0.1.0] - 2026-10-02
 
 The first release.

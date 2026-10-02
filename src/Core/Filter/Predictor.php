@@ -58,16 +58,48 @@ final class Predictor
             );
         }
         if (2 === $predictor) {
-            return self::tiff($data, $colors, $bitsPerComponent, $columns);
+            return 16 === $bitsPerComponent
+                ? self::tiff16($data, $colors, $columns, 'n')
+                : self::tiff($data, $colors, $bitsPerComponent, $columns);
         }
         throw new ParseException(sprintf('Unsupported predictor %d.', $predictor));
+    }
+
+    /**
+     * The TIFF predictor over 16-bit samples: each sample is the difference from the one of its
+     * colour before it in the row, modulo 65536, in the data's own byte order: big-endian in PDF,
+     * either in TIFF.
+     *
+     * @param 'v'|'n' $format the samples' byte order, as unpack() names it
+     *
+     * @throws ParseException
+     */
+    public static function tiff16(string $data, int $colors, int $columns, string $format): string
+    {
+        $count    = $columns * $colors;
+        $rowBytes = $count * 2;
+        $rows     = intdiv(strlen($data), $rowBytes);
+        $out      = '';
+        for ($r = 0; $r < $rows; ++$r) {
+            /** @var array<int, int>|false $row 1-based */
+            $row = unpack("{$format}*", substr($data, $r * $rowBytes, $rowBytes));
+            if (false === $row) {
+                throw new ParseException('Predictor row could not be read.');
+            }
+            for ($i = $colors + 1; $i <= $count; ++$i) {
+                $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFFFF;
+            }
+            $out .= pack("{$format}*", ...$row);
+        }
+
+        return $out;
     }
 
     /** @throws ParseException */
     private static function tiff(string $data, int $colors, int $bitsPerComponent, int $columns): string
     {
         if (8 !== $bitsPerComponent) {
-            throw new ParseException('TIFF predictor is only supported for 8 bits per component.');
+            throw new ParseException('TIFF predictor is only supported for 8 and 16 bits per component.');
         }
         $rowBytes = $columns * $colors;
         $rows     = intdiv(strlen($data), $rowBytes);

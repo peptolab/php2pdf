@@ -281,7 +281,7 @@ final class TiffPage
             [self::NONE, self::LZW, self::DEFLATE, self::ADOBE_DEFLATE, self::PACKBITS],
             strict: true,
         )
-        && (1 === $predictor || (2 === $predictor && 8 === $bits));
+        && (1 === $predictor || (2 === $predictor && (8 === $bits || 16 === $bits)));
 
         return $supported ? $alpha : null;
     }
@@ -334,7 +334,9 @@ final class TiffPage
         }
         $raw = substr($raw, offset: 0, length: $rowBytes * $height);
         if (2 === $this->int(self::PREDICTOR, 1)) {
-            $raw = Predictor::decode($raw, 2, $samples, $bits, $width);
+            $raw = 16 === $bits
+                ? Predictor::tiff16($raw, $samples, $width, $this->file->isLittleEndian() ? 'v' : 'n')
+                : Predictor::decode($raw, 2, $samples, $bits, $width);
         }
         if (16 === $bits && $this->file->isLittleEndian()) {
             $raw = preg_replace('/(.)(.)/s', replacement: '$2$1', subject: $raw) ?? $raw;

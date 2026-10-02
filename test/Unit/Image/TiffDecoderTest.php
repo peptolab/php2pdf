@@ -29,28 +29,48 @@ final class TiffDecoderTest extends TestCase
         $cmyk = str_repeat("\x00\x80\xFF\x10", times: 8);
 
         return [
-            'RGB'                        => [new TiffFixture(4, 2, 2, 8, 3, $rgb), ['DeviceRGB', 8, $rgb]],
-            'RGB, big-endian'            => [
+            'RGB'                                   => [new TiffFixture(4, 2, 2, 8, 3, $rgb), ['DeviceRGB', 8, $rgb]],
+            'RGB, big-endian'                       => [
                 (new TiffFixture(4, 2, 2, 8, 3, $rgb))->bigEndian(),
                 ['DeviceRGB', 8, $rgb],
             ],
-            'RGB, Deflate'               => [
+            'RGB, Deflate'                          => [
                 (new TiffFixture(4, 2, 2, 8, 3, $rgb))->compressed(8),
                 ['DeviceRGB', 8, $rgb],
             ],
-            'RGB, PackBits'              => [
+            'RGB, PackBits'                         => [
                 (new TiffFixture(4, 2, 2, 8, 3, $rgb))->compressed(32_773),
                 ['DeviceRGB', 8, $rgb],
             ],
-            'CMYK'                       => [new TiffFixture(4, 2, 5, 8, 4, $cmyk), ['DeviceCMYK', 8, $cmyk]],
-            'grey, 1 bit'                => [new TiffFixture(8, 2, 1, 1, 1, "\xAA\x55"), ['DeviceGray', 1, "\xAA\x55"]],
-            '16-bit grey, little-endian' => [
+            'CMYK'                                  => [
+                new TiffFixture(4, 2, 5, 8, 4, $cmyk),
+                ['DeviceCMYK', 8, $cmyk],
+            ],
+            'grey, 1 bit'                           => [
+                new TiffFixture(8, 2, 1, 1, 1, "\xAA\x55"),
+                ['DeviceGray', 1, "\xAA\x55"],
+            ],
+            '16-bit grey, little-endian'            => [
                 new TiffFixture(2, 1, 1, 16, 1, "\x34\x12\x78\x56"),
                 ['DeviceGray', 16, "\x12\x34\x56\x78"],
             ],
-            '16-bit grey, big-endian'    => [
+            '16-bit grey, big-endian'               => [
                 (new TiffFixture(2, 1, 1, 16, 1, "\x12\x34\x56\x78"))->bigEndian(),
                 ['DeviceGray', 16, "\x12\x34\x56\x78"],
+            ],
+            '16-bit grey, predictor, little-endian' => [
+                (new TiffFixture(2, 1, 1, 16, 1, "\x34\x12\x44\x44"))->withTags([317 => [3, [2]]]),
+                ['DeviceGray', 16, "\x12\x34\x56\x78"],
+            ],
+            '16-bit grey, predictor, big-endian'    => [
+                (new TiffFixture(2, 1, 1, 16, 1, "\x12\x34\x44\x44"))->bigEndian()
+                    ->withTags([317 => [3, [2]]]),
+                ['DeviceGray', 16, "\x12\x34\x56\x78"],
+            ],
+            '16-bit predictor wrapping past 65535'  => [
+                (new TiffFixture(2, 1, 1, 16, 1, "\xFF\xF0\x00\x20"))->bigEndian()
+                    ->withTags([317 => [3, [2]]]),
+                ['DeviceGray', 16, "\xFF\xF0\x00\x10"],
             ],
         ];
     }

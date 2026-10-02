@@ -72,6 +72,18 @@ final class FiltersTest extends TestCase
     }
 
     #[Test]
+    public function theTiffPredictorUndoesSixteenBitSamplesInPdfByteOrder(): void
+    {
+        self::assertSame("\x12\x34\x56\x78\xFF\xF0\x00\x10", Predictor::decode(
+            "\x12\x34\x44\x44\xFF\xF0\x00\x20",
+            2,
+            1,
+            16,
+            2,
+        ));
+    }
+
+    #[Test]
     public function undoesPredictors(): void
     {
         // PNG "Up" predictor on two 3-byte rows.
