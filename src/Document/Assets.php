@@ -8,10 +8,13 @@ use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Image\Image;
+use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageOptions;
 use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\HiddenLayers;
@@ -25,6 +28,8 @@ use Php2Pdf\Svg\SvgFile;
 use WeakMap;
 
 use function file_get_contents;
+use function filemtime;
+use function filesize;
 use function is_string;
 use function md5;
 use function realpath;
@@ -39,8 +44,14 @@ use function sprintf;
  */
 final class Assets implements CatalogContributorInterface
 {
-    /** @var array<string, Image> */
+    /** @var array<string, Image> images by content hash and options */
     private array $images = [];
+
+    /** @var array<string, array{0: ImageData, 1: Reference}> images as read, and their XObjects, by content hash, page and conversion */
+    private array $rasters = [];
+
+    /** @var array<string, array{0: int, 1: int, 2: string}> image files by real path: modification time, size and content hash */
+    private array $hashes = [];
 
     /** @var array<string, ImportedDocument> */
     private array $imports = [];
@@ -63,6 +74,24 @@ final class Assets implements CatalogContributorInterface
         $this->svgFiles = new WeakMap();
     }
 
+    /** A file by its real path, an opened file without one by the object, for each way of treating hidden layers. */
+    private static function importKey(PdfFile|string $source, HiddenLayers $hiddenLayers): string
+    {
+        if ($source instanceof PdfFile && null === $source->path) {
+            return 'object#' . spl_object_id($source) . "#{$hiddenLayers->name}";
+        }
+        $path = $source instanceof PdfFile ? $source->path : $source;
+        $real = realpath($path);
+
+        return (false === $real ? $path : $real) . "#{$hiddenLayers->name}";
+    }
+
+    /** What reading an image depends on: its content, the page, and whether a lossy conversion is accepted. */
+    private static function rasterKey(string $hash, ImageOptions $options): string
+    {
+        return sprintf('%s/%d/%d', $hash, $options->page, (int) $options->allowLossyConversion);
+    }
+
     /**
      * Lists the layers the imported pages use, without automatic states under PDF/X.
      *
@@ -81,29 +110,58 @@ final class Assets implements CatalogContributorInterface
         $layers->write($catalog);
     }
 
-    /** @throws IoException */
+    /**
+     * An image file, read again only when it has changed since it was last read.
+     *
+     * @throws IoException
+     * @throws PdfException
+     */
     public function image(string $path, ImageOptions $options): Image
     {
+        $real  = realpath($path);
+        $stamp = false === $real ? null : [(int) filemtime($real), (int) filesize($real)];
+        $known = false === $real ? null : $this->hashes[$real] ?? null;
+        if (null !== $known && null !== $stamp && [$known[0], $known[1]] === $stamp) {
+            $raster = $this->rasters[self::rasterKey($known[2], $options)] ?? null;
+            if (null !== $raster) {
+                return $this->placed($known[2], $raster, $options);
+            }
+        }
         $data = file_get_contents($path);
         if (false === $data) {
             throw new IoException(sprintf('Cannot read image file "%s".', $path));
         }
+        $hash = md5($data);
+        if (false !== $real && null !== $stamp) {
+            $this->hashes[$real] = [$stamp[0], $stamp[1], $hash];
+        }
 
-        return $this->load($data, $options, $path);
+        return $this->load($data, $hash, $options, $path);
     }
 
+    /** @throws PdfException */
     public function imageFromData(string $data, ImageOptions $options): Image
     {
-        return $this->load($data, $options, null);
+        return $this->load($data, md5($data), $options, null);
     }
 
-    /** @throws ParseException */
+    /**
+     * A PDF file imported once: a path is looked up before the file is opened, so importing it
+     * again does not parse it again.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers): ImportedDocument
     {
+        $key  = self::importKey($source, $hiddenLayers);
+        $done = $this->imports[$key] ?? null;
+        if (null !== $done) {
+            return $done;
+        }
         $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
-        $key  = ($file->path ?? 'object#' . spl_object_id($file)) . '#' . $hiddenLayers->name;
 
-        return $this->imports[$key] ??= new ImportedDocument($this->objects, $this->colour, $file, $hiddenLayers);
+        return $this->imports[$key] = new ImportedDocument($this->objects, $this->colour, $file, $hiddenLayers);
     }
 
     /**
@@ -142,17 +200,44 @@ final class Assets implements CatalogContributorInterface
         return $byPath[$key];
     }
 
-    private function load(string $data, ImageOptions $options, ?string $name): Image
+    /**
+     * An image from its content, read and written once for each page and conversion, and placed
+     * once for each set of options.
+     *
+     * @throws PdfException
+     */
+    private function load(string $data, string $hash, ImageOptions $options, ?string $name): Image
     {
-        return $this->images[md5($data) . $options->key()] ??= new Image(
-            $this->objects,
-            $this->colour,
-            ImageReader::read($data, $this->options->limits, $options, $name)->withOptions($options),
-        );
+        $key    = self::rasterKey($hash, $options);
+        $raster = $this->rasters[$key] ?? null;
+        if (null === $raster) {
+            $read                = ImageReader::read($data, $this->options->limits, $options, $name);
+            $raster              = [$read, Image::write($this->objects, $read)];
+            $this->rasters[$key] = $raster;
+        }
+
+        return $this->placed($hash, $raster, $options);
     }
 
     private function nativeConverter(): NativeConverter
     {
         return $this->nativeConverter ??= new NativeConverter();
+    }
+
+    /**
+     * The image placed with its options, sharing the XObject of its pixels.
+     *
+     * @param array{0: ImageData, 1: Reference} $raster
+     *
+     * @throws PdfException
+     */
+    private function placed(string $hash, array $raster, ImageOptions $options): Image
+    {
+        return $this->images[$hash . $options->key()] ??= new Image(
+            $this->objects,
+            $this->colour,
+            $raster[0]->withOptions($options),
+            $raster[1],
+        );
     }
 }

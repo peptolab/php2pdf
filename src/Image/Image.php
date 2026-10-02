@@ -28,13 +28,73 @@ final class Image implements PlaceableInterface
 {
     private readonly Reference $reference;
 
-    /** @internal */
+    /**
+     * @param Reference|null $reference the image XObject when it is written already, for another
+     *                                  placement of the same pixels
+     *
+     * @internal
+     */
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
         private readonly ImageData $data,
+        ?Reference $reference = null,
     ) {
-        $this->reference = $this->write();
+        $this->reference = $reference ?? self::write($objects, $data);
+    }
+
+    /**
+     * Writes an image's pixels, and its soft mask, as an image XObject: what any placement of
+     * the same pixels shares.
+     *
+     * @internal
+     */
+    public static function write(Objects $objects, ImageData $data): Reference
+    {
+        $writer = $objects;
+        $raster = $data->raster;
+        $mask   = $data->softMask;
+
+        $icc = null;
+        if (null !== $raster->iccProfile && ! $raster->colorSpace->isIndexed()) {
+            $profile = $raster->iccProfile;
+            $n       = $raster->colorSpace->components;
+            $icc     = $objects->shared(
+                'iccstream:' . md5($profile),
+                static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
+            );
+        }
+
+        $dict = Dictionary::of([
+            'Type'             => new Name('XObject'),
+            'Subtype'          => new Name('Image'),
+            'Width'            => $raster->width,
+            'Height'           => $raster->height,
+            'ColorSpace'       => $raster->colorSpace->toPdf($icc),
+            'BitsPerComponent' => $raster->bitsPerComponent,
+            'Filter'           => null === $raster->filter ? null : new Name($raster->filter),
+            'DecodeParms'      => $raster->decodeParms,
+            'Decode'           => $raster->decode,
+            'Mask'             => $raster->colorKeyMask,
+            'SMaskInData'      => $raster->smaskInData ? 1 : null,
+        ]);
+        if (null !== $mask) {
+            $dict->set(
+                'SMask',
+                $writer->add(
+                    new Stream(Dictionary::of([
+                        'Type'             => new Name('XObject'),
+                        'Subtype'          => new Name('Image'),
+                        'Width'            => $raster->width,
+                        'Height'           => $raster->height,
+                        'ColorSpace'       => new Name('DeviceGray'),
+                        'BitsPerComponent' => $mask->bits,
+                    ]), $mask->data),
+                ),
+            );
+        }
+
+        return $writer->add(new Stream($dict, $raster->data, compress: null === $raster->filter));
     }
 
     /**
@@ -118,53 +178,5 @@ final class Image implements PlaceableInterface
     public function widthPx(): int
     {
         return $this->data->raster->width;
-    }
-
-    private function write(): Reference
-    {
-        $writer = $this->objects;
-        $raster = $this->data->raster;
-        $mask   = $this->data->softMask;
-
-        $icc = null;
-        if (null !== $raster->iccProfile && ! $raster->colorSpace->isIndexed()) {
-            $profile = $raster->iccProfile;
-            $n       = $raster->colorSpace->components;
-            $icc     = $this->objects->shared(
-                'iccstream:' . md5($profile),
-                static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
-            );
-        }
-
-        $dict = Dictionary::of([
-            'Type'             => new Name('XObject'),
-            'Subtype'          => new Name('Image'),
-            'Width'            => $raster->width,
-            'Height'           => $raster->height,
-            'ColorSpace'       => $raster->colorSpace->toPdf($icc),
-            'BitsPerComponent' => $raster->bitsPerComponent,
-            'Filter'           => null === $raster->filter ? null : new Name($raster->filter),
-            'DecodeParms'      => $raster->decodeParms,
-            'Decode'           => $raster->decode,
-            'Mask'             => $raster->colorKeyMask,
-            'SMaskInData'      => $raster->smaskInData ? 1 : null,
-        ]);
-        if (null !== $mask) {
-            $dict->set(
-                'SMask',
-                $writer->add(
-                    new Stream(Dictionary::of([
-                        'Type'             => new Name('XObject'),
-                        'Subtype'          => new Name('Image'),
-                        'Width'            => $raster->width,
-                        'Height'           => $raster->height,
-                        'ColorSpace'       => new Name('DeviceGray'),
-                        'BitsPerComponent' => $mask->bits,
-                    ]), $mask->data),
-                ),
-            );
-        }
-
-        return $writer->add(new Stream($dict, $raster->data, compress: null === $raster->filter));
     }
 }

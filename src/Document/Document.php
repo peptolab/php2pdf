@@ -303,6 +303,7 @@ final class Document implements SvgDocumentInterface
      * file switches off stay off; HiddenLayers::Remove removes their content instead, so viewers
      * that ignore layers in placed artwork (macOS Preview) do not show them either.
      *
+     * @throws IoException
      * @throws ParseException
      */
     #[Override]
