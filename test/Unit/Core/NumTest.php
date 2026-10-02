@@ -17,13 +17,13 @@ use const NAN;
 #[Group('unit')]
 final class NumTest extends TestCase
 {
-    /** @return array<string, array{0: float}> */
+    /** @return array<string, array{0: float, 1: string}> */
     public static function nonFiniteProvider(): array
     {
         return [
-            'not a number'      => [NAN],
-            'infinity'          => [INF],
-            'negative infinity' => [-INF],
+            'not a number'      => [NAN, 'NAN'],
+            'infinity'          => [INF, 'INF'],
+            'negative infinity' => [-INF, '-INF'],
         ];
     }
 
@@ -48,10 +48,10 @@ final class NumTest extends TestCase
 
     #[Test]
     #[DataProvider('nonFiniteProvider')]
-    public function refusesNumbersPdfCannotExpress(float $number): void
+    public function refusesNumbersPdfCannotExpress(float $number, string $name): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('cannot be written into a PDF');
+        $this->expectExceptionMessage("{$name} cannot be written into a PDF.");
         Num::format($number);
     }
 }

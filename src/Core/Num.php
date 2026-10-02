@@ -11,6 +11,7 @@ use function floor;
 use function implode;
 use function is_finite;
 use function is_int;
+use function is_nan;
 use function number_format;
 use function rtrim;
 use function sprintf;
@@ -29,7 +30,14 @@ final class Num
             return (string) $n;
         }
         if (! is_finite($n)) {
-            throw new InvalidArgumentException(sprintf('%s cannot be written into a PDF.', (string) $n));
+            throw new InvalidArgumentException(sprintf(
+                '%s cannot be written into a PDF.',
+                match (true) {
+                    is_nan($n) => 'NAN',
+                    $n > 0.0 => 'INF',
+                    default => '-INF',
+                },
+            ));
         }
         if (floor($n) === $n && abs($n) < 1.0e15) {
             return (string) (int) $n;
