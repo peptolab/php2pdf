@@ -23,6 +23,7 @@ use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
+use Php2Pdf\Geometry\Path;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Template\Template;
 
@@ -69,9 +70,9 @@ final class Canvas
      */
     public function arc(float $cx, float $cy, float $radius, float $startDegrees, float $endDegrees): self
     {
-        Shapes::arc($this->stream, $cx, $cy, $radius, $startDegrees, $endDegrees);
+        $arc = Path::arc($cx, $cy, $radius, $startDegrees, $endDegrees);
 
-        return $this;
+        return $this->path($this->stream->hasCurrentPoint() ? $arc->joined() : $arc);
     }
 
     public function box(Box $box): self
@@ -162,9 +163,7 @@ final class Canvas
 
     public function ellipse(float $cx, float $cy, float $rx, float $ry): self
     {
-        Shapes::ellipse($this->stream, $cx, $cy, $rx, $ry);
-
-        return $this;
+        return $this->path(Path::ellipse($cx, $cy, $rx, $ry));
     }
 
     /**
@@ -311,6 +310,28 @@ final class Canvas
     /**
      * Fits an image, template or imported page into a box and draws it.
      */
+    /** Appends a path to the current path. */
+    public function path(Path $path): self
+    {
+        foreach ($path->commands as [$op, $a]) {
+            match ($op) {
+                'M' => $this->stream->moveTo($a[0] ?? 0.0, $a[1] ?? 0.0),
+                'L' => $this->stream->lineTo($a[0] ?? 0.0, $a[1] ?? 0.0),
+                'C' => $this->stream->curveTo(
+                    $a[0] ?? 0.0,
+                    $a[1] ?? 0.0,
+                    $a[2] ?? 0.0,
+                    $a[3] ?? 0.0,
+                    $a[4] ?? 0.0,
+                    $a[5] ?? 0.0,
+                ),
+                'Z' => $this->stream->closePath(),
+            };
+        }
+
+        return $this;
+    }
+
     public function place(PlaceableInterface $object, Box $box, ?Fit $fit = null): Placement
     {
         $fit       ??= new Fit();
@@ -361,9 +382,11 @@ final class Canvas
 
     public function roundedRect(float $x, float $y, float $width, float $height, float $radius): self
     {
-        Shapes::roundedRect($this->stream, $x, $y, $width, $height, $radius);
+        $r = min($radius, $width / 2.0, $height / 2.0);
 
-        return $this;
+        return $r > 0.0
+            ? $this->path(Path::rect($x, $y, $width, $height, $r, $r))
+            : $this->rect($x, $y, $width, $height);
     }
 
     public function save(): self

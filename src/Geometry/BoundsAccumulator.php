@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Php2Pdf\Svg;
-
-use Php2Pdf\Geometry\Box;
+namespace Php2Pdf\Geometry;
 
 use function max;
 use function min;

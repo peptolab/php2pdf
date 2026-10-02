@@ -8,6 +8,7 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Path;
 
 /**
  * Fills and strokes path data with a computed style, resolving gradients and patterns against
@@ -23,9 +24,9 @@ final class Painter
     ) {}
 
     /** Clips to a path with the given rule. */
-    public static function clipTo(Canvas $canvas, PathData $path, FillRule $rule): void
+    public static function clipTo(Canvas $canvas, Path $path, FillRule $rule): void
     {
-        $path->emit($canvas);
+        $canvas->path($path);
         $canvas->clip($rule);
     }
 
@@ -66,7 +67,7 @@ final class Painter
     }
 
     /** @throws ParseException */
-    public function paint(Canvas $canvas, PathData $path, Style $style, ?Box $bounds = null): void
+    public function paint(Canvas $canvas, Path $path, Style $style, ?Box $bounds = null): void
     {
         if (! $style->isVisible()) {
             return;
@@ -82,7 +83,7 @@ final class Painter
         if ($fillOpacity < 1.0 || $strokeOpacity < 1.0) {
             $canvas->setOpacity($fillOpacity, $strokeOpacity);
         }
-        $path->emit($canvas);
+        $canvas->path($path);
         $rule = $style->fillRule();
         match (true) {
             $fill && $stroke => $canvas->fillAndStroke($rule),

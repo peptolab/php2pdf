@@ -6,6 +6,7 @@ namespace Php2Pdf\Image;
 
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Exception\InvalidArgumentException;
+use Php2Pdf\Geometry\Path;
 
 use function sprintf;
 
@@ -27,7 +28,7 @@ final readonly class ImageData
      * @param int             $orientation  the EXIF orientation (1 to 8) the image is shown in
      * @param bool            $smaskInData  whether JPEG 2000 data carries its own alpha channel
      * @param string|null     $photoshop    Photoshop image resource blocks, which may hold paths
-     * @param ClippingPath|null $clip       the path the image is clipped to when drawn
+     * @param Path|null $clip               the path the image is clipped to when drawn
      * @param int             $softMaskBits the soft mask's bits per sample, 8 or 16
      */
     public function __construct(
@@ -47,7 +48,7 @@ final readonly class ImageData
         public int $orientation = 1,
         public bool $smaskInData = false,
         public ?string $photoshop = null,
-        public ?ClippingPath $clip = null,
+        public ?Path $clip = null,
         public int $softMaskBits = 8,
     ) {}
 
@@ -103,7 +104,7 @@ final readonly class ImageData
      *
      * @throws InvalidArgumentException when the image has no such path
      */
-    private function clippingPath(bool|string $request): ?ClippingPath
+    private function clippingPath(bool|string $request): ?Path
     {
         if (false === $request) {
             return null;

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Php2Pdf\Geometry\Path;
+use Php2Pdf\Geometry\PathBuilder;
+
+use function array_slice;
 use function intdiv;
 use function ord;
 use function strlen;
@@ -23,7 +27,7 @@ final class PhotoshopResources
     private const int CLIPPING_NAME = 2999;
     private const int RECORD        = 26;
 
-    /** @var array<string, ClippingPath> */
+    /** @var array<string, Path> */
     private array $paths = [];
 
     private ?string $clippingName = null;
@@ -49,6 +53,23 @@ final class PhotoshopResources
         }
     }
 
+    /**
+     * A closed subpath through its knots.
+     *
+     * @param non-empty-list<array{0: array{0: float, 1: float}, 1: array{0: float, 1: float}, 2: array{0: float, 1: float}}> $knots
+     */
+    private static function addSubpath(PathBuilder $path, array $knots): void
+    {
+        $first    = $knots[0];
+        $previous = $first;
+        $path->moveTo($first[1][0], $first[1][1]);
+        foreach ([...array_slice($knots, offset: 1), $first] as $knot) {
+            $path->curveTo($previous[2][0], $previous[2][1], $knot[0][0], $knot[0][1], $knot[1][0], $knot[1][1]);
+            $previous = $knot;
+        }
+        $path->close();
+    }
+
     /** A signed 8.24 fixed-point number. */
     private static function fixed(string $data, int $at): float
     {
@@ -60,8 +81,12 @@ final class PhotoshopResources
         return $value / 16_777_216;
     }
 
-    /** The subpaths of a path resource's 26-byte records; open subpaths are closed for clipping. */
-    private static function parsePath(string $data): ClippingPath
+    /**
+     * The path in a path resource's 26-byte records, in the image's unit square (origin bottom-left,
+     * y up). Each record is a Bézier knot: a control point before the anchor, the anchor, and a
+     * control point after it. Open subpaths are closed for clipping.
+     */
+    private static function parsePath(string $data): Path
     {
         $subpaths = [];
         $knots    = [];
@@ -91,7 +116,12 @@ final class PhotoshopResources
             $subpaths[] = $knots;
         }
 
-        return new ClippingPath($subpaths);
+        $path = new PathBuilder();
+        foreach ($subpaths as $knots) {
+            self::addSubpath($path, $knots);
+        }
+
+        return $path->build();
     }
 
     private static function u16(string $data, int $at): int
@@ -105,12 +135,12 @@ final class PhotoshopResources
     }
 
     /** The path Photoshop marks as the clipping path, or null. */
-    public function clippingPath(): ?ClippingPath
+    public function clippingPath(): ?Path
     {
         return null === $this->clippingName ? null : $this->paths[$this->clippingName] ?? null;
     }
 
-    public function path(string $name): ?ClippingPath
+    public function path(string $name): ?Path
     {
         return $this->paths[$name] ?? null;
     }

@@ -13,6 +13,7 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
+use Php2Pdf\Geometry\Path;
 
 use function trim;
 
@@ -61,7 +62,7 @@ final readonly class MaskBuilder
         $content = $template->canvas();
         Painter::clipTo(
             $content,
-            PathData::rect($region->x, $region->y, $region->width, $region->height),
+            Path::rect($region->x, $region->y, $region->width, $region->height),
             FillRule::NonZero,
         );
         if ('objectBoundingBox' === trim($mask->attribute('maskContentUnits') ?? '')) {

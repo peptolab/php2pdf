@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Php2Pdf\Geometry\Path;
+
 use function abs;
 use function array_key_exists;
 use function atan2;
@@ -28,7 +30,7 @@ final class MarkerVertices
     /**
      * @return list<array{0: float, 1: float, 2: float}> x, y and angle in degrees
      */
-    public static function of(PathData $path): array
+    public static function of(Path $path): array
     {
         $vertices = [];
         foreach (self::subpaths($path) as [$x, $y, $implicit, $closed, $segments]) {
@@ -166,7 +168,7 @@ final class MarkerVertices
      *
      * @return list<array{0: float, 1: float, 2: bool, 3: bool, 4: list<array{0: float, 1: float, 2: ?float, 3: ?float}>}>
      */
-    private static function subpaths(PathData $path): array
+    private static function subpaths(Path $path): array
     {
         $subpaths = [];
         $segments = [];

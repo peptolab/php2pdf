@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Path;
+use Php2Pdf\Geometry\PathBuilder;
 
 use function abs;
 use function atan2;
-use function ceil;
 use function cos;
 use function count;
 use function deg2rad;
@@ -22,33 +23,33 @@ use function strtoupper;
 use const M_PI;
 
 /**
- * Parses SVG path data (all commands, absolute and relative) into a PathData of lines and
+ * Parses SVG path data (all commands, absolute and relative) into a Path of lines and
  * cubic curves. Quadratic curves are raised to cubics; arcs become cubic approximations.
  *
  * @internal
  */
 final class PathParser
 {
-    private readonly PathData $path;
+    private readonly PathBuilder $path;
     private ?float $lastControlX = null;
     private ?float $lastControlY = null;
     private string $lastCommand  = '';
 
     private function __construct()
     {
-        $this->path = new PathData();
+        $this->path = new PathBuilder();
     }
 
-    public static function parse(?string $d): PathData
+    public static function parse(?string $d): Path
     {
         $parser = new self();
         if (null === $d) {
-            return $parser->path;
+            return $parser->path->build();
         }
         $m     = [];
         $found = preg_match_all('/([MmLlHhVvCcSsQqTtAaZz])|([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/', $d, $m);
         if (false === $found || 0 === $found) {
-            return $parser->path;
+            return $parser->path->build();
         }
         $command = '';
         $args    = [];
@@ -64,7 +65,7 @@ final class PathParser
         }
         $parser->run($command, $args);
 
-        return $parser->path;
+        return $parser->path->build();
     }
 
     /**
@@ -160,24 +161,8 @@ final class PathParser
             $delta -= 2.0 * M_PI;
         }
         $ellipse = new Matrix($cosP * $rx, $sinP * $rx, -$sinP * $ry, $cosP * $ry, $cx, $cy);
-        $this->arcSegments($ellipse, $theta1, fmod($delta, 2.0 * M_PI));
+        $this->path->arcSegments($ellipse, $theta1, fmod($delta, 2.0 * M_PI));
         $this->path->lineTo($x, $y);
-    }
-
-    /** Emits cubic approximations of a unit-circle arc from $theta over $delta radians, mapped by $ellipse. */
-    private function arcSegments(Matrix $ellipse, float $theta, float $delta): void
-    {
-        $segments = max(1, (int) ceil(abs($delta) / (M_PI / 2.0)));
-        $step     = $delta / $segments;
-        $t        = ((4.0 / 3.0) * sin($step / 2.0)) / (1.0 + cos($step / 2.0));
-        for ($i = 0; $i < $segments; ++$i) {
-            $next = $theta + $step;
-            [$x1, $y1] = $ellipse->apply(cos($theta) - ($t * sin($theta)), sin($theta) + ($t * cos($theta)));
-            [$x2, $y2] = $ellipse->apply(cos($next) + ($t * sin($next)), sin($next) - ($t * cos($next)));
-            [$x, $y] = $ellipse->apply(cos($next), sin($next));
-            $this->path->curveTo($x1, $y1, $x2, $y2, $x, $y)->continues();
-            $theta = $next;
-        }
     }
 
     private function cubic(float $x1, float $y1, float $x2, float $y2, float $x, float $y): void

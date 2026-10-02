@@ -9,6 +9,7 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\FillRule;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Path;
 
 use function count;
 use function preg_match;
@@ -56,7 +57,7 @@ final readonly class MarkerBuilder
     }
 
     /** @throws ParseException for a marker drawn within itself, directly or through other references */
-    public function draw(Canvas $canvas, PathData $path, Style $style): void
+    public function draw(Canvas $canvas, Path $path, Style $style): void
     {
         $ids = [$style->markerId('start'), $style->markerId('mid'), $style->markerId('end')];
         if ([null, null, null] === $ids) {
@@ -121,7 +122,7 @@ final readonly class MarkerBuilder
                 ->then(Matrix::translation($vertex[0], $vertex[1])),
         );
         if (! $markerStyle->overflowVisible()) {
-            Painter::clipTo($canvas, PathData::rect(0.0, 0.0, $width, $height), FillRule::NonZero);
+            Painter::clipTo($canvas, Path::rect(0.0, 0.0, $width, $height), FillRule::NonZero);
         }
         $canvas->concat($mapping);
         $this->context->guard->within('marker', $id, function () use ($canvas, $marker, $markerStyle): void {

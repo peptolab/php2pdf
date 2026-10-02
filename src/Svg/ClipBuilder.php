@@ -8,6 +8,7 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Path;
 
 use function ltrim;
 use function trim;
@@ -85,7 +86,7 @@ final readonly class ClipBuilder
     }
 
     /** @throws ParseException */
-    private function childPath(Element $child, Style $style): ?PathData
+    private function childPath(Element $child, Style $style): ?Path
     {
         if (Shapes::isShape($child->name)) {
             return Shapes::path($child, $style, $this->context);
@@ -98,7 +99,7 @@ final readonly class ClipBuilder
             $path = $this->context->guard->within(
                 'use',
                 $this->useId($child),
-                fn(): ?PathData => Shapes::path(
+                fn(): ?Path => Shapes::path(
                     $target,
                     $style->derive($target, $this->context->sheet),
                     $this->context,
@@ -134,7 +135,8 @@ final readonly class ClipBuilder
     }
 
     /**
-     * Clips to a <clipPath> already entered in the guard, after any clip path of its own.
+     * Clips to a <clipPath> already entered in the guard, after any clip path of its own. A clip
+     * path with nothing in it clips everything away.
      *
      * @throws ParseException
      */
@@ -150,7 +152,7 @@ final readonly class ClipBuilder
             $bounds = $this->bounds($clipped, $style) ?? new Box(0.0, 0.0, 1.0, 1.0);
             $matrix = $matrix->then(new Matrix($bounds->width, 0.0, 0.0, $bounds->height, $bounds->x, $bounds->y));
         }
-        $combined = new PathData();
+        $combined = new Path();
         $rule     = $clipStyle->clipRule();
         foreach ($clipPath->elements() as $child) {
             $childStyle = $clipStyle->derive($child, $this->context->sheet);
@@ -163,13 +165,10 @@ final readonly class ClipBuilder
                 continue;
             }
             $childMatrix = TransformParser::parse($child->attribute('transform'))->then($matrix);
-            foreach ($path->transformed($childMatrix)->commands as $command) {
-                $combined->commands[] = $command;
-            }
+            $combined    = $combined->append($path->transformed($childMatrix));
         }
         if ($combined->isEmpty()) {
-            // An empty clip path clips everything.
-            $combined->moveTo(0.0, 0.0)->close();
+            $combined = new Path([['M', [0.0, 0.0]], ['Z', []]]);
         }
         Painter::clipTo($canvas, $combined, $rule);
     }

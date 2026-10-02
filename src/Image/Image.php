@@ -82,9 +82,11 @@ final class Image implements PlaceableInterface
 
             return;
         }
-        $canvas->save()->concat($placement);
-        $clip->addTo($canvas);
-        $canvas->clip(FillRule::EvenOdd)->drawXObject($this->reference, Matrix::identity());
+        $canvas->save()
+            ->concat($placement)
+            ->path($clip)
+            ->clip(FillRule::EvenOdd)
+            ->drawXObject($this->reference, Matrix::identity());
         $canvas->restore();
     }
 

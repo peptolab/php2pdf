@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Php2Pdf\Geometry\Path;
+use Php2Pdf\Geometry\PathBuilder;
+
 use function max;
 
 /**
@@ -22,15 +25,15 @@ final class Shapes
     }
 
     /** The element's geometry in its own user space, or null for an empty or unknown shape. */
-    public static function path(Element $element, Style $style, Context $context): ?PathData
+    public static function path(Element $element, Style $style, Context $context): ?Path
     {
         $path = match ($element->name) {
             'rect'     => self::rect($element, $style, $context),
             'circle'   => self::circle($element, $style, $context),
             'ellipse'  => self::ellipse($element, $style, $context),
             'line'     => self::line($element, $style, $context),
-            'polyline' => PathData::polyline(Length::numbers($element->attribute('points'))),
-            'polygon'  => PathData::polygon(Length::numbers($element->attribute('points'))),
+            'polyline' => Path::polyline(Length::numbers($element->attribute('points'))),
+            'polygon'  => Path::polygon(Length::numbers($element->attribute('points'))),
             'path'     => PathParser::parse($element->attribute('d')),
             default    => null,
         };
@@ -38,14 +41,14 @@ final class Shapes
         return null === $path || $path->isEmpty() ? null : $path;
     }
 
-    private static function circle(Element $element, Style $style, Context $context): ?PathData
+    private static function circle(Element $element, Style $style, Context $context): ?Path
     {
         $r = $context->length($element->attribute('r'), 'd', $style) ?? 0.0;
         if ($r <= 0.0) {
             return null;
         }
 
-        return PathData::ellipse(
+        return Path::ellipse(
             $context->length($element->attribute('cx'), 'x', $style) ?? 0.0,
             $context->length($element->attribute('cy'), 'y', $style) ?? 0.0,
             $r,
@@ -53,7 +56,7 @@ final class Shapes
         );
     }
 
-    private static function ellipse(Element $element, Style $style, Context $context): ?PathData
+    private static function ellipse(Element $element, Style $style, Context $context): ?Path
     {
         $rx = $context->length($element->attribute('rx'), 'x', $style, null);
         $ry = $context->length($element->attribute('ry'), 'y', $style, null);
@@ -63,7 +66,7 @@ final class Shapes
             return null;
         }
 
-        return PathData::ellipse(
+        return Path::ellipse(
             $context->length($element->attribute('cx'), 'x', $style) ?? 0.0,
             $context->length($element->attribute('cy'), 'y', $style) ?? 0.0,
             $rx,
@@ -71,21 +74,20 @@ final class Shapes
         );
     }
 
-    private static function line(Element $element, Style $style, Context $context): PathData
+    private static function line(Element $element, Style $style, Context $context): Path
     {
-        $path = new PathData();
-        $path->moveTo(
+        return (new PathBuilder())->moveTo(
             $context->length($element->attribute('x1'), 'x', $style) ?? 0.0,
             $context->length($element->attribute('y1'), 'y', $style) ?? 0.0,
-        );
-
-        return $path->lineTo(
-            $context->length($element->attribute('x2'), 'x', $style) ?? 0.0,
-            $context->length($element->attribute('y2'), 'y', $style) ?? 0.0,
-        );
+        )
+            ->lineTo(
+                $context->length($element->attribute('x2'), 'x', $style) ?? 0.0,
+                $context->length($element->attribute('y2'), 'y', $style) ?? 0.0,
+            )
+            ->build();
     }
 
-    private static function rect(Element $element, Style $style, Context $context): ?PathData
+    private static function rect(Element $element, Style $style, Context $context): ?Path
     {
         $w = $context->length($element->attribute('width'), 'x', $style) ?? 0.0;
         $h = $context->length($element->attribute('height'), 'y', $style) ?? 0.0;
@@ -97,7 +99,7 @@ final class Shapes
         $rx ??= $ry ?? 0.0;
         $ry ??= $rx;
 
-        return PathData::rect(
+        return Path::rect(
             $context->length($element->attribute('x'), 'x', $style) ?? 0.0,
             $context->length($element->attribute('y'), 'y', $style) ?? 0.0,
             $w,

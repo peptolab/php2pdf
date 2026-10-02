@@ -11,6 +11,7 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
+use Php2Pdf\Geometry\Path;
 use Php2Pdf\Template\Template;
 
 use function array_key_exists;
@@ -108,7 +109,7 @@ final class Renderer
         if ($style->overflowVisible() || $width <= 0.0 || $height <= 0.0) {
             return;
         }
-        Painter::clipTo($canvas, PathData::rect($x, $y, $width, $height), $style->clipRule());
+        Painter::clipTo($canvas, Path::rect($x, $y, $width, $height), $style->clipRule());
     }
 
     /**

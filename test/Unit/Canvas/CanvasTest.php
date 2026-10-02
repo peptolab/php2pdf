@@ -25,6 +25,7 @@ use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\StateException;
 use Php2Pdf\Geometry\Matrix;
+use Php2Pdf\Geometry\Path;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -45,6 +46,22 @@ final class CanvasTest extends TestCase
     private static function fakeProfile(string $space): string
     {
         return str_pad(str_repeat("\0", times: 16) . $space, length: 128, pad_string: "\0");
+    }
+
+    #[Test]
+    public function anArcContinuesAnOpenPathWithALine(): void
+    {
+        $this->canvas->moveTo(0, 0)->arc(0, 0, 10, 0, 90)->stroke();
+
+        self::assertStringStartsWith("0 0 m\n10 0 l\n10 5.5228 5.5228 10 0 10 c\n", $this->content());
+    }
+
+    #[Test]
+    public function anArcStartsASubpathWhenNoneIsOpen(): void
+    {
+        $this->canvas->arc(0, 0, 10, 0, 90)->stroke();
+
+        self::assertStringStartsWith("10 0 m\n10 5.5228 5.5228 10 0 10 c\n", $this->content());
     }
 
     #[Test]
@@ -75,6 +92,22 @@ final class CanvasTest extends TestCase
         self::assertStringContainsString('/Bounds[0.5]/Encode[0 1 0 1]', $pdf);
         self::assertStringContainsString('/ShadingType 3/ColorSpace/DeviceGray/Function<</FunctionType 2', $pdf);
         self::assertStringContainsString('/Coords[0 0 0 0 0 10]', $pdf);
+    }
+
+    #[Test]
+    public function aPathIsDrawnCommandByCommand(): void
+    {
+        $this->canvas->path(Path::polygon([0.0, 0.0, 10.0, 0.0, 5.0, 8.0]))->fill();
+
+        self::assertStringStartsWith("0 0 m\n10 0 l\n5 8 l\nh\nf\n", $this->content());
+    }
+
+    #[Test]
+    public function aRoundedRectangleWithoutARadiusIsAPlainRectangle(): void
+    {
+        $this->canvas->roundedRect(0, 0, 10, 5, 0)->fill();
+
+        self::assertStringStartsWith("0 0 10 5 re\nf\n", $this->content());
     }
 
     #[Test]

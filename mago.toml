@@ -155,7 +155,7 @@ excessive-parameter-list = { threshold = 8, constructor-threshold = 16, exclude 
 halstead = { volume-threshold = 2500, difficulty-threshold = 30, effort-threshold = 10000, exclude = [
     # Honest: the formulas of curves, arcs and charstrings.
     "src/Font/OpenType/Cff/Cff2CharStrings.php",
-    "src/Svg/PathData.php",
+    "src/Geometry/Path.php",
     "src/Svg/PathParser.php",
     # Ratchet, as above.
     "src/Font/OpenType/Gpos.php",

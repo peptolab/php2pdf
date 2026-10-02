@@ -10,6 +10,7 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Fit\Position;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Geometry\Path;
 
 use function base64_decode;
 use function count;
@@ -93,7 +94,7 @@ final class ImageRenderer
         $canvas->translate($x, $y + $height)->scale(1.0, -1.0);
         $fit = self::fit($element->attribute('preserveAspectRatio'));
         if (FitMethod::Slice === $fit->method) {
-            Painter::clipTo($canvas, PathData::rect(0.0, 0.0, $width, $height), $style->clipRule());
+            Painter::clipTo($canvas, Path::rect(0.0, 0.0, $width, $height), $style->clipRule());
         }
         $canvas->place($image, new Box(0.0, 0.0, $width, $height), $fit);
         $canvas->restore();
