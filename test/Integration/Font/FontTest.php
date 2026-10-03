@@ -12,6 +12,7 @@ use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PdfX;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\Font;
+use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphCheck;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
@@ -21,6 +22,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+
+use function array_map;
 
 #[Group('integration')]
 final class FontTest extends TestCase
@@ -90,6 +93,14 @@ final class FontTest extends TestCase
             $this->out->contents(),
             'Only a and b are mapped; the missing character is not.',
         );
+    }
+
+    #[Test]
+    public function illFormedTextKeepsTheCharactersThatDecode(): void
+    {
+        $run = $this->font->shape("a\xFFb");
+
+        self::assertSame([0x61, 0x62], array_map(static fn(Glyph $glyph): int => $glyph->codePoint, $run->glyphs));
     }
 
     #[Test]

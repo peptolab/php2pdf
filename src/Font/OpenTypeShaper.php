@@ -20,11 +20,14 @@ use function class_exists;
 use function count;
 use function in_array;
 use function ksort;
+use function mb_check_encoding;
 use function mb_chr;
+use function mb_convert_encoding;
 use function mb_ord;
 use function mb_str_split;
 use function preg_match;
 use function strlen;
+use function unpack;
 
 /**
  * Shapes text with an OpenType font as HarfBuzz does: normalises it for the font, splits it into
@@ -69,28 +72,29 @@ final readonly class OpenTypeShaper
     }
 
     /**
-     * The glyphs, in logical order, with the index in the text of the character each one's
-     * cluster starts at. A glyph that stands for no character of its own (the second of a
-     * multiple substitution) joins the cluster before it.
+     * The text's code points: valid text decodes in one call; ill-formed text is read character by
+     * character, dropping what does not decode.
      *
-     * @param list<Glyph> $glyphs
-     * @param list<int>   $sources the index in the text of each normalised code point
-     *
-     * @return list<Glyph>
+     * @return list<int>
      */
-    private static function clustered(array $glyphs, array $sources): array
+    private static function decoded(string $text): array
     {
-        $at      = 0;
-        $cluster = 0;
-        $out     = [];
-        foreach ($glyphs as $glyph) {
-            $length  = $glyph->length();
-            $cluster = $length > 0 ? $sources[$at] ?? $cluster : $cluster;
-            $at      += $length;
-            $out[]   = $glyph->withCluster($cluster);
+        if (mb_check_encoding($text, encoding: 'UTF-8')) {
+            /** @var array<int, int> $units */
+            $units = unpack('N*', (string) mb_convert_encoding($text, to_encoding: 'UTF-32BE', from_encoding: 'UTF-8'));
+
+            return array_values($units);
+        }
+        $codePoints = [];
+        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
+            $codePoint = mb_ord($char, encoding: 'UTF-8');
+            if (false === $codePoint) {
+                continue;
+            }
+            $codePoints[] = $codePoint;
         }
 
-        return $out;
+        return $codePoints;
     }
 
     /**
@@ -146,25 +150,30 @@ final readonly class OpenTypeShaper
         }
         $gsub     = $this->program->gsub();
         $language = LanguageSystems::forLanguage($options->language);
-        $glyphs   = [];
+        $placed   = [];
         foreach (ScriptRuns::of($codePoints) as [$script, $start, $length]) {
             $runCodePoints = array_slice($codePoints, $start, $length);
+            $runPlaced     = null;
             if (null !== $this->external && null !== ComplexScripts::find(self::text($runCodePoints))) {
-                foreach ($this->externallyShaped($runCodePoints, $options, $script) as $glyph) {
-                    $glyphs[] = $glyph;
-                }
+                $runPlaced = $this->externallyShaped($runCodePoints, $options, $script);
+            }
+            if (null === $runPlaced) {
+                $run = array_slice($sequence, $start, $length);
+                $run = $this->joins($script)
+                    ? $this->joined($run, $runCodePoints, $features, $script, $language)
+                    : $gsub?->apply($run, $features, $script, $language) ?? $run;
+                $runPlaced = $this->positioned($run, $options, $features, $script);
+            }
+            if ([] === $placed) {
+                $placed = $runPlaced;
                 continue;
             }
-            $run = array_slice($sequence, $start, $length);
-            $run = $this->joins($script)
-                ? $this->joined($run, array_slice($codePoints, $start, $length), $features, $script, $language)
-                : $gsub?->apply($run, $features, $script, $language) ?? $run;
-            foreach ($this->positioned($run, $options, $features, $script) as $glyph) {
-                $glyphs[] = $glyph;
+            foreach ($runPlaced as $glyph) {
+                $placed[] = $glyph;
             }
         }
-
-        $glyphs = $this->hideIgnorables(self::clustered($glyphs, $sources));
+        unset($sequence, $run, $runPlaced);
+        $glyphs = $this->glyphs($placed, $sources);
 
         return $rtl ? array_reverse($glyphs) : $glyphs;
     }
@@ -177,15 +186,14 @@ final readonly class OpenTypeShaper
      */
     private function codePoints(string $text): array
     {
-        $codePoints = [];
+        $codePoints = self::decoded($text);
         $missing    = false;
-        foreach (mb_str_split($text, length: 1, encoding: 'UTF-8') as $char) {
-            $codePoint = mb_ord($char, encoding: 'UTF-8');
-            if (false === $codePoint) {
+        foreach ($codePoints as $codePoint) {
+            if (0 !== $this->program->glyphId($codePoint)) {
                 continue;
             }
-            $codePoints[] = $codePoint;
-            $missing      = $missing || 0 === $this->program->glyphId($codePoint);
+            $missing = true;
+            break;
         }
         if (! $missing && 1 !== preg_match('/\p{M}/u', $text)) {
             return [$codePoints, array_keys($codePoints)];
@@ -203,7 +211,7 @@ final readonly class OpenTypeShaper
      *
      * @param list<int> $codePoints
      *
-     * @return list<Glyph>
+     * @return list<array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}>
      */
     private function externallyShaped(array $codePoints, TextOptions $options, string $script): array
     {
@@ -257,29 +265,38 @@ final readonly class OpenTypeShaper
     }
 
     /**
-     * Default-ignorable characters (joiners, direction marks, variation selectors) shown as the
-     * space glyph with no width or offset, as HarfBuzz hides them; they keep their text.
+     * The glyphs for placed glyphs, in logical order, each with the index in the text of the
+     * character its cluster starts at: a glyph that stands for no character of its own (the
+     * second of a multiple substitution) joins the cluster before it. Default-ignorable characters
+     * (joiners, direction marks, variation selectors) are shown as the space glyph with no width or
+     * offset, as HarfBuzz hides them; they keep their text. Each glyph is made once, here; the
+     * placed glyphs (taken by reference, so not copied) are released as they are read, so the two
+     * lists are not both held whole.
      *
-     * @param list<Glyph> $glyphs
+     * @param list<array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}> $placed
+     * @param list<int> $sources the index in the text of each normalised code point
      *
      * @return list<Glyph>
      */
-    private function hideIgnorables(array $glyphs): array
+    private function glyphs(array &$placed, array $sources): array
     {
-        $space = $this->program->glyphId(0x20);
-        if (0 === $space || ! class_exists(IntlChar::class)) {
-            return $glyphs;
-        }
-        $width = ($this->advance)($space);
-        foreach ($glyphs as $k => $glyph) {
-            if (
-                $glyph->codePoint < 0
-                || [] !== $glyph->components
-                || ! IntlChar::hasBinaryProperty($glyph->codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT)
-            ) {
-                continue;
-            }
-            $glyphs[$k] = new Glyph($space, $glyph->codePoint, $width, -$width, cluster: $glyph->cluster);
+        $space   = $this->program->glyphId(0x20);
+        $hide    = 0 !== $space && class_exists(IntlChar::class);
+        $width   = $hide ? ($this->advance)($space) : 0;
+        $at      = 0;
+        $cluster = 0;
+        $glyphs  = [];
+        for ($k = 0; null !== ($entry = $placed[$k] ?? null); ++$k) {
+            [$id, $codePoint, $advance, $kerning, $components, $xOffset, $yOffset, $length] = $entry;
+            unset($placed[$k]);
+            $cluster  = $length > 0 ? $sources[$at] ?? $cluster : $cluster;
+            $at       += $length;
+            $glyphs[] = $hide
+            && $codePoint >= 0xAD // U+00AD, the first default-ignorable code point
+            && [] === $components
+            && IntlChar::hasBinaryProperty($codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT)
+                ? new Glyph($space, $codePoint, $width, -$width, cluster: $cluster)
+                : new Glyph($id, $codePoint, $advance, $kerning, $components, $xOffset, $yOffset, $cluster);
         }
 
         return $glyphs;
@@ -363,24 +380,30 @@ final readonly class OpenTypeShaper
      * A glyph placed as a shaper positioned it, in font units: its advance and offsets become
      * kerning and offsets in thousandths of an em. A glyph with no advance takes none (a mark
      * over the glyph before it). The first of its code points is the character it stands for.
+     * It is Glyph's fields up to the cluster (id, code point, advance, kerning, components and
+     * offsets), then how many characters it stands for; glyphs() makes the Glyph.
      *
      * @param list<int> $codePoints
+     *
+     * @return array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}
      */
-    private function placed(int $id, array $codePoints, int $xAdvance, int $xOffset, int $yOffset): Glyph
+    private function placed(int $id, array $codePoints, int $xAdvance, int $xOffset, int $yOffset): array
     {
         $advance = ($this->advance)($id);
         $natural = $this->program->advance($id);
         $kerning = 0 === $xAdvance && 0 !== $natural ? -$advance : ($xAdvance - $natural) * $this->scale;
+        $length  = count($codePoints);
 
-        return new Glyph(
+        return [
             $id,
             $codePoints[0] ?? -1,
             $advance,
-            $kerning,
-            count($codePoints) > 1 ? $codePoints : [],
+            (float) $kerning,
+            $length > 1 ? $codePoints : [],
             $xOffset * $this->scale,
             $yOffset * $this->scale,
-        );
+            $length,
+        ];
     }
 
     /**
@@ -392,7 +415,7 @@ final readonly class OpenTypeShaper
      * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $sequence
      * @param list<string>                                                    $features
      *
-     * @return list<Glyph>
+     * @return list<array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}>
      *
      * @throws ParseException
      */
@@ -432,15 +455,15 @@ final readonly class OpenTypeShaper
         $glyphs = [];
         foreach ($sequence as $k => [$id, $codePoints]) {
             [$xAdvance, , $xOffset, $yOffset] = $positions[$k] ?? [$this->program->advance($id), 0, 0, 0];
-            $glyph    = $this->placed($id, $codePoints, $xAdvance, $xOffset, $yOffset);
-            $previous = $glyphs[$k - 1] ?? null;
-            if ($legacyKern && null !== $previous) {
-                $kern = $this->program->kerning($previous->id, $id);
+            $previous = $legacyKern ? $glyphs[$k - 1] ?? null : null;
+            if (null !== $previous) {
+                $kern = $this->program->kerning($previous[0], $id);
                 if (0 !== $kern) {
-                    $glyphs[$k - 1] = $previous->withKerning($previous->kerning + ($kern * $this->scale));
+                    $previous[3]    += $kern * $this->scale;
+                    $glyphs[$k - 1] = $previous;
                 }
             }
-            $glyphs[] = $glyph;
+            $glyphs[] = $this->placed($id, $codePoints, $xAdvance, $xOffset, $yOffset);
         }
 
         return $glyphs;

@@ -10,6 +10,7 @@ use Php2Pdf\Exception\ParseException;
 use function array_key_exists;
 use function array_keys;
 use function count;
+use function implode;
 use function ksort;
 use function max;
 use function usort;
@@ -44,6 +45,9 @@ final class LayoutTables
 
     /** @var array<int, array<int, list<array{0: list<int>, 1: int}>>> ligature subtable offset => first glyph => ligatures, longest first */
     private array $ligatureSets = [];
+
+    /** @var array<string, list<int>> "features|script|language" => lookup indices, as lookupsFor() gives them */
+    private array $lookups = [];
 
     private function __construct(
         public readonly BinaryReader $reader,
@@ -252,20 +256,11 @@ final class LayoutTables
      */
     public function lookupsFor(array $features, string $script = 'latn', ?string $language = null): array
     {
-        $key = "{$script}|{$language}";
-        if (! array_key_exists($key, $this->features)) {
-            $this->features[$key] = $this->readFeatures($script, $language);
-        }
-        $byFeature = $this->features[$key];
-        $indices   = [];
-        foreach (['', ...$features] as $feature) {
-            foreach ($byFeature[$feature] ?? [] as $index) {
-                $indices[$index] = true;
-            }
-        }
-        ksort($indices);
-
-        return array_keys($indices);
+        return $this->lookups[implode(',', $features) . "|{$script}|{$language}"] ??= $this->readLookups(
+            $features,
+            $script,
+            $language,
+        );
     }
 
     /**
@@ -410,5 +405,30 @@ final class LayoutTables
         }
 
         return $features;
+    }
+
+    /**
+     * @param list<string> $features
+     *
+     * @return list<int>
+     *
+     * @throws ParseException
+     */
+    private function readLookups(array $features, string $script, ?string $language): array
+    {
+        $key = "{$script}|{$language}";
+        if (! array_key_exists($key, $this->features)) {
+            $this->features[$key] = $this->readFeatures($script, $language);
+        }
+        $byFeature = $this->features[$key];
+        $indices   = [];
+        foreach (['', ...$features] as $feature) {
+            foreach ($byFeature[$feature] ?? [] as $index) {
+                $indices[$index] = true;
+            }
+        }
+        ksort($indices);
+
+        return array_keys($indices);
     }
 }

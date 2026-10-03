@@ -61,18 +61,20 @@ final class ScriptRuns
         if (! class_exists(IntlChar::class) || 0 === $count) {
             return [['latn', 0, $count]];
         }
+        // ASCII letters are Latin and the rest of ASCII is common, so only the rest needs ICU.
+        // Setting bit 0x20 folds A-Z onto a-z and nothing else in ASCII onto that range.
         $scripts = [];
+        $first   = null;
         foreach ($codePoints as $codePoint) {
-            $scripts[] = $codePoint < 0x80 && ! self::isLetter($codePoint) ? '' : self::tag($codePoint);
-        }
-        $first = 'latn';
-        foreach ($scripts as $script) {
-            if ('' === $script) {
-                continue;
+            $lower  = $codePoint | 0x20;
+            $script = $lower >= 0x61 && $lower <= 0x7A ? 'latn' : '';
+            if ($codePoint >= 0x80) {
+                $script = self::tag($codePoint);
             }
-            $first = $script;
-            break;
+            $first     ??= '' === $script ? null : $script;
+            $scripts[] = $script;
         }
+        $first   ??= 'latn';
         $runs    = [];
         $current = $first;
         $start   = 0;
@@ -87,11 +89,6 @@ final class ScriptRuns
         $runs[] = [$current, $start, $count - $start];
 
         return $runs;
-    }
-
-    private static function isLetter(int $codePoint): bool
-    {
-        return ($codePoint >= 0x41 && $codePoint <= 0x5A) || ($codePoint >= 0x61 && $codePoint <= 0x7A);
     }
 
     private static function tag(int $codePoint): string
