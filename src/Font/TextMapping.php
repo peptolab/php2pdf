@@ -62,14 +62,24 @@ final class TextMapping
 
     /**
      * Maps the glyphs of a run not mapped yet, and whether the map gives back the run's text:
-     * every glyph that stands for text has a glyph, and is mapped to that text.
+     * every glyph that stands for text has a glyph, and is mapped to that text. The run's glyph
+     * ids are also marked in $used, in the same pass.
+     *
+     * @param array<int, true> $used
      */
-    public function record(GlyphRun $run): bool
+    public function record(GlyphRun $run, array &$used = []): bool
     {
         $faithful = true;
         foreach ($run->glyphs as $glyph) {
-            $single = [] === $glyph->components;
-            if ($single && ($glyph->codePoint < 0 || $glyph->codePoint === ($this->single[$glyph->id] ?? null))) {
+            $id        = $glyph->id;
+            $used[$id] = true;
+            if (
+                [] === $glyph->components
+                && (
+                    $glyph->codePoint < 0
+                    || $glyph->codePoint === ($this->single[$id] ?? null)
+                )
+            ) {
                 continue;
             }
             $faithful = $this->recordGlyph($glyph) && $faithful;

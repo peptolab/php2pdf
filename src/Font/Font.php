@@ -204,11 +204,7 @@ final class Font implements PdfFontInterface, DeferredInterface
     #[Override]
     public function markUsed(GlyphRun $run): bool
     {
-        foreach ($run->glyphs as $glyph) {
-            $this->used[$glyph->id] = true;
-        }
-
-        return $this->text->record($run);
+        return $this->text->record($run, $this->used);
     }
 
     #[Override]
