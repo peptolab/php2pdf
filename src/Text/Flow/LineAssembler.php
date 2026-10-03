@@ -419,14 +419,11 @@ final class LineAssembler
         if (ItemKind::Glue !== $item->kind) {
             return [$glyphs, $item->width];
         }
-        $word = $spread->words[$index] ?? 0.0;
-        if (0.0 === $word) {
-            return [$glyphs, $item->width];
-        }
+        $word  = $spread->words[$index] ?? 0.0;
         $last  = count($glyphs) - 1;
         $glyph = $glyphs[$last] ?? null;
-        if (null === $glyph || $spread->last === $index) {
-            return self::justified($item, $index, $spread);
+        if (0.0 === $word || null === $glyph) {
+            return [$glyphs, $item->width];
         }
         $format        = $item->format;
         $toEm          = 1000.0 / (($format->horizontalScale / 100.0) * $format->size);

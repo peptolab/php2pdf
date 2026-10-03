@@ -96,9 +96,7 @@ final class Gpos
 
             return;
         }
-        if ($j >= $i) {
-            return;
-        }
+        // Marks attach to a glyph before them, so $j < $i here.
         $x = $p[2] + ($out[$j][2] ?? 0);
         $y = $p[3] + ($out[$j][3] ?? 0);
         for ($k = $j; $k < $i; ++$k) {
@@ -415,13 +413,11 @@ final class Gpos
      */
     private function single(int $offset, array $ids, GlyphPositions $positions, int $i): ?int
     {
-        $r      = $this->tables->reader;
-        $index  = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
+        $r = $this->tables->reader;
+        // subtablesAt() gives only the subtables whose coverage holds the glyph
+        $index  = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? 0;
         $format = $r->u16($offset + 4);
-        if (null === $index) {
-            return null;
-        }
-        $at = match ($r->u16($offset)) {
+        $at     = match ($r->u16($offset)) {
             1       => $offset + 6,
             2       => $index < $r->u16($offset + 6) ? $offset + 8 + ($index * self::valueSize($format)) : null,
             default => null,

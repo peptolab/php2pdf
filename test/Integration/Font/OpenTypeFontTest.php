@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Override;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
@@ -16,16 +17,26 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_keys;
+use function chmod;
+use function copy;
 use function file_get_contents;
+use function is_file;
+use function is_readable;
 use function max;
 use function pack;
+use function realpath;
 use function str_repeat;
 use function strlen;
+use function sys_get_temp_dir;
+use function tempnam;
+use function unlink;
 use function unpack;
 
 #[Group('integration')]
 final class OpenTypeFontTest extends TestCase
 {
+    private ?string $file = null;
+
     /** @return array<string, array{0: string, 1: string|null, 2: int}> */
     public static function missingPaletteColourProvider(): array
     {
@@ -135,6 +146,21 @@ final class OpenTypeFontTest extends TestCase
         $this->expectException(IoException::class);
         $this->expectExceptionMessage('Font file "/nonexistent/font.ttf" not found.');
         OpenTypeFont::fromFile('/nonexistent/font.ttf');
+    }
+
+    #[Test]
+    public function anUnreadableFontFileIsReported(): void
+    {
+        $this->file = (string) tempnam((string) realpath(sys_get_temp_dir()), prefix: 'php2pdf-font-');
+        copy(PdfTools::assetPath('fonts/DejaVuSans.ttf'), $this->file);
+        chmod($this->file, permissions: 0o000);
+        if (is_readable($this->file)) {
+            self::markTestSkipped('The file stays readable to this user (root ignores permissions).');
+        }
+
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage("Cannot read font file \"{$this->file}\".");
+        OpenTypeFont::fromFile($this->file);
     }
 
     #[Test]
@@ -267,5 +293,14 @@ final class OpenTypeFontTest extends TestCase
         }
         self::assertSame('', $subset->glyphData($font->glyphId(0x42)));
         self::assertSame(0, self::checksum($data), 'Whole-font checksum must come out as 0xB1B0AFBA.');
+    }
+
+    #[Override]
+    protected function tearDown(): void
+    {
+        if (null !== $this->file && is_file($this->file)) {
+            chmod($this->file, permissions: 0o600);
+            unlink($this->file);
+        }
     }
 }

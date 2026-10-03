@@ -432,10 +432,8 @@ final class Gsub
     {
         $r     = $this->tables->reader;
         $glyph = $glyphs->id($i) ?? -1;
-        $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$glyph] ?? null;
-        if (null === $index) {
-            return null;
-        }
+        // subtablesAt() gives only the subtables whose coverage holds the glyph
+        $index  = $this->tables->coverage($offset + $r->u16($offset + 2))[$glyph] ?? 0;
         $format = $r->u16($offset);
         if (1 === $format) {
             return self::replace($glyphs, $i, ($glyph + $r->i16($offset + 4)) & 0xFFFF);
