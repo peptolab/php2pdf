@@ -7,8 +7,10 @@ namespace Php2PdfTest\Unit\Font\OpenType;
 use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Font\OpenType\Gdef;
 use Php2Pdf\Font\OpenType\Gpos;
+use Php2PdfTest\TestAsset\Font\LayoutSubtableBuilder;
 use Php2PdfTest\TestAsset\GposBuilder;
 use Php2PdfTest\TestAsset\GsubBuilder;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -27,16 +29,47 @@ final class GposTest extends TestCase
 {
     private const array CLASSES = [10 => 2, 20 => 3, 21 => 3, 22 => 3];
 
+    /** @return array<string, array{0: list<array{0: int, 1: list<string>, 2?: bool, 3?: int}>}> */
+    public static function inapplicableProvider(): array
+    {
+        return [
+            'single, of an unknown format'                => [[[1, [LayoutSubtableBuilder::covered(3, [1], 0)]]]],
+            'single, listing fewer values than it covers' => [[[1, [LayoutSubtableBuilder::covered(2, [1], 0, 0)]]]],
+            'pair, of an unknown format'                  => [[[2, [LayoutSubtableBuilder::covered(3, [1], 0, 0, 0)]]]],
+            'pair, with a first class past its count'     => [
+                [[2, [LayoutSubtableBuilder::pairClasses([1], [1 => 1], [], count1: 1, count2: 1)]]],
+            ],
+            'single, on a mark the lookup passes over'    => [
+                [[1, [GposBuilder::single1([20], [50, 0, 0])], false, 0x0008]],
+            ],
+            'context, with a record past its input'       => [
+                [[8, [GsubBuilder::chain3([], [[1]], [], [[1, 1]])]], [1, [GposBuilder::single1([1], [0, 0, 100])]]],
+            ],
+            'a lookup of an unknown type'                 => [[[10, [GposBuilder::single1([1], [0, 0, 100])]]]],
+        ];
+    }
+
     /**
      * @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int, 4?: int}> $lookups
      * @param list<int|array{0: int, 1: list<int>, 2?: int, 3?: int}>       $glyphs
+     * @param list<int>|null                                                   $applied the lookups the feature applies,
+     *                                                                                  all of them by default
      *
      * @return list<array{0: int, 1: int, 2: int, 3: int}>
      */
-    private static function position(array $lookups, array $glyphs, string $script = 'latn'): array
-    {
+    private static function position(
+        array $lookups,
+        array $glyphs,
+        string $script = 'latn',
+        ?array $applied = null,
+    ): array {
         $gpos = new Gpos(
-            new BinaryReader(GsubBuilder::build('latn', ['test' => array_keys($lookups)], $lookups, extensionType: 9)),
+            new BinaryReader(GsubBuilder::build(
+                'latn',
+                ['test' => $applied ?? array_keys($lookups)],
+                $lookups,
+                extensionType: 9,
+            )),
             new Gdef(new BinaryReader(GsubBuilder::gdef(self::CLASSES))),
         );
         $entries  = [];
@@ -148,6 +181,17 @@ final class GposTest extends TestCase
         self::assertSame(
             [[600, 0, 0, 0], [500, 0, 0, 0], [500, 0, 0, 0]],
             $gpos->position([[1, [0x61]], [2, [0x62]], [1, [0x61]]], [500, 500, 500], ['test']),
+        );
+    }
+
+    /** @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int}> $lookups */
+    #[Test]
+    #[DataProvider('inapplicableProvider')]
+    public function lookupsThatDoNotApplyLeaveThePositions(array $lookups): void
+    {
+        self::assertSame(
+            [[500, 0, 0, 0], [0, 0, 0, 0], [500, 0, 0, 0]],
+            self::position($lookups, [1, 20, 2], applied: [0]),
         );
     }
 

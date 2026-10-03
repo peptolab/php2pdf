@@ -7,6 +7,7 @@ namespace Php2PdfTest\Unit\Font\OpenType;
 use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Font\OpenType\Gdef;
 use Php2Pdf\Font\OpenType\Gsub;
+use Php2PdfTest\TestAsset\Font\LayoutSubtableBuilder;
 use Php2PdfTest\TestAsset\GsubBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -42,6 +43,71 @@ final class GsubTest extends TestCase
             'a mark filtering set passes over other marks' => [0x0010, [1, 21, 2], [13, 21]],
             'a mark attachment class keeps its own marks'  => [0x0100, [1, 20, 2], [1, 20, 2]],
             'a mark attachment class passes over the rest' => [0x0100, [1, 21, 2], [13, 21]],
+        ];
+    }
+
+    /** @return array<string, array{0: list<array{0: int, 1: list<string>, 2?: bool, 3?: int}>, 1: list<int>}> */
+    public static function inapplicableProvider(): array
+    {
+        $toNumerator = [1, [GsubBuilder::single1([5], 200)]];
+
+        return [
+            'alternate, of an unknown format'                       => [
+                [[3, [LayoutSubtableBuilder::covered(2, [5], 0)]]],
+                [5, 9],
+            ],
+            'alternate, with no alternates'                         => [
+                [[3, [GsubBuilder::alternate([5 => []])]]],
+                [5, 9],
+            ],
+            'multiple, with no sequence for the glyph'              => [
+                [[2, [LayoutSubtableBuilder::covered(1, [5], 0)]]],
+                [5, 9],
+            ],
+            'single, listing fewer glyphs than it covers'           => [
+                [[1, [LayoutSubtableBuilder::covered(2, [5], 0)]]],
+                [5, 9],
+            ],
+            'single, on a mark the lookup passes over'              => [
+                [[1, [GsubBuilder::single1([20], 100)], false, 0x0008]],
+                [5, 20],
+            ],
+            'reverse chaining, of an unknown format'                => [
+                [[8, [LayoutSubtableBuilder::covered(2, [5])]]],
+                [5, 9],
+            ],
+            'reverse chaining, listing fewer glyphs than it covers' => [
+                [[8, [LayoutSubtableBuilder::covered(1, [5], 0, 0, 0)]]],
+                [5, 9],
+            ],
+            'reverse chaining, with nothing before the glyph'       => [
+                [[8, [GsubBuilder::reverse([5 => 55], [[9]], [])]]],
+                [5, 9],
+            ],
+            'reverse chaining, with the wrong glyph before it'      => [
+                [[8, [GsubBuilder::reverse([5 => 55], [[9]], [])]]],
+                [8, 5],
+            ],
+            'reverse chaining, with nothing after the glyph'        => [
+                [[8, [GsubBuilder::reverse([5 => 55], [], [[9]])]]],
+                [9, 5],
+            ],
+            'context, with a record past its input'                 => [
+                [[5, [GsubBuilder::context3([[5]], [[1, 1]])]], $toNumerator],
+                [5, 9],
+            ],
+            'context, calling a lookup that does not apply'         => [
+                [[5, [GsubBuilder::context3([[9]], [[0, 1]])]], $toNumerator],
+                [5, 9],
+            ],
+            'chained context, with no input'                        => [
+                [[6, [GsubBuilder::chain3([], [], [], [])]]],
+                [5, 9],
+            ],
+            'a lookup of an unknown type'                           => [
+                [[9, [GsubBuilder::single1([5], 100)]]],
+                [5, 9],
+            ],
         ];
     }
 
@@ -227,6 +293,14 @@ final class GsubTest extends TestCase
     }
 
     #[Test]
+    public function aReverseChainingRuleMatchesItsBacktrack(): void
+    {
+        $gsub = self::gsub(['rclt' => [0]], [[8, [GsubBuilder::reverse([5 => 55], [[9]], [])]]]);
+
+        self::assertSame([9, 55], self::ids($gsub->apply(self::glyphs([9, 5]), ['rclt'])));
+    }
+
+    #[Test]
     public function aScriptIsChosenByTag(): void
     {
         $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]], 'arab');
@@ -282,6 +356,19 @@ final class GsubTest extends TestCase
         ]);
 
         self::assertSame([20], self::ids($gsub->apply(self::glyphs([1, 1, 2]), ['liga'])));
+    }
+
+    /**
+     * @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int}> $lookups
+     * @param list<int>                                               $input
+     */
+    #[Test]
+    #[DataProvider('inapplicableProvider')]
+    public function lookupsThatDoNotApplyLeaveTheGlyphs(array $lookups, array $input): void
+    {
+        $gsub = self::gsub(['test' => [0]], $lookups);
+
+        self::assertSame($input, self::ids($gsub->apply(self::glyphs($input), ['test'])));
     }
 
     #[Test]
@@ -379,5 +466,13 @@ final class GsubTest extends TestCase
         );
 
         self::assertSame([101, 5], self::ids($gsub->apply(self::glyphs([1, 5]), [])));
+    }
+
+    #[Test]
+    public function theScriptsInTheTableAreKnownByTag(): void
+    {
+        $gsub = self::gsub(['liga' => [0]], [[4, [GsubBuilder::ligature(self::LIGATURES)]]], 'arab');
+
+        self::assertSame([true, false], [$gsub->hasScript('arab'), $gsub->hasScript('latn')]);
     }
 }

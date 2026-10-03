@@ -19,11 +19,13 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_map;
+use function array_reverse;
 
 /**
  * Runs in scripts the engine does not shape go to the document's complex shaper (#33). The stub
  * returns what hb-shape gives for Lao in DejaVu Sans: one glyph per character, the last two
- * characters (a consonant and its vowel sign) one cluster.
+ * characters (a consonant and its vowel sign) one cluster; set right to left, it gives the same
+ * glyphs in visual order, as hb-shape does.
  */
 #[Group('integration')]
 final class ExternalShaperTest extends TestCase
@@ -51,6 +53,17 @@ final class ExternalShaperTest extends TestCase
                 static fn(Glyph $g): array => [$g->id, $g->codePoint, $g->components],
                 $glyphs,
             ),
+        );
+    }
+
+    #[Test]
+    public function aRightToLeftRunComesBackFromTheShaperInVisualOrder(): void
+    {
+        $lao = "\u{0EAA}\u{0EB0}\u{0E9A}\u{0EB2}\u{0E8D}\u{0E94}\u{0EB5}";
+
+        self::assertSame(
+            array_reverse($this->ids($lao, TextDirection::LeftToRight)),
+            $this->ids($lao, TextDirection::RightToLeft),
         );
     }
 
@@ -94,6 +107,15 @@ final class ExternalShaperTest extends TestCase
         );
     }
 
+    /** @return list<int> */
+    private function ids(string $text, TextDirection $direction): array
+    {
+        return array_map(
+            static fn(Glyph $g): int => $g->id,
+            $this->shape($text, new TextOptions(direction: $direction)),
+        );
+    }
+
     /** @return list<Glyph> */
     private function shape(string $text, TextOptions $options): array
     {
@@ -122,6 +144,10 @@ final class ExternalShaperTest extends TestCase
                     [1578, 15, 1371, 0, 0, 0],
                     [1604, 15, 0,    0, 0, 4],
                 ];
+
+                if (TextDirection::RightToLeft === $direction) {
+                    return array_reverse($lao);
+                }
 
                 return (
                     "\u{0E94}\u{0EB5}" === $text

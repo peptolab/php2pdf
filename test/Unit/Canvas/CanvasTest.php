@@ -111,6 +111,14 @@ final class CanvasTest extends TestCase
     }
 
     #[Test]
+    public function closeAndStrokeClosesThePathAsItStrokes(): void
+    {
+        $this->canvas->moveTo(0, 0)->lineTo(10, 0)->lineTo(10, 10)->closeAndStroke();
+
+        self::assertSame("0 0 m\n10 0 l\n10 10 l\ns\n", $this->content());
+    }
+
+    #[Test]
     public function deduplicatesExtGStates(): void
     {
         $this->canvas->setOpacity(0.5)->setOpacity(0.5)->setBlendMode(BlendMode::Multiply)->enableOverprint();
@@ -120,6 +128,15 @@ final class CanvasTest extends TestCase
         self::assertSame(1, substr_count($pdf, needle: '/Type/ExtGState/ca 0.5/CA 0.5'));
         self::assertStringContainsString('/BM/Multiply', $pdf);
         self::assertStringContainsString('/op true/OP true/OPM 1', $pdf);
+    }
+
+    #[Test]
+    public function disablingOverprintTurnsItOffForFillAndStroke(): void
+    {
+        $this->canvas->disableOverprint();
+
+        self::assertSame("/GS1 gs\n", $this->content());
+        self::assertStringContainsString('/op false/OP false', $this->pdf());
     }
 
     #[Test]
@@ -225,6 +242,28 @@ final class CanvasTest extends TestCase
         self::assertSame(1, substr_count($pdf, needle: '[/Separation /PANTONE#20300#20C /DeviceCMYK <<'));
         self::assertStringContainsString('/C0[0 0 0 0]/C1[1 0.44 0 0]', $pdf);
         self::assertStringContainsString('/ColorSpace<</CS1 ', $pdf);
+    }
+
+    #[Test]
+    public function skewingConcatenatesASkewMatrix(): void
+    {
+        $this->canvas->skew(45.0, 0.0);
+
+        self::assertSame("1 1 0 1 0 0 cm\n", $this->content());
+    }
+
+    #[Test]
+    public function theCanvasKnowsItsPageHeight(): void
+    {
+        self::assertEqualsWithDelta(841.89, $this->canvas->height(), 0.01);
+    }
+
+    #[Test]
+    public function theCanvasResourcesNameWhatItUses(): void
+    {
+        $this->canvas->setOpacity(0.5);
+
+        self::assertTrue($this->canvas->resources()->toDictionary()->has('ExtGState'));
     }
 
     #[Test]

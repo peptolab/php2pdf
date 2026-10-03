@@ -17,6 +17,18 @@ use function mb_str_split;
 #[Group('unit')]
 final class ScriptRunsTest extends TestCase
 {
+    /** @return array<string, array{0: string, 1: string}> */
+    public static function isoProvider(): array
+    {
+        return [
+            'Lao'   => ['lao ', 'laoo'],
+            'Yi'    => ['yi  ', 'yiii'],
+            "N'Ko"  => ['nko ', 'nkoo'],
+            'Vai'   => ['vai ', 'vaii'],
+            'Greek' => ['grek', 'grek'],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: list<array{0: string, 1: int, 2: int}>}> */
     public static function textProvider(): array
     {
@@ -30,6 +42,13 @@ final class ScriptRunsTest extends TestCase
             'kana tags'                                  => ['かな', [['kana', 0, 2]]],
             'an empty text'                              => ['', [['latn', 0, 0]]],
         ];
+    }
+
+    #[Test]
+    #[DataProvider('isoProvider')]
+    public function aScriptTagGivesItsIsoCode(string $tag, string $iso): void
+    {
+        self::assertSame($iso, ScriptRuns::iso($tag));
     }
 
     /** @param list<array{0: string, 1: int, 2: int}> $expected */

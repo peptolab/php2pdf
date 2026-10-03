@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Unit\Canvas;
 
 use Override;
+use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Color\GradientStop;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\LinearGradient;
@@ -13,6 +14,7 @@ use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\Page;
+use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Font\CoreFont;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
@@ -40,6 +42,22 @@ final class CanvasTextTest extends TestCase
     private Document $doc;
     private Page $page;
     private CoreFont $helvetica;
+
+    #[Test]
+    public function aClippedTextlineIsClippedToItsBox(): void
+    {
+        $this->page
+            ->canvas()
+            ->fitTextline(
+                'Clipped',
+                $this->helvetica,
+                10.0,
+                new Box(10.0, 20.0, 15.0, 8.0),
+                new TextlineOptions(method: FitMethod::Clip),
+            );
+
+        self::assertStringContainsString("10 20 15 8 re\nW n\n", $this->content());
+    }
 
     #[Test]
     public function adjustmentsSplitTheStringIntoATjArray(): void
@@ -117,6 +135,14 @@ final class CanvasTextTest extends TestCase
     public function blackNeedsNoOperatorOnAFreshPage(): void
     {
         $this->page->canvas()->setFillColor(Gray::black());
+
+        self::assertSame('', $this->content());
+    }
+
+    #[Test]
+    public function emptyTextDrawsNothing(): void
+    {
+        $this->page->canvas()->drawText('', $this->helvetica, 10.0, 0.0, 0.0);
 
         self::assertSame('', $this->content());
     }

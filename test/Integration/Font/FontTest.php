@@ -14,9 +14,11 @@ use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\Font;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphCheck;
+use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
 use Php2Pdf\Font\ToUnicode;
+use Php2PdfTest\TestAsset\Font\SfntTables;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +26,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_map;
+use function file_get_contents;
+use function pack;
+use function substr_replace;
 
 #[Group('integration')]
 final class FontTest extends TestCase
@@ -110,6 +115,20 @@ final class FontTest extends TestCase
         $unkerned = $this->font->shape('AV', new TextOptions(kerning: false));
 
         self::assertNotEquals($kerned->width(), $unkerned->width());
+    }
+
+    #[Test]
+    public function lineGapScalesWithTheSize(): void
+    {
+        $data = (string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $hhea = (string) OpenTypeFont::fromData($data)->table('hhea');
+        $font = $this->doc
+            ->fonts()
+            ->embed(OpenTypeFont::fromData(SfntTables::replace($data, [
+                'hhea' => substr_replace($hhea, pack('n', 1024), offset: 8, length: 2),
+            ])));
+
+        self::assertSame(5.0, $font->lineGap(10.0));
     }
 
     #[Test]

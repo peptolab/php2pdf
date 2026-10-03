@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
+use Php2PdfTest\TestAsset\Font\SfntTables;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -14,7 +16,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_keys;
+use function file_get_contents;
 use function max;
+use function pack;
 use function str_repeat;
 use function strlen;
 use function unpack;
@@ -22,6 +26,20 @@ use function unpack;
 #[Group('integration')]
 final class OpenTypeFontTest extends TestCase
 {
+    /** @return array<string, array{0: string, 1: string|null, 2: int}> */
+    public static function missingPaletteColourProvider(): array
+    {
+        return [
+            'a font without a palette'         => ['DejaVuSans.ttf', null, 0],
+            'an index beyond the palette'      => ['PhpPdfColourTest.ttf', null, 2],
+            'a colour record beyond the table' => [
+                'PhpPdfColourTest.ttf',
+                pack('nnnnNn', 0, 3, 1, 3, 100, 0),
+                0,
+            ],
+        ];
+    }
+
     /** @return array<string, array{0: int, 1: int}> */
     public static function sideBearingProvider(): array
     {
@@ -49,6 +67,83 @@ final class OpenTypeFontTest extends TestCase
     private static function dejaVu(): OpenTypeFont
     {
         return OpenTypeFont::fromFile(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+    }
+
+    /**
+     * A font parsed afresh rather than taken from the cache {@see OpenTypeFont::fromFile()}
+     * shares, so what it reads lazily is read in the test.
+     *
+     * @param array<string, string|null> $tables table tag => new bytes, or null to drop the table
+     */
+    private static function parsed(string $asset, array $tables = []): OpenTypeFont
+    {
+        $data = (string) file_get_contents(PdfTools::assetPath("fonts/{$asset}"));
+
+        return OpenTypeFont::fromData([] === $tables ? $data : SfntTables::replace($data, $tables));
+    }
+
+    #[Test]
+    public function aBaseGlyphRecordCutShortByTheTableEndIsIgnored(): void
+    {
+        $colr = pack('nnNNn', 0, 2, 14, 20, 1) . pack('nnn', 5, 0, 1) . pack('nn', 7, 0);
+
+        self::assertSame([[7, 0]], self::parsed('PhpPdfColourTest.ttf', ['COLR' => $colr])->colourLayers(5));
+    }
+
+    #[Test]
+    public function aCffFontHasNoTrueTypeGlyphData(): void
+    {
+        self::assertSame('', self::parsed('SourceSans3-Regular.otf')->glyphData(1));
+    }
+
+    #[Test]
+    public function aColourGlyphHasItsLayersInTheirOrder(): void
+    {
+        self::assertSame([[5, 0], [4, 1], [2, 0xFFFF]], self::parsed('PhpPdfColourTest.ttf')->colourLayers(2));
+    }
+
+    #[Test]
+    public function aCompositeGlyphCutShortKeepsTheComponentsBeforeTheCut(): void
+    {
+        $composite = pack('nnnnn', 0xFFFF, 0, 0, 100, 100) . pack('nnCC', 0x0020, 3, 0, 0) . pack('n', 0x0001);
+        $font      = self::parsed('DejaVuSans.ttf', ['glyf' => $composite, 'loca' => pack('NNN', 0, 0, 18)]);
+
+        self::assertSame([3], $font->componentGlyphs(1));
+    }
+
+    #[Test]
+    public function aFontWithoutAFullNameIsNamedAfterItsFamilyAndSubfamily(): void
+    {
+        self::assertSame('PhpPdf Cursive Test Regular', self::parsed('PhpPdfCursiveTest.ttf')->fullName());
+    }
+
+    #[Test]
+    public function aFontWithoutAPostScriptNameTakesItsFamilyNameWithoutSpaces(): void
+    {
+        self::assertSame('PhpPdfCursiveTest', self::parsed('PhpPdfCursiveTest.ttf')->postScriptName());
+    }
+
+    #[Test]
+    public function aFontWithoutNamesIsCalledFont(): void
+    {
+        self::assertSame('Font', self::parsed('DejaVuSans.ttf', ['name' => null])->postScriptName());
+    }
+
+    #[Test]
+    public function aMissingFontFileIsReported(): void
+    {
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage('Font file "/nonexistent/font.ttf" not found.');
+        OpenTypeFont::fromFile('/nonexistent/font.ttf');
+    }
+
+    #[Test]
+    #[DataProvider('missingPaletteColourProvider')]
+    public function aPaletteColourTheFontCannotGiveIsNull(string $asset, ?string $cpal, int $index): void
+    {
+        $font = self::parsed($asset, null === $cpal ? [] : ['CPAL' => $cpal]);
+
+        self::assertNull($font->paletteColour($index));
     }
 
     #[Test]

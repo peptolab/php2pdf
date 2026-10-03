@@ -120,6 +120,17 @@ final class TextOperatorsTest extends TestCase
         ];
     }
 
+    #[Test]
+    public function actualTextLeavesOutGlyphsThatStandForNoText(): void
+    {
+        $run = new GlyphRun([new Glyph(3, -1, 0), new Glyph(65, 65, 667)]);
+
+        self::assertSame(
+            '/Span <</ActualText (A)>> BDC (A) Tj EMC',
+            TextOperators::actualText($run, TextOptions::default(), '(A) Tj'),
+        );
+    }
+
     /**
      * Tracking, word spacing and offsets together, twice over so the second time reads the
      * remembered glyph codes and adjustments.
