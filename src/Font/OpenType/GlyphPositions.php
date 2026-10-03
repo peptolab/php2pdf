@@ -22,6 +22,21 @@ final class GlyphPositions
         private array $positions,
     ) {}
 
+    /**
+     * Adds to a glyph's x and y advance and offset in place; nothing for a position out of range.
+     */
+    public function add(int $i, int $xAdvance, int $yAdvance, int $xOffset, int $yOffset): void
+    {
+        if (null === ($this->positions[$i] ?? null)) {
+            return;
+        }
+        $p    = &$this->positions[$i];
+        $p[0] += $xAdvance;
+        $p[1] += $yAdvance;
+        $p[2] += $xOffset;
+        $p[3] += $yOffset;
+    }
+
     /** @return list<Position> */
     public function all(): array
     {

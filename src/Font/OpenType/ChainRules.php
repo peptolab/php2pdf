@@ -18,14 +18,53 @@ use function max;
  *
  * @internal
  */
-final readonly class ChainRules
+final class ChainRules
 {
     private const int BACKTRACK = 0;
     private const int INPUT     = 1;
     private const int LOOKAHEAD = 2;
 
+    /**
+     * Format 2 subtables read so far, by offset: the backtrack, input and lookahead class
+     * definitions, where the rule set offsets start and how many there are.
+     *
+     * @var array<int, array{0: array{0: array<int, int>, 1: array<int, int>, 2: array<int, int>}, 1: int, 2: int}>
+     */
+    private array $classSubtables = [];
+
+    /**
+     * Format 3 chained subtables read so far, by offset: the backtrack, input and lookahead
+     * coverage offsets, and where the lookup record count is.
+     *
+     * @var array<int, array{0: list<int>, 1: list<int>, 2: list<int>, 3: int}>
+     */
+    private array $coverageSubtables = [];
+
+    /**
+     * Lookup records read so far, by where they start.
+     *
+     * @var array<int, list<array{0: int, 1: int}>>
+     */
+    private array $records = [];
+
+    /**
+     * Format 1 and 2 rules read so far, by offset: the backtrack, the input after the first
+     * glyph and the lookahead (empty for context rules), where the lookup records start and
+     * where their count is.
+     *
+     * @var array<int, array{0: list<int>, 1: list<int>, 2: list<int>, 3: int, 4: int}>
+     */
+    private array $rules = [];
+
+    /**
+     * Format 1 and 2 rule sets read so far, by offset: their rule offsets.
+     *
+     * @var array<int, list<int>>
+     */
+    private array $ruleSets = [];
+
     public function __construct(
-        private LayoutTables $tables,
+        private readonly LayoutTables $tables,
     ) {}
 
     /**
@@ -140,18 +179,10 @@ final readonly class ChainRules
      */
     private function chainFormat3(int $offset, array $ids, int $i, GlyphFilter $filter): ?array
     {
-        $r              = $this->tables->reader;
-        $at             = $offset + 2;
-        $backtrackCount = $r->u16($at);
-        $backtrack      = $r->u16List($at + 2, $backtrackCount);
-        $at             += 2 + (2 * $backtrackCount);
-        $inputCount     = $r->u16($at);
-        $input          = $r->u16List($at + 2, $inputCount);
-        $at             += 2 + (2 * $inputCount);
-        $lookaheadCount = $r->u16($at);
-        $lookahead      = $r->u16List($at + 2, $lookaheadCount);
-        $at             += 2 + (2 * $lookaheadCount);
-        $covered        = fn(int $coverage, ?int $position): bool => null !== $position
+        $this->coverageSubtables[$offset] ??= $this->readCoverageSubtable($offset);
+        [$backtrack, $input, $lookahead, $at] = $this->coverageSubtables[$offset];
+        $inputCount = count($input);
+        $covered    = fn(int $coverage, ?int $position): bool => null !== $position
         && array_key_exists(
             $ids[$position] ?? -1,
             $this->tables->coverage($offset + $coverage),
@@ -182,7 +213,7 @@ final readonly class ChainRules
             $p ??= 0;
         }
 
-        return [$positions, $this->tables->lookupRecords($at + 2, $r->u16($at))];
+        return [$positions, $this->records($at + 2, $at)];
     }
 
     /**
@@ -228,7 +259,7 @@ final readonly class ChainRules
             return null;
         }
         $set = $offset + $r->u16($offset + 6 + (2 * $index));
-        foreach ($r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
+        foreach ($this->ruleSets[$set] ??= $r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
             $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, null, $type);
             if (null !== $rule) {
                 return $rule;
@@ -253,25 +284,10 @@ final readonly class ChainRules
         if (null === ($this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null)) {
             return null;
         }
-        [$classes, $sets] = $this->tables->chainType === $type
-            ? [
-                [
-                    $this->tables->classDef($offset + $r->u16($offset + 4)),
-                    $this->tables->classDef($offset + $r->u16($offset + 6)),
-                    $this->tables->classDef($offset + $r->u16($offset + 8)),
-                ],
-                $offset + 10,
-            ]
-            : [
-                [
-                    $this->tables->classDef($offset + $r->u16($offset + 4)),
-                    $this->tables->classDef($offset + $r->u16($offset + 4)),
-                    $this->tables->classDef($offset + $r->u16($offset + 4)),
-                ],
-                $offset + 6,
-            ];
+        $this->classSubtables[$offset] ??= $this->readClassSubtable($offset, $type);
+        [$classes, $sets, $setCount] = $this->classSubtables[$offset];
         $class = $classes[self::INPUT][$ids[$i] ?? -1] ?? 0;
-        if ($class >= $r->u16($sets)) {
+        if ($class >= $setCount) {
             return null;
         }
         $setOffset = $r->u16($sets + 2 + (2 * $class));
@@ -279,7 +295,7 @@ final readonly class ChainRules
             return null;
         }
         $set = $offset + $setOffset;
-        foreach ($r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
+        foreach ($this->ruleSets[$set] ??= $r->u16List($set + 2, $r->u16($set)) as $ruleOffset) {
             $rule = $this->rule($set + $ruleOffset, $ids, $i, $filter, $classes, $type);
             if (null !== $rule) {
                 return $rule;
@@ -314,6 +330,99 @@ final readonly class ChainRules
     }
 
     /**
+     * A format 2 subtable's class definitions (a context subtable's one, for all three parts),
+     * where its rule set offsets start and how many there are.
+     *
+     * @return array{0: array{0: array<int, int>, 1: array<int, int>, 2: array<int, int>}, 1: int, 2: int}
+     *
+     * @throws ParseException
+     */
+    private function readClassSubtable(int $offset, int $type): array
+    {
+        $r = $this->tables->reader;
+        if ($this->tables->chainType !== $type) {
+            $classDef = $this->tables->classDef($offset + $r->u16($offset + 4));
+            $sets     = $offset + 6;
+
+            return [[$classDef, $classDef, $classDef], $sets, $r->u16($sets)];
+        }
+        $classes = [
+            $this->tables->classDef($offset + $r->u16($offset + 4)),
+            $this->tables->classDef($offset + $r->u16($offset + 6)),
+            $this->tables->classDef($offset + $r->u16($offset + 8)),
+        ];
+        $sets = $offset + 10;
+
+        return [$classes, $sets, $r->u16($sets)];
+    }
+
+    /**
+     * A format 3 chained subtable: the backtrack, input and lookahead coverage offsets, and where
+     * the lookup record count is.
+     *
+     * @return array{0: list<int>, 1: list<int>, 2: list<int>, 3: int}
+     *
+     * @throws ParseException
+     */
+    private function readCoverageSubtable(int $offset): array
+    {
+        $r              = $this->tables->reader;
+        $at             = $offset + 2;
+        $backtrackCount = $r->u16($at);
+        $backtrack      = $r->u16List($at + 2, $backtrackCount);
+        $at             += 2 + (2 * $backtrackCount);
+        $inputCount     = $r->u16($at);
+        $input          = $r->u16List($at + 2, $inputCount);
+        $at             += 2 + (2 * $inputCount);
+        $lookaheadCount = $r->u16($at);
+        $lookahead      = $r->u16List($at + 2, $lookaheadCount);
+        $at             += 2 + (2 * $lookaheadCount);
+
+        return [$backtrack, $input, $lookahead, $at];
+    }
+
+    /**
+     * A format 1 or 2 rule: the backtrack, the input after the first glyph and the lookahead
+     * (context rules have neither backtrack nor lookahead), where the lookup records start and
+     * where their count is. The records themselves are read when the rule first matches.
+     *
+     * @return array{0: list<int>, 1: list<int>, 2: list<int>, 3: int, 4: int}
+     *
+     * @throws ParseException
+     */
+    private function readRule(int $rule, int $type): array
+    {
+        $r = $this->tables->reader;
+        if ($this->tables->chainType !== $type) {
+            $inputCount = $r->u16($rule);
+            $input      = $r->u16List($rule + 4, max(0, $inputCount - 1));
+
+            return [[], $input, [], $rule + 4 + (2 * max(0, $inputCount - 1)), $rule + 2];
+        }
+        $backtrack  = $r->u16List($rule + 2, $r->u16($rule));
+        $at         = $rule + 2 + (2 * count($backtrack));
+        $inputCount = $r->u16($at);
+        $input      = $r->u16List($at + 2, max(0, $inputCount - 1));
+        $at         += 2 + (2 * max(0, $inputCount - 1));
+        $lookahead  = $r->u16List($at + 2, $r->u16($at));
+        $at         += 2 + (2 * count($lookahead));
+
+        return [$backtrack, $input, $lookahead, $at + 2, $at];
+    }
+
+    /**
+     * The lookup records starting at $at, their number read at $countAt; read once.
+     *
+     * @return list<array{0: int, 1: int}>
+     *
+     * @throws ParseException
+     */
+    private function records(int $at, int $countAt): array
+    {
+        return $this->records[$at] ??= $this->tables->lookupRecords($at, $this->tables->reader->u16($countAt));
+    }
+
+    /**
      * A format 1 or 2 rule matched at $i: by glyph, or by class through the class definitions.
      * Chained rules have backtrack and lookahead sequences around the input; context rules have
      * the input alone.
@@ -327,25 +436,12 @@ final readonly class ChainRules
      */
     private function rule(int $rule, array $ids, int $i, GlyphFilter $filter, ?array $classes, int $type): ?array
     {
-        $r = $this->tables->reader;
+        $this->rules[$rule] ??= $this->readRule($rule, $type);
+        [$backtrack, $input, $lookahead, $records, $recordCount] = $this->rules[$rule];
+        $positions = $this->input($ids, $i, $filter, $classes, $input);
         if ($this->tables->chainType !== $type) {
-            $inputCount = $r->u16($rule);
-            $input      = $r->u16List($rule + 4, max(0, $inputCount - 1));
-            $records    = $rule + 4 + (2 * max(0, $inputCount - 1));
-            $positions  = $this->input($ids, $i, $filter, $classes, $input);
-
-            return (
-                null === $positions ? null : [$positions, $this->tables->lookupRecords($records, $r->u16($rule + 2))]
-            );
+            return null === $positions ? null : [$positions, $this->records($records, $recordCount)];
         }
-        $backtrack  = $r->u16List($rule + 2, $r->u16($rule));
-        $at         = $rule + 2 + (2 * count($backtrack));
-        $inputCount = $r->u16($at);
-        $input      = $r->u16List($at + 2, max(0, $inputCount - 1));
-        $at         += 2 + (2 * max(0, $inputCount - 1));
-        $lookahead  = $r->u16List($at + 2, $r->u16($at));
-        $at         += 2 + (2 * count($lookahead));
-        $positions  = $this->input($ids, $i, $filter, $classes, $input);
         if (
             null === $positions
             || ! $this->around(
@@ -361,7 +457,7 @@ final readonly class ChainRules
             return null;
         }
 
-        return [$positions, $this->tables->lookupRecords($at + 2, $r->u16($at))];
+        return [$positions, $this->records($records, $recordCount)];
     }
 
     /**

@@ -8,6 +8,8 @@ use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\TextDirection;
 
+use function array_flip;
+use function array_intersect_key;
 use function array_key_exists;
 use function count;
 
@@ -59,15 +61,7 @@ final class Gpos
      */
     private static function adjust(GlyphPositions $positions, int $i, array $value): void
     {
-        $p = $positions->get($i);
-        $positions->set($i, [
-            $p[0] + $value[2],
-            $p[1] + $value[3],
-            $p[2] + $value[0],
-            $p[3] + $value[1],
-            $p[4],
-            $p[5],
-        ]);
+        $positions->add($i, $value[2], $value[3], $value[0], $value[1]);
     }
 
     /**
@@ -162,16 +156,25 @@ final class Gpos
             $initial[] = [$advances[$k] ?? 0, 0, 0, 0, 0, 0];
         }
         $positions = new GlyphPositions($initial);
+        $present   = array_flip($ids);
         foreach ($this->tables->lookupsFor($features, $script, $language) as $lookup) {
+            // A lookup none of whose starting glyphs is in the sequence cannot apply.
+            if ([] === array_intersect_key($present, $this->tables->startGlyphs($lookup))) {
+                continue;
+            }
             $this->applyLookup($lookup, $glyphs, $ids, $positions, $direction);
         }
-        $out = [];
-        foreach ($positions->all() as $k => [$xAdvance, $yAdvance, $xOffset, $yOffset]) {
-            $mark  = $this->gdef->isMark($ids[$k] ?? 0);
-            $out[] = [$mark ? 0 : $xAdvance, $mark ? 0 : $yAdvance, $xOffset, $yOffset];
+        $out      = [];
+        $attached = false;
+        foreach ($positions->all() as $k => [$xAdvance, $yAdvance, $xOffset, $yOffset, $chain]) {
+            $mark     = $this->gdef->isMark($ids[$k] ?? 0);
+            $out[]    = [$mark ? 0 : $xAdvance, $mark ? 0 : $yAdvance, $xOffset, $yOffset];
+            $attached = $attached || 0 !== $chain;
         }
 
-        return $this->propagate($out, $positions->all(), $direction);
+        // Propagation moves only glyphs attached to another (a non-zero chain); with none, it
+        // would leave every offset as it is.
+        return $attached ? $this->propagate($out, $positions->all(), $direction) : $out;
     }
 
     /**
@@ -227,11 +230,13 @@ final class Gpos
         GlyphPositions $positions,
         TextDirection $direction,
     ): void {
+        // Every value of $starts is a non-empty list, so a null lookup means the glyph starts no
+        // rule, as array_key_exists() would say.
         $starts = $this->tables->startGlyphs($lookup);
         $i      = 0;
         $count  = count($ids);
         while ($i < $count) {
-            if (! array_key_exists($ids[$i] ?? -1, $starts)) {
+            if (null === ($starts[$ids[$i] ?? -1] ?? null)) {
                 ++$i;
                 continue;
             }

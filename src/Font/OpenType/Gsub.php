@@ -9,6 +9,8 @@ use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\ArabicJoining;
 
 use function array_column;
+use function array_flip;
+use function array_intersect_key;
 use function array_key_exists;
 use function array_map;
 use function array_slice;
@@ -206,21 +208,35 @@ final class Gsub
         if ([] === $starts) {
             return;
         }
-        if (in_array(8, array_column($this->tables->subtables($lookup), column_key: 0), strict: true)) {
-            for ($i = $glyphs->count() - 1; $i >= 0; --$i) {
-                if (! array_key_exists($glyphs->id($i) ?? -1, $starts)) {
-                    continue;
-                }
-                $this->applyAt($lookup, $glyphs, $i, depth: 0);
-            }
+        // The loops read the ids from a local copy of the buffer's array: every value of $starts
+        // is a non-empty list, so a null lookup means the glyph starts no rule. The copy is let go
+        // before each applyAt(), so a change to the buffer never duplicates its array, and taken
+        // again after. A lookup none of whose starting glyphs is in the sequence is passed over.
+        $ids = $glyphs->ids();
+        if ([] === array_intersect_key(array_flip($ids), $starts)) {
             $glyphs->compact();
 
             return;
         }
-        $i = 0;
-        while ($i < $glyphs->count()) {
+        if (in_array(8, array_column($this->tables->subtables($lookup), column_key: 0), strict: true)) {
+            for ($i = count($ids) - 1; $i >= 0; --$i) {
+                if (null === ($starts[$ids[$i] ?? -1] ?? null)) {
+                    continue;
+                }
+                unset($ids);
+                $this->applyAt($lookup, $glyphs, $i, depth: 0);
+                $ids = $glyphs->ids();
+            }
+            unset($ids);
+            $glyphs->compact();
+
+            return;
+        }
+        $i     = 0;
+        $count = count($ids);
+        while ($i < $count) {
             if (
-                ! array_key_exists($glyphs->id($i) ?? -1, $starts)
+                null === ($starts[$ids[$i] ?? -1] ?? null)
                 || (
                     null !== $form
                     && $form !== ($glyphs->entry($i)[4] ?? '')
@@ -229,8 +245,12 @@ final class Gsub
                 ++$i;
                 continue;
             }
-            $i = $this->applyAt($lookup, $glyphs, $i, depth: 0) ?? ($i + 1);
+            unset($ids);
+            $i     = $this->applyAt($lookup, $glyphs, $i, depth: 0) ?? ($i + 1);
+            $ids   = $glyphs->ids();
+            $count = count($ids);
         }
+        unset($ids);
         $glyphs->compact();
     }
 
