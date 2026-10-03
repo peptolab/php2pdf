@@ -109,6 +109,33 @@ final class ItemiserTest extends TestCase
     }
 
     #[Test]
+    public function identicalItemsAreSharedAndItemsThatDifferAreNot(): void
+    {
+        $items = $this->itemise('a a a so so Teams');
+
+        self::assertSame(
+            ['a', ' ', 'a', ' ', 'a', ' ', 'so', ' ', 'so', ' ', 'Teams'],
+            array_map(static fn(Item $item): string => $item->text, $items),
+        );
+        self::assertSame($items[1] ?? null, $items[3] ?? null, 'Word spaces kerned alike are one item.');
+        self::assertSame($items[0] ?? null, $items[2] ?? null, 'Words shaped alike are one item.');
+        self::assertSame($items[6] ?? null, $items[8] ?? null);
+        self::assertNotSame($items[7] ?? null, $items[9] ?? null, 'The space before Teams kerns towards it.');
+        self::assertSame(
+            [0.0, -20.0],
+            [
+                (($items[7] ?? null)?->run?->glyphs[0] ?? null)?->kerning,
+                (($items[9] ?? null)?->run?->glyphs[0] ?? null)?->kerning,
+            ],
+        );
+        self::assertEquals(
+            $this->itemise('a '),
+            [$items[4] ?? null, $items[5] ?? null],
+            'Sharing leaves every item as it was.',
+        );
+    }
+
+    #[Test]
     public function itemsKeepTheKerningOfTheWholeText(): void
     {
         $text  = 'Precision placement. TrueType and OpenType Templates';

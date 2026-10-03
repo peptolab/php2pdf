@@ -17,7 +17,10 @@ use function count;
 use function implode;
 use function mb_str_split;
 use function mb_strlen;
+use function pack;
+use function spl_object_id;
 use function str_replace;
+use function strlen;
 
 /**
  * Splits styled text into boxes, glue and penalties: words, spaces, tabs, explicit breaks, soft
@@ -34,10 +37,22 @@ final class Itemiser
 {
     private readonly WordBreaks $breaks;
 
+    /** @var array<string, Item> items already made, by what they are made of; see pieceItems() */
+    private array $interned = [];
+
     /** @param array<string, Hyphenator> $hyphenators by language */
     public function __construct(array $hyphenators = [])
     {
         $this->breaks = new WordBreaks($hyphenators);
+    }
+
+    /**
+     * A plain glyph as part of a key, its kerning bit for bit. Its cluster is left out: it only
+     * places the glyph in the text being itemised, and items are cut after that is done.
+     */
+    private static function glyphKey(Glyph $glyph): string
+    {
+        return "\0{$glyph->id}:{$glyph->codePoint}:{$glyph->advance}:" . pack('e', $glyph->kerning);
     }
 
     /**
@@ -69,35 +84,10 @@ final class Itemiser
         return $runs;
     }
 
-    /**
-     * The items of one piece of a stretch: a run of word spaces as one glue, kerned like its last
-     * space towards the next word; otherwise a box, and the break after it.
-     *
-     * @param list<Glyph> $glyphs the piece's glyphs, in logical order
-     *
-     * @return list<Item>
-     */
-    private static function pieceItems(string $piece, ?string $after, array $glyphs, TextStyle $style): array
+    /** Whether a glyph is told apart from others by its id, code point, advance and kerning alone. */
+    private static function plain(Glyph $glyph): bool
     {
-        if (WordBreaks::GLUE === $after) {
-            $first = $glyphs[0] ?? null;
-            $last  = $glyphs[count($glyphs) - 1] ?? null;
-
-            return (
-                null === $first || null === $last
-                    ? []
-                    : [ItemFactory::cut(ItemKind::Glue, $style, ' ', [$first->withKerning($last->kerning)])]
-            );
-        }
-        $items = '' === $piece ? [] : [ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs)];
-        if (WordBreaks::HYPHEN === $after) {
-            $items[] = ItemFactory::penalty($glyphs, $style);
-        }
-        if (WordBreaks::BREAK === $after) {
-            $items[] = new Item(ItemKind::Penalty, $style);
-        }
-
-        return $items;
+        return [] === $glyph->components && 0.0 === $glyph->xOffset && 0.0 === $glyph->yOffset;
     }
 
     /**
@@ -118,7 +108,10 @@ final class Itemiser
                 $level  = $levels[$offset] ?? 0;
                 $offset += $length;
                 if ("\n" === $stretch || "\t" === $stretch) {
-                    $items[] = new Item("\n" === $stretch ? ItemKind::LineBreak : ItemKind::Tab, $style, level: $level);
+                    $kind                 = "\n" === $stretch ? ItemKind::LineBreak : ItemKind::Tab;
+                    $key                  = $kind->name . spl_object_id($style) . ":{$level}";
+                    $this->interned[$key] ??= new Item($kind, $style, level: $level);
+                    $items[]              = $this->interned[$key];
                     continue;
                 }
                 foreach (self::levelRuns($stretch, array_slice($levels, $offset - $length, $length)) as [
@@ -130,6 +123,74 @@ final class Itemiser
                     }
                 }
             }
+        }
+
+        return $items;
+    }
+
+    /**
+     * The box of a word, shared with every identical word before it.
+     *
+     * @param list<Glyph> $glyphs
+     */
+    private function box(string $piece, array $glyphs, TextStyle $style, int $level): Item
+    {
+        if (0 !== $level) {
+            return ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
+        }
+        $key = 'B' . spl_object_id($style) . ':' . strlen($piece) . ":{$piece}";
+        foreach ($glyphs as $glyph) {
+            if (! self::plain($glyph)) {
+                return ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
+            }
+            $key .= self::glyphKey($glyph);
+        }
+
+        return $this->interned[$key] ??= ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
+    }
+
+    /**
+     * The items of one piece of a stretch: a run of word spaces as one glue, kerned like its last
+     * space towards the next word; otherwise a box, and the break after it.
+     *
+     * Items are immutable and nothing tells them apart by identity, so identical ones are shared:
+     * a text's spaces, breaks and repeated words take memory once each, not once per occurrence.
+     * Glyphs with marks, ligature components or offsets, and right-to-left or embedded pieces,
+     * are left unshared.
+     *
+     * @param list<Glyph> $glyphs the piece's glyphs, in logical order
+     *
+     * @return list<Item>
+     */
+    private function pieceItems(string $piece, ?string $after, array $glyphs, TextStyle $style, int $level): array
+    {
+        if (WordBreaks::GLUE === $after) {
+            $first = $glyphs[0] ?? null;
+            $last  = $glyphs[count($glyphs) - 1] ?? null;
+            if (null === $first || null === $last) {
+                return [];
+            }
+            $glyph = $first->kerning === $last->kerning ? $first : $first->withKerning($last->kerning);
+            if (! self::plain($glyph)) {
+                return [ItemFactory::cut(ItemKind::Glue, $style, ' ', [$glyph])];
+            }
+            $key = 'G' . spl_object_id($style) . self::glyphKey($glyph);
+
+            return [$this->interned[$key] ??= ItemFactory::cut(ItemKind::Glue, $style, ' ', [$glyph])];
+        }
+        $items = '' === $piece ? [] : [$this->box($piece, $glyphs, $style, $level)];
+        if (WordBreaks::HYPHEN === $after) {
+            $last = $glyphs[count($glyphs) - 1] ?? null;
+            $key  = 'H'
+            . spl_object_id($style)
+            . (null === $last ? '' : "\0{$last->text()}" . pack('e', $last->kerning));
+            $this->interned[$key] ??= ItemFactory::penalty($glyphs, $style);
+            $items[]              = $this->interned[$key];
+        }
+        if (WordBreaks::BREAK === $after) {
+            $key                  = 'P' . spl_object_id($style);
+            $this->interned[$key] ??= new Item(ItemKind::Penalty, $style);
+            $items[]              = $this->interned[$key];
         }
 
         return $items;
@@ -207,7 +268,13 @@ final class Itemiser
                 $slice[] = $glyph;
                 ++$cursor;
             }
-            foreach (self::pieceItems($piece, $after, $rtl ? array_reverse($slice) : $slice, $style) as $item) {
+            foreach ($this->pieceItems(
+                $piece,
+                $after,
+                $rtl ? array_reverse($slice) : $slice,
+                $style,
+                $level,
+            ) as $item) {
                 $items[] = $item;
             }
         }
