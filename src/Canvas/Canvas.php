@@ -6,8 +6,11 @@ namespace Php2Pdf\Canvas;
 
 use Closure;
 use Php2Pdf\Color\AbstractGradient;
+use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Color\ColourPolicyInterface;
+use Php2Pdf\Color\Gray;
+use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
@@ -62,6 +65,9 @@ final class Canvas
         $this->stream = new ContentStream($height, $topDown, $inheritsState);
         $this->paint  = new Paint($objects, $resources, new ColourOperators($objects, $colour, $resources));
         $this->text   = new TextPainter($this->stream, $resources, $objects);
+        // A document that checks colour can change its output intent, and with it which device
+        // colours are allowed, so its colours are checked each time rather than remembered.
+        $this->remembersFill = ! $colour->checksColour();
     }
 
     /**
@@ -424,7 +430,7 @@ final class Canvas
 
     public function setFillColor(ColorInterface $color): self
     {
-        $operation = $this->paint->colour($color, self::FILL_OPS);
+        $operation = $this->fillOperation($color);
         if ($this->stream->changes('fill', $operation)) {
             $this->stream->append($operation);
         }
@@ -468,9 +474,31 @@ final class Canvas
         return $this;
     }
 
+    private function fillOperation(ColorInterface $color): string
+    {
+        if ($color === $this->lastFill) {
+            return $this->lastFillOp;
+        }
+        $operation = $this->paint->colour($color, self::FILL_OPS);
+        // Text sets the same colour object for each segment it draws. A device colour is
+        // immutable and registers no resources, so its operator can be used again as it is.
+        if ($this->remembersFill && ($color instanceof Gray || $color instanceof Rgb || $color instanceof Cmyk)) {
+            $this->lastFill   = $color;
+            $this->lastFillOp = $operation;
+        }
+
+        return $operation;
+    }
+
     private readonly ContentStream $stream;
     private readonly Paint $paint;
     private readonly TextPainter $text;
+    private readonly bool $remembersFill;
+
+    /** The last device colour setFillColor() was given, and its operator. */
+    private ?ColorInterface $lastFill = null;
+
+    private string $lastFillOp = '';
 
     private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
     private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];

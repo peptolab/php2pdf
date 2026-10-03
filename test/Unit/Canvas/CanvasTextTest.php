@@ -122,6 +122,24 @@ final class CanvasTextTest extends TestCase
     }
 
     #[Test]
+    public function equalOptionsInAnotherObjectWriteNoTextState(): void
+    {
+        $this->page
+            ->canvas()
+            ->drawText('a', $this->helvetica, 10.0, 0.0, 0.0, new TextOptions(horizontalScale: 90.0))
+            ->drawText('b', $this->helvetica, 10.0, 0.0, 20.0, new TextOptions(horizontalScale: 90.0))
+            ->drawText('c', $this->helvetica, 10.0, 0.0, 40.0, new TextOptions(
+                horizontalScale: 80.0,
+                rise: 1.0,
+            ));
+
+        self::assertSame(
+            "BT /F1 10 Tf 90 Tz 0 0 Td (a) Tj ET\nBT 0 20 Td (b) Tj ET\nBT 80 Tz 1 Ts 0 40 Td (c) Tj ET\n",
+            $this->content(),
+        );
+    }
+
+    #[Test]
     public function rawSyntaxMakesTheTextStateUnknown(): void
     {
         $this->page
@@ -131,6 +149,45 @@ final class CanvasTextTest extends TestCase
             ->drawText('b', $this->helvetica, 10.0, 0.0, 20.0);
 
         self::assertStringEndsWith("2 Tc\nBT /F1 10 Tf 0 Tc 100 Tz 0 Ts 0 Tr 0 20 Td (b) Tj ET\n", $this->content());
+    }
+
+    #[Test]
+    public function restoreBringsBackTheSavedFillColour(): void
+    {
+        $grey = new Gray(0.5);
+        $this->page
+            ->canvas()
+            ->setFillColor($grey)
+            ->save()
+            ->setFillColor(Gray::black())
+            ->restore()
+            ->setFillColor($grey)
+            ->setFillColor(Gray::black())
+            ->setFillColor($grey)
+            ->raw('1 g')
+            ->setFillColor($grey);
+
+        self::assertSame("0.5 g\nq\n0 g\nQ\n0 g\n0.5 g\n1 g\n0.5 g\n", $this->content());
+    }
+
+    #[Test]
+    public function restoreBringsBackTheSavedFontSize(): void
+    {
+        $this->page
+            ->canvas()
+            ->drawText('a', $this->helvetica, 10.0, 0.0, 0.0)
+            ->save()
+            ->drawText('b', $this->helvetica, 12.0, 0.0, 20.0)
+            ->restore()
+            ->drawText('c', $this->helvetica, 10.0, 0.0, 40.0)
+            ->drawText('d', $this->helvetica, 12.0, 0.0, 60.0);
+
+        self::assertSame(
+            "BT /F1 10 Tf 0 0 Td (a) Tj ET\nq\nBT /F1 12 Tf 0 20 Td (b) Tj ET\nQ\n"
+                . "BT 0 40 Td (c) Tj ET\nBT /F1 12 Tf 0 60 Td (d) Tj ET\n",
+            $this->content(),
+            'Q brings back the 10 point Tf, so c needs none; the 12 point one must be written again for d.',
+        );
     }
 
     #[Test]

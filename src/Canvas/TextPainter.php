@@ -34,7 +34,7 @@ use function sprintf;
  *
  * @internal
  */
-final readonly class TextPainter
+final class TextPainter
 {
     /**
      * Begins content that stands for no text: colour glyph layers, drawn over a base glyph that
@@ -42,10 +42,26 @@ final readonly class TextPainter
      */
     private const string NO_TEXT = '/Span <</ActualText ()>> BDC';
 
+    /**
+     * The last text state show() wrote out as operators, kept so each run does not format them
+     * again: the Tf operator for $lastFont at $lastSize, and the Tc, Tz, Ts and Tr operators for
+     * $lastOptions. The stream still decides what is written; these are only its inputs.
+     */
+    private ?PdfFontInterface $lastFont = null;
+
+    private ?float $lastSize = null;
+
+    private string $lastTf = '';
+
+    private ?TextOptions $lastOptions = null;
+
+    /** @var array{Tc: string, Tz: string, Ts: string, Tr: string} */
+    private array $lastRest = ['Tc' => '', 'Tz' => '', 'Ts' => '', 'Tr' => ''];
+
     public function __construct(
-        private ContentStream $stream,
-        private Resources $resources,
-        private Objects $objects,
+        private readonly ContentStream $stream,
+        private readonly Resources $resources,
+        private readonly Objects $objects,
     ) {}
 
     /** Fits a line of text into a box, positioned, rotated, scaled or shrunk as the options say. */
@@ -182,13 +198,7 @@ final readonly class TextPainter
         $this->objects->assertOwns($font->objects(), 'A font');
         $faithful = $font->markUsed($run);
         $ops      = 'BT';
-        $state    = [
-            'Tf' => "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf',
-            'Tc' => Num::format($options->charSpacing) . ' Tc',
-            'Tz' => Num::format($options->horizontalScale) . ' Tz',
-            'Ts' => Num::format($options->rise) . ' Ts',
-            'Tr' => "{$options->renderMode->value} Tr",
-        ];
+        $state    = $this->textState($font, $size, $options);
         foreach ($state as $key => $operation) {
             if (! $this->stream->changes($key, $operation)) {
                 continue;
@@ -204,5 +214,44 @@ final readonly class TextPainter
             . TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr')
             . ' ET';
         $this->stream->append($faithful ? $text : TextOperators::actualText($run, $options, $text));
+    }
+
+    /**
+     * The text state operators for a run, by operator.
+     *
+     * @return array{Tf: string, Tc: string, Tz: string, Ts: string, Tr: string}
+     */
+    private function textState(PdfFontInterface $font, float $size, TextOptions $options): array
+    {
+        // A font keeps its reference, and the resources keep the name they gave it, so the Tf
+        // operator only changes with the font or the size.
+        if ($font !== $this->lastFont || $size !== $this->lastSize) {
+            $this->lastFont = $font;
+            $this->lastSize = $size;
+            $this->lastTf   = "/{$this->resources->font($font->reference())} " . Num::format($size) . ' Tf';
+        }
+        // Lines mostly share one options object; a scaled segment brings a new one that usually
+        // carries the same values, so those are compared too.
+        $last = $this->lastOptions;
+        if (
+            $options !== $last
+            && (
+                null === $last
+                || $options->charSpacing !== $last->charSpacing
+                || $options->horizontalScale !== $last->horizontalScale
+                || $options->rise !== $last->rise
+                || $options->renderMode !== $last->renderMode
+            )
+        ) {
+            $this->lastOptions = $options;
+            $this->lastRest    = [
+                'Tc' => Num::format($options->charSpacing) . ' Tc',
+                'Tz' => Num::format($options->horizontalScale) . ' Tz',
+                'Ts' => Num::format($options->rise) . ' Ts',
+                'Tr' => "{$options->renderMode->value} Tr",
+            ];
+        }
+
+        return ['Tf' => $this->lastTf] + $this->lastRest;
     }
 }
