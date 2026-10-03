@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Image;
 
+use Override;
 use Php2Pdf\Core\Filter\Flate;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageReader;
@@ -15,7 +17,9 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function abs;
+use function chmod;
 use function chr;
+use function copy;
 use function extension_loaded;
 use function imagealphablending;
 use function imagecolorallocatealpha;
@@ -25,16 +29,24 @@ use function imagepng;
 use function imagesavealpha;
 use function imagesetpixel;
 use function intdiv;
+use function is_file;
+use function is_readable;
 use function ob_get_clean;
 use function ob_start;
 use function ord;
+use function realpath;
 use function str_repeat;
 use function strlen;
 use function substr;
+use function sys_get_temp_dir;
+use function tempnam;
+use function unlink;
 
 #[Group('integration')]
 final class ImageReaderTest extends TestCase
 {
+    private ?string $file = null;
+
     /** @return array<string, array{0: int, 1: int}> */
     public static function interlaceSizeProvider(): array
     {
@@ -109,6 +121,29 @@ final class ImageReaderTest extends TestCase
         }
 
         return $out;
+    }
+
+    #[Test]
+    public function aMissingImageFileIsReported(): void
+    {
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage('Image file "/nonexistent/image.png" not found.');
+        ImageReader::readFile('/nonexistent/image.png');
+    }
+
+    #[Test]
+    public function anUnreadableImageFileIsReported(): void
+    {
+        $this->file = (string) tempnam((string) realpath(sys_get_temp_dir()), prefix: 'php2pdf-image-');
+        copy(PdfTools::assetPath('images/rgb8.png'), $this->file);
+        chmod($this->file, permissions: 0o000);
+        if (is_readable($this->file)) {
+            self::markTestSkipped('The file stays readable to this user (root ignores permissions).');
+        }
+
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage("Cannot read image file \"{$this->file}\".");
+        ImageReader::readFile($this->file);
     }
 
     #[Test]
@@ -235,5 +270,14 @@ final class ImageReaderTest extends TestCase
     {
         $this->expectException(PdfException::class);
         ImageReader::read("\xFF\xD8\xFF\xE0garbage");
+    }
+
+    #[Override]
+    protected function tearDown(): void
+    {
+        if (null !== $this->file && is_file($this->file)) {
+            chmod($this->file, permissions: 0o600);
+            unlink($this->file);
+        }
     }
 }

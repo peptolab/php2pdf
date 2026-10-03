@@ -48,14 +48,13 @@ final class ImageReader
     /** @throws IoException */
     public static function readFile(string $path, ?Limits $limits = null, ?ImageOptions $options = null): ImageData
     {
-        if (! is_file($path) || ! is_readable($path)) {
+        if (! is_file($path)) {
             throw new IoException(sprintf('Image file "%s" not found.', $path));
         }
-        $data = file_get_contents($path);
-        if (false === $data) {
+        if (! is_readable($path)) {
             throw new IoException(sprintf('Cannot read image file "%s".', $path));
         }
 
-        return self::read($data, $limits, $options, $path);
+        return self::read((string) file_get_contents($path), $limits, $options, $path);
     }
 }
