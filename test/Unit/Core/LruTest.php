@@ -23,6 +23,25 @@ final class LruTest extends TestCase
     }
 
     #[Test]
+    public function evictsAsManyOldEntriesAsAHeavyEntryNeeds(): void
+    {
+        $lru = new Lru(10, maxWeight: 100);
+        $lru->set('a', 1, 30);
+        $lru->set('b', 2, 30);
+        $lru->set('c', 3, 30);
+        $lru->set('heavy', 4, 70);
+
+        self::assertSame([null, null, 3, 4, 2, 100], [
+            $lru->get('a'),
+            $lru->get('b'),
+            $lru->get('c'),
+            $lru->get('heavy'),
+            $lru->count(),
+            $lru->weight(),
+        ]);
+    }
+
+    #[Test]
     public function evictsTheLeastRecentlyUsedEntryOverTheCount(): void
     {
         $lru = new Lru(2);

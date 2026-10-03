@@ -42,8 +42,18 @@ final class OpenTypeFont
     /** @var Lru<array{0: int, 1: self}>|null path#face => modification time and program */
     private static ?Lru $cache = null;
 
-    /** How many shaped runs a font keeps for reuse. */
+    /** How many shaped runs a font keeps for reuse... */
     private const int RUN_CACHE_ENTRIES = 10_000;
+
+    /**
+     * ...holding about this many bytes of glyphs. The keys are whole stretches of text (often
+     * paragraphs) and the cache outlives documents, so a count alone would let a long-running
+     * worker keep hundreds of MiB of runs that never repeat.
+     */
+    private const int RUN_CACHE_BYTES = 4 * 1024 * 1024;
+
+    /** Measured memory one cached glyph costs: its Glyph object and its slot in the run. */
+    private const int RUN_GLYPH_BYTES = 224;
 
     /** @var Lru<GlyphRun>|null shaping key => run, shared by every document using the font */
     private ?Lru $runs = null;
@@ -362,8 +372,13 @@ final class OpenTypeFont
      */
     public function keepShapedRun(string $key, GlyphRun $run): void
     {
-        $this->runs ??= new Lru(self::RUN_CACHE_ENTRIES);
-        $this->runs->set($key, $run);
+        $weight = strlen($key) + (self::RUN_GLYPH_BYTES * count($run->glyphs));
+        if ($weight > self::RUN_CACHE_BYTES) {
+            // Larger than the whole cache: keeping it would only evict every other run.
+            return;
+        }
+        $this->runs ??= new Lru(self::RUN_CACHE_ENTRIES, self::RUN_CACHE_BYTES);
+        $this->runs->set($key, $run, $weight);
     }
 
     /**

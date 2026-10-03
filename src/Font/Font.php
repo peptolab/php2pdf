@@ -17,6 +17,7 @@ use function array_filter;
 use function array_key_exists;
 use function array_values;
 use function count;
+use function hash;
 use function implode;
 use function max;
 use function mb_chr;
@@ -41,7 +42,7 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     private readonly Reference $reference;
 
-    /** @var array<string, true> the shaping keys of texts already checked in this document */
+    /** @var array<string, true> hashes of the shaping keys of texts already checked in this document */
     private array $checked = [];
 
     /** @var array<int, true> glyph ids used */
@@ -252,7 +253,9 @@ final class Font implements PdfFontInterface, DeferredInterface
         . ($options->kerning ? 'k' : '-')
         . implode(',', $features)
         . "|{$text}";
-        $first = ! array_key_exists($key, $this->checked);
+        // Remember a hash, not the key: keys hold whole stretches of text, often paragraphs.
+        $checkedKey = hash('xxh128', $key, binary: true);
+        $first      = ! array_key_exists($checkedKey, $this->checked);
         if ($first) {
             $this->checkScript($text);
         }
@@ -266,7 +269,7 @@ final class Font implements PdfFontInterface, DeferredInterface
             if (count($this->checked) >= self::CHECKED_TEXTS) {
                 $this->checked = [];
             }
-            $this->checked[$key] = true;
+            $this->checked[$checkedKey] = true;
             $this->reportMissing($run);
         }
 
