@@ -8,6 +8,8 @@ use function abs;
 use function array_reverse;
 use function min;
 
+use const INF;
+
 /**
  * Knuth and Plass's line breaking: chooses the breaks of a paragraph (up to its next forced
  * break) together, so that no line is much looser or tighter than the others, rather than filling
@@ -95,17 +97,30 @@ final class ParagraphComposer
      * The ends of the lines from $start to the paragraph's next forced break, or null when the
      * text needs the line-by-line breaker: it has a tab or a word wider than a line.
      *
+     * When it is for a tab or a word too wide, $obstacle is set to that item's index and $limit to
+     * the width the word was found wider than (INF for a tab): the same scan from any start up to
+     * $obstacle stops there too while its lines are no wider than $limit.
+     *
      * @param int $firstLine the number in the paragraph of the line starting at $start
      *
      * @return list<LineEnd>|null
      */
-    public static function breaks(Paragraph $paragraph, int $start, LineWidths $widths, int $firstLine): ?array
-    {
+    public static function breaks(
+        Paragraph $paragraph,
+        int $start,
+        LineWidths $widths,
+        int $firstLine,
+        ?int &$obstacle = null,
+        ?float &$limit = null,
+    ): ?array {
         $items  = $paragraph->items;
         $end    = $start;
         $widest = min($widths->available($firstLine), $widths->available($firstLine + 1));
         while (null !== ($item = $items[$end] ?? null) && ! $item->isForcedBreak()) {
             if (ItemKind::Tab === $item->kind || (ItemKind::Glue !== $item->kind && $item->width > $widest)) {
+                $obstacle = $end;
+                $limit    = ItemKind::Tab === $item->kind ? INF : $widest;
+
                 return null;
             }
             ++$end;

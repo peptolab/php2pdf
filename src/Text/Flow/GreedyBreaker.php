@@ -29,22 +29,29 @@ final class GreedyBreaker
         $lastBreak = -1;
         $tabs      = TabRuler::of($style);
         for ($i = $start; null !== ($item = $items[$i] ?? null); ++$i) {
-            if ($item->isForcedBreak()) {
+            // The commonest items first: a box that fits, then glue; the kind is read once.
+            $kind = $item->kind;
+            if (ItemKind::Box === $kind && ($x + $item->width) <= ($available + 1.0e-6)) {
+                $x += $item->width;
+                continue;
+            }
+            if (ItemKind::Glue === $kind) {
+                $lastBreak = $i;
+                $x         += $item->width;
+                continue;
+            }
+            // Item::isForcedBreak(), inlined.
+            if (ItemKind::LineBreak === $kind || ItemKind::ColumnBreak === $kind || ItemKind::PageBreak === $kind) {
                 return new LineEnd($i, null, true);
             }
-            if (ItemKind::Tab === $item->kind) {
+            if (ItemKind::Tab === $kind) {
                 $x = $tabs->target($x, $items, $i + 1);
                 continue;
             }
-            if (ItemKind::Penalty === $item->kind) {
+            if (ItemKind::Penalty === $kind) {
                 if (($x + $item->hyphenWidth) <= $available) {
                     $lastBreak = $i;
                 }
-                continue;
-            }
-            if (ItemKind::Glue === $item->kind) {
-                $lastBreak = $i;
-                $x         += $item->width;
                 continue;
             }
             if (($x + $item->width) <= ($available + 1.0e-6)) {

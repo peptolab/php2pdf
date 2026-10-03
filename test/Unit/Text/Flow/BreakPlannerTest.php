@@ -6,6 +6,7 @@ namespace Php2PdfTest\Unit\Text\Flow;
 
 use Override;
 use Php2Pdf\Text\Flow\BreakPlanner;
+use Php2Pdf\Text\Flow\GreedyBreaker;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\LineEnd;
@@ -18,6 +19,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+
+use function count;
 
 /**
  * The composer's plans for the words 9, 2, 2, 2 and 9 pt wide with 2 pt spaces: in 20 pt the
@@ -63,6 +66,21 @@ final class BreakPlannerTest extends TestCase
         ]);
     }
 
+    /** Two hundred words 2 to 6 pt wide, then one of 50 pt. */
+    private static function wideWordParagraph(): Paragraph
+    {
+        $style = new TextStyle(alignment: Alignment::Justify);
+        $glue  = new Item(ItemKind::Glue, $style, width: 2.0);
+        $items = [];
+        for ($i = 0; $i < 200; ++$i) {
+            $items[] = self::box((float) (2 + ($i % 5)));
+            $items[] = $glue;
+        }
+        $items[] = self::box(50.0);
+
+        return new Paragraph($style, $items);
+    }
+
     #[Test]
     public function aNewWidthPlansTheLinesAgain(): void
     {
@@ -70,6 +88,41 @@ final class BreakPlannerTest extends TestCase
         $this->lineEnd($paragraph, 0, 20.0, 0);
 
         self::assertSame(9, $this->lineEnd($paragraph, 0, 40.0, 0)?->index);
+    }
+
+    #[Test]
+    public function everyLineBeforeAWordWiderThanTheLinesIsLeftToTheLineBreaker(): void
+    {
+        $paragraph = self::wideWordParagraph();
+        $items     = $paragraph->items;
+        $widths    = new LineWidths(20.0, $paragraph->style);
+
+        // Each line is asked of a planner of its own and of the one planner for them all, which
+        // remembers the composer's failure from the first line.
+        $ends  = [];
+        $start = 0;
+        for ($line = 0; $start < 400; ++$line) {
+            $end = GreedyBreaker::lineEnd($items, $paragraph->style, $start, 20.0);
+            self::assertNull((new BreakPlanner())->lineEnd($paragraph, $start, $widths, $line));
+            self::assertNull($this->planner->lineEnd($paragraph, $start, $widths, $line));
+            $ends[] = $end->index;
+            $start  = $end->index;
+            while (ItemKind::Glue === ($items[$start] ?? null)?->kind) {
+                ++$start;
+            }
+        }
+
+        self::assertGreaterThan(20, count($ends));
+        self::assertSame(400, $start);
+    }
+
+    #[Test]
+    public function linesWideEnoughForTheWordArePlannedAfterAFailure(): void
+    {
+        $paragraph = self::wideWordParagraph();
+        $this->planner->lineEnd($paragraph, 0, new LineWidths(20.0, $paragraph->style), 0);
+
+        self::assertNotNull($this->planner->lineEnd($paragraph, 0, new LineWidths(60.0, $paragraph->style), 0));
     }
 
     #[Test]

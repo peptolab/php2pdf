@@ -9,6 +9,7 @@ use Php2Pdf\Text\Style\ParagraphFormat;
 use WeakMap;
 
 use function array_key_exists;
+use function min;
 
 /**
  * The paragraph composer's plans: for each paragraph, the breaks it chose, kept while the
@@ -24,9 +25,17 @@ final class BreakPlanner
     /** @var WeakMap<Paragraph, array{0: string, 1: array<int, LineEnd>}> widths, and line start => line end */
     private WeakMap $plans;
 
+    /**
+     * @var WeakMap<Paragraph, array{0: string, 1: int, 2: int, 3: float}> for the composer's last
+     *      failure on a paragraph: widths, the start it scanned from, the tab or word it stopped at,
+     *      and the line width that word was wider than (INF for a tab)
+     */
+    private WeakMap $failures;
+
     public function __construct()
     {
-        $this->plans = new WeakMap();
+        $this->plans    = new WeakMap();
+        $this->failures = new WeakMap();
     }
 
     /**
@@ -60,8 +69,17 @@ final class BreakPlanner
         $key  = $widths->key();
         $plan = $this->plans[$paragraph] ?? null;
         if (null === $plan || $key !== $plan[0] || ! array_key_exists($start, $plan[1])) {
-            $ends = ParagraphComposer::breaks($paragraph, $start, $widths, $lineNumber);
+            if ($this->failsAsBefore($paragraph, $start, $widths, $lineNumber, $key)) {
+                return null;
+            }
+            $obstacle = null;
+            $limit    = null;
+            $ends     = ParagraphComposer::breaks($paragraph, $start, $widths, $lineNumber, $obstacle, $limit);
             if (null === $ends) {
+                if (null !== $obstacle && null !== $limit) {
+                    $this->failures[$paragraph] = [$key, $start, $obstacle, $limit];
+                }
+
                 return null;
             }
             $plan = null === $plan || $key !== $plan[0] ? [$key, []] : $plan;
@@ -74,5 +92,31 @@ final class BreakPlanner
         }
 
         return $plan[1][$start] ?? null;
+    }
+
+    /**
+     * Whether the composer would fail from $start for the reason it last failed on the paragraph,
+     * so need not scan again. Its scan from the stored start passed every item before the
+     * obstacle (none a forced break or a tab), so a scan from any start up to the obstacle reaches
+     * it unless it stops earlier; and the obstacle stops it while the lines are no wider than they
+     * were then. Without this, each line of a paragraph with a word wider than its lines would
+     * scan again to that word, set line by line.
+     */
+    private function failsAsBefore(
+        Paragraph $paragraph,
+        int $start,
+        LineWidths $widths,
+        int $lineNumber,
+        string $key,
+    ): bool {
+        $failure = $this->failures[$paragraph] ?? null;
+
+        return (
+            null !== $failure
+                && $key === $failure[0]
+                && $start >= $failure[1]
+                && $start <= $failure[2]
+                && min($widths->available($lineNumber), $widths->available($lineNumber + 1)) <= $failure[3]
+        );
     }
 }
