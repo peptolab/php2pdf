@@ -143,6 +143,28 @@ final class LineAssemblerTest extends TestCase
     }
 
     #[Test]
+    public function aWordSpaceThatMayNotStretchLeavesTheSlackToTheOthers(): void
+    {
+        $rigid = $this->style->merge(new TextStyle(justification: new Justification(maxWordSpacing: 100.0)));
+        $items = (new Itemiser())->itemise([['aa ', $rigid], ['bb cc', $this->style]]);
+        $slack = 0.5 * $this->wordStretch();
+        $line  = LineAssembler::line(
+            $items,
+            null,
+            $this->style,
+            [Alignment::Justify, 0],
+            0.0,
+            $this->width() + $slack,
+            [0, 0],
+            false,
+        );
+        $natural = LineAssembler::line($items, null, $this->style, [Alignment::Left, 0], 0.0, 300.0, [0, 0], false);
+        $added   = self::added($line, $natural);
+
+        self::assertEqualsWithDelta([0.0, $slack * 100.0], [$added[2] ?? null, $added[5] ?? null], 1.0e-6);
+    }
+
+    #[Test]
     public function byDefaultOnlyWordSpacesChange(): void
     {
         $line = $this->justify(self::TEXT, $this->width() + 3.0, new Justification());

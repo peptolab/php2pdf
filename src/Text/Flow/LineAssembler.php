@@ -10,6 +10,7 @@ use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function abs;
+use function array_merge;
 use function array_pop;
 use function array_slice;
 use function count;
@@ -243,6 +244,10 @@ final class LineAssembler
         $tabs     = TabRuler::of($style);
         $x        = 0.0;
         $i        = 0;
+        // Most lines are not justified, and most justified lines change their word spaces only:
+        // their items' glyphs are taken as they are, or with only a word space's last glyph changed.
+        $wordsOnly = [] === $spread->letters;
+        $plain     = $wordsOnly && [] === $spread->words;
         while (null !== ($item = $items[$i] ?? null)) {
             if (ItemKind::Tab === $item->kind) {
                 $target = $tabs->target($x, $items, $i + 1);
@@ -265,20 +270,26 @@ final class LineAssembler
                 continue;
             }
             $runStyle = $item->style;
-            $glyphs   = [];
+            $lists    = [];
             $width    = 0.0;
             while (
                 null !== ($current = $items[$i] ?? null)
                 && $current->style === $runStyle
                 && null !== $current->run
             ) {
-                [$itemGlyphs, $itemWidth] = self::justified($current, $i, $spread);
-                foreach ($itemGlyphs as $glyph) {
-                    $glyphs[] = $glyph;
+                if ($plain) {
+                    $lists[] = $current->run->glyphs;
+                    $width   += $current->width;
+                    ++$i;
+                    continue;
                 }
+                [$lists[], $itemWidth] = $wordsOnly
+                    ? self::wordSpaced($current, $i, $spread)
+                    : self::justified($current, $i, $spread);
                 $width += $itemWidth;
                 ++$i;
             }
+            $glyphs = 1 === count($lists) ? $lists[0] : array_merge(...$lists);
             if ([] !== $glyphs) {
                 $segments[] = new Segment(
                     $x,
@@ -338,11 +349,17 @@ final class LineAssembler
                 $words[$k] = $item->spaceWidth() * ($stretching ? $format->stretch : $format->shrink);
                 $wordTotal += $words[$k];
             }
-            $count = $item->glyphCount();
+            $count = null === $item->run ? 0 : count($item->run->glyphs);
             if (0 === $count) {
                 continue;
             }
-            $gaps[$k]   = $stretching ? $item->letterStretch() : $item->letterShrink();
+            // As Item::letterStretch() and letterShrink(), asked of the item only when its style
+            // allows any letter spacing (most do not).
+            $letterFlex = $stretching ? $format->letterStretch : $format->letterShrink;
+            $gaps[$k]   = 0.0;
+            if (0.0 !== $letterFlex) {
+                $gaps[$k] = $stretching ? $item->letterStretch() : $item->letterShrink();
+            }
             $gapTotal   += $count * $gaps[$k];
             $last       = $k;
             $textWidth  += $item->width;
@@ -377,5 +394,34 @@ final class LineAssembler
         }
 
         return $items;
+    }
+
+    /**
+     * An item's glyphs and width on a line whose justification changes its word spaces only: as
+     * justified() gives them, without walking the glyphs. A word space's change goes on its last
+     * glyph; any other item is unchanged.
+     *
+     * @return array{0: list<Glyph>, 1: float} the glyphs, and the width before scaling
+     */
+    private static function wordSpaced(Item $item, int $index, LineSpread $spread): array
+    {
+        $glyphs = null === $item->run ? [] : $item->run->glyphs;
+        if (ItemKind::Glue !== $item->kind) {
+            return [$glyphs, $item->width];
+        }
+        $word = $spread->words[$index] ?? 0.0;
+        if (0.0 === $word) {
+            return [$glyphs, $item->width];
+        }
+        $last  = count($glyphs) - 1;
+        $glyph = $glyphs[$last] ?? null;
+        if (null === $glyph || $spread->last === $index) {
+            return self::justified($item, $index, $spread);
+        }
+        $format        = $item->format;
+        $toEm          = 1000.0 / (($format->horizontalScale / 100.0) * $format->size);
+        $glyphs[$last] = $glyph->withKerning($glyph->kerning + ($word * $toEm));
+
+        return [$glyphs, $item->width + $word];
     }
 }

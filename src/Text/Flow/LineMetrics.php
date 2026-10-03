@@ -6,6 +6,7 @@ namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
+use WeakMap;
 
 use function max;
 
@@ -16,6 +17,9 @@ use function max;
  */
 final class LineMetrics
 {
+    /** @var WeakMap<TextStyle, array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}>|null each paragraph style's own metrics */
+    private static ?WeakMap $bases = null;
+
     /**
      * The line's vertical metrics from every font and artwork on it. Artwork rising above the text
      * pushes the line down by the difference, as auto leading does.
@@ -26,16 +30,7 @@ final class LineMetrics
      */
     public static function of(array $items, TextStyle $style): array
     {
-        $font    = StyleResolver::fontOf($style);
-        $format  = CharFormat::of($style);
-        $size    = $format->size;
-        $metrics = [
-            'ascent'     => $font->ascender($size),
-            'descent'    => -$font->descender($size),
-            'capHeight'  => $font->capHeight($size),
-            'xHeight'    => $font->xHeight($size),
-            'lineHeight' => $format->lineHeight,
-        ];
+        $metrics   = self::base($style);
         $measured  = null;
         $artTop    = 0.0;
         $artBottom = 0.0;
@@ -64,5 +59,31 @@ final class LineMetrics
         $metrics['descent']    = max($metrics['descent'], $artBottom);
 
         return $metrics;
+    }
+
+    /**
+     * The metrics of the paragraph's own style, which every line starts from: worked out once for
+     * each style and kept while the style lives.
+     *
+     * @return array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}
+     */
+    private static function base(TextStyle $style): array
+    {
+        self::$bases ??= new WeakMap();
+        $metrics     = self::$bases[$style] ?? null;
+        if (null !== $metrics) {
+            return $metrics;
+        }
+        $font   = StyleResolver::fontOf($style);
+        $format = CharFormat::of($style);
+        $size   = $format->size;
+
+        return self::$bases[$style] = [
+            'ascent'     => $font->ascender($size),
+            'descent'    => -$font->descender($size),
+            'capHeight'  => $font->capHeight($size),
+            'xHeight'    => $font->xHeight($size),
+            'lineHeight' => $format->lineHeight,
+        ];
     }
 }
