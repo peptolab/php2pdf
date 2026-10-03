@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-03
+
+### Changed
+
+- Text is set faster and in less memory: shaping, line breaking, line assembly and drawing each do
+  less work per glyph. Flowed text takes 20 to 26% less time and table text 13% less, and the
+  memory a document grows by roughly halves (a 2,000-row table: 79 MiB to 55 MiB).
+- A font's shaped runs are shared between documents within a budget of bytes as well as a count,
+  so a long-running worker no longer keeps hundreds of MiB of runs that never repeat.
+- A Textflow shares identical words, spaces and breaks, so its memory grows with its vocabulary
+  rather than its length.
+- A hyphenated line is drawn as one text object rather than split at each hyphenation point it
+  does not break at: the output changes, and a hyphenated document is about half the size, but it
+  looks the same.
+
+### Fixed
+
+- An image file that exists but cannot be read is reported as unreadable, not as missing, and an
+  unreadable font file is refused without a PHP warning that it could not be opened.
+
 ## [0.1.2] - 2026-10-02
 
 ### Added
@@ -126,7 +146,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.2...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.3...HEAD
+[0.1.3]: https://github.com/peptolab/php2pdf/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/peptolab/php2pdf/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/peptolab/php2pdf/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/peptolab/php2pdf/releases/tag/0.1.0
