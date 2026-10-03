@@ -28,6 +28,7 @@ use PHPUnit\Framework\TestCase;
 
 use function array_keys;
 use function array_map;
+use function implode;
 
 /**
  * Justified lines of Source Serif 4 at 10 pt, whose word spaces may stretch to 133% and shrink to
@@ -83,6 +84,21 @@ final class LineAssemblerTest extends TestCase
     private static function scales(Line $line): array
     {
         return array_map(static fn(Segment $segment): float => $segment->scale, $line->segments);
+    }
+
+    #[Test]
+    public function aBreakTheLineDoesNotTakeLeavesItsTextInOneSegment(): void
+    {
+        $items = (new Itemiser($this->hyphenators))->itemise([['aa open-type bb', $this->style]]);
+        $line  = LineAssembler::line($items, null, $this->style, [Alignment::Left, 0], 0.0, 300.0, [0, 0], false);
+
+        self::assertSame(['aa open-type bb'], array_map(
+            static fn(Segment $segment): string => implode(array_map(
+                static fn(Glyph $glyph): string => $glyph->text(),
+                $segment->run->glyphs,
+            )),
+            $line->segments,
+        ));
     }
 
     #[Test]

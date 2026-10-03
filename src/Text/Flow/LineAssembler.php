@@ -272,11 +272,21 @@ final class LineAssembler
             $runStyle = $item->style;
             $lists    = [];
             $width    = 0.0;
-            while (
-                null !== ($current = $items[$i] ?? null)
-                && $current->style === $runStyle
-                && null !== $current->run
-            ) {
+            while (null !== ($current = $items[$i] ?? null)) {
+                // A break opportunity the line does not break at (a hyphenation point, or one after
+                // a hard hyphen) shows nothing and takes no space: the run carries on past it.
+                if (
+                    ItemKind::Penalty === $current->kind
+                    && null === $current->run
+                    && null === $current->inline
+                    && 0.0 === $current->width
+                ) {
+                    ++$i;
+                    continue;
+                }
+                if ($current->style !== $runStyle || null === $current->run) {
+                    break;
+                }
                 if ($plain) {
                     $lists[] = $current->run->glyphs;
                     $width   += $current->width;
