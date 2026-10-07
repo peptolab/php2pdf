@@ -1,5 +1,5 @@
 #:schema https://mago.carthage.software/1.43.0/schema.json
-# The php-db/phpdb-qa-tools base configuration, written out in full rather than extended: its
+# The peptolab/peptolab-qa-tools base configuration, written out in full rather than extended: its
 # analyzer excludes test/, and an extending file can add to that list but not remove from it.
 # Keep the shared settings in step with the base when it changes; this project's own settings
 # follow each section's shared ones.

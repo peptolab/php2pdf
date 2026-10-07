@@ -123,7 +123,7 @@ composer check            # mago format --check, mago lint, mago analyze, unit t
 composer test-integration # needs qpdf and poppler-utils
 ```
 
-QA configuration follows [php-db/phpdb-qa-tools](https://github.com/php-db/phpdb-qa-tools); see
+QA configuration follows [peptolab/peptolab-qa-tools](https://github.com/peptolab/peptolab-qa-tools); see
 [Development](docs/development.md).
 
 ## Licence
