@@ -16,7 +16,7 @@
         "ext-mbstring": "*"
     },
     "require-dev": {
-        "php-db/phpdb-qa-tools": "0.1.x-dev",
+        "peptolab/peptolab-qa-tools": "0.1.x-dev",
         "phpunit/phpunit": "^11.5 || ^12.0"
     },
     "suggest": {

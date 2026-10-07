@@ -9,11 +9,12 @@ composer test-integration   # needs qpdf and poppler-utils (pdftoppm, pdfinfo, p
 ```
 
 Code style and analysis use [Mago](https://mago.carthage.software/). `mago.toml` is a full copy
-of the `php-db/phpdb-qa-tools` base configuration, so that tests are analysed too, with
+of the `peptolab/peptolab-qa-tools` base configuration, so that tests are analysed too, with
 thresholds suited to a drawing library. CI runs that package's QA workflow on PHP 8.3 to 8.5,
-checking the format once for each version (`MAGO_PHP_VERSION=8.4 mago format --check` locally),
-and the integration suite on Ubuntu and macOS with the PDF tooling installed. The code stays
-valid PHP 8.3: write `(new Foo())->bar()`, not the 8.4 form without parentheses.
+checking the format once for each version (`MAGO_PHP_VERSION=8.4 mago format --check` locally)
+and running both suites, with the PDF tooling installed through its `apt-packages` input. The
+integration suite runs again on macOS. The code stays valid PHP 8.3: write `(new Foo())->bar()`,
+not the 8.4 form without parentheses.
 
 ## Tests
 

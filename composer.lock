@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "aa2c61104c836299a1024b6143d3b51c",
+    "content-hash": "e1d1b6fcbe8c9153018c026c836cefb2",
     "packages": [],
     "packages-dev": [
         {
@@ -125,6 +125,48 @@
             "time": "2026-09-13T18:51:52+00:00"
         },
         {
+            "name": "peptolab/peptolab-qa-tools",
+            "version": "0.1.x-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/peptolab/peptolab-qa-tools.git",
+                "reference": "e26248cc83a73db332872eea181700bc04c5380d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/peptolab/peptolab-qa-tools/zipball/e26248cc83a73db332872eea181700bc04c5380d",
+                "reference": "e26248cc83a73db332872eea181700bc04c5380d",
+                "shasum": ""
+            },
+            "require": {
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "suggest": {
+                "phpunit/phpunit": "To run the shared test configuration (^11.5 || ^12.0)"
+            },
+            "default-branch": true,
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "Shared QA toolchain for Peptolab packages: Mago formatting, linting and static analysis, plus the PHPUnit baseline and CI workflow. Forked from contenir/contenir-qa-tools.",
+            "homepage": "https://github.com/peptolab/peptolab-qa-tools",
+            "keywords": [
+                "coding-standards",
+                "formatter",
+                "linter",
+                "mago",
+                "peptolab",
+                "qa",
+                "static-analysis"
+            ],
+            "support": {
+                "source": "https://github.com/peptolab/peptolab-qa-tools"
+            },
+            "time": "2026-10-07T01:07:32+00:00"
+        },
+        {
             "name": "phar-io/manifest",
             "version": "2.0.4",
             "source": {
@@ -241,50 +283,6 @@
                 "source": "https://github.com/phar-io/version/tree/3.2.1"
             },
             "time": "2022-02-21T01:04:05+00:00"
-        },
-        {
-            "name": "php-db/phpdb-qa-tools",
-            "version": "0.1.x-dev",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/php-db/phpdb-qa-tools.git",
-                "reference": "f2323423deac77dd719f3f2ca7a9b2a7e21c93f6"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/php-db/phpdb-qa-tools/zipball/f2323423deac77dd719f3f2ca7a9b2a7e21c93f6",
-                "reference": "f2323423deac77dd719f3f2ca7a9b2a7e21c93f6",
-                "shasum": ""
-            },
-            "require": {
-                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
-            },
-            "suggest": {
-                "phpunit/phpunit": "To run the shared test configuration (^11.5 || ^12.0)"
-            },
-            "default-branch": true,
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "BSD-3-Clause"
-            ],
-            "description": "Shared QA toolchain for php-db components: Mago formatting, linting and static analysis, plus the PHPUnit baseline and CI workflow.",
-            "homepage": "https://github.com/php-db/phpdb-qa-tools",
-            "keywords": [
-                "coding-standards",
-                "formatter",
-                "linter",
-                "mago",
-                "phpdb",
-                "qa",
-                "static-analysis"
-            ],
-            "support": {
-                "forum": "https://github.com/php-db/phpdb-qa-tools/discussions",
-                "issues": "https://github.com/php-db/phpdb-qa-tools/issues",
-                "source": "https://github.com/php-db/phpdb-qa-tools"
-            },
-            "time": "2026-08-10T01:10:13+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -1748,7 +1746,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "php-db/phpdb-qa-tools": 20
+        "peptolab/peptolab-qa-tools": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
@@ -1757,6 +1755,6 @@
         "ext-zlib": "*",
         "ext-mbstring": "*"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.6.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.9.0"
 }
