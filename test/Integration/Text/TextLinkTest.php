@@ -29,7 +29,8 @@ use function round;
 
 /**
  * Links and match areas over Textflow text (#37). DejaVu Sans at 10 pt rises 9.28 above the
- * baseline and falls 2.36 below it; "Go " is 17.05 wide, "there" 26.45 and "there and" 48.45.
+ * baseline and falls 2.36 below it; "Go" is 13.87 wide, "Go " 17.05, "there" 26.45 and
+ * "there and" 48.45.
  */
 #[Group('integration')]
 final class TextLinkTest extends TestCase
@@ -69,6 +70,15 @@ final class TextLinkTest extends TestCase
             /** @param array<array-key, string> $m */
             static fn(array $m): string => (string) round(floatval($m[0] ?? ''), precision: 2),
             $pdf,
+        );
+    }
+
+    #[Test]
+    public function aLinkAreaEndsWhereItsTextDoes(): void
+    {
+        self::assertStringContainsString(
+            '/Rect[0 88.36 13.87 100]',
+            self::rounded($this->fit('<p><a href="https://example.com/">Go</a> there</p>')),
         );
     }
 

@@ -63,6 +63,20 @@ final class HarfBuzzFfiTest extends TestCase
     }
 
     #[Test]
+    public function aTurkishLanguageKeepsFAndIApart(): void
+    {
+        $glyphs = $this->shaper->shape(self::font(), 'fi', 'Latn', TextDirection::LeftToRight, [], 'tr');
+
+        self::assertSame(
+            [
+                [33,  0, 384, 0, 0, 0],
+                [298, 1, 298, 0, 0, 0],
+            ],
+            $glyphs,
+        );
+    }
+
+    #[Test]
     public function featuresTurnLookupsOff(): void
     {
         $glyphs = $this->shaper->shape(self::font(), 'fi', 'Latn', TextDirection::LeftToRight, ['-liga']);

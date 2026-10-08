@@ -47,6 +47,8 @@ final class NormaliserTest extends TestCase
             'decomposition and recomposition'         => ["\u{212B}", 'Å'],
             'deep decomposition for a missing glyph'  => ['ǭ', "o\u{0328}\u{0304}"],
             'text without marks stays'                => ['seen', 'seen'],
+            'a letter with marks decomposes deeply'   => ["ǭ\u{0301}", "o\u{0328}\u{0304}\u{0301}"],
+            'a letter whose mark the font lacks'      => ["ä\u{0323}", "ä\u{0323}"],
         ];
     }
 

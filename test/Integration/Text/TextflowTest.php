@@ -159,6 +159,16 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function contentWidthsLeaveOutPlacedParagraphs(): void
+    {
+        $flow = $this->doc->textflow("wide wide wide\n\nbb\n\nc", 'body');
+        $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 200.0, 12.0));
+        $bb = $this->doc->fonts()->find('DejaVuSans')->width('bb', 10.0);
+
+        self::assertSame([$bb, $bb], [$flow->maxContentWidth(), $flow->minContentWidth()]);
+    }
+
+    #[Test]
     public function documentTextflowsTakePlainTextByDefault(): void
     {
         $flow = $this->doc->textflow('Tom <Jerry> & R&amp;D Ltd', 'body');
@@ -442,6 +452,18 @@ final class TextflowTest extends TestCase
         self::assertSame('DejaVuSans-Bold', $h1->bold, 'Inherited from body.');
         self::assertSame(12.0, $h1->leading?->resolve(14.0));
         self::assertSame(16.8, Leading::percent(120.0)->resolve(14.0));
+    }
+
+    #[Test]
+    public function theLongestLineBetweenForcedBreaksSetsTheMaxContentWidth(): void
+    {
+        $flow = $this->doc->textflow('<p>a long line<br>short</p>', 'body', TextFormat::Markup);
+
+        self::assertEqualsWithDelta(
+            $this->doc->fonts()->find('DejaVuSans')->width('a long line', 10.0),
+            $flow->maxContentWidth(),
+            1.0e-9,
+        );
     }
 
     #[Override]

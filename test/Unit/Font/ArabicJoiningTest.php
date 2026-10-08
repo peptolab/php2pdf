@@ -32,6 +32,7 @@ final class ArabicJoiningTest extends TestCase
             'Syriac alaph after dalath'           => ['ܕܐ', ['isol', 'fin3']],
             'Syriac alaph after alaph'            => ['ܐܐ', ['isol', 'fin2']],
             'Syriac final alaph medial'           => ['ܒܐܒ', ['init', 'med2', 'isol']],
+            'a left-joining letter joins onward'  => ["\u{A872}\u{A840}", ['init', 'fina']],
         ];
     }
 

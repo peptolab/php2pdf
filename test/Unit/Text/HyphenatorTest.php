@@ -46,6 +46,12 @@ final class HyphenatorTest extends TestCase
     }
 
     #[Test]
+    public function ignoresAPatternWithoutLetters(): void
+    {
+        self::assertSame([2, 6], (new Hyphenator([...self::PATTERNS, '5']))->hyphenate('hyphenation'));
+    }
+
+    #[Test]
     public function readsTexAndHunspellFormats(): void
     {
         $tex = "% comment\n\\patterns{\nhy3ph he2n hena4\nhen5at 1na n2at 1tio 2io o2n\n}\n\\hyphenation{\nta-ble\n}";

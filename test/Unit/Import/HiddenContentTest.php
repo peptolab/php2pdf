@@ -34,39 +34,73 @@ final class HiddenContentTest extends TestCase
     public static function contentProvider(): array
     {
         return [
-            'a hidden section'      => [
+            'a hidden section'                          => [
                 '/OC /Art BDC 1 g EMC /OC /Guides BDC 2 g EMC',
                 LayeredPdf::RESOURCES,
                 '/OC /Art BDC 1 g EMC',
             ],
-            'nested marked content' => ['/OC /Guides BDC /Span BMC 1 g EMC 2 g EMC 3 g', LayeredPdf::RESOURCES, '3 g'],
-            'an inline image'       => [
+            'nested marked content'                     => [
+                '/OC /Guides BDC /Span BMC 1 g EMC 2 g EMC 3 g',
+                LayeredPdf::RESOURCES,
+                '3 g',
+            ],
+            'an inline image'                           => [
                 "/OC /Guides BDC BI /W 1 /H 1 ID EMC\nEI EMC 3 g",
                 LayeredPdf::RESOURCES,
                 '3 g',
             ],
-            'a hidden form'         => ['/Fm0 Do 3 g', self::FORM_RESOURCES, '3 g'],
-            'an unclosed section'   => ['1 g /OC /Guides BDC 2 g', LayeredPdf::RESOURCES, '1 g'],
-            'any-on membership'     => [
+            'a hidden form'                             => ['/Fm0 Do 3 g', self::FORM_RESOURCES, '3 g'],
+            'an unclosed section'                       => ['1 g /OC /Guides BDC 2 g', LayeredPdf::RESOURCES, '1 g'],
+            'any-on membership'                         => [
                 '/OC << /Type /OCMD /OCGs [5 0 R 6 0 R] >> BDC 1 g EMC',
                 '',
                 '/OC << /Type /OCMD /OCGs [5 0 R 6 0 R] >> BDC 1 g EMC',
             ],
-            'all-on membership'     => [
+            'all-on membership'                         => [
                 '/OC << /Type /OCMD /OCGs [5 0 R 6 0 R] /P /AllOn >> BDC 1 g EMC 3 g',
                 '',
                 '3 g',
             ],
-            'all-off membership'    => [
+            'all-off membership'                        => [
                 '/OC << /Type /OCMD /OCGs 6 0 R /P /AllOff >> BDC 1 g EMC',
                 '',
                 '/OC << /Type /OCMD /OCGs 6 0 R /P /AllOff >> BDC 1 g EMC',
             ],
-            'other marked content'  => [
+            'other marked content'                      => [
                 '/Span << /ActualText (x) >> BDC 1 g EMC',
                 '',
                 '/Span << /ActualText (x) >> BDC 1 g EMC',
             ],
+            'any-off membership'                        => [
+                '/OC << /Type /OCMD /OCGs [5 0 R] /P /AnyOff >> BDC 1 g EMC 3 g',
+                '',
+                '3 g',
+            ],
+            'membership over no groups'                 => [
+                '/OC << /Type /OCMD /OCGs [] >> BDC 1 g EMC',
+                '',
+                '/OC << /Type /OCMD /OCGs [] >> BDC 1 g EMC',
+            ],
+            'optional content that is not a dictionary' => ['/OC 42 BDC 1 g EMC', '', '/OC 42 BDC 1 g EMC'],
+            'drawing something other than a name'       => ['42 Do 3 g', self::FORM_RESOURCES, '42 Do 3 g'],
+        ];
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function guidesOffProvider(): array
+    {
+        return [
+            'a base state of off with Artwork on' => ['<< /BaseState /OFF /ON [5 0 R] >>'],
+            'an off list with a non-reference'    => ['<< /OFF [42 6 0 R] >>'],
+        ];
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function nothingHiddenProvider(): array
+    {
+        return [
+            'everything on'            => ['<< >>'],
+            'no default configuration' => ['null'],
         ];
     }
 
@@ -91,9 +125,10 @@ final class HiddenContentTest extends TestCase
     }
 
     #[Test]
-    public function aBaseStateOfOffHidesGroupsNotListedOn(): void
+    #[DataProvider('guidesOffProvider')]
+    public function aConfigurationCanSwitchGuidesOff(string $config): void
     {
-        $file = PdfFile::fromData(LayeredPdf::make('<< /BaseState /OFF /ON [5 0 R] >>'));
+        $file = PdfFile::fromData(LayeredPdf::make($config));
         $page = $file->page(1);
 
         self::assertSame(
@@ -103,9 +138,10 @@ final class HiddenContentTest extends TestCase
     }
 
     #[Test]
-    public function aFileWithNothingHiddenNeedsNoFilter(): void
+    #[DataProvider('nothingHiddenProvider')]
+    public function aFileWithNothingHiddenNeedsNoFilter(string $config): void
     {
-        self::assertNull(HiddenContent::of(PdfFile::fromData(LayeredPdf::make('<< >>'))->reader()));
+        self::assertNull(HiddenContent::of(PdfFile::fromData(LayeredPdf::make($config))->reader()));
     }
 
     #[Test]

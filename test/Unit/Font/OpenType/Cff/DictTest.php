@@ -119,6 +119,14 @@ final class DictTest extends TestCase
     }
 
     #[Test]
+    public function negativeRealsRoundTrip(): void
+    {
+        $entry = Dict::parse(Dict::number(-2.25) . "\x11")[17] ?? null;
+
+        self::assertSame([-2.25], $entry?->values);
+    }
+
+    #[Test]
     #[DataProvider('realProvider')]
     public function parsesRealNumbers(string $encoded, float $value): void
     {
@@ -132,6 +140,14 @@ final class DictTest extends TestCase
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage($message);
         Dict::parse($data);
+    }
+
+    #[Test]
+    public function tokensRejectAReservedByte(): void
+    {
+        $this->expectException(PdfException::class);
+        $this->expectExceptionMessage('Invalid CFF DICT byte 31');
+        Dict::tokens("\x1F");
     }
 
     #[Test]

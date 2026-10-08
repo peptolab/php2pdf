@@ -22,6 +22,15 @@ use function str_repeat;
 #[Group('unit')]
 final class ObjectParserTest extends TestCase
 {
+    /** @return array<string, array{0: string, 1: float}> */
+    public static function textualNumberProvider(): array
+    {
+        return [
+            'numeric text'     => ['2.5', 2.5],
+            'non-numeric text' => ['x', 0.0],
+        ];
+    }
+
     /** @return array<string, array{0: string}> */
     public static function tooDeepProvider(): array
     {
@@ -60,6 +69,19 @@ final class ObjectParserTest extends TestCase
         self::assertInstanceOf(Stream::class, $value);
 
         return $value;
+    }
+
+    #[Test]
+    public function anEmptyIndirectObjectIsNull(): void
+    {
+        self::assertSame([3, 0, null], (new ObjectParser(new Lexer('3 0 obj endobj')))->parseIndirect());
+    }
+
+    #[Test]
+    #[DataProvider('textualNumberProvider')]
+    public function aNumberTokenHoldingTextIsReadAsAReal(string $text, float $expected): void
+    {
+        self::assertSame($expected, (new ObjectParser(new Lexer('')))->parse(new Token(Token::NUMBER, $text, end: 0)));
     }
 
     #[Test]
