@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Geometry;
 
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -15,6 +17,27 @@ use function abs;
 #[Group('unit')]
 final class MatrixTest extends TestCase
 {
+    /** @return array<string, array{0: callable(Matrix): Matrix, 1: array{0: float, 1: float}}> */
+    public static function prependedProvider(): array
+    {
+        return [
+            'rotate'    => [static fn(Matrix $m): Matrix => $m->rotate(90.0), [9.0, 1.0]],
+            'scale'     => [static fn(Matrix $m): Matrix => $m->scale(2.0), [12.0, 2.0]],
+            'translate' => [static fn(Matrix $m): Matrix => $m->translate(1.0, 3.0), [12.0, 4.0]],
+        ];
+    }
+
+    /**
+     * @param callable(Matrix): Matrix $prepend
+     * @param array{0: float, 1: float} $expected
+     */
+    #[Test]
+    #[DataProvider('prependedProvider')]
+    public function appliesAPrependedTransformBeforeItself(callable $prepend, array $expected): void
+    {
+        self::assertSame($expected, $prepend(Matrix::translation(10.0, 0.0))->apply(1.0, 1.0));
+    }
+
     #[Test]
     public function composesInPdfOrder(): void
     {
@@ -39,6 +62,14 @@ final class MatrixTest extends TestCase
         self::assertEqualsWithDelta(7.0, $x, 1e-9);
         self::assertEqualsWithDelta(-2.0, $y, 1e-9);
         self::assertTrue($m->then($inv)->isIdentity() || abs($m->then($inv)->a - 1.0) < 1e-9);
+    }
+
+    #[Test]
+    public function refusesToInvertACollapsedMatrix(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Matrix is not invertible.');
+        Matrix::scaling(0.0, 1.0)->inverse();
     }
 
     #[Test]

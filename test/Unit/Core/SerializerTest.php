@@ -9,7 +9,9 @@ use Php2Pdf\Core\Object\HexString;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Raw;
 use Php2Pdf\Core\Object\Reference;
+use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Serializer;
+use Php2Pdf\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -56,6 +58,21 @@ final class SerializerTest extends TestCase
 
         self::assertFalse($dict->has('B'));
         self::assertSame('<</A 1>>', Serializer::serialize($dict));
+    }
+
+    #[Test]
+    public function refusesAStreamAsADirectValue(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Streams must be written as indirect objects.');
+
+        Serializer::serialize(Stream::of('data'));
+    }
+
+    #[Test]
+    public function serialisesRawSyntaxVerbatim(): void
+    {
+        self::assertSame('0 g', Serializer::serialize(new Raw('0 g')));
     }
 
     #[Test]

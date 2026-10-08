@@ -41,6 +41,19 @@ final class WriterTest extends TestCase
     }
 
     #[Test]
+    public function finishingTwiceWritesTheTrailerOnce(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out);
+        $writer->writeHeader('1.7');
+        $writer->finish(new Dictionary());
+        $length = strlen($out->contents());
+        $writer->finish(new Dictionary());
+
+        self::assertSame($length, strlen($out->contents()));
+    }
+
+    #[Test]
     public function leavesPreFilteredStreamsAlone(): void
     {
         $out    = new MemoryOutput();
@@ -76,6 +89,52 @@ final class WriterTest extends TestCase
         $this->expectException(StateException::class);
         $this->expectExceptionMessage('never written');
         $writer->finish(new Dictionary());
+    }
+
+    #[Test]
+    public function refusesWritesAfterFinishing(): void
+    {
+        $writer = new Writer(new MemoryOutput());
+        $ref    = $writer->allocate();
+        $writer->write($ref, 1);
+        $writer->finish(new Dictionary());
+
+        $this->expectException(StateException::class);
+        $this->expectExceptionMessage('Cannot write objects after the document has been finished.');
+        $writer->write($writer->allocate(), 2);
+    }
+
+    #[Test]
+    public function reportsTheOutputPosition(): void
+    {
+        $writer = new Writer(new MemoryOutput());
+        $writer->writeHeader('1.7');
+
+        self::assertSame(15, $writer->position());
+    }
+
+    #[Test]
+    public function reportsWhetherAnObjectHasBeenWritten(): void
+    {
+        $writer  = new Writer(new MemoryOutput());
+        $written = $writer->add(1);
+        $pending = $writer->allocate();
+
+        self::assertSame([true, false], [$writer->isWritten($written), $writer->isWritten($pending)]);
+    }
+
+    #[Test]
+    public function writesALargeStreamWithItsDataIntact(): void
+    {
+        $out    = new MemoryOutput();
+        $writer = new Writer($out, compress: false);
+        $data   = str_repeat('0123456789abcdef', times: 4_096);
+        $writer->add(Stream::of($data));
+
+        self::assertSame(
+            "1 0 obj\n<</Length 65536>>\nstream\n{$data}\nendstream\nendobj\n",
+            $out->contents(),
+        );
     }
 
     #[Test]

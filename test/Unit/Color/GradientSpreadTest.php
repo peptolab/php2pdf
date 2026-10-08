@@ -83,4 +83,24 @@ final class GradientSpreadTest extends TestCase
             [$shading->get('Coords'), $shading->get('Domain'), $function->get('Bounds'), $function->get('Encode')],
         );
     }
+
+    #[Test]
+    public function aShrinkingRadialGradientStopsAtAZeroRadius(): void
+    {
+        $gradient = new RadialGradient(
+            0.0,
+            0.0,
+            10.0,
+            0.0,
+            0.0,
+            0.0,
+            self::stops(),
+            true,
+            GradientSpread::Repeat,
+            -2.0,
+            3.0,
+        );
+
+        self::assertSame([0.0, 0.0, 30.0, 0.0, 0.0, 0.0], $gradient->toShading()->get('Coords'));
+    }
 }

@@ -28,6 +28,26 @@ final class BoxTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: float, 1: float, 2: bool}> */
+    public static function pointProvider(): array
+    {
+        return [
+            'inside'           => [5.0, 5.0, true],
+            'on the far edges' => [11.0, 22.0, true],
+            'left of it'       => [0.5, 5.0, false],
+            'below it'         => [5.0, 1.5, false],
+            'right of it'      => [11.5, 5.0, false],
+            'above it'         => [5.0, 22.5, false],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('pointProvider')]
+    public function containsPointsWithinItsEdges(float $x, float $y, bool $expected): void
+    {
+        self::assertSame($expected, Box::fromPoints(1.0, 2.0, 10.0, 20.0)->contains($x, $y));
+    }
+
     #[Test]
     public function convertsUnits(): void
     {
@@ -60,6 +80,14 @@ final class BoxTest extends TestCase
     }
 
     #[Test]
+    public function measuresItsAreaAndCentre(): void
+    {
+        $box = Box::fromPoints(1.0, 2.0, 10.0, 20.0);
+
+        self::assertSame([200.0, 6.0, 12.0], [$box->area(), $box->centerX(), $box->centerY()]);
+    }
+
+    #[Test]
     public function normalisesCorners(): void
     {
         $box = Box::fromCorners(100, 200, 10, 20);
@@ -72,5 +100,11 @@ final class BoxTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
         new Box(0, 0, -1, 1);
+    }
+
+    #[Test]
+    public function resizesFromTheSameOrigin(): void
+    {
+        self::assertSame([1.0, 2.0, 6.0, 9.0], Box::fromPoints(1.0, 2.0, 10.0, 20.0)->withSize(5.0, 7.0)->toRect());
     }
 }

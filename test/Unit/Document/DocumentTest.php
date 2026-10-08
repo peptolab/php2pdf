@@ -8,9 +8,12 @@ use Php2Pdf\Core\FixedClock;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
+use Php2Pdf\Document\Page;
 use Php2Pdf\Document\PageSize;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\StateException;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Table\Column;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
@@ -48,6 +51,31 @@ final class DocumentTest extends TestCase
     }
 
     #[Test]
+    public function aClosedDocumentRefusesNewPages(): void
+    {
+        $doc = new Document(new MemoryOutput());
+        $doc->addPage();
+        $doc->close();
+
+        $this->expectException(StateException::class);
+        $this->expectExceptionMessage('The document has been closed.');
+        $doc->addPage();
+    }
+
+    #[Test]
+    public function closingTwiceWritesNothingMore(): void
+    {
+        $out = new MemoryOutput();
+        $doc = new Document($out);
+        $doc->addPage();
+        $doc->close();
+        $written = $out->contents();
+        $doc->close();
+
+        self::assertSame($written, $out->contents());
+    }
+
+    #[Test]
     public function encodesNonAsciiTextAsUtf16(): void
     {
         $out = new MemoryOutput();
@@ -60,6 +88,24 @@ final class DocumentTest extends TestCase
         $doc->close();
 
         self::assertStringContainsString("/Author(\xFE\xFF\x00Z\x00o\x00\xEB)", $out->contents());
+    }
+
+    #[Test]
+    public function exposesTheClockFromItsOptions(): void
+    {
+        $clock = new FixedClock('2026-01-01T12:00:00Z');
+
+        self::assertSame($clock, (new Document(new MemoryOutput(), new DocumentOptions(clock: $clock)))->clock());
+    }
+
+    #[Test]
+    public function flowNeedsAtLeastOneFrame(): void
+    {
+        $doc = new Document(new MemoryOutput());
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('flow() needs at least one box.');
+        $doc->flow($doc->table([Column::auto()]), [], static fn(Document $d): Page => $d->addPage());
     }
 
     #[Test]

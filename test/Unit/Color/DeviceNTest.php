@@ -84,6 +84,12 @@ final class DeviceNTest extends TestCase
     }
 
     #[Test]
+    public function processYellowIsASpotWithAYellowAlternate(): void
+    {
+        self::assertEquals(new Spot('Yellow', new Cmyk(0.0, 0.0, 1.0, 0.0), 0.5), DeviceN::yellow(0.5));
+    }
+
+    #[Test]
     public function spotColorantsAreListedWithTheirSeparations(): void
     {
         $pdf = $this->draw(new DeviceN([
