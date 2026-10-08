@@ -11,8 +11,10 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_fill;
 use function bin2hex;
 use function chr;
+use function pack;
 use function str_repeat;
 
 /**
@@ -51,6 +53,26 @@ final class Cff2CharStringsTest extends TestCase
                 [0],
                 self::n(1) . self::n(2) . "\x01" . self::n(3) . self::n(4) . "\x13\xC0" . self::n(5) . "\x16\x0E",
             ],
+            'a two-byte operator keeps its second byte'    => [
+                self::n(1) . self::n(2) . "\x0C\x22" . self::n(3) . "\x16",
+                [0],
+                self::n(1) . self::n(2) . "\x0C\x22" . self::n(3) . "\x16\x0E",
+            ],
+            'endchar ends the glyph early'                 => [
+                self::n(5) . "\x16\x0E" . self::n(6) . "\x15",
+                [0],
+                self::n(5) . "\x16\x0E",
+            ],
+            'a 16-bit operand is copied as written'        => [
+                "\x1C\x80\x00\x1C\x7F\xFF\x15",
+                [0],
+                "\x1C\x80\x00\x1C\x7F\xFF\x15\x0E",
+            ],
+            'a fixed blend count is truncated'             => [
+                self::n(10) . self::n(2) . "\xFF\x00\x01\x80\x00\x10\x16",
+                [1],
+                self::n(10) . "\x16\x0E",
+            ],
         ];
     }
 
@@ -68,11 +90,29 @@ final class Cff2CharStringsTest extends TestCase
     }
 
     #[Test]
+    public function aFontWith1240SubroutinesBiasesCallsBy1131(): void
+    {
+        $subr      = self::n(1) . self::n(1) . "\x15";
+        $converter = new Cff2CharStrings([$subr, ...array_fill(0, count: 1239, value: '')], [[]], [0], [0]);
+        $converter->glyph("\x1C" . pack('n', 0x1_0000 - 1131) . "\x1D", 0);
+
+        self::assertSame(bin2hex("{$subr}\x0B"), bin2hex($converter->globalSubrs()[0] ?? ''));
+    }
+
+    #[Test]
     public function aMissingSubroutineIsAnError(): void
     {
         $this->expectException(ParseException::class);
         $this->expectExceptionMessage('CFF2 subroutine 107 of 0 does not exist.');
         (new Cff2CharStrings([], [[]], [0], [0]))->glyph(self::n(0) . "\x1D", 0);
+    }
+
+    #[Test]
+    public function aNegativeFixedBlendCountIsAnError(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('CFF2 blend has too few operands.');
+        (new Cff2CharStrings([], [[]], [1], [0]))->glyph(self::n(1) . "\xFF\xFF\xFF\x00\x00\x10", 0);
     }
 
     /** @param list<int> $regions */
@@ -115,5 +155,18 @@ final class Cff2CharStringsTest extends TestCase
             [bin2hex(self::n(-107) . "\x1D\x0E"), bin2hex(self::n(1) . self::n(2) . "\x15\x0B")],
             [bin2hex($glyph), bin2hex($subroutine)],
         );
+    }
+
+    #[Test]
+    public function subroutinesNestedMoreThanTenDeepAreAnError(): void
+    {
+        $subrs = [];
+        for ($k = 0; $k < 12; ++$k) {
+            $subrs[] = self::n($k + 1 - 107) . "\x1D";
+        }
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('CFF2 subroutines nest too deeply.');
+        (new Cff2CharStrings($subrs, [[]], [0], [0]))->glyph(self::n(-107) . "\x1D", 0);
     }
 }
