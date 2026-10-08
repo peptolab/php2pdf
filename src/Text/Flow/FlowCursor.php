@@ -17,10 +17,4 @@ final readonly class FlowCursor
         public int $item = 0,
         public int $carry = 0,
     ) {}
-
-    /** Whether the position is the start of its paragraph. */
-    public function atParagraphStart(): bool
-    {
-        return 0 === $this->item && 0 === $this->carry;
-    }
 }

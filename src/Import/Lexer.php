@@ -182,13 +182,8 @@ final class Lexer
     private function keyword(): Token
     {
         $start = $this->position;
-        $span  = $this->tokenSpan($start);
-        if (0 === $span) {
-            // An unexpected delimiter; skip it so parsing can continue.
-            ++$this->position;
-
-            return $this->next();
-        }
+        // next() sends whitespace, comments and every delimiter elsewhere, so the span is never empty.
+        $span           = $this->tokenSpan($start);
         $this->position = $start + $span;
 
         return new Token(Token::KEYWORD, substr($this->data, $start, $span), $this->position);

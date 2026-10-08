@@ -30,8 +30,6 @@ use function strlen;
  */
 final class FormatKey
 {
-    private function __construct() {}
-
     /** @param list<mixed> $values */
     public static function of(array $values): string
     {

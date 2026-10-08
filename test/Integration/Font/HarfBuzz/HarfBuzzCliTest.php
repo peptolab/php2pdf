@@ -95,6 +95,15 @@ final class HarfBuzzCliTest extends TestCase
     }
 
     #[Test]
+    public function aMissingCommandIsReportedWithoutAPhpWarning(): void
+    {
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage('"/nonexistent/hb-shape"');
+
+        (new HarfBuzzCli('/nonexistent/hb-shape'))->shape(self::font(), 'fi', 'Latn', TextDirection::LeftToRight, []);
+    }
+
+    #[Test]
     public function aTurkishLanguageKeepsFAndIApart(): void
     {
         $glyphs = $this->shaper->shape(self::font(), 'fi', 'Latn', TextDirection::LeftToRight, [], 'tr');

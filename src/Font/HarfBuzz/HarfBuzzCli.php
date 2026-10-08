@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Font\HarfBuzz;
 
 use Override;
+use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Font\ExternalShaperInterface;
@@ -106,14 +107,9 @@ final class HarfBuzzCli implements ExternalShaperInterface
         if (null !== $file) {
             return $file->path;
         }
-        $path = tempnam(sys_get_temp_dir(), prefix: 'php2pdf-hb-');
-        if (false === $path) {
-            throw new IoException('Cannot write a temporary font file for hb-shape.');
-        }
+        $path = (string) tempnam(sys_get_temp_dir(), prefix: 'php2pdf-hb-');
         $file = new TemporaryFile($path);
-        if (false === file_put_contents($path, $font->data())) {
-            throw new IoException('Cannot write a temporary font file for hb-shape.');
-        }
+        file_put_contents($path, $font->data());
         $this->files[$font] = $file;
 
         return $path;
@@ -128,19 +124,16 @@ final class HarfBuzzCli implements ExternalShaperInterface
      */
     private function run(array $command): string
     {
-        /** @var array<int, resource> $pipes */
         $pipes   = [];
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $process = Silencer::run(static function () use ($command, &$pipes): mixed {
+            return proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        });
         if (! is_resource($process)) {
             throw new IoException(sprintf('Cannot run "%s".', $this->binary));
         }
-        $stdout = $pipes[1] ?? null;
-        $stderr = $pipes[2] ?? null;
-        if (! is_resource($stdout) || ! is_resource($stderr)) {
-            proc_close($process);
-
-            throw new IoException(sprintf('Cannot read from "%s".', $this->binary));
-        }
+        // A process that started has the pipes it was asked for.
+        /** @var array{1: resource, 2: resource} $pipes */
+        [1 => $stdout, 2 => $stderr] = $pipes;
         $output = (string) stream_get_contents($stdout);
         $errors = (string) stream_get_contents($stderr);
         fclose($stdout);

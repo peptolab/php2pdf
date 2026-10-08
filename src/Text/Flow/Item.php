@@ -55,11 +55,6 @@ final readonly class Item
         return null === $this->run ? 0 : count($this->run->glyphs);
     }
 
-    public function isBreakOpportunity(): bool
-    {
-        return ItemKind::Glue === $this->kind || ItemKind::Penalty === $this->kind;
-    }
-
     public function isForcedBreak(): bool
     {
         return (

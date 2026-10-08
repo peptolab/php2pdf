@@ -115,14 +115,9 @@ final class TabRuler
         };
     }
 
-    /** The next default tab position after $x. */
+    /** The next default tab position after $x, once no set stop lies after it. */
     private function nextTab(float $x): float
     {
-        foreach ($this->stops as $tab) {
-            if ($tab->position > ($x + 1.0e-6)) {
-                return $tab->position;
-            }
-        }
         $step = max(1.0, ParagraphFormat::of($this->style)->defaultTabWidth);
 
         return (floor(($x / $step) + 1.0e-6) + 1.0) * $step;

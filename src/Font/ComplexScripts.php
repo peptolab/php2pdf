@@ -67,10 +67,8 @@ final class ComplexScripts
         if (1 !== preg_match(self::PATTERN, $text, $m)) {
             return null;
         }
-        $codePoint = mb_ord($m[0] ?? '', encoding: 'UTF-8');
-        if (false === $codePoint) {
-            return null;
-        }
+        // The pattern matched one whole character, which always has a code point.
+        $codePoint = (int) mb_ord($m[0] ?? '', encoding: 'UTF-8');
         foreach (self::RANGES as [$first, $last, $script]) {
             if ($codePoint >= $first && $codePoint <= $last) {
                 return [$codePoint, $script];

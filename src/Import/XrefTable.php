@@ -6,7 +6,6 @@ namespace Php2Pdf\Import;
 
 use Php2Pdf\Core\Object\Dictionary;
 
-use function array_key_exists;
 use function array_keys;
 
 /**
@@ -44,11 +43,6 @@ final class XrefTable
     public function entry(int $number): ?array
     {
         return $this->entries[$number] ?? null;
-    }
-
-    public function has(int $number): bool
-    {
-        return array_key_exists($number, $this->entries);
     }
 
     /** Adds trailer entries that are not yet set (earlier sections never override newer ones). */

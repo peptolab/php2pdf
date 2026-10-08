@@ -58,15 +58,6 @@ final class ItemFactory
         return new Item($kind, $style, $text, $run, $font->width($run, $format->size, $format->textOptions));
     }
 
-    public static function glue(TextStyle $style): Item
-    {
-        $font   = StyleResolver::fontOf($style);
-        $format = CharFormat::of($style);
-        $run    = $font->shape(' ', $format->textOptions);
-
-        return new Item(ItemKind::Glue, $style, ' ', $run, $font->width($run, $format->size, $format->textOptions));
-    }
-
     /** The width in points of a kerning change of $kerning thousandths of an em. */
     public static function kerningWidth(float $kerning, TextStyle $style): float
     {

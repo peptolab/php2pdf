@@ -59,12 +59,12 @@ final class XrefParserTest extends TestCase
     #[Test]
     public function aHybridFileAddsTheEntriesOfItsCrossReferenceStream(): void
     {
-        self::assertTrue(self::read(CrossReferencePdf::hybrid())->has(4));
+        self::assertNotNull(self::read(CrossReferencePdf::hybrid())->entry(4));
     }
 
     #[Test]
     public function anObjectNotInTheTableIsNotListed(): void
     {
-        self::assertFalse(self::read(HostileFiles::pages(1))->has(4));
+        self::assertNull(self::read(HostileFiles::pages(1))->entry(4));
     }
 }

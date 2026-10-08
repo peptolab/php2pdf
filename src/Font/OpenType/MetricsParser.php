@@ -27,7 +27,7 @@ final readonly class MetricsParser
     {
         $upem     = $this->font->unitsPerEm;
         $macStyle = $head->u16(44);
-        $hhea     = $this->hhea($upem);
+        $hhea     = $this->hhea();
         $post     = $this->post($upem);
         $os2      = $this->os2($upem);
 
@@ -57,12 +57,9 @@ final readonly class MetricsParser
      *
      * @throws ParseException
      */
-    private function hhea(int $upem): array
+    private function hhea(): array
     {
-        $hhea = $this->font->tableReader('hhea');
-        if (null === $hhea) {
-            return ['ascender' => (int) round($upem * 0.8), 'descender' => -(int) round($upem * 0.2), 'lineGap' => 0];
-        }
+        $hhea = $this->font->tableReader('hhea') ?? throw new ParseException('Font has no "hhea" table.');
 
         return ['ascender' => $hhea->i16(4), 'descender' => $hhea->i16(6), 'lineGap' => $hhea->i16(8)];
     }

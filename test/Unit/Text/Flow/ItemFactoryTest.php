@@ -10,7 +10,6 @@ use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Text\Flow\ItemFactory;
-use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Style\TextStyle;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -54,19 +53,5 @@ final class ItemFactoryTest extends TestCase
             )
                 ?->id,
         );
-    }
-
-    #[Test]
-    public function glueIsAShapedWordSpace(): void
-    {
-        $font = $this->createStub(FontInterface::class);
-        $font->method('shape')->willReturn(new GlyphRun([new Glyph(3, 0x20, 250)]));
-        $font->method('width')->willReturn(2.5);
-        $glue = ItemFactory::glue(new TextStyle(
-            font: $font,
-            size: 10.0,
-        ));
-
-        self::assertSame([ItemKind::Glue, ' ', 2.5], [$glue->kind, $glue->text, $glue->width]);
     }
 }

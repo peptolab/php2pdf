@@ -105,13 +105,12 @@ final class LinePainter
         foreach ($layout->lines as $placed) {
             [$line, $baseline] = [$placed->line, $placed->baseline];
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
+            // A run opens only on a segment whose key is set, and keeps that segment's style.
             foreach (self::runs($line, self::linkKey(...)) as [$left, $right, $ascent, $descent, $style]) {
-                if (null === $style->link) {
-                    continue;
-                }
-
+                /** @var Destination|string $link */
+                $link    = $style->link;
                 $area    = self::area($canvas, $x0 + $left, $x0 + $right, $y, $ascent, $descent);
-                $links[] = [$area, $style->link, $style->linkTooltip];
+                $links[] = [$area, $link, $style->linkTooltip];
             }
             foreach (self::runs($line, static fn(TextStyle $s): ?string => $s->match) as [
                 $left,
@@ -120,11 +119,9 @@ final class LinePainter
                 $descent,
                 $style,
             ]) {
-                if (null === $style->match) {
-                    continue;
-                }
-
-                $matches[$style->match][] = self::area($canvas, $x0 + $left, $x0 + $right, $y, $ascent, $descent);
+                /** @var string $match */
+                $match             = $style->match;
+                $matches[$match][] = self::area($canvas, $x0 + $left, $x0 + $right, $y, $ascent, $descent);
             }
         }
 
