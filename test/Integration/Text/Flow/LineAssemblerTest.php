@@ -101,6 +101,7 @@ final class LineAssemblerTest extends TestCase
         ));
     }
 
+    /** @param list<int> $expected */
     #[Test]
     #[DataProvider('tightLineProvider')]
     public function aLineFitsOnlyIfItsLettersMayCloseUp(Justification $justification, array $expected): void
