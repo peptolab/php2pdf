@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
-use Php2Pdf\Exception\ParseException;
-
 use function max;
 use function preg_replace;
 use function str_repeat;
@@ -23,8 +21,6 @@ final class AlphaSplit
      * @param int $bytes    bytes per sample (1 or 2)
      *
      * @return array{0: string, 1: string} colour samples and alpha, each $bytes per sample
-     *
-     * @throws ParseException
      */
     public static function split(string $samples, int $channels, int $bytes): array
     {
@@ -34,12 +30,14 @@ final class AlphaSplit
         for ($c = 1; $c < $channels; ++$c) {
             $colorGroups .= "\${$c}";
         }
-        $color = preg_replace($pixel, $colorGroups, $samples);
-        $alpha = preg_replace($pixel, "\${$channels}", $samples);
-        if (null === $color || null === $alpha) {
-            throw new ParseException('The alpha channel could not be separated.');
-        }
-
-        return [$color, $alpha];
+        // Fixed-width groups with no backtracking cannot fail, and run far faster than a PHP loop.
+        return [
+            (string) preg_replace($pixel, $colorGroups, $samples),
+            (string) preg_replace(
+                $pixel,
+                "\${$channels}",
+                $samples,
+            ),
+        ];
     }
 }

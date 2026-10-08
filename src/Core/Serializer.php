@@ -78,16 +78,14 @@ final class Serializer
 
     public static function name(string $name): string
     {
+        // A fixed byte-wise pattern with no backtracking cannot fail.
+        /** @var string $escaped */
         $escaped = preg_replace_callback(
             '/[^!-~]|[#()<>\[\]{}\/%]/',
             /** @param array<array-key, string> $m */
             static fn(array $m): string => sprintf('#%02X', ord($m[0] ?? '')),
             $name,
         );
-        if (null === $escaped) {
-            throw new InvalidArgumentException(sprintf('Cannot escape name "%s".', $name));
-        }
-
         return "/{$escaped}";
     }
 

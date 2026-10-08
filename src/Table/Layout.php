@@ -78,7 +78,7 @@ final class Layout
         $content = $placed->cell->content;
         $height  = match (true) {
             null !== $placed->flow => $placed->flow->measure($inner, $this->flowOptions($placed)),
-            $content instanceof PlaceableInterface => $this->placeableHeight($placed, $inner),
+            $content instanceof PlaceableInterface => $this->placeableHeight($content, $placed, $inner),
             default => 0.0,
         };
 
@@ -103,12 +103,8 @@ final class Layout
     }
 
     /** The scale a placeable is drawn at inside a cell of the given inner width. */
-    public function placeableScale(PlacedCell $placed, float $innerWidth): float
+    public function placeableScale(PlaceableInterface $content, PlacedCell $placed, float $innerWidth): float
     {
-        $content = $placed->cell->content;
-        if (! $content instanceof PlaceableInterface) {
-            return 1.0;
-        }
         $fit     = $placed->cell->fit;
         $natural = $content->naturalSize($fit?->dpi);
         $method  = null === $fit ? FitMethod::Meet : $fit->method;
@@ -222,15 +218,11 @@ final class Layout
         return [$min, $max];
     }
 
-    private function placeableHeight(PlacedCell $placed, float $innerWidth): float
+    private function placeableHeight(PlaceableInterface $content, PlacedCell $placed, float $innerWidth): float
     {
-        $content = $placed->cell->content;
-        if (! $content instanceof PlaceableInterface) {
-            return 0.0;
-        }
         $natural = $content->naturalSize($placed->cell->fit?->dpi);
 
-        return $natural->height * $this->placeableScale($placed, $innerWidth);
+        return $natural->height * $this->placeableScale($content, $placed, $innerWidth);
     }
 
     /** @return list<float> */

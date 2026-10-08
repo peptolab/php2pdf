@@ -49,6 +49,14 @@ final class PdfXRulesTest extends TestCase
     }
 
     #[Test]
+    public function aDocumentWithoutPdfXAcceptsAnyImportedColour(): void
+    {
+        $this->expectNotToPerformAssertions();
+        (new Document(new MemoryOutput()))->colour()
+            ->assertImportedColour('DeviceRGB', page: 1);
+    }
+
+    #[Test]
     public function refusesToCloseWithoutXmp(): void
     {
         $doc = self::document('CMYK', xmp: false);

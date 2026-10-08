@@ -365,16 +365,6 @@ final class Document implements SvgDocumentInterface
     }
 
     /**
-     * What PDF/X asks of the document, checked as it is drawn.
-     *
-     * @internal
-     */
-    public function pdfx(): PdfXRules
-    {
-        return $this->pdfx;
-    }
-
-    /**
      * Declares the intended output condition (ICC profile), as PDF/X requires.
      *
      * @param string $identifier Registry name of the condition, e.g. "FOGRA39" or "sRGB IEC61966-2.1".

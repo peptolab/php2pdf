@@ -7,7 +7,7 @@ namespace Php2Pdf\Core;
 use DateTimeImmutable;
 use Php2Pdf\Exception\InvalidArgumentException;
 
-use function is_string;
+use function mb_check_encoding;
 use function mb_convert_encoding;
 use function preg_match;
 use function substr;
@@ -37,10 +37,11 @@ final class TextString
         if (preg_match('/[^\x20-\x7E]/', $utf8) !== 1) {
             return $utf8;
         }
-        $utf16 = mb_convert_encoding($utf8, to_encoding: 'UTF-16BE', from_encoding: 'UTF-8');
-        if (! is_string($utf16)) {
+        // mb_convert_encoding() turns ill-formed bytes into "?" rather than failing.
+        if (! mb_check_encoding($utf8, encoding: 'UTF-8')) {
             throw new InvalidArgumentException('Text is not valid UTF-8.');
         }
+        $utf16 = (string) mb_convert_encoding($utf8, to_encoding: 'UTF-16BE', from_encoding: 'UTF-8');
 
         return "\xFE\xFF{$utf16}";
     }

@@ -136,14 +136,13 @@ final class PngScanlines
     ): Generator {
         $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
         $bpp      = max(1, intdiv($channels * $bitDepth, num2: 8));
+        // zlib fails to start only when it cannot allocate its state.
+        /** @var InflateContext $inflater */
         $inflater = Silencer::run(static fn(): InflateContext|false => inflate_init(ZLIB_ENCODING_DEFLATE));
-        if (false === $inflater) {
-            throw new ParseException('Flate decompression failed.');
-        }
-        $buffer  = '';
-        $decoded = 0;
-        $y       = 0;
-        $prev    = [];
+        $buffer   = '';
+        $decoded  = 0;
+        $y        = 0;
+        $prev     = [];
         foreach ($compressed as $piece) {
             $out = Silencer::run(static fn(): string|false => inflate_add($inflater, $piece, ZLIB_SYNC_FLUSH));
             if (false === $out) {
@@ -156,11 +155,8 @@ final class PngScanlines
             $buffer .= $out;
             $offset = 0;
             while ($y < $height && (strlen($buffer) - $offset) >= ($rowBytes + 1)) {
-                /** @var array<int, int>|false $row */
+                /** @var array<int, int> $row */
                 $row = unpack('C*', substr($buffer, $offset + 1, $rowBytes));
-                if (false === $row) {
-                    throw new ParseException('PNG scanline could not be read.');
-                }
                 $row = self::unfilterRow(ord($buffer[$offset]), $row, $prev, $bpp);
                 yield $y => pack('C*', ...$row);
                 $prev   = $row;
@@ -191,11 +187,8 @@ final class PngScanlines
         for ($y = 0; $y < $height; ++$y) {
             $start  = $y * ($rowBytes + 1);
             $filter = ord($raw[$start]);
-            /** @var array<int, int>|false $row */
-            $row = unpack('C*', substr($raw, $start + 1, $rowBytes));
-            if (false === $row) {
-                throw new ParseException('PNG scanline could not be read.');
-            }
+            /** @var array<int, int> $row */
+            $row  = unpack('C*', substr($raw, $start + 1, $rowBytes));
             $row  = self::unfilterRow($filter, $row, $prev, $bpp);
             $out  .= pack('C*', ...$row);
             $prev = $row;

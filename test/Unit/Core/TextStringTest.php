@@ -6,6 +6,7 @@ namespace Php2PdfTest\Unit\Core;
 
 use DateTimeImmutable;
 use Php2Pdf\Core\TextString;
+use Php2Pdf\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -29,5 +30,13 @@ final class TextStringTest extends TestCase
     public function formatsDatesWithTheirUtcOffset(string $date, string $expected): void
     {
         self::assertSame($expected, TextString::date(new DateTimeImmutable($date)));
+    }
+
+    #[Test]
+    public function refusesTextThatIsNotValidUtf8(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Text is not valid UTF-8.');
+        TextString::encode("caf\xE9");
     }
 }

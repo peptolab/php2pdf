@@ -81,11 +81,8 @@ final class Predictor
         $rows     = intdiv(strlen($data), $rowBytes);
         $out      = '';
         for ($r = 0; $r < $rows; ++$r) {
-            /** @var array<int, int>|false $row 1-based */
+            /** @var array<int, int> $row 1-based */
             $row = unpack("{$format}*", substr($data, $r * $rowBytes, $rowBytes));
-            if (false === $row) {
-                throw new ParseException('Predictor row could not be read.');
-            }
             for ($i = $colors + 1; $i <= $count; ++$i) {
                 $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFFFF;
             }
@@ -105,11 +102,8 @@ final class Predictor
         $rows     = intdiv(strlen($data), $rowBytes);
         $out      = '';
         for ($r = 0; $r < $rows; ++$r) {
-            /** @var array<int, int>|false $row 1-based */
+            /** @var array<int, int> $row 1-based */
             $row = unpack('C*', substr($data, $r * $rowBytes, $rowBytes));
-            if (false === $row) {
-                throw new ParseException('Predictor row could not be read.');
-            }
             for ($i = $colors + 1; $i <= $rowBytes; ++$i) {
                 $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFF;
             }
