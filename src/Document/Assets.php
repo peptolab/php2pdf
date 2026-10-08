@@ -7,6 +7,7 @@ namespace Php2Pdf\Document;
 use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Color\ColourPolicyInterface;
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
@@ -27,7 +28,6 @@ use Php2Pdf\Svg\SvgDocumentInterface;
 use Php2Pdf\Svg\SvgFile;
 use WeakMap;
 
-use function file_get_contents;
 use function filemtime;
 use function filesize;
 use function is_string;
@@ -127,10 +127,7 @@ final class Assets implements CatalogContributorInterface
                 return $this->placed($known[2], $raster, $options);
             }
         }
-        $data = file_get_contents($path);
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read image file "%s".', $path));
-        }
+        $data = FileReader::read($path, 'image file');
         $hash = md5($data);
         if (false !== $real && null !== $stamp) {
             $this->hashes[$real] = [$stamp[0], $stamp[1], $hash];

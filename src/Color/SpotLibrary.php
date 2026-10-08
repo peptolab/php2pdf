@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Color;
 
 use Php2Pdf\Core\BinaryReader;
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -15,8 +16,6 @@ use function array_map;
 use function array_search;
 use function array_values;
 use function count;
-use function file_get_contents;
-use function is_file;
 use function is_numeric;
 use function is_string;
 use function mb_convert_encoding;
@@ -266,12 +265,7 @@ final class SpotLibrary
     /** @throws IoException */
     private static function read(string $path): string
     {
-        $data = is_file($path) ? file_get_contents($path) : false;
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read swatch file "%s".', $path));
-        }
-
-        return $data;
+        return FileReader::read($path, 'swatch file');
     }
 
     public function count(): int

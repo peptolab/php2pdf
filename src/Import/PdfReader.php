@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Import;
 
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Filter\FilterChain;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Object\Dictionary;
@@ -17,10 +18,7 @@ use Php2Pdf\Exception\ParseException;
 use function array_key_exists;
 use function array_keys;
 use function count;
-use function file_get_contents;
-use function is_file;
 use function preg_match;
-use function sprintf;
 use function str_contains;
 use function substr;
 
@@ -93,12 +91,7 @@ final class PdfReader
      */
     public static function fromFile(string $path, ?Limits $limits = null): self
     {
-        $data = is_file($path) ? file_get_contents($path) : false;
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read PDF file "%s".', $path));
-        }
-
-        return self::fromData($data, $limits);
+        return self::fromData(FileReader::read($path, 'PDF file'), $limits);
     }
 
     /** @throws ParseException */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Hyphenation;
 
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Exception\IoException;
 
 use function array_fill;
@@ -11,7 +12,6 @@ use function array_key_exists;
 use function array_slice;
 use function count;
 use function ctype_digit;
-use function file_get_contents;
 use function implode;
 use function max;
 use function mb_str_split;
@@ -23,7 +23,6 @@ use function preg_match;
 use function preg_match_all;
 use function preg_replace;
 use function preg_split;
-use function sprintf;
 use function str_replace;
 use function trim;
 
@@ -77,12 +76,10 @@ final class Hyphenator
      */
     public static function fromFile(string $path, ?string $language = null): self
     {
-        $text = file_get_contents($path);
-        if (false === $text) {
-            throw new IoException(sprintf('Cannot read hyphenation patterns "%s".', $path));
-        }
-
-        return self::fromString($text, $language ?? pathinfo($path, flags: PATHINFO_FILENAME));
+        return self::fromString(
+            FileReader::read($path, 'hyphenation patterns'),
+            $language ?? pathinfo($path, flags: PATHINFO_FILENAME),
+        );
     }
 
     public static function fromString(string $text, string $language = 'und'): self

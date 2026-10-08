@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Image;
 
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
-
-use function file_get_contents;
-use function is_file;
-use function is_readable;
-use function sprintf;
 
 /**
  * Reads an image with the default decoders (see ImageDecoders): each checks the pixel limit as
@@ -48,13 +44,6 @@ final class ImageReader
     /** @throws IoException */
     public static function readFile(string $path, ?Limits $limits = null, ?ImageOptions $options = null): ImageData
     {
-        if (! is_file($path)) {
-            throw new IoException(sprintf('Image file "%s" not found.', $path));
-        }
-        if (! is_readable($path)) {
-            throw new IoException(sprintf('Cannot read image file "%s".', $path));
-        }
-
-        return self::read((string) file_get_contents($path), $limits, $options, $path);
+        return self::read(FileReader::read($path, 'image file'), $limits, $options, $path);
     }
 }

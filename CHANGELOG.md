@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Every file loader (fonts, images, SVG, PDF, ICC profiles, swatches, hyphenation patterns)
+  reports a missing file as "not found" and an unreadable one as "Cannot read" with an
+  `IoException`, without a PHP warning first. A directory is refused as not found: before, a
+  hyphenation patterns path naming one gave a hyphenator with no patterns, and an ICC profile path
+  an `InvalidArgumentException`. An SVG image file that cannot be read is left out with a warning,
+  as a missing one is.
+
 ## [0.1.3] - 2026-10-03
 
 ### Changed

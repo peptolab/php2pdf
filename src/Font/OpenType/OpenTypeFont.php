@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Font\OpenType;
 
 use Php2Pdf\Core\BinaryReader;
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Lru;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -12,11 +13,9 @@ use Php2Pdf\Font\GlyphRun;
 
 use function array_key_exists;
 use function count;
-use function file_get_contents;
 use function filemtime;
 use function intdiv;
 use function is_file;
-use function is_readable;
 use function max;
 use function min;
 use function preg_replace;
@@ -157,10 +156,7 @@ final class OpenTypeFont
         if (null !== $cached && $cached[0] === $modified) {
             return $cached[1];
         }
-        if (! is_readable($real)) {
-            throw new IoException(sprintf('Cannot read font file "%s".', $path));
-        }
-        $data = (string) file_get_contents($real);
+        $data = FileReader::read($path, 'font file');
         $font = new self($data, $faceIndex);
         $cache->set($key, [$modified, $font], strlen($data));
 

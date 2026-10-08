@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Php2Pdf\Svg;
 
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Exception\ExceptionInterface;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Fit\Position;
@@ -14,7 +16,6 @@ use Php2Pdf\Geometry\Path;
 
 use function base64_decode;
 use function count;
-use function file_get_contents;
 use function is_file;
 use function preg_match;
 use function preg_replace;
@@ -125,9 +126,13 @@ final class ImageRenderer
         if (null === $path) {
             return null;
         }
-        $data = file_get_contents($path);
+        try {
+            return FileReader::read($path, 'image file');
+        } catch (IoException) {
+            $this->context->warn('unreadable image files');
 
-        return false === $data ? null : $data;
+            return null;
+        }
     }
 
     /**

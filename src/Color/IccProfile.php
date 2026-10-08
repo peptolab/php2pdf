@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Color;
 
-use Php2Pdf\Core\Silencer;
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 
-use function file_get_contents;
 use function md5;
 use function pathinfo;
-use function sprintf;
 use function strlen;
 use function substr;
 
@@ -44,12 +42,10 @@ final readonly class IccProfile
     /** @throws IoException */
     public static function fromFile(string $path, ?string $identifier = null): self
     {
-        $data = Silencer::run(static fn(): string|false => file_get_contents($path));
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read ICC profile "%s".', $path));
-        }
-
-        return new self($data, $identifier ?? pathinfo($path, flags: PATHINFO_FILENAME));
+        return new self(
+            FileReader::read($path, 'ICC profile'),
+            $identifier ?? pathinfo($path, flags: PATHINFO_FILENAME),
+        );
     }
 
     /** A stable key for deduplicating the profile stream within a document. */

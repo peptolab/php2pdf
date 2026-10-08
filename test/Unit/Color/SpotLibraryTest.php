@@ -65,7 +65,7 @@ final class SpotLibraryTest extends TestCase
     public function aMissingFileIsReported(): void
     {
         $this->expectException(IoException::class);
-        $this->expectExceptionMessage('Cannot read swatch file');
+        $this->expectExceptionMessage('Swatch file "/nonexistent/inks.ase" not found.');
         SpotLibrary::openAse('/nonexistent/inks.ase');
     }
 

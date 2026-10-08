@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Svg;
 
+use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\IoException;
@@ -13,8 +14,6 @@ use Php2Pdf\Geometry\Dimensions;
 
 use function array_key_exists;
 use function dirname;
-use function file_get_contents;
-use function is_file;
 use function sprintf;
 use function str_contains;
 use function strlen;
@@ -60,11 +59,7 @@ final class SvgFile
     /** @throws IoException */
     public static function open(string $path, ?Limits $limits = null): self
     {
-        $data = is_file($path) ? file_get_contents($path) : false;
-        if (false === $data) {
-            throw new IoException(sprintf('Cannot read SVG file "%s".', $path));
-        }
-        $file = self::fromData($data, dirname($path), $limits);
+        $file = self::fromData(FileReader::read($path, 'SVG file'), dirname($path), $limits);
 
         return new self($file->data, $path, $file->baseDirectory, $file->limits);
     }
