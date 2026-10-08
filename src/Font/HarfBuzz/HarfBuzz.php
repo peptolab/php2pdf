@@ -18,8 +18,6 @@ use function extension_loaded;
  */
 final class HarfBuzz
 {
-    private function __construct() {}
-
     public static function detect(?string $library = null, string $binary = 'hb-shape'): ?ExternalShaperInterface
     {
         $ffi = extension_loaded('ffi') ? self::ffi($library) : null;

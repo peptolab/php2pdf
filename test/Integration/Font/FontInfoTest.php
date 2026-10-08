@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Font;
 
 use Override;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\FontInfo;
 use Php2PdfTest\TestAsset\Font\FontCollectionBuilder;
 use Php2PdfTest\TestAsset\Font\SfntTables;
@@ -77,6 +78,14 @@ final class FontInfoTest extends TestCase
     public function aFileShorterThanAnSfntHeaderHasNoFaces(): void
     {
         self::assertSame([], $this->peek('OTTO'));
+    }
+
+    #[Test]
+    public function aMissingFontCannotBeOpened(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Cannot open font "/nonexistent/font.ttf".');
+        FontInfo::peek('/nonexistent/font.ttf');
     }
 
     #[Override]

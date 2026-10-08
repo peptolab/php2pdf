@@ -132,10 +132,9 @@ final class Layout
                     $carry,
                 );
             }
-            $line = $this->breaker->nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
-            if (null === $line) {
-                break;
-            }
+            // nextLine() is null only past the last item, and the loop stops before that.
+            /** @var Line $line */
+            $line       = $this->breaker->nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
             $firstInBox = [] === $this->lines && [] === $lines;
             $baseline   = $y + ($firstInBox ? $this->firstBaseline($line) : $line->lineHeight);
             if (($baseline + $line->descent) > ($this->boxHeight + 1.0e-6)) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Font;
 
 use Php2Pdf\Core\BinaryReader;
+use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\OpenType\NameTable;
 use Php2Pdf\Font\OpenType\TableDirectory;
@@ -52,7 +53,7 @@ final readonly class FontInfo
      */
     public static function peek(string $path): array
     {
-        $handle = fopen($path, mode: 'rb');
+        $handle = Silencer::run(static fn(): mixed => fopen($path, mode: 'rb'));
         if (false === $handle) {
             throw new ParseException(sprintf('Cannot open font "%s".', $path));
         }
