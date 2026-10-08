@@ -15,7 +15,7 @@ use function strlen;
 
 /**
  * GSUB and GPOS subtables GsubBuilder and GposBuilder do not write: context substitution by
- * class (format 2), class pair adjustment with class counts of its own, and subtables that
+ * class (format 2), class pair adjustment with class counts of its own, cursive attachment, and subtables that
  * cover glyphs but list nothing for them, for the lookups that must then leave them alone.
  */
 final class LayoutSubtableBuilder
@@ -63,6 +63,36 @@ final class LayoutSubtableBuilder
             pack('nn', $format, 4 + (2 * count($fields)))
                 . ([] === $fields ? '' : pack('n*', ...$fields))
                 . GsubBuilder::coverage($glyphs)
+        );
+    }
+
+    /**
+     * Cursive attachment: glyph => (entry anchor, exit anchor), null where the glyph has none.
+     *
+     * @param array<int, array{0: array{0: int, 1: int}|null, 1: array{0: int, 1: int}|null}> $glyphs
+     */
+    public static function cursive(array $glyphs): string
+    {
+        ksort($glyphs);
+        $header  = 6 + (4 * count($glyphs));
+        $records = '';
+        $anchors = '';
+        foreach ($glyphs as $entryExit) {
+            foreach ($entryExit as $anchor) {
+                if (null === $anchor) {
+                    $records .= pack('n', 0);
+                    continue;
+                }
+                $records .= pack('n', $header + strlen($anchors));
+                $anchors .= pack('nnn', 1, $anchor[0] & 0xFFFF, $anchor[1] & 0xFFFF);
+            }
+        }
+
+        return (
+            pack('nnn', 1, $header + strlen($anchors), count($glyphs))
+                . $records
+                . $anchors
+                . GsubBuilder::coverage(array_keys($glyphs))
         );
     }
 
