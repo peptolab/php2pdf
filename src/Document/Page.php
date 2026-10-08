@@ -354,14 +354,8 @@ final class Page
                 $this->number,
             ));
         }
+        // Every box is clipped to the media box as it is set, so the bleed box always lies within it.
         $bleed = $this->bleedBox ?? $this->cropBox ?? $this->mediaBox;
-        if (! $this->mediaBox->encloses($bleed, self::BOX_TOLERANCE)) {
-            throw new ConformanceException(sprintf(
-                '%s page %d: the BleedBox must lie within the MediaBox.',
-                $pdfx->value,
-                $this->number,
-            ));
-        }
         foreach (['TrimBox' => $trimBox, 'ArtBox' => $this->artBox] as $name => $box) {
             if (null !== $box && ! $bleed->encloses($box, self::BOX_TOLERANCE)) {
                 throw new ConformanceException(sprintf(

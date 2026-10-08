@@ -11,18 +11,15 @@ use Php2Pdf\Core\Silencer;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
 
-use function extension_loaded;
 use function imagecreatefromstring;
 use function imagepng;
 use function imagesavealpha;
 use function implode;
-use function is_string;
 use function ob_get_clean;
 use function ob_start;
 use function ord;
 use function sprintf;
 use function str_contains;
-use function strlen;
 use function strpos;
 use function substr;
 
@@ -42,7 +39,9 @@ final class Transcoder
 {
     public static function isAvailable(): bool
     {
-        return extension_loaded('imagick') || extension_loaded('gd');
+        $extensions = TranscoderExtensions::loaded();
+
+        return $extensions->imagick || $extensions->gd;
     }
 
     /**
@@ -51,6 +50,8 @@ final class Transcoder
      * @param ImageTraits $source  what is already known of the source, from its own header
      * @param string|null $subject the image as a refusal names it, or null to accept a conversion
      *                             that loses data
+     * @param TranscoderExtensions|null $extensions the extensions to convert with; those loaded
+     *                                             when null
      *
      * @throws PdfException when the image cannot be converted, or would lose data
      */
@@ -59,9 +60,16 @@ final class Transcoder
         int $page = 1,
         ImageTraits $source = new ImageTraits(),
         ?string $subject = 'The image',
+        ?TranscoderExtensions $extensions = null,
     ): string {
         self::refuseLosses($source, self::bestPng(), $subject);
-        [$png, $source] = self::convert($data, $page, $source, $subject);
+        [$png, $source] = self::convert(
+            $data,
+            $page,
+            $source,
+            $subject,
+            $extensions ?? TranscoderExtensions::loaded(),
+        );
         self::refuseLosses($source, self::pngTraits($png), $subject);
 
         return $png;
@@ -81,15 +89,20 @@ final class Transcoder
      *
      * @throws ParseException
      */
-    private static function convert(string $data, int $page, ImageTraits $source, ?string $subject): array
-    {
-        if (extension_loaded('imagick')) {
+    private static function convert(
+        string $data,
+        int $page,
+        ImageTraits $source,
+        ?string $subject,
+        TranscoderExtensions $extensions,
+    ): array {
+        if ($extensions->imagick) {
             return self::viaImagick($data, $page, $source, $subject);
         }
         if ($page > 1) {
             throw new PdfException(sprintf('Reading page %d of a multi-page image needs ext-imagick.', $page));
         }
-        if (! extension_loaded('gd')) {
+        if (! $extensions->gd) {
             throw new PdfException(
                 'Only JPEG and PNG are read natively; install ext-imagick or ext-gd for other formats.',
             );
@@ -101,11 +114,8 @@ final class Transcoder
     /** The PNG's bits per sample (8 for a palette) and whether it keeps transparency. */
     private static function pngTraits(string $png): ImageTraits
     {
-        if (strlen($png) < 26) {
-            throw new PdfException('The image was not converted to PNG.');
-        }
-        $depth = ord($png[24]);
-        $type  = ord($png[25]);
+        $depth = ord(substr($png, offset: 24, length: 1));
+        $type  = ord(substr($png, offset: 25, length: 1));
         $idat  = strpos($png, needle: 'IDAT');
         $head  = false === $idat ? $png : substr($png, offset: 0, length: $idat);
 
@@ -140,15 +150,15 @@ final class Transcoder
     private static function viaGd(string $data): string
     {
         $image = Silencer::run(static fn(): GdImage|false => imagecreatefromstring($data));
-        if (false === $image) {
-            throw new ParseException('ext-gd could not read the image.');
+        $png   = '';
+        if (false !== $image) {
+            imagesavealpha($image, enable: true);
+            ob_start();
+            imagepng($image, quality: 6);
+            $png = (string) ob_get_clean();
         }
-        imagesavealpha($image, enable: true);
-        ob_start();
-        $ok  = imagepng($image, quality: 6);
-        $png = ob_get_clean();
-        if (! $ok || ! is_string($png) || '' === $png) {
-            throw new PdfException('ext-gd failed to transcode the image.');
+        if ('' === $png) {
+            throw new ParseException('ext-gd could not read the image.');
         }
 
         return $png;
