@@ -78,22 +78,15 @@ final class TextRenderer
      */
     private static function trim(array $runs): array
     {
-        $count = count($runs);
-        if (0 === $count) {
-            return [];
-        }
-        $first = $runs[0] ?? null;
-        $last  = $runs[$count - 1] ?? null;
-        if (null === $first || null === $last) {
-            return [];
-        }
-        $first[0]         = ltrim($first[0]);
-        $runs[0]          = $first;
-        $last             = $runs[$count - 1] ?? $last;
-        $last[0]          = rtrim($last[0]);
-        $runs[$count - 1] = $last;
-        $out              = [];
-        foreach ($runs as $run) {
+        $last = count($runs) - 1;
+        $out  = [];
+        foreach ($runs as $i => $run) {
+            if (0 === $i) {
+                $run[0] = ltrim($run[0]);
+            }
+            if ($last === $i) {
+                $run[0] = rtrim($run[0]);
+            }
             if ('' === $run[0]) {
                 continue;
             }

@@ -14,7 +14,6 @@ use Php2Pdf\Import\PdfFile;
 use function escapeshellarg;
 use function fclose;
 use function fwrite;
-use function is_resource;
 use function proc_close;
 use function proc_open;
 use function sprintf;
@@ -69,18 +68,13 @@ final class RsvgConverter implements SvgConverterInterface
         foreach ($arguments as $argument) {
             $command .= ' ' . escapeshellarg($argument);
         }
-        $pipes   = [];
+        $pipes = [];
+        // The command runs through the shell, so the process and its pipes open even when the
+        // binary is missing (the shell exits with 127); only a failing system stops them.
+        /** @var resource $process */
         $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-        if (! is_resource($process)) {
-            throw new IoException(sprintf('Cannot run "%s".', $this->binary));
-        }
-        $stdin  = $pipes[0] ?? null;
-        $stdout = $pipes[1] ?? null;
-        $stderr = $pipes[2] ?? null;
-        if (! is_resource($stdin) || ! is_resource($stdout) || ! is_resource($stderr)) {
-            proc_close($process);
-            throw new IoException(sprintf('Cannot talk to "%s".', $this->binary));
-        }
+        /** @var array{0: resource, 1: resource, 2: resource} $pipes */
+        [$stdin, $stdout, $stderr] = $pipes;
         fwrite($stdin, $input);
         fclose($stdin);
         $output = stream_get_contents($stdout);

@@ -19,8 +19,6 @@ final class ElementRef
 {
     private const string URL = '/^url\(\s*["\']?#([^"\')]+)["\']?\s*\)\s*(.*)$/s';
 
-    private function __construct() {}
-
     /** The id in an href of the form #id, or null. */
     public static function fromHref(?string $href): ?string
     {

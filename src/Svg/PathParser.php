@@ -72,6 +72,7 @@ final class PathParser
      * Applies one command. Arguments are offset by ($ox, $oy): the current point for relative
      * commands, zero for absolute ones.
      *
+     * @param 'M'|'L'|'H'|'V'|'C'|'S'|'Q'|'T'|'A' $op
      * @param list<float> $a
      */
     private function apply(string $op, array $a, float $ox, float $oy): void
@@ -80,10 +81,10 @@ final class PathParser
         $x = $ox + ($a[0] ?? 0.0);
         $y = $oy + ($a[1] ?? 0.0);
         match ($op) {
-            'M'     => $this->path->moveTo($x, $y),
-            'L'     => $this->path->lineTo($x, $y),
-            'H'     => $this->path->lineTo($x, $cy),
-            'V'     => $this->path->lineTo($cx, $oy + ($a[0] ?? 0.0)),
+            'M' => $this->path->moveTo($x, $y),
+            'L' => $this->path->lineTo($x, $y),
+            'H' => $this->path->lineTo($x, $cy),
+            'V' => $this->path->lineTo($cx, $oy + ($a[0] ?? 0.0)),
             'C' => $this->cubic(
                 $x,
                 $y,
@@ -92,15 +93,14 @@ final class PathParser
                 $ox + ($a[4] ?? 0.0),
                 $oy + ($a[5] ?? 0.0),
             ),
-            'S'     => $this->smoothCubic($x, $y, $ox + ($a[2] ?? 0.0), $oy + ($a[3] ?? 0.0)),
-            'Q'     => $this->quad($x, $y, $ox + ($a[2] ?? 0.0), $oy + ($a[3] ?? 0.0)),
-            'T'     => $this->smoothQuad($x, $y),
+            'S' => $this->smoothCubic($x, $y, $ox + ($a[2] ?? 0.0), $oy + ($a[3] ?? 0.0)),
+            'Q' => $this->quad($x, $y, $ox + ($a[2] ?? 0.0), $oy + ($a[3] ?? 0.0)),
+            'T' => $this->smoothQuad($x, $y),
             'A' => $this->arc(
                 [$a[0] ?? 0.0, $a[1] ?? 0.0, $a[2] ?? 0.0, $a[3] ?? 0.0, $a[4] ?? 0.0],
                 $ox + ($a[5] ?? 0.0),
                 $oy + ($a[6] ?? 0.0),
             ),
-            default => null,
         };
         $this->lastCommand = $op;
     }
@@ -215,6 +215,7 @@ final class PathParser
                 $slice[] = $args[($i * $arity) + $k] ?? 0.0;
             }
             // Subsequent pairs after a moveto are implicit linetos.
+            /** @var 'M'|'L'|'H'|'V'|'C'|'S'|'Q'|'T'|'A' $op the commands with an arity above */
             $op = 'M' === $upper && $i > 0 ? 'L' : $upper;
             [$cx, $cy] = $this->path->point();
             if ('M' === $op || 'L' === $op || 'H' === $op || 'V' === $op) {

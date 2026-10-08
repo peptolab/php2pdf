@@ -151,9 +151,6 @@ final class SvgFile
     private function index(Element $element): void
     {
         $id = $element->id();
-        if (null !== $id && null === $this->ids) {
-            $this->ids = [];
-        }
         if (null !== $id && ! array_key_exists($id, $this->ids ?? [])) {
             $this->ids[$id] = $element;
         }
