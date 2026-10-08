@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-08
+
+### Fixed
+
+- Document information, bookmarks, link tooltips and other PDF text strings refuse text that is
+  not valid UTF-8 with an `InvalidArgumentException`, as they were meant to; ill-formed bytes were
+  written as "?" instead.
+- `FontInfo::peek()` on a font that cannot be opened, and HarfBuzz shaping when the `hb-shape`
+  command cannot be run, throw their exception without a PHP warning first.
+
 ## [0.1.4] - 2026-10-08
 
 ### Fixed
@@ -157,7 +167,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.4...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.5...HEAD
+[0.1.5]: https://github.com/peptolab/php2pdf/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/peptolab/php2pdf/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/peptolab/php2pdf/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/peptolab/php2pdf/compare/0.1.1...0.1.2
