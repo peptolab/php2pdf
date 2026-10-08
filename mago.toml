@@ -131,8 +131,6 @@ cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
     "src/Font/OpenType/GposAttachment.php",
     "src/Font/OpenType/Gsub.php",
     "src/Font/OpenTypeShaper.php",
-    # Ratchet: the page tree moves to a class of its own.
-    "src/Import/PdfReader.php",
     # Ratchet: SVG paint resolution, markers and the cascade.
     "src/Svg/MarkerBuilder.php",
     "src/Svg/MarkerVertices.php",
@@ -169,7 +167,6 @@ kan-defect = { threshold = 4.5, exclude = [
     # Ratchet, as above.
     "src/Font/OpenType/Gsub.php",
     "src/Font/OpenTypeShaper.php",
-    "src/Import/PdfReader.php",
     "src/Text/Flow/GreedyBreaker.php",
     "src/Text/Flow/LineAssembler.php",
 ] }
