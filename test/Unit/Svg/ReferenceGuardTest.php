@@ -89,6 +89,18 @@ final class ReferenceGuardTest extends TestCase
     }
 
     #[Test]
+    public function leavingWithNothingEnteredDoesNotLowerTheDepth(): void
+    {
+        $guard = new ReferenceGuard(1, 10);
+        $guard->leave();
+        $guard->descend();
+
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('more than 1 deep');
+        $guard->descend();
+    }
+
+    #[Test]
     public function theGuardTakesItsLimitsFromLimits(): void
     {
         $guard = ReferenceGuard::of(new Limits(maxSvgDepth: 1));

@@ -38,9 +38,12 @@ final class MarkerTest extends TestCase
     public static function orientProvider(): array
     {
         return [
-            'fixed angle in turns' => ['0.25turn', "\nq 0 1 -1 0 10 5 cm /X"],
-            'auto'                 => ['auto', "\nq 1 0 0 1 10 5 cm /X"],
-            'auto-start-reverse'   => ['auto-start-reverse', "\nq -1 0 0 -1 0 5 cm /X"],
+            'fixed angle in turns'       => ['0.25turn', "\nq 0 1 -1 0 10 5 cm /X"],
+            'fixed angle in radians'     => ['3.14159265358979rad', "\nq -1 0 0 -1 10 5 cm /X"],
+            'fixed angle in gradians'    => ['200grad', "\nq -1 0 0 -1 10 5 cm /X"],
+            'unknown keyword is no turn' => ['sideways', "\nq 1 0 0 1 10 5 cm /X"],
+            'auto'                       => ['auto', "\nq 1 0 0 1 10 5 cm /X"],
+            'auto-start-reverse'         => ['auto-start-reverse', "\nq -1 0 0 -1 0 5 cm /X"],
         ];
     }
 

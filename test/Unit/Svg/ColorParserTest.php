@@ -29,13 +29,44 @@ final class ColorParserTest extends TestCase
             'hsl in turns'              => ['hsl(0.5turn 100% 50%)', [0.0, 1.0, 1.0], 1.0],
             'hsl hue past a turn'       => ['hsl(480, 100%, 50%)', [0.0, 1.0, 0.0], 1.0],
             'named'                     => ['rebeccapurple', [0x66 / 255, 0x33 / 255, 0x99 / 255], 1.0],
+            'hsl red'                   => ['hsl(0, 100%, 50%)', [1.0, 0.0, 0.0], 1.0],
+            'hsl magenta'               => ['hsl(300, 100%, 50%)', [1.0, 0.0, 1.0], 1.0],
         ];
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function malformedColourProvider(): array
+    {
+        return [
+            'hex of the wrong length' => ['#ff'],
+            'rgb with two channels'   => ['rgb(1, 2)'],
+            'hsl with two arguments'  => ['hsl(120, 50%)'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('malformedColourProvider')]
+    public function aMalformedColourIsNotAColour(string $value): void
+    {
+        self::assertNull(ColorParser::color($value));
     }
 
     #[Test]
     public function currentColorTakesTheAlphaOfTheColorProperty(): void
     {
         self::assertSame(0.25, ColorParser::alpha('currentColor', 'rgba(0, 0, 0, 0.25)'));
+    }
+
+    #[Test]
+    public function currentColorWithoutAColorPropertyIsOpaque(): void
+    {
+        self::assertSame(1.0, ColorParser::alpha('currentColor'));
+    }
+
+    #[Test]
+    public function noPaintValueIsNoPaint(): void
+    {
+        self::assertNull(ColorParser::paint(null));
     }
 
     #[Test]

@@ -50,6 +50,7 @@ final class MarkerVerticesTest extends TestCase
                 [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [0.0, 10.0, 90.0], [0.0, 20.0, 90.0]],
             ],
             'a lone moveto'                     => ['M3 4', [[3.0, 4.0, 0.0]]],
+            'only zero length has no direction' => ['M3 4 L3 4', [[3.0, 4.0, 0.0], [3.0, 4.0, 0.0]]],
         ];
     }
 
