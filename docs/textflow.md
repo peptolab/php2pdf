@@ -143,6 +143,10 @@ character and word spacing, rise, indents, tab stops and the space before and af
 uniformly, down to 60 % of the original, until the remaining text fits. Tracking is in
 thousandths of an em, so it shrinks with the size.
 
+`FlowOptions(avoidEmptyBegin: true)` leaves out the empty lines and empty paragraphs a box would
+start with, so line breaks that fall at the end of one box do not leave the next one starting
+blank. A column or page break at the top of the box still ends it.
+
 Widows and orphans, `keepWithNext` and `keepTogether` decide where a paragraph may be cut
 between boxes.
 

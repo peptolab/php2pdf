@@ -15,16 +15,20 @@ use Php2Pdf\Text\Style\VerticalAlignment;
 final readonly class FlowOptions
 {
     /**
-     * @param bool  $shrinkToFit reduce the type size (and leading, character and word spacing,
-     *                           rise, indents, tab stops, paragraph spacing) uniformly until the
-     *                           remaining text fits the box, but not below $shrinkLimit of the
-     *                           original
+     * @param bool  $shrinkToFit     reduce the type size (and leading, character and word spacing,
+     *                               rise, indents, tab stops, paragraph spacing) uniformly until the
+     *                               remaining text fits the box, but not below $shrinkLimit of the
+     *                               original
+     * @param bool  $avoidEmptyBegin leave out empty lines and empty paragraphs at the top of the
+     *                               box, so a run of line breaks that falls at the end of the last
+     *                               box does not start this one blank (PDFlib's avoidemptybegin)
      */
     public function __construct(
         public FirstBaseline $firstBaseline = FirstBaseline::Ascender,
         public VerticalAlignment $verticalAlignment = VerticalAlignment::Top,
         public bool $shrinkToFit = false,
         public float $shrinkLimit = 0.5,
+        public bool $avoidEmptyBegin = false,
     ) {
         if ($shrinkLimit <= 0.0 || $shrinkLimit > 1.0) {
             throw new InvalidArgumentException('The shrink limit must be between 0 and 1.');

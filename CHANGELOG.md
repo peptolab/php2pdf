@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `FlowOptions::$avoidEmptyBegin` leaves out the empty lines and empty paragraphs a box would start
+  with, as PDFlib's `avoidemptybegin` does. It is off by default.
+
 ## [0.1.6] - 2026-10-12
 
 ### Added
