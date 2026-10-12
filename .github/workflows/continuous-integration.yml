@@ -37,3 +37,26 @@ jobs:
 
       - name: Integration tests
         run: composer test-integration
+
+  without-intl:
+    name: "Tests without ext-intl"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up PHP without intl
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: :intl
+          coverage: none
+
+      - name: Check intl is not loaded
+        run: "! php -m | grep -qix intl"
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress
+
+      - name: Fallback tests
+        run: vendor/bin/phpunit --group no-intl --fail-on-skipped
