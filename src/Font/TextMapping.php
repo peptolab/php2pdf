@@ -77,7 +77,8 @@ final class TextMapping
                 [] === $glyph->components
                 && (
                     $glyph->codePoint < 0
-                    || $glyph->codePoint === ($this->single[$id] ?? null)
+                    || $glyph->codePoint
+                    === ($this->single[$id] ?? null)
                 )
             ) {
                 continue;
