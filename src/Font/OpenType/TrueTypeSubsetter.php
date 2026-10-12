@@ -11,12 +11,14 @@ use function array_keys;
 use function array_pop;
 use function count;
 use function floor;
+use function implode;
 use function ksort;
 use function log;
 use function max;
 use function min;
 use function pack;
 use function str_repeat;
+use function str_split;
 use function strlen;
 use function substr;
 use function substr_replace;
@@ -43,10 +45,7 @@ final class TrueTypeSubsetter
         $numGlyphs = min($font->numGlyphs, max(array_keys($keep)) + 1);
 
         [$glyf, $loca] = self::buildGlyf($font, $keep, $numGlyphs);
-        $hmtx = '';
-        for ($gid = 0; $gid < $numGlyphs; ++$gid) {
-            $hmtx .= pack('nn', $font->advance($gid), $font->leftSideBearing($gid) & 0xFFFF);
-        }
+        $hmtx = self::buildHmtx($font, $numGlyphs);
 
         $head = $font->table('head') ?? '';
         $head = substr_replace($head, replace: "\0\0\0\0", offset: 8, length: 4); // checkSumAdjustment, recomputed below
@@ -57,7 +56,7 @@ final class TrueTypeSubsetter
             'head' => $head,
             'hhea' => substr_replace($font->table('hhea') ?? '', pack('n', $numGlyphs), offset: 34, length: 2),
             'hmtx' => $hmtx,
-            'loca' => pack('N*', ...$loca),
+            'loca' => $loca,
             'maxp' => substr_replace($font->table('maxp') ?? '', pack('n', $numGlyphs), offset: 4, length: 2),
             'post' => self::postFormat3($font),
         ];
@@ -84,10 +83,13 @@ final class TrueTypeSubsetter
         $body       = '';
         $records    = '';
         $headOffset = null;
+        $sum        = 0; // the whole font's checksum: its 4-byte aligned parts' checksums add up
         foreach ($tables as $tag => $data) {
-            $length  = strlen($data);
-            $padded  = $data . str_repeat("\0", (4 - ($length % 4)) % 4);
-            $records .= $tag . pack('NNN', self::checksum($padded), $offset, $length);
+            $length   = strlen($data);
+            $padded   = $data . str_repeat("\0", (4 - ($length % 4)) % 4);
+            $checksum = self::checksum($padded);
+            $sum     += $checksum;
+            $records .= $tag . pack('NNN', $checksum, $offset, $length);
             if ('head' === $tag) {
                 $headOffset = $offset;
             }
@@ -97,7 +99,8 @@ final class TrueTypeSubsetter
 
         $font = $directory . $records . $body;
         if (null !== $headOffset) {
-            $adjustment = (0xB1B0_AFBA - self::checksum($font)) & 0xFFFF_FFFF;
+            $sum        = ($sum + self::checksum($directory . $records)) & 0xFFFF_FFFF;
+            $adjustment = (0xB1B0_AFBA - $sum) & 0xFFFF_FFFF;
             $font       = substr_replace($font, pack('N', $adjustment), $headOffset + 8, length: 4);
         }
 
@@ -107,28 +110,67 @@ final class TrueTypeSubsetter
     /**
      * @param array<int, true> $keep
      *
-     * @return array{0: string, 1: list<int>} glyf data and loca offsets
+     * @return array{0: string, 1: string} glyf data and long loca table
      *
      * @throws ParseException
      */
     private static function buildGlyf(OpenTypeFont $font, array $keep, int $numGlyphs): array
     {
+        ksort($keep);
         $glyf   = '';
-        $loca   = [];
+        $loca   = '';
         $offset = 0;
-        for ($gid = 0; $gid < $numGlyphs; ++$gid) {
-            $loca[] = $offset;
-            if (! array_key_exists($gid, $keep)) {
-                continue;
+        $next   = 0; // the first glyph without a loca entry yet
+        foreach ($keep as $gid => $_) {
+            if ($gid < 0) {
+                continue; // not a glyph id; the font has no such glyph
             }
-            $data   = $font->glyphData($gid);
-            $pad    = (4 - (strlen($data) % 4)) % 4;
+            if ($gid >= $numGlyphs) {
+                break;
+            }
+            // empty glyphs before this one all start (and end) where it starts
+            $loca   .= str_repeat(pack('N', $offset), $gid - $next + 1);
+            $next    = $gid + 1;
+            $data    = $font->glyphData($gid);
+            $pad     = (4 - (strlen($data) % 4)) % 4;
             $glyf   .= $data . str_repeat("\0", $pad);
             $offset += strlen($data) + $pad;
         }
-        $loca[] = $offset;
+        $loca .= str_repeat(pack('N', $offset), $numGlyphs - $next + 1);
 
         return [$glyf, $loca];
+    }
+
+    /**
+     * Every glyph's advance and left side bearing as a long record. The font's own long records are
+     * exactly those bytes, so they are copied; the glyphs after them repeat the last advance with
+     * their short left side bearing (0 past the end of the table).
+     *
+     * @throws ParseException
+     */
+    private static function buildHmtx(OpenTypeFont $font, int $numGlyphs): string
+    {
+        $long = $font->longMetricCount();
+        if (0 === $long) {
+            $hmtx = '';
+            for ($gid = 0; $gid < $numGlyphs; ++$gid) {
+                $hmtx .= pack('nn', $font->advance($gid), $font->leftSideBearing($gid) & 0xFFFF);
+            }
+
+            return $hmtx;
+        }
+
+        $raw = $font->table('hmtx') ?? '';
+        if ($numGlyphs <= $long) {
+            return substr($raw, offset: 0, length: 4 * $numGlyphs);
+        }
+        $short   = $numGlyphs - $long;
+        $bearing = substr($raw, offset: 4 * $long, length: 2 * $short);
+        $bearing = substr($bearing, offset: 0, length: strlen($bearing) & ~1)
+            . str_repeat("\0", (2 * $short) - (strlen($bearing) & ~1));
+        $advance = pack('n', $font->advance($long - 1));
+
+        return substr($raw, offset: 0, length: 4 * $long) . $advance . implode($advance, str_split($bearing, 2));
     }
 
     private static function checksum(string $data): int

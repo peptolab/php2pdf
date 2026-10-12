@@ -29,6 +29,13 @@ use function preg_match;
 final class LineAssembler
 {
     /**
+     * The glyph wordSpaced() last stretched, the kerning it gave it, and the glyph stretched.
+     *
+     * @var array{0: Glyph, 1: float, 2: Glyph}|null
+     */
+    private static ?array $stretched = null;
+
+    /**
      * Positions the line's items in visual order: alignment, justification and tabs, merging runs
      * per style.
      *
@@ -62,11 +69,22 @@ final class LineAssembler
             $items = self::rekernLast(self::withoutTrailingSpace($items), null);
         }
         [$alignment, $paragraphLevel] = $direction;
-        $items   = BidiLine::visual($items, $paragraphLevel);
         $natural = 0.0;
-        $hasTab  = self::containsTab($items);
+        $hasTab  = false;
+        $bidi    = 0 !== $paragraphLevel;
         foreach ($items as $item) {
             $natural += $item->width;
+            $hasTab  = $hasTab || ItemKind::Tab === $item->kind;
+            $bidi    = $bidi || 0 !== $item->level;
+        }
+        // Most lines are left to right at level 0, in visual order already. The others are
+        // measured again in visual order, which the width adds up in.
+        if ($bidi) {
+            $items   = BidiLine::visual($items, $paragraphLevel);
+            $natural = 0.0;
+            foreach ($items as $item) {
+                $natural += $item->width;
+            }
         }
 
         $spread = ! $hasTab && Alignment::Justify === $alignment
@@ -81,8 +99,8 @@ final class LineAssembler
                 default           => 0.0,
             };
 
-        [$segments, $width, $inlines] = self::segments($items, $style, $spread);
-        $metrics = LineMetrics::of($items, $style);
+        [$segments, $width, $inlines, $styles] = self::segments($items, $style, $spread);
+        $metrics = LineMetrics::ofStyles($styles, $inlines, $style);
 
         return new Line(
             $segments,
@@ -186,18 +204,6 @@ final class LineAssembler
         );
     }
 
-    /** @param list<Item> $items */
-    private static function containsTab(array $items): bool
-    {
-        foreach ($items as $item) {
-            if (ItemKind::Tab === $item->kind) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
      * An item's glyphs and width with its justification: the change to a word space on the space
      * glyph, and the letter spacing after each glyph but the line's last, as kerning.
@@ -229,25 +235,98 @@ final class LineAssembler
     }
 
     /**
+     * The segment of the items of one style, $runStyle, from $items[$i] on, as segments() merges
+     * them: the segment (none when they have no glyphs), its width, the index of the item after
+     * it, and whether any of its items is a box, whose style the line's metrics take.
+     *
+     * @param list<Item> $items
+     *
+     * @return array{0: ?Segment, 1: float, 2: int, 3: bool}
+     */
+    private static function run(array $items, int $i, TextStyle $runStyle, float $x, LineSpread $spread): array
+    {
+        $lists    = [];
+        $pieces   = [];
+        $kernings = [];
+        $width    = 0.0;
+        $boxed    = false;
+        // Most lines are not justified, and most justified lines change their word spaces only:
+        // their items' glyphs are taken as they are, or with only a word space's last glyph changed.
+        $wordsOnly = [] === $spread->letters;
+        $plain     = $wordsOnly && [] === $spread->words;
+        while (null !== ($current = $items[$i] ?? null)) {
+            // A break opportunity the line does not break at (a hyphenation point, or one after
+            // a hard hyphen) shows nothing and takes no space: the run carries on past it.
+            if (
+                ItemKind::Penalty === $current->kind
+                && null === $current->run
+                && null === $current->inline
+                && 0.0 === $current->width
+            ) {
+                ++$i;
+                continue;
+            }
+            if ($current->style !== $runStyle || null === $current->run) {
+                break;
+            }
+            if (ItemKind::Box === $current->kind) {
+                $boxed = true;
+            }
+            ++$i;
+            if ($plain) {
+                $lists[]  = $current->run->glyphs;
+                $pieces[] = $current->run;
+                $width    += $current->width;
+                continue;
+            }
+            if (! $wordsOnly) {
+                // Letter spacing changes every glyph: the segment is drawn from its glyphs.
+                [$lists[], $itemWidth] = self::justified($current, $i - 1, $spread);
+                $width += $itemWidth;
+                continue;
+            }
+            // Only word spaces change; any other item is taken as it is, as wordSpaced() would.
+            if (ItemKind::Glue !== $current->kind) {
+                $lists[]  = $current->run->glyphs;
+                $pieces[] = $current->run;
+                $width    += $current->width;
+                continue;
+            }
+            [$lists[], $itemWidth, $kerning] = self::wordSpaced($current, $i - 1, $spread);
+            if (null !== $kerning) {
+                $kernings[count($pieces)] = $kerning;
+            }
+            $pieces[] = $current->run;
+            $width    += $itemWidth;
+        }
+        $glyphs  = 1 === count($lists) ? $lists[0] : array_merge(...$lists);
+        $width   *= $spread->scale;
+        $segment = [] === $glyphs
+            ? null
+            : new Segment($x, $width, $runStyle, new GlyphRun($glyphs), $spread->scale, $pieces, $kernings);
+
+        return [$segment, $width, $i, $boxed];
+    }
+
+    /**
      * Merges consecutive items of one style into runs, folding justification into the glyphs (word
      * spaces and letter spacing as kerning, glyph scaling as the runs' scale) and resolving tab
      * positions.
      *
      * @param list<Item> $items
      *
-     * @return array{0: list<Segment>, 1: float, 2: list<array{0: float, 1: InlineObject}>}
+     * @return array{0: list<Segment>, 1: float, 2: list<array{0: float, 1: InlineObject}>, 3: list<TextStyle>}
+     *         the segments, the line's width, its artwork, and the styles of its boxes for its metrics
      */
     private static function segments(array $items, TextStyle $style, LineSpread $spread): array
     {
         $segments = [];
         $inlines  = [];
+        $styles   = [];
+        $measured = null;
         $tabs     = TabRuler::of($style);
         $x        = 0.0;
         $i        = 0;
-        // Most lines are not justified, and most justified lines change their word spaces only:
-        // their items' glyphs are taken as they are, or with only a word space's last glyph changed.
-        $wordsOnly = [] === $spread->letters;
-        $plain     = $wordsOnly && [] === $spread->words;
         while (null !== ($item = $items[$i] ?? null)) {
             if (ItemKind::Tab === $item->kind) {
                 $target = $tabs->target($x, $items, $i + 1);
@@ -266,53 +345,25 @@ final class LineAssembler
                 continue;
             }
             if (null === $item->run) {
+                if (ItemKind::Box === $item->kind && $item->style !== $measured) {
+                    $measured = $item->style;
+                    $styles[] = $measured;
+                }
                 ++$i;
                 continue;
             }
-            $runStyle = $item->style;
-            $lists    = [];
-            $width    = 0.0;
-            while (null !== ($current = $items[$i] ?? null)) {
-                // A break opportunity the line does not break at (a hyphenation point, or one after
-                // a hard hyphen) shows nothing and takes no space: the run carries on past it.
-                if (
-                    ItemKind::Penalty === $current->kind
-                    && null === $current->run
-                    && null === $current->inline
-                    && 0.0 === $current->width
-                ) {
-                    ++$i;
-                    continue;
-                }
-                if ($current->style !== $runStyle || null === $current->run) {
-                    break;
-                }
-                if ($plain) {
-                    $lists[] = $current->run->glyphs;
-                    $width   += $current->width;
-                    ++$i;
-                    continue;
-                }
-                [$lists[], $itemWidth] = $wordsOnly
-                    ? self::wordSpaced($current, $i, $spread)
-                    : self::justified($current, $i, $spread);
-                $width += $itemWidth;
-                ++$i;
+            [$segment, $width, $i, $boxed] = self::run($items, $i, $item->style, $x, $spread);
+            if (null !== $segment) {
+                $segments[] = $segment;
             }
-            $glyphs = 1 === count($lists) ? $lists[0] : array_merge(...$lists);
-            if ([] !== $glyphs) {
-                $segments[] = new Segment(
-                    $x,
-                    $width * $spread->scale,
-                    $runStyle,
-                    new GlyphRun($glyphs),
-                    $spread->scale,
-                );
+            if ($boxed && $item->style !== $measured) {
+                $measured = $item->style;
+                $styles[] = $measured;
             }
-            $x += $width * $spread->scale;
+            $x += $width;
         }
 
-        return [$segments, $x, $inlines];
+        return [$segments, $x, $inlines, $styles];
     }
 
     /**
@@ -353,10 +404,17 @@ final class LineAssembler
         $last       = null;
         $textWidth  = 0.0;
         $glyphRange = null;
+        // A line's word spaces are mostly one item, shared: its space width is asked once.
+        $glue  = null;
+        $space = 0.0;
         foreach ($items as $k => $item) {
             $format = $item->format;
             if (ItemKind::Glue === $item->kind) {
-                $words[$k] = $item->spaceWidth() * ($stretching ? $format->stretch : $format->shrink);
+                if ($item !== $glue) {
+                    $glue  = $item;
+                    $space = $item->spaceWidth();
+                }
+                $words[$k] = $space * ($stretching ? $format->stretch : $format->shrink);
                 $wordTotal += $words[$k];
             }
             $count = null === $item->run ? 0 : count($item->run->glyphs);
@@ -407,28 +465,33 @@ final class LineAssembler
     }
 
     /**
-     * An item's glyphs and width on a line whose justification changes its word spaces only: as
-     * justified() gives them, without walking the glyphs. A word space's change goes on its last
-     * glyph; any other item is unchanged.
+     * A word space's glyphs and width on a line whose justification changes its word spaces only:
+     * as justified() gives them, without walking the glyphs. The change goes on its last glyph
+     * (any other item is unchanged, and run() takes it as it is).
      *
-     * @return array{0: list<Glyph>, 1: float} the glyphs, and the width before scaling
+     * @return array{0: list<Glyph>, 1: float, 2: ?float} the glyphs, the width before scaling, and
+     *                                                    the last glyph's new kerning if it changed
      */
     private static function wordSpaced(Item $item, int $index, LineSpread $spread): array
     {
         $glyphs = null === $item->run ? [] : $item->run->glyphs;
-        if (ItemKind::Glue !== $item->kind) {
-            return [$glyphs, $item->width];
-        }
-        $word  = $spread->words[$index] ?? 0.0;
-        $last  = count($glyphs) - 1;
-        $glyph = $glyphs[$last] ?? null;
+        $word   = $spread->words[$index] ?? 0.0;
+        $last   = count($glyphs) - 1;
+        $glyph  = $glyphs[$last] ?? null;
         if (0.0 === $word || null === $glyph) {
-            return [$glyphs, $item->width];
+            return [$glyphs, $item->width, null];
         }
-        $format        = $item->format;
-        $toEm          = 1000.0 / (($format->horizontalScale / 100.0) * $format->size);
-        $glyphs[$last] = $glyph->withKerning($glyph->kerning + ($word * $toEm));
+        $format  = $item->format;
+        $toEm    = 1000.0 / (($format->horizontalScale / 100.0) * $format->size);
+        $kerning = $glyph->kerning + ($word * $toEm);
+        // A line's word spaces are mostly one glyph stretched alike: the glyph is made once.
+        $stretched = self::$stretched;
+        if (null === $stretched || $glyph !== $stretched[0] || $kerning !== $stretched[1]) {
+            $stretched       = [$glyph, $kerning, $glyph->withKerning($kerning)];
+            self::$stretched = $stretched;
+        }
+        $glyphs[$last] = $stretched[2];
 
-        return [$glyphs, $item->width + $word];
+        return [$glyphs, $item->width + $word, $kerning];
     }
 }

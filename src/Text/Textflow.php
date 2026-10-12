@@ -18,6 +18,7 @@ use Php2Pdf\Text\Flow\FlowCursor;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\Layout;
+use Php2Pdf\Text\Flow\LayoutResult;
 use Php2Pdf\Text\Flow\LineBreaker;
 use Php2Pdf\Text\Flow\LinePainter;
 use Php2Pdf\Text\Flow\MarkupParser;
@@ -52,10 +53,22 @@ final class Textflow implements FlowableInterface
     /** Where the next fit starts. */
     private FlowCursor $cursor;
 
-    /** Breaks lines with the composer's plans kept from one fit to the next. */
-    private readonly LineBreaker $breaker;
+    /**
+     * Breaks lines with the composer's plans kept from one fit to the next; made at the first
+     * layout, so a flow never laid out does not carry one.
+     */
+    private ?LineBreaker $breaker = null;
 
     private ?FitInfo $last = null;
+
+    /**
+     * The last measure(): the cursor and width it was taken from, the first baseline it used, and
+     * its layout, which the next fitInto() from the same place into a box as wide and tall enough
+     * draws instead of laying the text out again. A table measures every cell before drawing it.
+     *
+     * @var array{0: FlowCursor, 1: float, 2: FirstBaseline, 3: LayoutResult}|null
+     */
+    private ?array $measured = null;
 
     /**
      * @param list<Paragraph> $paragraphs
@@ -63,8 +76,7 @@ final class Textflow implements FlowableInterface
     private function __construct(
         private readonly array $paragraphs,
     ) {
-        $this->cursor  = new FlowCursor();
-        $this->breaker = new LineBreaker(new BreakPlanner());
+        $this->cursor = FlowCursor::start();
     }
 
     /**
@@ -128,6 +140,29 @@ final class Textflow implements FlowableInterface
     }
 
     /**
+     * Text or markup read with an itemiser the caller shares between flows, as a table does
+     * between its cells: Plain text as fromText() reads it, any other format as fromMarkup().
+     *
+     * @internal
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    public static function fromString(
+        StyleResolver $resolver,
+        TextStyle $base,
+        Itemiser $itemiser,
+        string $content,
+        TextFormat $format,
+    ): self {
+        $plain  = TextFormat::Plain === $format;
+        $parser = new MarkupParser($resolver, $base, $plain ? TextFormat::Markup : $format);
+        $parsed = $parser->parse($plain ? self::plainMarkup($content) : $content);
+
+        return self::fromParagraphs($resolver, $base, $itemiser, $parsed);
+    }
+
+    /**
      * Plain text: blank lines separate paragraphs, single line ends break lines, tabs and soft
      * hyphens are honoured.
      *
@@ -142,6 +177,12 @@ final class Textflow implements FlowableInterface
         TextStyle|string|null $style = null,
         array $hyphenators = [],
     ): self {
+        return self::fromMarkup($context, self::plainMarkup($text), $style, $hyphenators);
+    }
+
+    /** Plain text as markup: escaped, blank lines made paragraph breaks and line ends <br>. */
+    private static function plainMarkup(string $text): string
+    {
         $escaped    = str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $text);
         $paragraphs = preg_split('/\R[ \t]*\R/', $escaped);
         $markup     = [];
@@ -149,7 +190,7 @@ final class Textflow implements FlowableInterface
             $markup[] = preg_replace('/\R/', replacement: '<br>', subject: $paragraph) ?? $paragraph;
         }
 
-        return self::fromMarkup($context, implode("\n\n", $markup), $style, $hyphenators);
+        return implode("\n\n", $markup);
     }
 
     /**
@@ -161,16 +202,17 @@ final class Textflow implements FlowableInterface
     {
         $options ??= new FlowOptions();
         $scale   = 1.0;
-        $layout  = (new Layout(
+        $layout  = $this->measuredFor($box, $options) ?? (new Layout(
             $this->paragraphs,
             $this->cursor,
             $box->width,
             $box->height,
             $options,
-            $this->breaker,
+            $this->breaker(),
         ))->run();
+        $this->measured = null;
         if ($options->shrinkToFit && FlowResult::Done !== $layout->result) {
-            [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options, $this->breaker);
+            [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options, $this->breaker());
         }
 
         $shift = 0.0;
@@ -252,15 +294,18 @@ final class Textflow implements FlowableInterface
      */
     public function measure(float $width, ?FlowOptions $options = null): float
     {
-        return (new Layout(
+        $options        ??= new FlowOptions();
+        $layout         = (new Layout(
             $this->paragraphs,
             $this->cursor,
             $width,
             PHP_FLOAT_MAX,
-            $options ?? new FlowOptions(),
-            $this->breaker,
-        ))->run()
-            ->height;
+            $options,
+            $this->breaker(),
+        ))->run();
+        $this->measured = [$this->cursor, $width, $options->firstBaseline, $layout];
+
+        return $layout->height;
     }
 
     /** The width of the widest unbreakable piece of the remaining text. */
@@ -306,8 +351,39 @@ final class Textflow implements FlowableInterface
     #[Override]
     public function reset(): void
     {
-        $this->cursor = new FlowCursor();
-        $this->last   = null;
+        $this->cursor   = FlowCursor::start();
+        $this->last     = null;
+        $this->measured = null;
+    }
+
+    private function breaker(): LineBreaker
+    {
+        return $this->breaker ??= new LineBreaker(new BreakPlanner());
+    }
+
+    /**
+     * The layout of the last measure() when it holds for a fit into the box: taken from the
+     * cursor the fit starts at, as wide as the box and with the same first baseline, all of the
+     * text placed, and no taller than the box. Every line then fits the box as it did the
+     * measure, and so does the first line of each paragraph a kept-with-next one waits for, so
+     * laying out again would set the same lines. A layout stopped by a break is not kept: a
+     * paragraph kept with one that opens with a break could move on in a shorter box.
+     */
+    private function measuredFor(Box $box, FlowOptions $options): ?LayoutResult
+    {
+        $measured = $this->measured;
+        if (
+            null === $measured
+            || $measured[0] !== $this->cursor
+            || $measured[1] !== $box->width
+            || $measured[2] !== $options->firstBaseline
+            || FlowResult::Done !== $measured[3]->result
+            || $measured[3]->height > ($box->height + 1.0e-6)
+        ) {
+            return null;
+        }
+
+        return $measured[3];
     }
 
     /** @return list<Paragraph> the paragraphs not fully placed, the current one cut at the cursor */

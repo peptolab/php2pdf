@@ -92,6 +92,9 @@ final class OpenTypeFont
 
     private ?BinaryReader $hmtx = null;
 
+    /** The hmtx records with their own advance, or 0 when {@see $advances} is the em fallback. */
+    private int $longMetrics = 0;
+
     private readonly BinaryReader $reader;
 
     /**
@@ -410,6 +413,17 @@ final class OpenTypeFont
     }
 
     /**
+     * How many leading hmtx records hold an advance and a left side bearing (numberOfHMetrics,
+     * clamped to the table's length); 0 when the font has none and every advance is the em.
+     *
+     * @internal
+     */
+    public function longMetricCount(): int
+    {
+        return $this->longMetrics;
+    }
+
+    /**
      * A colour of the first CPAL palette as red, green, blue and alpha (0 to 255), or null.
      *
      * @return array{0: int, 1: int, 2: int, 3: int}|null
@@ -540,6 +554,7 @@ final class OpenTypeFont
         for ($i = 0; $i < $count; ++$i) {
             $advances[] = $hmtx->u16(4 * $i);
         }
+        $this->longMetrics = $count;
 
         return [] === $advances ? [$this->unitsPerEm] : $advances;
     }

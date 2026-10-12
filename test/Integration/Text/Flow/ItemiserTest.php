@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Text\Flow;
 
 use Override;
+use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\ItemFactory;
 use Php2Pdf\Text\Flow\Itemiser;
@@ -21,6 +23,7 @@ use function array_map;
 use function array_sum;
 use function array_values;
 use function count;
+use function implode;
 
 #[Group('integration')]
 final class ItemiserTest extends TestCase
@@ -136,6 +139,38 @@ final class ItemiserTest extends TestCase
     }
 
     #[Test]
+    public function itemsLetGoOnceTooManyAreKeptAreMadeAgainAlike(): void
+    {
+        $itemiser = new Itemiser($this->hyphenators);
+        $words    = [];
+        for ($n = 0; $n < 5000; ++$n) {
+            $words[] = "w{$n}";
+        }
+        $before = $itemiser->itemise([[implode(' ', $words), $this->style]]);
+        $text   = 'w1 office affine TrueType fit, w1 office';
+
+        $after = $itemiser->itemise([[$text, $this->style]]);
+
+        self::assertNotSame($before[2] ?? null, $after[0] ?? null, 'The items kept were let go.');
+        self::assertSame('w1', ($after[0] ?? null)?->text);
+        self::assertEquals(
+            self::withoutClusters((new Itemiser($this->hyphenators))->itemise([[$text, $this->style]])),
+            self::withoutClusters($after),
+            'Items made again are alike in all but the clusters of their glyphs, which nothing reads.',
+        );
+        self::assertSame($after[0] ?? null, $after[12] ?? null, 'Items made after are shared again.');
+    }
+
+    #[Test]
+    public function wordsWithLigaturesAreShared(): void
+    {
+        $items = $this->itemise('office office office');
+
+        self::assertNotSame([], ($items[0] ?? null)?->run?->glyphs[1]->components ?? [], 'The word has a ligature.');
+        self::assertSame($items[0] ?? null, $items[2] ?? null);
+    }
+
+    #[Test]
     public function itemsKeepTheKerningOfTheWholeText(): void
     {
         $text  = 'Precision placement. TrueType and OpenType Templates';
@@ -205,6 +240,34 @@ final class ItemiserTest extends TestCase
             [ItemKind::Box, ItemKind::Tab, ItemKind::Box, ItemKind::LineBreak, ItemKind::Box],
             $kinds,
         );
+    }
+
+    /**
+     * The items with every glyph's cluster set to 0.
+     *
+     * @param list<Item> $items
+     *
+     * @return list<Item>
+     */
+    private static function withoutClusters(array $items): array
+    {
+        $clear = static fn(?GlyphRun $run): ?GlyphRun => null === $run ? null : new GlyphRun(array_map(
+            static fn(Glyph $glyph): Glyph => $glyph->withCluster(0),
+            $run->glyphs,
+        ));
+
+        return array_map(static fn(Item $item): Item => new Item(
+            $item->kind,
+            $item->style,
+            $item->text,
+            $clear($item->run),
+            $item->width,
+            $clear($item->hyphenRun),
+            $item->hyphenWidth,
+            $item->hyphenKerning,
+            $item->inline,
+            $item->level,
+        ), $items);
     }
 
     #[Override]

@@ -127,7 +127,7 @@ final class Layout
         for ($r = $from; $r <= $to; ++$r) {
             $source = $grid->sources[$r] ?? null;
             $height = max($this->options->minRowHeight, null === $source ? 0.0 : $source->minHeight);
-            foreach ($grid->rows[$r] ?? [] as $placed) {
+            foreach ($grid->cells($r) as $placed) {
                 if ($placed->cell->rowspan > 1) {
                     continue;
                 }
@@ -137,7 +137,7 @@ final class Layout
         }
         // A spanning cell taller than the rows it covers grows the last of them.
         for ($r = $from; $r <= $to; ++$r) {
-            foreach ($grid->rows[$r] ?? [] as $placed) {
+            foreach ($grid->cells($r) as $placed) {
                 $last = $placed->lastRow();
                 if ($placed->cell->rowspan <= 1 || $last > $to) {
                     continue;
@@ -201,8 +201,8 @@ final class Layout
             $max[$c] = 0.0;
         }
         foreach ($grids as $grid) {
-            foreach ($grid->rows as $cells) {
-                foreach ($cells as $placed) {
+            for ($r = 0, $count = $grid->count(); $r < $count; ++$r) {
+                foreach ($grid->cells($r) as $placed) {
                     $c = $placed->column;
                     if ($placed->cell->colspan > 1 || ! array_key_exists($c, $min)) {
                         continue;

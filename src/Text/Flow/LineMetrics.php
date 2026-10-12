@@ -20,6 +20,9 @@ final class LineMetrics
     /** @var WeakMap<TextStyle, array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}>|null each paragraph style's own metrics */
     private static ?WeakMap $bases = null;
 
+    /** @var WeakMap<TextStyle, array{0: float, 1: float, 2: float}>|null each box style's reach and line height; see extent() */
+    private static ?WeakMap $extents = null;
+
     /**
      * The line's vertical metrics from every font and artwork on it. Artwork rising above the text
      * pushes the line down by the difference, as auto leading does.
@@ -30,27 +33,50 @@ final class LineMetrics
      */
     public static function of(array $items, TextStyle $style): array
     {
-        $metrics   = self::base($style);
-        $measured  = null;
-        $artTop    = 0.0;
-        $artBottom = 0.0;
+        $styles   = [];
+        $inlines  = [];
+        $measured = null;
         foreach ($items as $item) {
             if (null !== $item->inline) {
-                $artTop    = max($artTop, $item->inline->height + $item->inline->raise);
-                $artBottom = max($artBottom, -$item->inline->raise);
+                $inlines[] = [0.0, $item->inline];
                 continue;
             }
             if (ItemKind::Box !== $item->kind || $item->style === $measured) {
                 continue;
             }
-            $measured              = $item->style;
-            $f                     = StyleResolver::fontOf($item->style);
-            $itemFormat            = $item->format;
-            $s                     = $itemFormat->size;
-            $rise                  = $itemFormat->rise;
-            $metrics['ascent']     = max($metrics['ascent'], $f->ascender($s) + $rise);
-            $metrics['descent']    = max($metrics['descent'], -$f->descender($s) - $rise);
-            $metrics['lineHeight'] = max($metrics['lineHeight'], $itemFormat->lineHeight);
+            $measured = $item->style;
+            $styles[] = $measured;
+        }
+
+        return self::ofStyles($styles, $inlines, $style);
+    }
+
+    /**
+     * As of(), from what the line assembler collected while it set the line: the distinct styles
+     * of its boxes, and its artwork.
+     *
+     * @param list<TextStyle>                        $styles
+     * @param list<array{0: float, 1: InlineObject}> $inlines
+     *
+     * @return array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}
+     */
+    public static function ofStyles(array $styles, array $inlines, TextStyle $style): array
+    {
+        $metrics   = self::base($style);
+        $artTop    = 0.0;
+        $artBottom = 0.0;
+        foreach ($inlines as [, $inline]) {
+            $artTop    = max($artTop, $inline->height + $inline->raise);
+            $artBottom = max($artBottom, -$inline->raise);
+        }
+        self::$extents ??= new WeakMap();
+        foreach ($styles as $itemStyle) {
+            /** @var array{0: float, 1: float, 2: float} $extent */
+            $extent = self::$extents[$itemStyle] ?? self::extent($itemStyle);
+            [$ascent, $descent, $lineHeight] = $extent;
+            $metrics['ascent']     = max($metrics['ascent'], $ascent);
+            $metrics['descent']    = max($metrics['descent'], $descent);
+            $metrics['lineHeight'] = max($metrics['lineHeight'], $lineHeight);
         }
 
         $above                 = max(0.0, $artTop - $metrics['ascent']);
@@ -84,6 +110,27 @@ final class LineMetrics
             'capHeight'  => $font->capHeight($size),
             'xHeight'    => $font->xHeight($size),
             'lineHeight' => $format->lineHeight,
+        ];
+    }
+
+    /**
+     * How far text in a style reaches above and below the baseline, its rise included, and its
+     * line height, kept while the style lives so ofStyles() works it out once for each style.
+     *
+     * @return array{0: float, 1: float, 2: float}
+     */
+    private static function extent(TextStyle $style): array
+    {
+        self::$extents ??= new WeakMap();
+        $font          = StyleResolver::fontOf($style);
+        $format        = CharFormat::of($style);
+        $size          = $format->size;
+        $rise          = $format->rise;
+
+        return self::$extents[$style] = [
+            $font->ascender($size) + $rise,
+            -$font->descender($size) - $rise,
+            $format->lineHeight,
         ];
     }
 }

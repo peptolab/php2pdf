@@ -16,6 +16,7 @@ use function mb_strlen;
 use function preg_match;
 use function preg_match_all;
 use function preg_split;
+use function spl_object_id;
 
 use const PREG_SPLIT_NO_EMPTY;
 
@@ -26,7 +27,7 @@ use const PREG_SPLIT_NO_EMPTY;
  *
  * @internal
  */
-final readonly class WordBreaks
+final class WordBreaks
 {
     public const string SOFT_HYPHEN = "\u{00AD}";
 
@@ -42,9 +43,18 @@ final readonly class WordBreaks
     /** A break that shows nothing. */
     public const string BREAK = 'break';
 
+    /** How many words' pieces are remembered before they are all forgotten. */
+    private const int MEMO_LIMIT = 8192;
+
+    /** @var array<string, list<array{0: string, 1: ?string}>> the pieces of words cut so far, by style id and word */
+    private array $memo = [];
+
+    /** @var array<int, TextStyle> the styles of the words remembered, kept so their ids are not reused */
+    private array $memoStyles = [];
+
     /** @param array<string, Hyphenator> $hyphenators by language */
     public function __construct(
-        private array $hyphenators = [],
+        private readonly array $hyphenators = [],
     ) {}
 
     /**
@@ -63,7 +73,8 @@ final readonly class WordBreaks
     /**
      * The pieces of a stretch, each with the break after it (glue, a break showing nothing, a
      * hyphen, or none), and the text to shape for them: fixed spaces the font lacks become word
-     * spaces. Right-to-left words are not hyphenated.
+     * spaces. Right-to-left words are not hyphenated. Each word is cut once per style; its pieces
+     * are remembered for when it comes back.
      *
      * @return array{0: list<array{0: string, 1: ?string}>, 1: string}
      */
@@ -78,6 +89,7 @@ final readonly class WordBreaks
         );
         $pieces = [];
         $shaped = '';
+        $id     = spl_object_id($style);
         foreach ($matches[0] ?? [] as $chunk) {
             if (' ' === $chunk[0]) {
                 $pieces[] = [$chunk, WordBreaks::GLUE];
@@ -90,7 +102,13 @@ final readonly class WordBreaks
                 $shaped    .= false !== $codePoint && $font->hasGlyph($codePoint) ? $chunk : ' ';
                 continue;
             }
-            foreach (1 === ($level & 1) ? [[$chunk, null]] : $this->wordPieces($chunk, $style) as $piece) {
+            if (1 === ($level & 1)) {
+                $pieces[] = [$chunk, null];
+                $shaped   .= $chunk;
+                continue;
+            }
+            $key = "{$id}:{$chunk}";
+            foreach ($this->memo[$key] ?? $this->remember($key, $chunk, $style) as $piece) {
                 $pieces[] = $piece;
                 $shaped   .= $piece[0];
             }
@@ -129,6 +147,22 @@ final readonly class WordBreaks
         $syllables[$last] = ($syllables[$last] ?? '') . $trail;
 
         return $syllables;
+    }
+
+    /**
+     * A word's pieces, cut and remembered for when the word comes back in the style.
+     *
+     * @return list<array{0: string, 1: ?string}>
+     */
+    private function remember(string $key, string $word, TextStyle $style): array
+    {
+        if (count($this->memo) >= self::MEMO_LIMIT) {
+            $this->memo       = [];
+            $this->memoStyles = [];
+        }
+        $this->memoStyles[spl_object_id($style)] = $style;
+
+        return $this->memo[$key] = $this->wordPieces($word, $style);
     }
 
     /**

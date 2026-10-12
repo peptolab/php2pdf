@@ -20,7 +20,11 @@ use Php2Pdf\Text\Textflow;
 
 use function array_sum;
 use function count;
+use function max;
+use function min;
 use function sprintf;
+
+use const INF;
 
 /**
  * Rows and columns of cells that flow through boxes across pages: column widths fixed, as
@@ -36,6 +40,8 @@ use function sprintf;
  */
 final class Table implements FlowableInterface
 {
+    private const float EPSILON = 1.0e-6;
+
     /** @var list<Column> */
     private readonly array $columns;
 
@@ -177,7 +183,7 @@ final class Table implements FlowableInterface
                 default  => $plan->headerHeights,
             };
             $drawn = $grid === $footers ? $boxFooters : $grid;
-            $painter->row($drawn->rows[$row] ?? [], $top, $heights, $row, $grid === $footers ? $height : $limit);
+            $painter->row($drawn->cells($row), $top, $heights, $row, $grid === $footers ? $height : $limit);
             $top     += $height;
             $edges[] = $painter->edgeY($top);
             if (! $isBody) {
@@ -191,6 +197,8 @@ final class Table implements FlowableInterface
         if (null !== $lastRow) {
             $this->nextRow = $this->continuing ? $lastRow : $lastRow + 1;
         }
+        // The rows drawn are done with; the row continuing in the next box keeps its place.
+        $body->release($this->nextRow);
         $result = $this->nextRow >= count($this->rows) && ! $this->continuing
             ? FlowResult::Done
             : FlowResult::BoxFull;
@@ -229,12 +237,27 @@ final class Table implements FlowableInterface
 
     /**
      * The height the remaining rows (and the headers and footers) would take at the given width,
-     * without placing anything.
+     * without placing anything. This lays out every remaining row; to ask whether the table fits a
+     * height, use measureUpTo(), which stops as soon as it does not.
      *
      * @throws IoException
      * @throws ParseException
      */
     public function measure(float $width): float
+    {
+        return $this->measureUpTo($width, INF)->height;
+    }
+
+    /**
+     * Measures the remaining rows (and the headers and footers) at the given width until their
+     * height passes $limit, without placing anything. Rows joined by a row span are measured
+     * together, so the height is exact as far as it goes; the result says whether every row was
+     * measured and so whether the table fits the limit.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    public function measureUpTo(float $width, float $limit): TableMeasure
     {
         [$headers, $body, $footers] = $this->grids();
         $headers->reset();
@@ -242,11 +265,18 @@ final class Table implements FlowableInterface
         $layout = $this->layout($headers, $body, $footers, $width);
         $height = array_sum($layout->rowHeights($headers, 0, $headers->count() - 1));
         $height += array_sum($layout->rowHeights($footers, 0, $footers->count() - 1));
-        if ($this->nextRow < $body->count()) {
-            $height += array_sum($layout->rowHeights($body, $this->nextRow, $body->count() - 1));
+        $count = $body->count();
+        $row   = $this->nextRow;
+        while ($row < $count && $height <= $limit + self::EPSILON) {
+            $end = $row;
+            for ($r = $row; $r <= $end; ++$r) {
+                $end = max($end, min($count - 1, $body->reach($r)));
+            }
+            $height += array_sum($layout->rowHeights($body, $row, $end));
+            $row     = $end + 1;
         }
 
-        return $height;
+        return new TableMeasure($height, $row >= $count && $height <= $limit + self::EPSILON, $row - min($this->nextRow, $count));
     }
 
     /**

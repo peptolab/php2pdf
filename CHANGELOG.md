@@ -6,6 +6,36 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `Table::measureUpTo($width, $limit)` measures the remaining rows only until their height passes
+  the limit and returns a `TableMeasure` (height, rows measured, `fits()`), so asking whether a long
+  table fits a box no longer lays out the whole table.
+
+### Changed
+
+- Text is set faster: a line is drawn from per-word pieces worked out once per run and font, each
+  paragraph's setup is made once, and the bidi and link passes are skipped when a line has
+  neither. Words and glyphs are shared across paragraphs, pair kerning is remembered by glyph
+  pair, and font subsets copy their metrics rather than rebuild them. Flowed text takes 21 to 28%
+  less time and justified text 24% less; the output is byte for byte the same.
+- Tables build a row's cells when the row is first needed and let them go once drawn, so their
+  memory no longer grows with their length: a 2,000-row table takes 25% less time and grows the
+  process by 14 MiB instead of 54 MiB.
+- A cell's markup or font error now surfaces when its row is reached, not when the table is first
+  fitted, so the pages before it may already be drawn.
+- PNG images decode faster, interlaced ones and large RGBA ones especially; a 12-megapixel RGBA
+  image peaks 2 MiB higher in PHP's heap while it decodes, though its resident memory is lower.
+- A document makes its text context and image decoders when it first needs them, so one without
+  text or images starts faster.
+- `IccProfile::key()` returns an xxh128 digest instead of md5. It has the same length and format and
+  is still a stable key for deduplicating, but its value differs from before.
+
+### Fixed
+
+- The tables guide gave `measure()` a document argument it does not take.
+- A dictionary entry whose key is a numeric string (`"1"`) is written out; it threw a `TypeError`.
+
 ## [0.1.5] - 2026-10-08
 
 ### Fixed

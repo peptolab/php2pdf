@@ -75,7 +75,7 @@ final class Document implements SvgDocumentInterface
     private readonly DocumentColour $colour;
     private readonly Metadata $metadata;
     private readonly Assets $assets;
-    private readonly TextContext $text;
+    private ?TextContext $text = null;
     private ?Navigation $navigation = null;
 
     /** @var list<Closure(Document): void> */
@@ -99,16 +99,6 @@ final class Document implements SvgDocumentInterface
         $this->colour   = new DocumentColour($this->options, $this->pdfx, $this->objects);
         $this->metadata = new Metadata(new Info(), $this->options, $this->options->clock->now(), $this->objects);
         $this->assets   = new Assets($this->objects, $this->colour, $this->options);
-        $this->text     = new TextContext(
-            new FontRegistry($this->objects, new FontOptions(
-                $this->options->glyphCheck,
-                $this->options->scriptCheck,
-                $this->options->complexShaper,
-                $this->options->pdfx?->value,
-            )),
-            new StyleRegistry(),
-            new InlineRegistry(),
-        );
     }
 
     /**
@@ -272,7 +262,7 @@ final class Document implements SvgDocumentInterface
     #[Override]
     public function fonts(): FontRegistry
     {
-        return $this->text->fonts;
+        return $this->text()->fonts;
     }
 
     /**
@@ -322,7 +312,7 @@ final class Document implements SvgDocumentInterface
     /** Named artwork that Textflow markup sets in the text with <img src="name">. */
     public function inlines(): InlineRegistry
     {
-        return $this->text->inlines;
+        return $this->text()->inlines;
     }
 
     /**
@@ -393,7 +383,7 @@ final class Document implements SvgDocumentInterface
     /** Named text styles for Textflow. */
     public function styles(): StyleRegistry
     {
-        return $this->text->styles;
+        return $this->text()->styles;
     }
 
     /**
@@ -447,13 +437,23 @@ final class Document implements SvgDocumentInterface
     }
 
     /**
-     * The fonts, styles and inline objects text is set with.
+     * The fonts, styles and inline objects text is set with: made on first use, so a document
+     * without text never loads them.
      *
      * @internal
      */
     public function text(): TextContext
     {
-        return $this->text;
+        return $this->text ??= new TextContext(
+            new FontRegistry($this->objects, new FontOptions(
+                $this->options->glyphCheck,
+                $this->options->scriptCheck,
+                $this->options->complexShaper,
+                $this->options->pdfx?->value,
+            )),
+            new StyleRegistry(),
+            new InlineRegistry(),
+        );
     }
 
     /**

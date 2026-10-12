@@ -41,6 +41,9 @@ final class LinePainter
         }
         $canvas->save();
         $topDown = $canvas->isTopDown();
+        // Segments mostly share a colour: it is set again only when it changes, or when artwork
+        // placed since may have changed it.
+        $lastColor = null;
         foreach ($layout->lines as $placed) {
             [$line, $baseline] = [$placed->line, $placed->baseline];
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
@@ -51,6 +54,7 @@ final class LinePainter
                     new Box($x0 + $ix, $edge, $inline->width, $inline->height),
                     Fit::entire(),
                 );
+                $lastColor = null;
             }
             foreach ($line->segments as $segment) {
                 $style  = $segment->style;
@@ -58,14 +62,23 @@ final class LinePainter
                 $format = CharFormat::of($style);
                 $size   = $format->size;
                 $x      = $x0 + $segment->x;
-                if (null !== $style->color) {
+                if (null !== $style->color && $style->color !== $lastColor) {
                     $canvas->setFillColor($style->color);
+                    $lastColor = $style->color;
                 }
                 $matrix  = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
                 $options = 1.0 === $segment->scale
                     ? $format->textOptions
                     : $format->textOptions->withHorizontalScale($format->horizontalScale * $segment->scale);
-                $canvas->showRun($segment->run, $font, $size, $matrix, $options);
+                $canvas->showRunPieces(
+                    $segment->run,
+                    $segment->pieces,
+                    $segment->lastKernings,
+                    $font,
+                    $size,
+                    $matrix,
+                    $options,
+                );
                 $sign = $topDown ? -1.0 : 1.0;
                 if (true === $style->underline) {
                     $t = $font->underlineThickness($size);
@@ -104,6 +117,9 @@ final class LinePainter
         $matches = [];
         foreach ($layout->lines as $placed) {
             [$line, $baseline] = [$placed->line, $placed->baseline];
+            if (! self::isMarked($line)) {
+                continue;
+            }
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
             // A run opens only on a segment whose key is set, and keeps that segment's style.
             foreach (self::runs($line, self::linkKey(...)) as [$left, $right, $ascent, $descent, $style]) {
@@ -156,6 +172,18 @@ final class LinePainter
             $right - $left,
             $ascent + $descent,
         );
+    }
+
+    /** Whether any of a line's text is linked or matched: most lines have neither. */
+    private static function isMarked(Line $line): bool
+    {
+        foreach ($line->segments as $segment) {
+            if (null !== $segment->style->link || null !== $segment->style->match) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function linkKey(TextStyle $style): ?string

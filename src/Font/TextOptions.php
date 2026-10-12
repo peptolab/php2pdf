@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use WeakMap;
+
 use function array_filter;
 use function array_values;
 use function in_array;
@@ -59,23 +61,12 @@ final readonly class TextOptions
      */
     public function activeFeatures(): array
     {
-        $features = ['ccmp', 'locl', 'rlig', 'calt', 'rclt', ...($this->useLigatures() ? ['liga', 'clig'] : [])];
-        $off      = [];
-        foreach ($this->features as $feature) {
-            if (str_starts_with($feature, '-')) {
-                $off[] = substr($feature, offset: 1);
-                continue;
-            }
-            if ('liga' === $feature || in_array($feature, $features, strict: true)) {
-                continue;
-            }
-            $features[] = $feature;
-        }
+        // Text is shaped with the same options many times over, so they are worked out once for
+        // each, and held outside it so that it is still equal to options made the same way.
+        /** @var WeakMap<self, list<string>> $active */
+        static $active = new WeakMap();
 
-        return array_values(array_filter(
-            $features,
-            static fn(string $tag): bool => ! in_array($tag, $off, strict: true),
-        ));
+        return $active[$this] ??= $this->features();
     }
 
     /**
@@ -139,5 +130,27 @@ final readonly class TextOptions
             $this->direction,
             $this->language,
         );
+    }
+
+    /** @return list<string> */
+    private function features(): array
+    {
+        $features = ['ccmp', 'locl', 'rlig', 'calt', 'rclt', ...($this->useLigatures() ? ['liga', 'clig'] : [])];
+        $off      = [];
+        foreach ($this->features as $feature) {
+            if (str_starts_with($feature, '-')) {
+                $off[] = substr($feature, offset: 1);
+                continue;
+            }
+            if ('liga' === $feature || in_array($feature, $features, strict: true)) {
+                continue;
+            }
+            $features[] = $feature;
+        }
+
+        return array_values(array_filter(
+            $features,
+            static fn(string $tag): bool => ! in_array($tag, $off, strict: true),
+        ));
     }
 }

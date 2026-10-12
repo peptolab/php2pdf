@@ -17,17 +17,17 @@ use Php2Pdf\Exception\PdfException;
 use function array_filter;
 use function array_slice;
 use function array_values;
+use function chr;
 use function count;
 use function in_array;
 use function intdiv;
 use function max;
-use function ord;
 use function sprintf;
 use function str_pad;
-use function str_split;
 use function str_starts_with;
 use function strlen;
 use function strpos;
+use function strtr;
 use function substr;
 use function unpack;
 
@@ -219,15 +219,18 @@ final readonly class PngDecoder implements ImageDecoderInterface
         return $joined;
     }
 
+    /**
+     * Each palette index translated to its alpha in one strtr(): indices past the tRNS entries are
+     * opaque.
+     */
     private static function paletteAlpha(string $indices, string $trns): string
     {
-        $table = str_pad($trns, length: 256, pad_string: "\xFF");
-        $alpha = '';
-        foreach (str_split($indices) as $index) {
-            $alpha .= $table[ord($index)];
+        $bytes = '';
+        for ($i = 0; $i < 256; ++$i) {
+            $bytes .= chr($i);
         }
 
-        return $alpha;
+        return strtr($indices, $bytes, substr(str_pad($trns, length: 256, pad_string: "\xFF"), offset: 0, length: 256));
     }
 
     /**

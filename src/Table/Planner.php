@@ -126,9 +126,7 @@ final class Planner
             while (null !== $group && $end < $last && ($this->body->sources[$end + 1]->group ?? null) === $group) {
                 ++$end;
             }
-            foreach ($this->body->rows[$r] ?? [] as $placed) {
-                $end = max($end, min($last, $placed->lastRow()));
-            }
+            $end = max($end, min($last, $this->body->reach($r)));
         }
 
         return $end;

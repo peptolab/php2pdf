@@ -83,8 +83,11 @@ final class Predictor
         for ($r = 0; $r < $rows; ++$r) {
             /** @var array<int, int> $row 1-based */
             $row = unpack("{$format}*", substr($data, $r * $rowBytes, $rowBytes));
-            for ($i = $colors + 1; $i <= $count; ++$i) {
-                $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFFFF;
+            for ($k = 1; $k <= $colors; ++$k) {
+                $a = $row[$k];
+                for ($i = $k + $colors; $i <= $count; $i += $colors) {
+                    $a = $row[$i] = ($row[$i] + $a) & 0xFFFF;
+                }
             }
             $out .= pack("{$format}*", ...$row);
         }
@@ -102,12 +105,8 @@ final class Predictor
         $rows     = intdiv(strlen($data), $rowBytes);
         $out      = '';
         for ($r = 0; $r < $rows; ++$r) {
-            /** @var array<int, int> $row 1-based */
-            $row = unpack('C*', substr($data, $r * $rowBytes, $rowBytes));
-            for ($i = $colors + 1; $i <= $rowBytes; ++$i) {
-                $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFF;
-            }
-            $out .= pack('C*', ...$row);
+            // The same sum as PNG's Sub filter, with a colour's samples as the pixel.
+            $out .= PngScanlines::sub(substr($data, $r * $rowBytes, $rowBytes), $colors);
         }
 
         return $out;

@@ -17,7 +17,7 @@ use Php2Pdf\Core\Objects;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
 
-use function md5;
+use function hash;
 
 /**
  * An image written once to a document as an image XObject and placed any number of times.
@@ -64,7 +64,7 @@ final class Image implements PlaceableInterface
             $profile = $raster->iccProfile;
             $n       = $raster->colorSpace->components;
             $icc     = $objects->shared(
-                'iccstream:' . md5($profile),
+                'iccstream:' . hash('xxh128', $profile),
                 static fn(): Stream => new Stream(Dictionary::of(['N' => $n]), $profile),
             );
         }
