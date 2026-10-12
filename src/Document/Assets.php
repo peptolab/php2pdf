@@ -30,8 +30,8 @@ use WeakMap;
 
 use function filemtime;
 use function filesize;
+use function hash;
 use function is_string;
-use function md5;
 use function realpath;
 use function spl_object_id;
 use function sprintf;
@@ -128,7 +128,7 @@ final class Assets implements CatalogContributorInterface
             }
         }
         $data = FileReader::read($path, 'image file');
-        $hash = md5($data);
+        $hash = hash('xxh128', $data);
         if (false !== $real && null !== $stamp) {
             $this->hashes[$real] = [$stamp[0], $stamp[1], $hash];
         }
@@ -139,7 +139,7 @@ final class Assets implements CatalogContributorInterface
     /** @throws PdfException */
     public function imageFromData(string $data, ImageOptions $options): Image
     {
-        return $this->load($data, md5($data), $options, null);
+        return $this->load($data, hash('xxh128', $data), $options, null);
     }
 
     /**

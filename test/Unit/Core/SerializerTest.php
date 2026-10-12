@@ -17,6 +17,8 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function str_repeat;
+
 #[Group('unit')]
 final class SerializerTest extends TestCase
 {
@@ -49,6 +51,28 @@ final class SerializerTest extends TestCase
             Dictionary::of(['A' => Dictionary::of(['B' => true])]),
             '<</A<</B true>>>>',
         ];
+    }
+
+    #[Test]
+    public function aNameAskedForAgainIsEscapedAlike(): void
+    {
+        self::assertSame(['/A#20B', '/A#20B'], [Serializer::name('A B'), Serializer::name('A B')]);
+    }
+
+    #[Test]
+    public function aNameTooLongToKeepIsStillEscaped(): void
+    {
+        self::assertSame('/' . str_repeat('a#23', times: 40), Serializer::name(str_repeat('a#', times: 40)));
+    }
+
+    #[Test]
+    public function namesAreEscapedOnceTheKeptNamesStartAgain(): void
+    {
+        for ($n = 0; $n <= 4096; ++$n) {
+            Serializer::name("n{$n}");
+        }
+
+        self::assertSame('/x#20y', Serializer::name('x y'));
     }
 
     #[Test]

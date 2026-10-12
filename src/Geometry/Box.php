@@ -75,10 +75,14 @@ final readonly class Box
     public function encloses(self $other, float $tolerance = 0.0): bool
     {
         return (
-            $other->x >= ($this->x - $tolerance)
-                && $other->y >= ($this->y - $tolerance)
-                && $other->right() <= ($this->right() + $tolerance)
-                && $other->far() <= ($this->far() + $tolerance)
+            $other->x
+            >= ($this->x - $tolerance)
+                && $other->y
+                >= ($this->y - $tolerance)
+                && $other->right()
+                <= ($this->right() + $tolerance)
+                && $other->far()
+                <= ($this->far() + $tolerance)
         );
     }
 

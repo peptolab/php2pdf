@@ -91,6 +91,16 @@ final class Gdef
         );
     }
 
+    /**
+     * Each glyph's class, as glyphClass() gives it: for reading many glyphs' classes at once.
+     *
+     * @return array<int, int> glyph => class
+     */
+    public function classMap(): array
+    {
+        return $this->classes();
+    }
+
     /** The glyph's class: BASE, LIGATURE, MARK or COMPONENT, or 0 when the font does not say. */
     public function glyphClass(int $glyph): int
     {

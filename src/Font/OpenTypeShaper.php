@@ -11,6 +11,7 @@ use Php2Pdf\Font\OpenType\LanguageSystems;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function array_diff;
+use function array_flip;
 use function array_key_exists;
 use function array_keys;
 use function array_reverse;
@@ -97,6 +98,12 @@ final readonly class OpenTypeShaper
         return $codePoints;
     }
 
+    /** Whether a character at U+00AD or above (the first) is default-ignorable. */
+    private static function ignorable(int $codePoint): bool
+    {
+        return true === IntlChar::hasBinaryProperty($codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT);
+    }
+
     /**
      * The features of a group that are among those asked for.
      *
@@ -143,52 +150,58 @@ final readonly class OpenTypeShaper
     {
         $rtl = TextDirection::RightToLeft === $options->direction;
         [$codePoints, $sources] = $this->codePoints($text);
+        // One entry per distinct code point, shared by its occurrences: arrays are copied on
+        // write, so a change to one occurrence's entry leaves the others as they are.
         $sequence = [];
+        $entries  = [];
         foreach ($codePoints as $codePoint) {
-            $shown      = $rtl ? $this->mirrored($codePoint) : $codePoint;
-            $sequence[] = [$this->program->glyphId($shown), [$shown]];
+            $entry = $entries[$codePoint] ?? $this->entry(
+                $rtl ? $this->mirrored($codePoint) : $codePoint,
+            );
+            $entries[$codePoint] = $entry;
+            $sequence[]          = $entry;
         }
+        unset($entries);
         $gsub     = $this->program->gsub();
         $language = LanguageSystems::forLanguage($options->language);
-        $placed   = [];
+        $glyphs   = [];
+        $at       = 0;
+        $cluster  = 0;
         foreach (ScriptRuns::of($codePoints) as [$script, $start, $length]) {
             $runCodePoints = array_slice($codePoints, $start, $length);
-            $runPlaced     = null;
             if (null !== $this->external && null !== ComplexScripts::find(self::text($runCodePoints))) {
-                $runPlaced = $this->externallyShaped($runCodePoints, $options, $script);
-            }
-            if (null === $runPlaced) {
-                $run = array_slice($sequence, $start, $length);
-                $run = $this->joins($script)
-                    ? $this->joined($run, $runCodePoints, $features, $script, $language)
-                    : $gsub?->apply($run, $features, $script, $language) ?? $run;
-                $runPlaced = $this->positioned($run, $options, $features, $script);
-            }
-            if ([] === $placed) {
-                $placed = $runPlaced;
+                $placed = $this->externallyShaped($runCodePoints, $options, $script);
+                $this->glyphs($placed, $sources, $glyphs, $at, $cluster);
                 continue;
             }
-            foreach ($runPlaced as $glyph) {
-                $placed[] = $glyph;
+            $run = array_slice($sequence, $start, $length);
+            if (($start + $length) >= count($sequence)) {
+                // The last run: the whole sequence is no longer needed while it is shaped.
+                $sequence   = [];
+                $codePoints = [];
             }
+            $run = $this->joins($script)
+                ? $this->joined($run, $runCodePoints, $features, $script, $language)
+                : $gsub?->apply($run, $features, $script, $language) ?? $run;
+            $this->positioned($run, $options, $features, $script, $sources, $glyphs, $at, $cluster);
         }
-        unset($sequence, $run, $runPlaced);
-        $glyphs = $this->glyphs($placed, $sources);
 
         return $rtl ? array_reverse($glyphs) : $glyphs;
     }
 
     /**
      * The text's code points, normalised for the font when it has combining marks or characters
-     * the font lacks, each with the index in the text of the character it comes from.
+     * the font lacks, each with the index in the text of the character it comes from: null when
+     * each comes from the character at its own index.
      *
-     * @return array{0: list<int>, 1: list<int>}
+     * @return array{0: list<int>, 1: list<int>|null}
      */
     private function codePoints(string $text): array
     {
         $codePoints = self::decoded($text);
         $missing    = false;
-        foreach ($codePoints as $codePoint) {
+        // Each character once: text repeats a few dozen characters many times over.
+        foreach (array_flip($codePoints) as $codePoint => $_) {
             if (0 !== $this->program->glyphId($codePoint)) {
                 continue;
             }
@@ -196,13 +209,23 @@ final readonly class OpenTypeShaper
             break;
         }
         if (! $missing && 1 !== preg_match('/\p{M}/u', $text)) {
-            return [$codePoints, array_keys($codePoints)];
+            return [$codePoints, null];
         }
 
         return Normaliser::normalise(
             $codePoints,
             fn(int $codePoint): bool => 0 !== $this->program->glyphId($codePoint),
         );
+    }
+
+    /**
+     * The entry in the sequence to substitute for a character shown: its glyph and the character.
+     *
+     * @return array{0: int, 1: list<int>}
+     */
+    private function entry(int $shown): array
+    {
+        return [$this->program->glyphId($shown), [$shown]];
     }
 
     /**
@@ -265,41 +288,45 @@ final readonly class OpenTypeShaper
     }
 
     /**
-     * The glyphs for placed glyphs, in logical order, each with the index in the text of the
+     * Adds the glyphs for placed glyphs, in logical order, each with the index in the text of the
      * character its cluster starts at: a glyph that stands for no character of its own (the
      * second of a multiple substitution) joins the cluster before it. Default-ignorable characters
      * (joiners, direction marks, variation selectors) are shown as the space glyph with no width or
-     * offset, as HarfBuzz hides them; they keep their text. Each glyph is made once, here; the
-     * placed glyphs (taken by reference, so not copied) are released as they are read, so the two
-     * lists are not both held whole.
+     * offset, as HarfBuzz hides them; they keep their text.
      *
      * @param list<array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}> $placed
-     * @param list<int> $sources the index in the text of each normalised code point
-     *
-     * @return list<Glyph>
+     * @param list<int>|null                                                                       $sources the index in
+     *     the text of each normalised code point, null when it is its own index
+     * @param list<Glyph>                                                                          $glyphs  the glyphs so far
+     * @param int                                                                                  $at      how many
+     *     normalised code points the glyphs so far stand for
+     * @param int                                                                                  $cluster the last glyph's cluster
      */
-    private function glyphs(array &$placed, array $sources): array
+    private function glyphs(array $placed, ?array $sources, array &$glyphs, int &$at, int &$cluster): void
     {
-        $space   = $this->program->glyphId(0x20);
-        $hide    = 0 !== $space && class_exists(IntlChar::class);
-        $width   = $hide ? ($this->advance)($space) : 0;
-        $at      = 0;
-        $cluster = 0;
-        $glyphs  = [];
-        for ($k = 0; null !== ($entry = $placed[$k] ?? null); ++$k) {
-            [$id, $codePoint, $advance, $kerning, $components, $xOffset, $yOffset, $length] = $entry;
-            unset($placed[$k]);
-            $cluster  = $length > 0 ? $sources[$at] ?? $cluster : $cluster;
+        $hidden = $this->hidden();
+        foreach ($placed as [$id, $codePoint, $advance, $kerning, $components, $xOffset, $yOffset, $length]) {
+            if ($length > 0) {
+                $cluster = null === $sources ? $at : $sources[$at] ?? $cluster;
+            }
             $at       += $length;
-            $glyphs[] = $hide
-            && $codePoint >= 0xAD // U+00AD, the first default-ignorable code point
-            && [] === $components
-            && IntlChar::hasBinaryProperty($codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT)
-                ? new Glyph($space, $codePoint, $width, -$width, cluster: $cluster)
+            $glyphs[] = null !== $hidden && $codePoint >= 0xAD && [] === $components && self::ignorable($codePoint)
+                ? new Glyph($hidden[0], $codePoint, $hidden[1], -$hidden[1], cluster: $cluster)
                 : new Glyph($id, $codePoint, $advance, $kerning, $components, $xOffset, $yOffset, $cluster);
         }
+    }
 
-        return $glyphs;
+    /**
+     * The glyph default-ignorable characters are shown as, the space (its advance taken back), and
+     * its advance; null when the font has no space or ICU cannot tell those characters.
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function hidden(): ?array
+    {
+        $space = $this->program->glyphId(0x20);
+
+        return 0 !== $space && class_exists(IntlChar::class) ? [$space, ($this->advance)($space)] : null;
     }
 
     /**
@@ -407,20 +434,27 @@ final readonly class OpenTypeShaper
     }
 
     /**
-     * Glyphs for a substituted sequence, positioned by the font's GPOS (kerning when it has a kern
-     * feature, mark and cursive attachment, and the requested features), else kerned from its
-     * kern table. A glyph's kerning carries what positioning adds to its advance; a mark
-     * positioning gives no advance takes back its whole drawn width.
+     * Adds the glyphs for a substituted sequence, positioned by the font's GPOS (kerning when it
+     * has a kern feature, mark and cursive attachment, and the requested features), else kerned
+     * from its kern table, as placed() makes them and glyphs() adds them.
      *
      * @param list<array{0: int, 1: list<int>, 2?: int, 3?: int, 4?: string}> $sequence
      * @param list<string>                                                    $features
-     *
-     * @return list<array{0: int, 1: int, 2: int, 3: float, 4: list<int>, 5: float, 6: float, 7: int}>
+     * @param list<int>|null                                                  $sources  as glyphs() takes them
+     * @param list<Glyph>                                                     $glyphs
      *
      * @throws ParseException
      */
-    private function positioned(array $sequence, TextOptions $options, array $features, string $script): array
-    {
+    private function positioned(
+        array $sequence,
+        TextOptions $options,
+        array $features,
+        string $script,
+        ?array $sources,
+        array &$glyphs,
+        int &$at,
+        int &$cluster,
+    ): void {
         $language     = LanguageSystems::forLanguage($options->language);
         $gpos         = $this->program->gpos();
         $gposFeatures = [
@@ -434,8 +468,8 @@ final readonly class OpenTypeShaper
             ...$features,
         ];
         $positions = null;
+        $advances  = [];
         if (null !== $gpos && $gpos->has($gposFeatures, $script, $language)) {
-            $advances = [];
             foreach ($sequence as [$id]) {
                 $advances[] = $this->program->advance($id);
             }
@@ -452,20 +486,52 @@ final readonly class OpenTypeShaper
             $options->kerning
             && (null === $positions || ! ($gpos?->has(['kern'], $script, $language) ?? false))
             && $this->program->hasKerning();
-        $glyphs = [];
+        // Each glyph as placed() and glyphs() make it, with the advances already read and each
+        // glyph's width asked for once; a kern table pair adds to the first glyph's kerning.
+        $hidden  = $this->hidden();
+        $widths  = [];
+        $advance = $this->advance;
+        $scale   = $this->scale;
         foreach ($sequence as $k => [$id, $codePoints]) {
-            [$xAdvance, , $xOffset, $yOffset] = $positions[$k] ?? [$this->program->advance($id), 0, 0, 0];
-            $previous = $legacyKern ? $glyphs[$k - 1] ?? null : null;
-            if (null !== $previous) {
-                $kern = $this->program->kerning($previous[0], $id);
+            $natural  = $advances[$k] ?? $this->program->advance($id);
+            $position = null === $positions ? null : $positions[$k] ?? null;
+            $xAdvance = $natural;
+            $xOffset  = 0;
+            $yOffset  = 0;
+            if (null !== $position) {
+                [$xAdvance, , $xOffset, $yOffset] = $position;
+            }
+            $width = $widths[$id] ?? null;
+            if (null === $width) {
+                $width       = $advance($id);
+                $widths[$id] = $width;
+            }
+            $kerning = (float) (0 === $xAdvance && 0 !== $natural ? -$width : ($xAdvance - $natural) * $scale);
+            $next    = $legacyKern ? $sequence[$k + 1][0] ?? null : null;
+            if (null !== $next) {
+                $kern = $this->program->kerning($id, $next);
                 if (0 !== $kern) {
-                    $previous[3]    += $kern * $this->scale;
-                    $glyphs[$k - 1] = $previous;
+                    $kerning += $kern * $scale;
                 }
             }
-            $glyphs[] = $this->placed($id, $codePoints, $xAdvance, $xOffset, $yOffset);
+            $codePoint = $codePoints[0] ?? -1;
+            $length    = count($codePoints);
+            if ($length > 0) {
+                $cluster = null === $sources ? $at : $sources[$at] ?? $cluster;
+            }
+            $at       += $length;
+            $glyphs[] = null !== $hidden && $codePoint >= 0xAD && $length < 2 && self::ignorable($codePoint)
+                ? new Glyph($hidden[0], $codePoint, $hidden[1], -$hidden[1], cluster: $cluster)
+                : new Glyph(
+                    $id,
+                    $codePoint,
+                    $width,
+                    $kerning,
+                    $length > 1 ? $codePoints : [],
+                    $xOffset * $scale,
+                    $yOffset * $scale,
+                    $cluster,
+                );
         }
-
-        return $glyphs;
     }
 }

@@ -32,6 +32,26 @@ final class GlyphPositionsTest extends TestCase
     }
 
     #[Test]
+    public function glyphsAtTheirAdvancesHoldOnlyThePositionsGiven(): void
+    {
+        $positions = GlyphPositions::natural([500, 600, 700], 3);
+        $positions->add(1, xAdvance: -10, yAdvance: 0, xOffset: 5, yOffset: 0);
+        $positions->adjust(2, [1, 2, 3, 4]);
+        $positions->adjust(3, [1, 2, 3, 4]);
+
+        self::assertSame(
+            [
+                [1 => [590, 0, 5, 0, 0, 0], 2 => [703, 4, 1, 2, 0, 0]],
+                [[500, 0, 0, 0, 0, 0], [590, 0, 5, 0, 0, 0], [703, 4, 1, 2, 0, 0]],
+                [500, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0],
+                3,
+            ],
+            [$positions->given(), $positions->all(), $positions->get(0), $positions->get(3), $positions->count()],
+        );
+    }
+
+    #[Test]
     public function itCountsTheGlyphs(): void
     {
         self::assertSame(2, (new GlyphPositions([self::POSITION, self::POSITION]))->count());

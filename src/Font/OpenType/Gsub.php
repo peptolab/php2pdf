@@ -239,7 +239,8 @@ final class Gsub
                 null === ($starts[$ids[$i] ?? -1] ?? null)
                 || (
                     null !== $form
-                    && $form !== ($glyphs->entry($i)[4] ?? '')
+                    && $form
+                    !== ($glyphs->entry($i)[4] ?? '')
                 )
             ) {
                 ++$i;

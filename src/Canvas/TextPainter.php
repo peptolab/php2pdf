@@ -119,7 +119,11 @@ final class TextPainter
 
     /**
      * Shows a shaped run with the given text matrix, colour glyphs as their layers. The layers
-     * are marked as standing for no text.
+     * are marked as standing for no text. A run joined from $pieces is shown from them, as
+     * Canvas::showRunPieces() describes, unless it has colour glyphs.
+     *
+     * @param list<GlyphRun>    $pieces
+     * @param array<int, float> $lastKernings
      *
      * @throws InvalidArgumentException for a font that is not the library's own
      */
@@ -130,6 +134,8 @@ final class TextPainter
         float $size,
         Matrix $textMatrix,
         TextOptions $options,
+        array $pieces = [],
+        array $lastKernings = [],
     ): void {
         if ($run->isEmpty()) {
             return;
@@ -141,10 +147,12 @@ final class TextPainter
                 $font::class,
             ));
         $layers = TextRenderMode::Invisible === $options->renderMode ? [] : $font->colourLayers($run);
-        $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers));
         if ([] === $layers) {
+            $this->show($run, $font, $size, $textMatrix, $options, [], $pieces, $lastKernings);
+
             return;
         }
+        $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers));
         $this->stream->append(self::NO_TEXT);
         foreach ($layers as $index => $list) {
             $origin = Matrix::translation(
@@ -183,9 +191,12 @@ final class TextPainter
 
     /**
      * Shows a run in one text object. Glyphs at the $hidden positions (colour glyphs, whose layers
-     * are drawn over them) are shown invisibly, so they keep their place and their text.
+     * are drawn over them) are shown invisibly, so they keep their place and their text. A run
+     * joined from $pieces is shown from them where TextFragments::show() can.
      *
-     * @param list<int> $hidden
+     * @param list<int>         $hidden
+     * @param list<GlyphRun>    $pieces
+     * @param array<int, float> $lastKernings
      */
     private function show(
         GlyphRun $run,
@@ -194,11 +205,15 @@ final class TextPainter
         Matrix $textMatrix,
         TextOptions $options,
         array $hidden,
+        array $pieces = [],
+        array $lastKernings = [],
     ): void {
-        $this->objects->assertOwns($font->objects(), 'A font');
-        $faithful = $font->markUsed($run);
-        $ops      = 'BT';
-        $state    = $this->textState($font, $size, $options);
+        // The last font shown was checked when it was first shown: textState() keeps it after.
+        if ($font !== $this->lastFont) {
+            $this->objects->assertOwns($font->objects(), 'A font');
+        }
+        $ops   = 'BT';
+        $state = $this->textState($font, $size, $options);
         foreach ($state as $key => $operation) {
             if (! $this->stream->changes($key, $operation)) {
                 continue;
@@ -209,10 +224,12 @@ final class TextPainter
         $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
             ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
             : "{$m->toPdf()} Tm";
-        $text =
-            "{$ops} {$position} "
-            . TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr')
-            . ' ET';
+        $shown = [] === $pieces ? null : TextFragments::show($pieces, $lastKernings, $font, $size, $options);
+        [$operation, $faithful] = $shown ?? [
+            TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr'),
+            $font->markUsed($run),
+        ];
+        $text = "{$ops} {$position} {$operation} ET";
         $this->stream->append($faithful ? $text : TextOperators::actualText($run, $options, $text));
     }
 

@@ -8,7 +8,7 @@ use Php2Pdf\Core\FileReader;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 
-use function md5;
+use function hash;
 use function pathinfo;
 use function strlen;
 use function substr;
@@ -51,6 +51,6 @@ final readonly class IccProfile
     /** A stable key for deduplicating the profile stream within a document. */
     public function key(): string
     {
-        return md5($this->data);
+        return hash('xxh128', $this->data);
     }
 }

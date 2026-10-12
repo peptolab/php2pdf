@@ -24,20 +24,33 @@ use function sprintf;
  *
  * @api
  */
-final readonly class ImageDecoders
+final class ImageDecoders
 {
+    /** The default decoders, shared: an instance never changes once built. */
+    private static ?self $default = null;
+
+    /**
+     * Whether JPEG, JPEG 2000, TIFF and PNG are read after $decoders. The built-in decoders are
+     * made only for an image whose first bytes are theirs, so a document without images never
+     * loads them.
+     */
+    private bool $builtIn = false;
+
     /** @param list<ImageDecoderInterface> $decoders */
     public function __construct(
-        private array $decoders,
-        private PngDecoder $png = new PngDecoder(),
+        private readonly array $decoders,
+        private readonly ?PngDecoder $png = null,
     ) {}
 
     /** JPEG, JPEG 2000, TIFF and PNG. */
     public static function default(): self
     {
-        $png = new PngDecoder();
+        if (null === self::$default) {
+            self::$default          = new self([]);
+            self::$default->builtIn = true;
+        }
 
-        return new self([new JpegDecoder(), new JpxDecoder(), new TiffDecoder(), $png], $png);
+        return self::$default;
     }
 
     /**
@@ -48,11 +61,9 @@ final readonly class ImageDecoders
      */
     public function read(string $data, Limits $limits, ImageOptions $options, ?string $name = null): ImageData
     {
-        $traits = null;
-        foreach ($this->decoders as $decoder) {
-            if (! $decoder->accepts($data)) {
-                continue;
-            }
+        $traits  = null;
+        $decoder = $this->decoderFor($data);
+        if (null !== $decoder) {
             if ($options->page > 1 && ! $decoder->hasPages()) {
                 throw new ParseException(sprintf(
                     '%s files have one page; page %d was asked for.',
@@ -65,7 +76,6 @@ final readonly class ImageDecoders
                 return $image;
             }
             $traits = $image;
-            break;
         }
 
         return $this->converted($data, $limits, $options, $traits, $name);
@@ -77,7 +87,10 @@ final readonly class ImageDecoders
      */
     public function with(ImageDecoderInterface $decoder): self
     {
-        return new self([$decoder, ...$this->decoders], $this->png);
+        $with          = new self([$decoder, ...$this->decoders], $this->png);
+        $with->builtIn = $this->builtIn;
+
+        return $with;
     }
 
     /**
@@ -109,6 +122,30 @@ final readonly class ImageDecoders
                 default => sprintf('Image file "%s"', $name),
             },
         );
-        return $this->png->decode($png, $limits, new ImageOptions());
+        return ($this->png ?? new PngDecoder())->decode($png, $limits, new ImageOptions());
+    }
+
+    /** The first decoder that accepts the data, or null when none does. */
+    private function decoderFor(string $data): ?ImageDecoderInterface
+    {
+        foreach ($this->decoders as $decoder) {
+            if ($decoder->accepts($data)) {
+                return $decoder;
+            }
+        }
+        if (! $this->builtIn) {
+            return null;
+        }
+        // The first byte tells the built-in formats apart; the decoder itself then checks the
+        // whole signature.
+        $decoder = match ($data[0] ?? '') {
+            "\xFF"   => "\xD8" === ($data[1] ?? '') ? new JpegDecoder() : new JpxDecoder(),
+            "\x00"   => new JpxDecoder(),
+            'I', 'M' => new TiffDecoder(),
+            "\x89"   => $this->png ?? new PngDecoder(),
+            default  => null,
+        };
+
+        return null !== $decoder && $decoder->accepts($data) ? $decoder : null;
     }
 }

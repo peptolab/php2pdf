@@ -7,9 +7,11 @@ namespace Php2PdfTest\Integration\Text\Flow;
 use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Font\Glyph;
+use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Flow\InlineObject;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\Itemiser;
+use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\Line;
 use Php2Pdf\Text\Flow\LineAssembler;
 use Php2Pdf\Text\Flow\LineEnd;
@@ -84,6 +86,54 @@ final class LineAssemblerTest extends TestCase
     private static function scales(Line $line): array
     {
         return array_map(static fn(Segment $segment): float => $segment->scale, $line->segments);
+    }
+
+    #[Test]
+    public function aBoxWithoutARunStillSetsTheLineHeight(): void
+    {
+        $large    = $this->style->merge(new TextStyle(size: 20.0));
+        $expected = LineAssembler::line(
+            (new Itemiser())->itemise([['x', $large]]),
+            null,
+            $this->style,
+            [Alignment::Left, 0],
+            0.0,
+            300.0,
+            [0, 0],
+            true,
+        );
+        $line = LineAssembler::line(
+            [new Item(ItemKind::Box, $large, 'x')],
+            null,
+            $this->style,
+            [Alignment::Left, 0],
+            0.0,
+            300.0,
+            [0, 0],
+            true,
+        );
+
+        self::assertSame(
+            [$expected->ascent, $expected->descent, $expected->lineHeight, []],
+            [$line->ascent, $line->descent, $line->lineHeight, $line->segments],
+        );
+    }
+
+    #[Test]
+    public function aBoxWithoutGlyphsDrawsNothing(): void
+    {
+        $line = LineAssembler::line(
+            [new Item(ItemKind::Box, $this->style, '', new GlyphRun([]))],
+            null,
+            $this->style,
+            [Alignment::Left, 0],
+            0.0,
+            300.0,
+            [0, 0],
+            true,
+        );
+
+        self::assertSame([], $line->segments);
     }
 
     #[Test]

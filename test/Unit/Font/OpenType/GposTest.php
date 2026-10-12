@@ -84,7 +84,25 @@ final class GposTest extends TestCase
             };
         }
 
-        return $gpos->position($entries, $advances, ['test'], $script);
+        return self::whole($gpos->position($entries, $advances, ['test'], $script), $advances);
+    }
+
+    /**
+     * Every glyph's position: those position() does not list keep their advance.
+     *
+     * @param array<int, array{0: int, 1: int, 2: int, 3: int}> $positions
+     * @param list<int>                                         $advances
+     *
+     * @return list<array{0: int, 1: int, 2: int, 3: int}>
+     */
+    private static function whole(array $positions, array $advances): array
+    {
+        $whole = [];
+        foreach ($advances as $k => $advance) {
+            $whole[] = $positions[$k] ?? [$advance, 0, 0, 0];
+        }
+
+        return $whole;
     }
 
     #[Test]
@@ -180,7 +198,10 @@ final class GposTest extends TestCase
 
         self::assertSame(
             [[600, 0, 0, 0], [500, 0, 0, 0], [500, 0, 0, 0]],
-            $gpos->position([[1, [0x61]], [2, [0x62]], [1, [0x61]]], [500, 500, 500], ['test']),
+            self::whole(
+                $gpos->position([[1, [0x61]], [2, [0x62]], [1, [0x61]]], [500, 500, 500], ['test']),
+                [500, 500, 500],
+            ),
         );
     }
 
@@ -215,6 +236,29 @@ final class GposTest extends TestCase
         self::assertSame(
             [[0, 0, -300, 700], [0, 0, -250, -100]],
             array_slice(self::position($marks, [1, 20, 21]), offset: 1),
+        );
+    }
+
+    #[Test]
+    public function onlyTheGlyphsPositionedAndMarksAreListed(): void
+    {
+        $gpos = new Gpos(
+            new BinaryReader(GsubBuilder::build(
+                'latn',
+                ['test' => [0]],
+                [[2, [GposBuilder::pair1([1 => [2 => [[0, 0, -80], [0, 0, 0]]]])]]],
+                extensionType: 9,
+            )),
+            new Gdef(new BinaryReader(GsubBuilder::gdef(self::CLASSES))),
+        );
+
+        self::assertSame(
+            [2 => [420, 0, 0, 0], 4 => [0, 0, 0, 0]],
+            $gpos->position(
+                [[3, [0x61]], [3, [0x61]], [1, [0x61]], [2, [0x62]], [20, [0x301]]],
+                [500, 500, 500, 500, 100],
+                ['test'],
+            ),
         );
     }
 

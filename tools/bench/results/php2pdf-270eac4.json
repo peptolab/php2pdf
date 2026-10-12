@@ -1,0 +1,574 @@
+{
+    "meta": {
+        "library": "php2pdf @270eac4",
+        "php": "8.3.35 Darwin 22.6.0 x86_64",
+        "cpu": "Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz",
+        "opcache": "on, jit tracing (0)",
+        "memory_limit": "2048M",
+        "xdebug": "loaded, off in the runs",
+        "runs": 3,
+        "warmup": 1
+    },
+    "results": {
+        "hello": {
+            "median": {
+                "seconds": 0.018309845,
+                "min": 0.018114126,
+                "pages": 1,
+                "bytes": 3992,
+                "rss_peak": 26976256,
+                "rss_delta": 1740800,
+                "zend_peak": 4194304
+            },
+            "runs": [
+                {
+                    "seconds": 0.01857965,
+                    "pages": 1,
+                    "bytes": 3992,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25059328,
+                    "rss_peak": 26800128
+                },
+                {
+                    "seconds": 0.018114126,
+                    "pages": 1,
+                    "bytes": 3992,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25235456,
+                    "rss_peak": 26976256
+                },
+                {
+                    "seconds": 0.018309845,
+                    "pages": 1,
+                    "bytes": 3992,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25321472,
+                    "rss_peak": 27054080
+                }
+            ]
+        },
+        "blank-500": {
+            "median": {
+                "seconds": 0.0285412,
+                "min": 0.027944942,
+                "pages": 500,
+                "bytes": 141346,
+                "rss_peak": 26447872,
+                "rss_delta": 1253376,
+                "zend_peak": 4194304
+            },
+            "runs": [
+                {
+                    "seconds": 0.033220224,
+                    "pages": 500,
+                    "bytes": 141346,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25157632,
+                    "rss_peak": 26447872
+                },
+                {
+                    "seconds": 0.027944942,
+                    "pages": 500,
+                    "bytes": 141346,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25296896,
+                    "rss_peak": 26529792
+                },
+                {
+                    "seconds": 0.0285412,
+                    "pages": 500,
+                    "bytes": 141346,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25157632,
+                    "rss_peak": 26411008
+                }
+            ]
+        },
+        "text-100": {
+            "median": {
+                "seconds": 0.332898577,
+                "min": 0.329657741,
+                "pages": 100,
+                "bytes": 204667,
+                "rss_peak": 32894976,
+                "rss_delta": 7606272,
+                "zend_peak": 8388608
+            },
+            "runs": [
+                {
+                    "seconds": 0.34482709,
+                    "pages": 100,
+                    "bytes": 204667,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25264128,
+                    "rss_peak": 32894976
+                },
+                {
+                    "seconds": 0.329657741,
+                    "pages": 100,
+                    "bytes": 204667,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25141248,
+                    "rss_peak": 32747520
+                },
+                {
+                    "seconds": 0.332898577,
+                    "pages": 100,
+                    "bytes": 204667,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25370624,
+                    "rss_peak": 32972800
+                }
+            ]
+        },
+        "text-500": {
+            "median": {
+                "seconds": 1.361298633,
+                "min": 1.324797769,
+                "pages": 500,
+                "bytes": 912569,
+                "rss_peak": 33931264,
+                "rss_delta": 8617984,
+                "zend_peak": 8388608
+            },
+            "runs": [
+                {
+                    "seconds": 1.324797769,
+                    "pages": 500,
+                    "bytes": 912569,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25112576,
+                    "rss_peak": 33726464
+                },
+                {
+                    "seconds": 1.36676845,
+                    "pages": 500,
+                    "bytes": 912569,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25501696,
+                    "rss_peak": 34119680
+                },
+                {
+                    "seconds": 1.361298633,
+                    "pages": 500,
+                    "bytes": 912569,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25243648,
+                    "rss_peak": 33931264
+                }
+            ]
+        },
+        "text-2000": {
+            "median": {
+                "seconds": 4.892159967,
+                "min": 4.838110202,
+                "pages": 2000,
+                "bytes": 3574301,
+                "rss_peak": 38031360,
+                "rss_delta": 12779520,
+                "zend_peak": 12582912
+            },
+            "runs": [
+                {
+                    "seconds": 4.892159967,
+                    "pages": 2000,
+                    "bytes": 3574301,
+                    "zend_base": 4194304,
+                    "zend_peak": 12582912,
+                    "rss_base": 25251840,
+                    "rss_peak": 38031360
+                },
+                {
+                    "seconds": 4.838110202,
+                    "pages": 2000,
+                    "bytes": 3574301,
+                    "zend_base": 4194304,
+                    "zend_peak": 12582912,
+                    "rss_base": 25223168,
+                    "rss_peak": 37978112
+                },
+                {
+                    "seconds": 4.918915466,
+                    "pages": 2000,
+                    "bytes": 3574301,
+                    "zend_base": 4194304,
+                    "zend_peak": 12582912,
+                    "rss_base": 25223168,
+                    "rss_peak": 38129664
+                }
+            ]
+        },
+        "justify-100": {
+            "median": {
+                "seconds": 0.478058631,
+                "min": 0.472003909,
+                "pages": 100,
+                "bytes": 245206,
+                "rss_peak": 33112064,
+                "rss_delta": 7897088,
+                "zend_peak": 8388608
+            },
+            "runs": [
+                {
+                    "seconds": 0.480115833,
+                    "pages": 100,
+                    "bytes": 245206,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25214976,
+                    "rss_peak": 33112064
+                },
+                {
+                    "seconds": 0.478058631,
+                    "pages": 100,
+                    "bytes": 245206,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 25309184,
+                    "rss_peak": 33222656
+                },
+                {
+                    "seconds": 0.472003909,
+                    "pages": 100,
+                    "bytes": 245206,
+                    "zend_base": 4194304,
+                    "zend_peak": 8388608,
+                    "rss_base": 24911872,
+                    "rss_peak": 32768000
+                }
+            ]
+        },
+        "hyphenate-100": {
+            "median": {
+                "seconds": 0.598418955,
+                "min": 0.572026266,
+                "pages": 100,
+                "bytes": 243980,
+                "rss_peak": 35213312,
+                "rss_delta": 10059776,
+                "zend_peak": 10485760
+            },
+            "runs": [
+                {
+                    "seconds": 0.620298659,
+                    "pages": 100,
+                    "bytes": 243980,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 25120768,
+                    "rss_peak": 35213312
+                },
+                {
+                    "seconds": 0.598418955,
+                    "pages": 100,
+                    "bytes": 243980,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 24989696,
+                    "rss_peak": 35049472
+                },
+                {
+                    "seconds": 0.572026266,
+                    "pages": 100,
+                    "bytes": 243980,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 25300992,
+                    "rss_peak": 35356672
+                }
+            ]
+        },
+        "paragraphs-long-50": {
+            "median": {
+                "seconds": 0.354789289,
+                "min": 0.33824283,
+                "pages": 50,
+                "bytes": 152532,
+                "rss_peak": 38174720,
+                "rss_delta": 13131776,
+                "zend_peak": 14680064
+            },
+            "runs": [
+                {
+                    "seconds": 0.33824283,
+                    "pages": 50,
+                    "bytes": 152532,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 25075712,
+                    "rss_peak": 38170624
+                },
+                {
+                    "seconds": 0.354789289,
+                    "pages": 50,
+                    "bytes": 152532,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 25030656,
+                    "rss_peak": 38174720
+                },
+                {
+                    "seconds": 0.355871275,
+                    "pages": 50,
+                    "bytes": 152532,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 25321472,
+                    "rss_peak": 38453248
+                }
+            ]
+        },
+        "documents-20": {
+            "median": {
+                "seconds": 0.981784685,
+                "min": 0.976710836,
+                "pages": 100,
+                "bytes": 36455,
+                "rss_peak": 34291712,
+                "rss_delta": 9031680,
+                "zend_peak": 10485760
+            },
+            "runs": [
+                {
+                    "seconds": 0.976710836,
+                    "pages": 100,
+                    "bytes": 36455,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 25333760,
+                    "rss_peak": 34394112
+                },
+                {
+                    "seconds": 0.981784685,
+                    "pages": 100,
+                    "bytes": 36455,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 25214976,
+                    "rss_peak": 34226176
+                },
+                {
+                    "seconds": 0.98839958,
+                    "pages": 100,
+                    "bytes": 36455,
+                    "zend_base": 4194304,
+                    "zend_peak": 10485760,
+                    "rss_base": 25260032,
+                    "rss_peak": 34291712
+                }
+            ]
+        },
+        "table-2000": {
+            "median": {
+                "seconds": 0.974580431,
+                "min": 0.968861955,
+                "pages": 78,
+                "bytes": 158440,
+                "rss_peak": 40239104,
+                "rss_delta": 14974976,
+                "zend_peak": 14680064
+            },
+            "runs": [
+                {
+                    "seconds": 0.977298929,
+                    "pages": 78,
+                    "bytes": 158440,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 25292800,
+                    "rss_peak": 40239104
+                },
+                {
+                    "seconds": 0.974580431,
+                    "pages": 78,
+                    "bytes": 158440,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 24997888,
+                    "rss_peak": 39976960
+                },
+                {
+                    "seconds": 0.968861955,
+                    "pages": 78,
+                    "bytes": 158440,
+                    "zend_base": 4194304,
+                    "zend_peak": 14680064,
+                    "rss_base": 25272320,
+                    "rss_peak": 40247296
+                }
+            ]
+        },
+        "images-reuse-100": {
+            "median": {
+                "seconds": 0.032027021,
+                "min": 0.027449131,
+                "pages": 100,
+                "bytes": 1019055,
+                "rss_peak": 27406336,
+                "rss_delta": 2121728,
+                "zend_peak": 4194304
+            },
+            "runs": [
+                {
+                    "seconds": 0.033324419,
+                    "pages": 100,
+                    "bytes": 1019055,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25288704,
+                    "rss_peak": 27406336
+                },
+                {
+                    "seconds": 0.027449131,
+                    "pages": 100,
+                    "bytes": 1019055,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 24887296,
+                    "rss_peak": 27033600
+                },
+                {
+                    "seconds": 0.032027021,
+                    "pages": 100,
+                    "bytes": 1019055,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25333760,
+                    "rss_peak": 27455488
+                }
+            ]
+        },
+        "images-distinct-40": {
+            "median": {
+                "seconds": 0.045556295,
+                "min": 0.045329378,
+                "pages": 40,
+                "bytes": 7323339,
+                "rss_peak": 26955776,
+                "rss_delta": 1638400,
+                "zend_peak": 4194304
+            },
+            "runs": [
+                {
+                    "seconds": 0.045329378,
+                    "pages": 40,
+                    "bytes": 7323339,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25341952,
+                    "rss_peak": 26959872
+                },
+                {
+                    "seconds": 0.048966295,
+                    "pages": 40,
+                    "bytes": 7323339,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25096192,
+                    "rss_peak": 26734592
+                },
+                {
+                    "seconds": 0.045556295,
+                    "pages": 40,
+                    "bytes": 7323339,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25313280,
+                    "rss_peak": 26955776
+                }
+            ]
+        },
+        "import-500": {
+            "median": {
+                "seconds": 0.114172211,
+                "min": 0.113352497,
+                "pages": 500,
+                "bytes": 227295,
+                "rss_peak": 30281728,
+                "rss_delta": 5165056,
+                "zend_peak": 6291456
+            },
+            "runs": [
+                {
+                    "seconds": 0.114172211,
+                    "pages": 500,
+                    "bytes": 227295,
+                    "zend_base": 4194304,
+                    "zend_peak": 6291456,
+                    "rss_base": 25202688,
+                    "rss_peak": 30392320
+                },
+                {
+                    "seconds": 0.113352497,
+                    "pages": 500,
+                    "bytes": 227295,
+                    "zend_base": 4194304,
+                    "zend_peak": 6291456,
+                    "rss_base": 25128960,
+                    "rss_peak": 30281728
+                },
+                {
+                    "seconds": 0.127649834,
+                    "pages": 500,
+                    "bytes": 227295,
+                    "zend_base": 4194304,
+                    "zend_peak": 6291456,
+                    "rss_base": 25063424,
+                    "rss_peak": 30228480
+                }
+            ]
+        },
+        "svg-100": {
+            "median": {
+                "seconds": 0.035397102,
+                "min": 0.034942389,
+                "pages": 10,
+                "bytes": 11695,
+                "rss_peak": 27656192,
+                "rss_delta": 2371584,
+                "zend_peak": 4194304
+            },
+            "runs": [
+                {
+                    "seconds": 0.036730201,
+                    "pages": 10,
+                    "bytes": 11695,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25333760,
+                    "rss_peak": 27705344
+                },
+                {
+                    "seconds": 0.034942389,
+                    "pages": 10,
+                    "bytes": 11695,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25288704,
+                    "rss_peak": 27656192
+                },
+                {
+                    "seconds": 0.035397102,
+                    "pages": 10,
+                    "bytes": 11695,
+                    "zend_base": 4194304,
+                    "zend_peak": 4194304,
+                    "rss_base": 25092096,
+                    "rss_peak": 27463680
+                }
+            ]
+        }
+    }
+}

@@ -35,13 +35,7 @@ final class Gpos
 
     private readonly ChainRules $rules;
 
-    /**
-     * Pair adjustments read so far, by subtable and pair (first glyph << 16 | second): the first
-     * and second glyphs' values and whether the second is passed over, or false for no record.
-     *
-     * @var array<int, array<int, array{0: array{0: int, 1: int, 2: int, 3: int}, 1: array{0: int, 1: int, 2: int, 3: int}, 2: bool}|false>>
-     */
-    private array $pairs = [];
+    private readonly GposAdjustment $adjustments;
 
     private readonly GposAttachment $attachments;
 
@@ -53,25 +47,18 @@ final class Gpos
     ) {
         $this->tables      = LayoutTables::gpos($gpos, $gdef);
         $this->rules       = new ChainRules($this->tables);
+        $this->adjustments = new GposAdjustment($this->tables);
         $this->attachments = new GposAttachment($this->tables, $gdef);
-    }
-
-    /**
-     * @param array{0: int, 1: int, 2: int, 3: int} $value
-     */
-    private static function adjust(GlyphPositions $positions, int $i, array $value): void
-    {
-        $positions->add($i, $value[2], $value[3], $value[0], $value[1]);
     }
 
     /**
      * Gives one glyph its final offset, after the glyph it attaches to.
      *
-     * @param list<array{0: int, 1: int, 2: int, 3: int}> $out
-     * @param list<Position>                              $positions
-     * @param array<int, true>                            $done
+     * @param array<int, array{0: int, 1: int, 2: int, 3: int}> $out
+     * @param array<int, Position>                              $positions
+     * @param array<int, true>                                  $done
      *
-     * @param-out list<array{0: int, 1: int, 2: int, 3: int}> $out
+     * @param-out array<int, array{0: int, 1: int, 2: int, 3: int}> $out
      */
     private static function propagateOne(
         array &$out,
@@ -108,16 +95,6 @@ final class Gpos
         $out[$i] = [$p[0], $p[1], $x, $y];
     }
 
-    private static function valueSize(int $format): int
-    {
-        $size = 0;
-        for ($bit = 0; $bit < 8; ++$bit) {
-            $size += 0 === ($format & (1 << $bit)) ? 0 : 2;
-        }
-
-        return $size;
-    }
-
     /**
      * @param list<string> $features
      *
@@ -129,13 +106,15 @@ final class Gpos
     }
 
     /**
-     * Positions a glyph sequence: each glyph's x and y advance and offset in font units.
+     * Positions a glyph sequence: each glyph's x and y advance and offset in font units, by its
+     * index. A glyph that is not listed keeps its advance and has no offset; every glyph is listed
+     * when one attaches to another.
      *
      * @param list<Entry>  $glyphs
      * @param list<int>    $advances the glyphs' horizontal advances
      * @param list<string> $features
      *
-     * @return list<array{0: int, 1: int, 2: int, 3: int}>
+     * @return array<int, array{0: int, 1: int, 2: int, 3: int}>
      *
      * @throws ParseException
      */
@@ -147,13 +126,11 @@ final class Gpos
         TextDirection $direction = TextDirection::LeftToRight,
         ?string $language = null,
     ): array {
-        $ids     = [];
-        $initial = [];
-        foreach ($glyphs as $k => $entry) {
-            $ids[]     = $entry[0];
-            $initial[] = [$advances[$k] ?? 0, 0, 0, 0, 0, 0];
+        $ids = [];
+        foreach ($glyphs as $entry) {
+            $ids[] = $entry[0];
         }
-        $positions = new GlyphPositions($initial);
+        $positions = GlyphPositions::natural($advances, count($ids));
         $present   = array_flip($ids);
         foreach ($this->tables->lookupsFor($features, $script, $language) as $lookup) {
             // A lookup none of whose starting glyphs is in the sequence cannot apply.
@@ -162,17 +139,38 @@ final class Gpos
             }
             $this->applyLookup($lookup, $glyphs, $ids, $positions, $direction);
         }
-        $out      = [];
+        $given    = $positions->given();
         $attached = false;
-        foreach ($positions->all() as $k => [$xAdvance, $yAdvance, $xOffset, $yOffset, $chain]) {
-            $mark     = $this->gdef->isMark($ids[$k] ?? 0);
-            $out[]    = [$mark ? 0 : $xAdvance, $mark ? 0 : $yAdvance, $xOffset, $yOffset];
-            $attached = $attached || 0 !== $chain;
+        foreach ($given as [, , , , $chain]) {
+            if (0 === $chain) {
+                continue;
+            }
+
+            $attached = true;
+            break;
+        }
+        // Marks lose their advance, so they are listed whether positioned or not.
+        $classes = $this->gdef->classMap();
+        $out     = [];
+        foreach ($ids as $k => $id) {
+            $mark = Gdef::MARK === ($classes[$id] ?? 0);
+            $p    = $given[$k] ?? null;
+            if (null !== $p) {
+                $out[$k] = $mark ? [0, 0, $p[2], $p[3]] : [$p[0], $p[1], $p[2], $p[3]];
+                continue;
+            }
+            if ($mark) {
+                $out[$k] = [0, 0, 0, 0];
+                continue;
+            }
+            if ($attached) {
+                $out[$k] = [$advances[$k] ?? 0, 0, 0, 0];
+            }
         }
 
         // Propagation moves only glyphs attached to another (a non-zero chain); with none, it
         // would leave every offset as it is.
-        return $attached ? $this->propagate($out, $positions->all(), $direction) : $out;
+        return $attached ? $this->propagate($out, $given, $direction) : $out;
     }
 
     /**
@@ -198,8 +196,8 @@ final class Gpos
         }
         foreach ($this->tables->subtablesAt($lookup, $ids[$i]) as [$type, $offset]) {
             $result = match ($type) {
-                1       => $this->single($offset, $ids, $positions, $i),
-                2       => $this->pair($offset, $ids, $positions, $i, $filter),
+                1       => $this->adjustments->single($offset, $ids, $positions, $i),
+                2       => $this->adjustments->pair($offset, $ids, $positions, $i, $filter),
                 3       => $this->attachments->cursive($offset, $ids, $positions, $i, $filter, $direction),
                 4       => $this->attachments->markToBase($offset, $glyphs, $ids, $positions, $i, $filter),
                 5       => $this->attachments->markToLigature($offset, $glyphs, $ids, $positions, $i, $filter),
@@ -233,32 +231,49 @@ final class Gpos
         $starts = $this->tables->startGlyphs($lookup);
         $i      = 0;
         $count  = count($ids);
-        while ($i < $count) {
-            if (null === ($starts[$ids[$i] ?? -1] ?? null)) {
+        if (! $this->adjustments->pairOnly($lookup)) {
+            while ($i < $count) {
+                if (null === ($starts[$ids[$i] ?? -1] ?? null)) {
+                    ++$i;
+                    continue;
+                }
+                $i = $this->applyAt($lookup, $glyphs, $ids, $positions, $i, 0, $direction) ?? ($i + 1);
+            }
+
+            return;
+        }
+        // A lookup of pair adjustments only does at a glyph what applyAt() would: the first of its
+        // subtables that covers the glyph and has a record for it and the glyph after wins, and a
+        // second glyph with no value of its own (value format 0) is passed over. That depends only
+        // on the two glyph ids when the lookup ignores neither (whether it ignores one depends only
+        // on its id), so it is remembered by pair; when it ignores either, the second glyph would
+        // be another, so the general path applies. The ids are 0 to 65535, or REMOVED (-1), which
+        // is ignored: a key of -1 is a removed second glyph whatever the first. The last glyph has
+        // none after it to pair with, so no pair applies there.
+        $last = $count - 1;
+        while ($i < $last) {
+            $first = $ids[$i] ?? -1;
+            if (null === ($starts[$first] ?? null)) {
                 ++$i;
                 continue;
             }
-            $i = $this->applyAt($lookup, $glyphs, $ids, $positions, $i, 0, $direction) ?? ($i + 1);
+            $pair = $this->adjustments->remembered($lookup, $first, $ids[$i + 1] ?? -1);
+            if (false === $pair) {
+                ++$i;
+                continue;
+            }
+            if (true === $pair) {
+                $i = $this->applyAt($lookup, $glyphs, $ids, $positions, $i, 0, $direction) ?? ($i + 1);
+                continue;
+            }
+            if (null !== $pair[0]) {
+                $positions->adjust($i, $pair[0]);
+            }
+            if (null !== $pair[1]) {
+                $positions->adjust($i + 1, $pair[1]);
+            }
+            $i += $pair[2];
         }
-    }
-
-    /**
-     * The values of a format 2 class pair.
-     *
-     * @throws ParseException
-     */
-    private function classRecord(int $offset, int $first, int $second, int $recordSize): ?int
-    {
-        $r      = $this->tables->reader;
-        $class1 = $this->tables->classDef($offset + $r->u16($offset + 8))[$first] ?? 0;
-        $class2 = $this->tables->classDef($offset + $r->u16($offset + 10))[$second] ?? 0;
-        $count1 = $r->u16($offset + 12);
-        $count2 = $r->u16($offset + 14);
-        if ($class1 >= $count1 || $class2 >= $count2) {
-            return null;
-        }
-
-        return $offset + 16 + ((($class1 * $count2) + $class2) * $recordSize);
     }
 
     /**
@@ -296,76 +311,14 @@ final class Gpos
     }
 
     /**
-     * Pair adjustment: the glyph at $i and the next one the lookup does not ignore, by glyph pair
-     * (format 1) or class pair (format 2). Continues after the second glyph when it was adjusted.
-     *
-     * @param list<int> $ids
-     *
-     * @throws ParseException
-     */
-    private function pair(int $offset, array $ids, GlyphPositions $positions, int $i, GlyphFilter $filter): ?int
-    {
-        $r     = $this->tables->reader;
-        $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? null;
-        $j     = null === $index ? null : ChainRules::next($ids, $i, $filter);
-        if (null === $index || null === $j) {
-            return null;
-        }
-        $first  = $ids[$i] ?? -1;
-        $second = $ids[$j] ?? -1;
-        $key    = ($first << 16) | $second;
-        $pair   = $this->pairs[$offset][$key] ?? null;
-        if (null === $pair) {
-            $pair                       = $this->readPair($offset, $index, $first, $second);
-            $this->pairs[$offset][$key] = $pair;
-        }
-        if (false === $pair) {
-            return null;
-        }
-        self::adjust($positions, $i, $pair[0]);
-        self::adjust($positions, $j, $pair[1]);
-
-        return $pair[2] ? $j : $j + 1;
-    }
-
-    /**
-     * The values of a format 1 pair set for the second glyph, or null when the pair is not listed.
-     *
-     * @throws ParseException
-     */
-    private function pairRecord(int $offset, int $index, int $second, int $recordSize): ?int
-    {
-        $r    = $this->tables->reader;
-        $set  = $offset + $r->u16($offset + 10 + (2 * $index));
-        $low  = 0;
-        $high = $r->u16($set) - 1;
-        $step = 2 + $recordSize;
-        while ($low <= $high) {
-            $mid   = ($low + $high) >> 1;
-            $at    = $set + 2 + ($mid * $step);
-            $glyph = $r->u16($at);
-            if ($glyph === $second) {
-                return $at + 2;
-            }
-            if ($glyph < $second) {
-                $low = $mid + 1;
-                continue;
-            }
-            $high = $mid - 1;
-        }
-
-        return null;
-    }
-
-    /**
      * Gives attached glyphs their final offsets: an attached glyph takes the offset of what it
      * attaches to, less the advances from it to the glyph, or for right-to-left text (drawn in
      * reverse) plus the advances after it up to the glyph.
      *
-     * @param list<array{0: int, 1: int, 2: int, 3: int}> $out
-     * @param list<Position>                              $positions
+     * @param array<int, array{0: int, 1: int, 2: int, 3: int}> $out every glyph's position
+     * @param array<int, Position>                              $positions the positions given
      *
-     * @return list<array{0: int, 1: int, 2: int, 3: int}>
+     * @return array<int, array{0: int, 1: int, 2: int, 3: int}>
      */
     private function propagate(array $out, array $positions, TextDirection $direction): array
     {
@@ -375,82 +328,5 @@ final class Gpos
         }
 
         return $out;
-    }
-
-    /**
-     * A pair's adjustments from its subtable: the first and second glyphs' values and whether the
-     * second is passed over (it has no value of its own), or false when the subtable has no record
-     * for the pair.
-     *
-     * @return array{0: array{0: int, 1: int, 2: int, 3: int}, 1: array{0: int, 1: int, 2: int, 3: int}, 2: bool}|false
-     *
-     * @throws ParseException
-     */
-    private function readPair(int $offset, int $index, int $first, int $second): array|false
-    {
-        $r       = $this->tables->reader;
-        $format1 = $r->u16($offset + 4);
-        $format2 = $r->u16($offset + 6);
-        $size1   = self::valueSize($format1);
-        $record  = match ($r->u16($offset)) {
-            1       => $this->pairRecord($offset, $index, $second, $size1 + self::valueSize($format2)),
-            2       => $this->classRecord($offset, $first, $second, $size1 + self::valueSize($format2)),
-            default => null,
-        };
-        if (null === $record) {
-            return false;
-        }
-
-        return [$this->value($record, $format1), $this->value($record + $size1, $format2), 0 === $format2];
-    }
-
-    /**
-     * Single adjustment: one value for every covered glyph (format 1) or one each (format 2).
-     *
-     * @param list<int> $ids
-     *
-     * @throws ParseException
-     */
-    private function single(int $offset, array $ids, GlyphPositions $positions, int $i): ?int
-    {
-        $r = $this->tables->reader;
-        // subtablesAt() gives only the subtables whose coverage holds the glyph
-        $index  = $this->tables->coverage($offset + $r->u16($offset + 2))[$ids[$i] ?? -1] ?? 0;
-        $format = $r->u16($offset + 4);
-        $at     = match ($r->u16($offset)) {
-            1       => $offset + 6,
-            2       => $index < $r->u16($offset + 6) ? $offset + 8 + ($index * self::valueSize($format)) : null,
-            default => null,
-        };
-        if (null === $at) {
-            return null;
-        }
-
-        self::adjust($positions, $i, $this->value($at, $format));
-
-        return $i + 1;
-    }
-
-    /**
-     * A value record's x placement, y placement, x advance and y advance; device and variation
-     * tables are not read.
-     *
-     * @return array{0: int, 1: int, 2: int, 3: int}
-     *
-     * @throws ParseException
-     */
-    private function value(int $at, int $format): array
-    {
-        $r      = $this->tables->reader;
-        $values = [0, 0, 0, 0];
-        foreach ([0, 1, 2, 3] as $bit) {
-            if (0 === ($format & (1 << $bit))) {
-                continue;
-            }
-            $values[$bit] = $r->i16($at);
-            $at           += 2;
-        }
-
-        return [$values[0], $values[1], $values[2], $values[3]];
     }
 }

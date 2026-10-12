@@ -83,8 +83,17 @@ height.
 
 `$table->lastFit()` returns a `TableFitInfo`: result, height used, rows placed, and the canvas
 coordinates of every row edge (`rowEdges`, `bottom()`) and column edge (`columnEdges`), so you
-can draw your own rules or continue below the table. `measure($doc, $width)` gives the height
-the remaining rows need.
+can draw your own rules or continue below the table. `measure($width)` gives the height the
+remaining rows need, laying out every one of them. To ask whether a table fits a height, use
+`measureUpTo($width, $limit)`: it stops once the rows pass the limit and returns a `TableMeasure`
+with the height so far, how many rows it measured and `fits()`, so asking whether a long table fits
+the rest of a page costs a few rows rather than the whole table.
+
+```php
+if ($table->measureUpTo($box->width, $box->height)->fits()) {
+    $page->fitTable($table, $box);
+}
+```
 
 ## Flowing across pages
 

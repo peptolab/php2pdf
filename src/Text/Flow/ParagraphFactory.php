@@ -16,6 +16,7 @@ use function count;
 use function mb_ord;
 use function mb_str_split;
 use function mb_strlen;
+use function spl_object_id;
 use function str_replace;
 
 /**
@@ -60,6 +61,21 @@ final readonly class ParagraphFactory
     }
 
     /**
+     * The item of a break at the paragraph's level: one item for every break of a kind in a style
+     * and level, as items are not told apart by identity.
+     *
+     * @param array<string, Item> $made the break items made so far, by kind, style and level
+     */
+    private static function breakItem(ItemKind|Item $kind, TextStyle $style, int $level, array &$made): Item
+    {
+        if ($kind instanceof Item) {
+            return $kind->withLevel($level);
+        }
+
+        return $made[$kind->name . spl_object_id($style) . ":{$level}"] ??= new Item($kind, $style, level: $level);
+    }
+
+    /**
      * @param list<ParagraphSource> $sources
      *
      * @return list<Paragraph>
@@ -70,6 +86,7 @@ final readonly class ParagraphFactory
     public function paragraphs(array $sources): array
     {
         $paragraphs = [];
+        $made       = [];
         foreach ($sources as $source) {
             $style   = $this->resolver->resolve($this->base, $source->style);
             $spans   = $source->spans;
@@ -85,9 +102,7 @@ final readonly class ParagraphFactory
             $offset = 0;
             foreach ($spans as $i => $span) {
                 foreach ($breakAt[$i] ?? [] as $kind) {
-                    $items[] = $kind instanceof Item
-                        ? $kind->withLevel($level)
-                        : new Item($kind, $style, level: $level);
+                    $items[] = self::breakItem($kind, $style, $level, $made);
                 }
                 $length = mb_strlen($span[0], encoding: 'UTF-8');
                 foreach ($this->itemiser->itemise([$span], array_slice($levels, $offset, $length)) as $item) {
@@ -96,7 +111,7 @@ final readonly class ParagraphFactory
                 $offset += $length;
             }
             foreach ($breakAt[count($spans)] ?? [] as $kind) {
-                $items[] = $kind instanceof Item ? $kind->withLevel($level) : new Item($kind, $style, level: $level);
+                $items[] = self::breakItem($kind, $style, $level, $made);
             }
             $paragraphs[] = new Paragraph($style, $items, $level);
         }

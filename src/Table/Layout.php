@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Php2Pdf\Table;
 
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\LayoutException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Fit\FitMethod;
 use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Style\VerticalAlignment;
@@ -44,6 +46,9 @@ final class Layout
      * @param list<Column>                                            $columns
      * @param list<Grid>                                              $grids         every grid whose content sizes auto columns
      * @param array{0: array<int, float>, 1: array<int, float>}|null $contentWidths widths measured before, to reuse
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function __construct(
         private readonly array $columns,
@@ -120,6 +125,9 @@ final class Layout
      * minimums and row spans.
      *
      * @return array<int, float> keyed by row index
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     public function rowHeights(Grid $grid, int $from, int $to): array
     {
@@ -127,7 +135,7 @@ final class Layout
         for ($r = $from; $r <= $to; ++$r) {
             $source = $grid->sources[$r] ?? null;
             $height = max($this->options->minRowHeight, null === $source ? 0.0 : $source->minHeight);
-            foreach ($grid->rows[$r] ?? [] as $placed) {
+            foreach ($grid->cells($r) as $placed) {
                 if ($placed->cell->rowspan > 1) {
                     continue;
                 }
@@ -137,7 +145,7 @@ final class Layout
         }
         // A spanning cell taller than the rows it covers grows the last of them.
         for ($r = $from; $r <= $to; ++$r) {
-            foreach ($grid->rows[$r] ?? [] as $placed) {
+            foreach ($grid->cells($r) as $placed) {
                 $last = $placed->lastRow();
                 if ($placed->cell->rowspan <= 1 || $last > $to) {
                     continue;
@@ -191,6 +199,9 @@ final class Layout
      * @param list<int>  $autos
      *
      * @return array{0: array<int, float>, 1: array<int, float>}
+     *
+     * @throws IoException
+     * @throws ParseException
      */
     private function measureContentWidths(array $grids, array $autos): array
     {
@@ -201,8 +212,8 @@ final class Layout
             $max[$c] = 0.0;
         }
         foreach ($grids as $grid) {
-            foreach ($grid->rows as $cells) {
-                foreach ($cells as $placed) {
+            for ($r = 0, $count = $grid->count(); $r < $count; ++$r) {
+                foreach ($grid->cells($r) as $placed) {
                     $c = $placed->column;
                     if ($placed->cell->colspan > 1 || ! array_key_exists($c, $min)) {
                         continue;
@@ -263,11 +274,11 @@ final class Layout
                 $sumMin <= $remaining => ($min[$c] ?? 0.0)
                     + (
                         ($remaining - $sumMin)
-                            * (
-                                ($sumMax - $sumMin) > 0.0
-                                    ? (($max[$c] ?? 0.0) - ($min[$c] ?? 0.0)) / ($sumMax - $sumMin)
-                                    : 1.0 / count($autos)
-                            )
+                        * (
+                            ($sumMax - $sumMin) > 0.0
+                                ? (($max[$c] ?? 0.0) - ($min[$c] ?? 0.0)) / ($sumMax - $sumMin)
+                                : 1.0 / count($autos)
+                        )
                     ),
                 // Not even the widest words fit: shrink them proportionally; words will break.
                 default => ($min[$c] ?? 0.0) * ($sumMin > 0.0 ? $remaining / $sumMin : 1.0 / count($autos)),

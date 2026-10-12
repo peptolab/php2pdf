@@ -10,6 +10,8 @@ use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
+use function array_column;
+use function array_filter;
 use function array_key_exists;
 use function array_reverse;
 use function array_slice;
@@ -18,6 +20,7 @@ use function implode;
 use function mb_str_split;
 use function mb_strlen;
 use function pack;
+use function serialize;
 use function spl_object_id;
 use function str_replace;
 use function strlen;
@@ -37,8 +40,23 @@ final class Itemiser
 {
     private readonly WordBreaks $breaks;
 
+    /**
+     * How many items and glyphs may be kept for sharing before they are let go. Items have no
+     * identity, so letting them go only costs cutting them again.
+     */
+    private const int INTERN_LIMIT = 4096;
+
+    /**
+     * How many items an itemiser keeps before it starts to share glyphs between new ones: one
+     * that itemises a few words (a table cell) makes no saving worth the keys.
+     */
+    private const int POOL_FROM = 256;
+
     /** @var array<string, Item> items already made, by what they are made of; see pieceItems() */
     private array $interned = [];
+
+    /** @var array<string, Glyph> glyphs already in an item, by everything but their cluster; see box() */
+    private array $glyphs = [];
 
     /** @param array<string, Hyphenator> $hyphenators by language */
     public function __construct(array $hyphenators = [])
@@ -53,6 +71,33 @@ final class Itemiser
     private static function glyphKey(Glyph $glyph): string
     {
         return "\0{$glyph->id}:{$glyph->codePoint}:{$glyph->advance}:" . pack('e', $glyph->kerning);
+    }
+
+    /**
+     * Glyphs as part of a key: their ids, code points, advances and kerning bit for bit, and
+     * their ligature components and offsets when any has some. Clusters are left out.
+     *
+     * @param list<Glyph> $glyphs
+     */
+    private static function glyphsKey(array $glyphs): string
+    {
+        $count = count($glyphs);
+        $key   = "{$count}:"
+        . pack(
+            "V{$count}V{$count}V{$count}e{$count}",
+            ...array_column($glyphs, 'id'),
+            ...array_column($glyphs, 'codePoint'),
+            ...array_column($glyphs, 'advance'),
+            ...array_column($glyphs, 'kerning'),
+        );
+        $components = array_column($glyphs, 'components');
+        $xOffsets   = array_column($glyphs, 'xOffset');
+        $yOffsets   = array_column($glyphs, 'yOffset');
+        if ([] === array_filter($components) && [] === array_filter($xOffsets) && [] === array_filter($yOffsets)) {
+            return $key;
+        }
+
+        return $key . serialize([$components, $xOffsets, $yOffsets]);
     }
 
     /**
@@ -99,6 +144,12 @@ final class Itemiser
      */
     public function itemise(array $spans, array $levels = []): array
     {
+        if (count($this->interned) > self::INTERN_LIMIT) {
+            $this->interned = [];
+        }
+        if (count($this->glyphs) > self::INTERN_LIMIT) {
+            $this->glyphs = [];
+        }
         $items  = [];
         $offset = 0;
         foreach (FontRuns::split($spans) as [$text, $style]) {
@@ -129,7 +180,9 @@ final class Itemiser
     }
 
     /**
-     * The box of a word, shared with every identical word before it.
+     * The box of a word, shared with every identical word before it. A new box takes its glyphs
+     * from those of the boxes before it where they are alike in all but their cluster, which
+     * nothing reads once items are cut.
      *
      * @param list<Glyph> $glyphs
      */
@@ -138,15 +191,24 @@ final class Itemiser
         if (0 !== $level) {
             return ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
         }
-        $key = 'B' . spl_object_id($style) . ':' . strlen($piece) . ":{$piece}";
-        foreach ($glyphs as $glyph) {
-            if (! self::plain($glyph)) {
-                return ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
+        $key   = 'B' . spl_object_id($style) . ':' . strlen($piece) . ":{$piece}\0" . self::glyphsKey($glyphs);
+        $known = $this->interned[$key] ?? null;
+        if (null !== $known) {
+            return $known;
+        }
+        if ([] !== $this->glyphs || count($this->interned) >= self::POOL_FROM) {
+            foreach ($glyphs as $k => $glyph) {
+                $glyphKey = pack('VVVe', $glyph->id, $glyph->codePoint, $glyph->advance, $glyph->kerning);
+                if (! self::plain($glyph)) {
+                    $glyphKey .= serialize([$glyph->components, $glyph->xOffset, $glyph->yOffset]);
+                }
+                $shared                  = $this->glyphs[$glyphKey] ?? $glyph;
+                $this->glyphs[$glyphKey] = $shared;
+                $glyphs[$k]              = $shared;
             }
-            $key .= self::glyphKey($glyph);
         }
 
-        return $this->interned[$key] ??= ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
+        return $this->interned[$key] = ItemFactory::cut(ItemKind::Box, $style, $piece, $glyphs);
     }
 
     /**
@@ -155,8 +217,7 @@ final class Itemiser
      *
      * Items are immutable and nothing tells them apart by identity, so identical ones are shared:
      * a text's spaces, breaks and repeated words take memory once each, not once per occurrence.
-     * Glyphs with marks, ligature components or offsets, and right-to-left or embedded pieces,
-     * are left unshared.
+     * Right-to-left and embedded words, and spaces with offsets, are left unshared.
      *
      * @param list<Glyph> $glyphs the piece's glyphs, in logical order
      *
@@ -207,6 +268,9 @@ final class Itemiser
      */
     private function splitLigatures(array $glyphs, array $pieces, string $shaped, TextStyle $style): array
     {
+        if (count($pieces) < 2 || [] === array_filter(array_column($glyphs, 'components'))) {
+            return $glyphs;
+        }
         $boundaries = [];
         $at         = 0;
         foreach ($pieces as [$piece]) {
@@ -218,6 +282,10 @@ final class Itemiser
         $chars   = mb_str_split($shaped, length: 1, encoding: 'UTF-8');
         $out     = [];
         foreach ($glyphs as $glyph) {
+            if ([] === $glyph->components) {
+                $out[] = $glyph;
+                continue;
+            }
             $from      = $glyph->cluster;
             $to        = $from + $glyph->length();
             $straddles = false;

@@ -66,6 +66,37 @@ final class TextOperators
     }
 
     /**
+     * The TJ adjustment for a move by $move thousandths of an em: the opposite number, as TJ
+     * moves the other way. Runs repeat a few kerning and spacing values, so the formatted numbers
+     * are remembered, keyed by the move's exact bits.
+     */
+    public static function adjustment(float $move): string
+    {
+        $key   = pack('e', $move);
+        $known = self::$adjustments[$key] ?? null;
+        if (null !== $known) {
+            return $known;
+        }
+        if (count(self::$adjustments) >= self::ADJUSTMENTS) {
+            self::$adjustments = [];
+        }
+        $adjustment              = Num::format(-$move, 2);
+        self::$adjustments[$key] = $adjustment;
+
+        return $adjustment;
+    }
+
+    /**
+     * Bytes escaped for a PDF literal string; carriage returns are escaped so readers do not
+     * normalise them. The escaping goes byte by byte, so escaped glyph codes, one after another,
+     * are the escaped codes of the glyphs together.
+     */
+    public static function escape(string $bytes): string
+    {
+        return strtr($bytes, ['\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '\\r']);
+    }
+
+    /**
      * The text-showing operation for a run: one Tj string when nothing adjusts the glyph
      * positions, otherwise a TJ array of strings interleaved with kerning, tracking, word spacing
      * and offset adjustments in thousandths of an em. Glyphs raised or lowered by an offset are
@@ -128,37 +159,6 @@ final class TextOperators
             . ($visible ? '' : " {$mode}");
 
         return implode(' ', $parts);
-    }
-
-    /**
-     * The TJ adjustment for a move by $move thousandths of an em: the opposite number, as TJ
-     * moves the other way. Runs repeat a few kerning and spacing values, so the formatted numbers
-     * are remembered, keyed by the move's exact bits.
-     */
-    private static function adjustment(float $move): string
-    {
-        $key   = pack('e', $move);
-        $known = self::$adjustments[$key] ?? null;
-        if (null !== $known) {
-            return $known;
-        }
-        if (count(self::$adjustments) >= self::ADJUSTMENTS) {
-            self::$adjustments = [];
-        }
-        $adjustment              = Num::format(-$move, 2);
-        self::$adjustments[$key] = $adjustment;
-
-        return $adjustment;
-    }
-
-    /**
-     * Bytes escaped for a PDF literal string; carriage returns are escaped so readers do not
-     * normalise them. The escaping goes byte by byte, so escaped glyph codes, one after another,
-     * are the escaped codes of the glyphs together.
-     */
-    private static function escape(string $bytes): string
-    {
-        return strtr($bytes, ['\\' => '\\\\', '(' => '\\(', ')' => '\\)', "\r" => '\\r']);
     }
 
     /**

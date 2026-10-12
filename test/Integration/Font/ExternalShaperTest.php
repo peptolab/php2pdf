@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Font;
 
+use IntlChar;
 use Override;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -20,6 +21,7 @@ use PHPUnit\Framework\TestCase;
 
 use function array_map;
 use function array_reverse;
+use function class_exists;
 
 /**
  * Runs in scripts the engine does not shape go to the document's complex shaper (#33). The stub
@@ -53,6 +55,20 @@ final class ExternalShaperTest extends TestCase
                 static fn(Glyph $g): array => [$g->id, $g->codePoint, $g->components],
                 $glyphs,
             ),
+        );
+    }
+
+    #[Test]
+    public function aDefaultIgnorableCharacterTheShaperReturnsIsHidden(): void
+    {
+        if (! class_exists(IntlChar::class)) {
+            self::markTestSkipped('ext-intl is not loaded.');
+        }
+        $joiner = $this->shape("\u{0EAA}\u{200D}", new TextOptions())[1] ?? null;
+
+        self::assertSame(
+            [$this->space(), 0x200D, 0.0],
+            [$joiner?->id, $joiner?->codePoint, ($joiner->advance ?? 0) + ($joiner->kerning ?? 0.0)],
         );
     }
 
@@ -149,17 +165,30 @@ final class ExternalShaperTest extends TestCase
                     return array_reverse($lao);
                 }
 
-                return (
-                    "\u{0E94}\u{0EB5}" === $text
-                        ? [
-                            [1578, 0, 1371, 0, 0, 0],
-                            [1604, 0, 0,    0, 0, 4],
-                        ] : $lao
-                );
+                return match ($text) {
+                    "\u{0E94}\u{0EB5}" => [
+                        [1578, 0, 1371, 0, 0, 0],
+                        [1604, 0, 0,    0, 0, 4],
+                    ],
+                    "\u{0EAA}\u{200D}" => [
+                        [1594, 0, 1440, 0, 0, 0],
+                        [1604, 3, 0,    0, 0, 0],
+                    ],
+                    default            => $lao,
+                };
             }
         };
         $doc = new Document(new MemoryOutput(), new DocumentOptions(complexShaper: $shaper));
 
         return $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'))->shape($text, $options)->glyphs;
+    }
+
+    /** The font's space glyph, which hidden characters are shown as. */
+    private function space(): int
+    {
+        return (new Document(new MemoryOutput()))->fonts()
+            ->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'))
+            ->program()
+            ->glyphId(0x20);
     }
 }

@@ -22,21 +22,19 @@ use function min;
  */
 final class BreakPlanner
 {
-    /** @var WeakMap<Paragraph, array{0: string, 1: array<int, LineEnd>}> widths, and line start => line end */
-    private WeakMap $plans;
+    /**
+     * @var WeakMap<Paragraph, array{0: string, 1: array<int, LineEnd>}>|null widths, and line start
+     *      => line end; made with the first plan
+     */
+    private ?WeakMap $plans = null;
 
     /**
      * @var WeakMap<Paragraph, array{0: string, 1: int, 2: int, 3: float}> for the composer's last
      *      failure on a paragraph: widths, the start it scanned from, the tab or word it stopped at,
-     *      and the line width that word was wider than (INF for a tab)
+     *      and the line width that word was wider than (INF for a tab); made with the first
+     *      failure
      */
-    private WeakMap $failures;
-
-    public function __construct()
-    {
-        $this->plans    = new WeakMap();
-        $this->failures = new WeakMap();
-    }
+    private ?WeakMap $failures = null;
 
     /**
      * Where the line after an end starts: past a forced break and the glue a line broke at.
@@ -77,6 +75,7 @@ final class BreakPlanner
             $ends     = ParagraphComposer::breaks($paragraph, $start, $widths, $lineNumber, $obstacle, $limit);
             if (null === $ends) {
                 if (null !== $obstacle && null !== $limit) {
+                    $this->failures             ??= new WeakMap();
                     $this->failures[$paragraph] = [$key, $start, $obstacle, $limit];
                 }
 
@@ -88,6 +87,7 @@ final class BreakPlanner
                 $plan[1][$from] = $end;
                 $from           = self::nextStart($paragraph->items, $end);
             }
+            $this->plans             ??= new WeakMap();
             $this->plans[$paragraph] = $plan;
         }
 

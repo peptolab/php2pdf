@@ -32,6 +32,7 @@ use Php2Pdf\Text\Style\Leading;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Style\VerticalAlignment;
 use Php2Pdf\Text\Textflow;
+use Php2Pdf\Text\TextFormat;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -88,6 +89,97 @@ final class TableTest extends TestCase
         $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 160.0, 500.0));
 
         self::assertEqualsWithDelta($measured, $table->lastFit()->height ?? 0.0, 1.0e-6);
+    }
+
+    #[Test]
+    public function aResetTableFlowsAgainAsItDidTheFirstTime(): void
+    {
+        $note  = $this->doc->textflow(str_repeat('A note given as a Textflow. ', times: 3), $this->body);
+        $table = $this->doc->table(
+            [Column::pt(80.0), Column::pt(80.0)],
+            new CellStyle(padding: Padding::all(1.0)),
+            $this->body,
+        );
+        $table->addHeaderRow(['Item', 'Note']);
+        for ($i = 0; $i < 30; ++$i) {
+            $table->addRow([
+                new Cell("<b>Row</b> {$i}", format: TextFormat::Markup),
+                3 === $i ? $note : str_repeat('wrapping words ', times: ($i % 4) + 1),
+            ]);
+        }
+        $page = $this->doc->addPage(PageSize::A4);
+        $box  = new Box(0.0, 0.0, 160.0, 90.0);
+        $fits = static function () use ($page, $table, $box): array {
+            $fits = [];
+            do {
+                $result = $page->fitTable($table, $box);
+                $fits[] = $table->lastFit();
+            } while (FlowResult::Done !== $result && count($fits) < 50);
+
+            return $fits;
+        };
+        $first = $fits();
+        self::assertTrue($note->isDone());
+        $table->reset();
+        self::assertFalse($note->isDone(), 'A Textflow in a row already let go is reset too.');
+
+        self::assertGreaterThan(3, count($first));
+        self::assertEquals($first, $fits());
+        self::assertTrue($table->isDone());
+    }
+
+    #[Test]
+    public function aRowspanCutByTheBoxIsDrawnOnceAndPushesTheCellsBesideIt(): void
+    {
+        $table  = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $beside = [
+            $this->doc->textflow('beside 0', $this->body),
+            $this->doc->textflow('beside 1', $this->body),
+            $this->doc->textflow('beside 2', $this->body),
+            $this->doc->textflow('beside 3', $this->body),
+        ];
+        $spanning = $this->doc->textflow('spanning', $this->body);
+        $table->addRow([(new Cell($spanning))->spanning(1, 3), $beside[0]]);
+        $table->addRow([$beside[1]]);
+        $table->addRow([$beside[2]]);
+        $table->addRow(['after', $beside[3]]);
+        $line = $table->measure(160.0) / 4.0;
+        $page = $this->doc->addPage(PageSize::A4);
+        $box  = new Box(0.0, 0.0, 160.0, $line * 2.5);
+
+        self::assertSame(FlowResult::BoxFull, $page->fitTable($table, $box));
+        self::assertSame(
+            2,
+            $table->lastFit()?->rowsPlaced,
+            'The spanned rows do not fit together, so they go one by one.',
+        );
+        $drawn = $spanning->lastFit();
+        self::assertSame(FlowResult::Done, $page->fitTable($table, $box));
+        self::assertSame($drawn, $spanning->lastFit(), 'The spanning cell is drawn in its first row only.');
+        self::assertSame(1, $drawn?->lineCount);
+        self::assertSame(2, $table->lastFit()?->rowsPlaced);
+        foreach ($beside as $flow) {
+            self::assertTrue($flow->isDone());
+            self::assertEqualsWithDelta(80.0, $flow->lastFit()->firstBaseline[0] ?? 0.0, 1.0e-6);
+        }
+    }
+
+    #[Test]
+    public function aTableOfManyRowsPlacesEachRowOnceAcrossItsBoxes(): void
+    {
+        $table = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        for ($i = 0; $i < 600; ++$i) {
+            $table->addRow(["row {$i}", "cell {$i}"]);
+        }
+        $placed = 0;
+        $boxes  = 0;
+        do {
+            $result = $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 160.0, 780.0));
+            $placed += $table->lastFit()->rowsPlaced ?? 0;
+            ++$boxes;
+        } while (FlowResult::Done !== $result && $boxes < 50);
+
+        self::assertSame([FlowResult::Done, 600], [$result, $placed]);
     }
 
     #[Test]
