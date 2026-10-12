@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-12
+
 ### Added
 
 - `Table::measureUpTo($width, $limit)` measures the remaining rows only until their height passes
@@ -197,7 +199,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.5...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.6...HEAD
+[0.1.6]: https://github.com/peptolab/php2pdf/compare/0.1.5...0.1.6
 [0.1.5]: https://github.com/peptolab/php2pdf/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/peptolab/php2pdf/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/peptolab/php2pdf/compare/0.1.2...0.1.3
