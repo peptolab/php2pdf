@@ -47,6 +47,9 @@ final class Canvas
     /**
      * @internal
      *
+     * @param Closure(): TextFragments $fragments what the words of the document's text show,
+     *                                           shared by its pages and templates, asked for when
+     *                                           text is first drawn
      * @param bool $inheritsState whether the content is drawn inside other content, as a form
      *                            XObject is, so its text state starts unknown rather than at the
      *                            defaults every page starts with
@@ -59,12 +62,13 @@ final class Canvas
         private readonly Resources $resources,
         private readonly float $height,
         private readonly bool $topDown,
+        Closure $fragments,
         bool $inheritsState = false,
         private readonly ?Closure $links = null,
     ) {
         $this->stream = new ContentStream($height, $topDown, $inheritsState);
         $this->paint  = new Paint($objects, $resources, new ColourOperators($objects, $colour, $resources));
-        $this->text   = new TextPainter($this->stream, $resources, $objects);
+        $this->text   = new TextPainter($this->stream, $resources, $objects, $fragments);
         // A document that checks colour can change its output intent, and with it which device
         // colours are allowed, so its colours are checked each time rather than remembered.
         $this->remembersFill = ! $colour->checksColour();

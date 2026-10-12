@@ -7,6 +7,7 @@ namespace Php2Pdf\Document;
 use Closure;
 use Override;
 use Php2Pdf\Canvas\PlaceableInterface;
+use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Core\ClockInterface;
@@ -432,16 +433,11 @@ final class Document implements SvgDocumentInterface
             $this->colour,
             $size,
             $origin ?? ($this->options->topDown ? Origin::TopLeft : Origin::BottomLeft),
+            fn(): TextFragments => $this->text()->fragments,
             $bbox,
         );
     }
 
-    /**
-     * The fonts, styles and inline objects text is set with: made on first use, so a document
-     * without text never loads them.
-     *
-     * @internal
-     */
     public function text(): TextContext
     {
         return $this->text ??= new TextContext(
@@ -453,6 +449,7 @@ final class Document implements SvgDocumentInterface
             )),
             new StyleRegistry(),
             new InlineRegistry(),
+            new TextFragments(),
         );
     }
 
@@ -494,6 +491,12 @@ final class Document implements SvgDocumentInterface
         return Textflow::build($this->text(), $style, $hyphenators);
     }
 
+    /**
+     * The fonts, styles and inline objects text is set with: made on first use, so a document
+     * without text never loads them.
+     *
+     * @internal
+     */
     private function assertOpen(): void
     {
         if ($this->closed) {

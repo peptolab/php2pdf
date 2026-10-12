@@ -19,8 +19,8 @@ use function count;
  */
 final class GposAdjustment
 {
-    /** The most glyph pairs a lookup's pair memo keeps. */
-    private const int PAIR_MEMO_LIMIT = 32_768;
+    /** The most glyph pairs a lookup's pair memo keeps by default. */
+    public const int PAIR_MEMO_LIMIT = 32_768;
 
     /**
      * Pair adjustments read so far, by subtable and pair (first glyph << 16 | second): the first
@@ -41,8 +41,10 @@ final class GposAdjustment
      */
     private array $pairMemo = [];
 
+    /** @param int $pairMemoLimit the most glyph pairs a lookup's memo keeps; 0 keeps none */
     public function __construct(
         private readonly LayoutTables $tables,
+        private readonly int $pairMemoLimit = self::PAIR_MEMO_LIMIT,
     ) {}
 
     private static function valueSize(int $format): int
@@ -89,14 +91,15 @@ final class GposAdjustment
     }
 
     /**
-     * Whether a lookup is made only of pair adjustment subtables, so remembered() can stand for it.
+     * Whether a lookup is made only of pair adjustment subtables, so remembered() can stand for it;
+     * never with a memo limit of 0.
      *
      * @throws ParseException
      */
     public function pairOnly(int $lookup): bool
     {
         if (! array_key_exists($lookup, $this->pairMemo)) {
-            $this->pairMemo[$lookup] = $this->onlyPairs($lookup) ? [] : null;
+            $this->pairMemo[$lookup] = 0 < $this->pairMemoLimit && $this->onlyPairs($lookup) ? [] : null;
         }
 
         return null !== $this->pairMemo[$lookup];
@@ -119,7 +122,7 @@ final class GposAdjustment
         if (null !== $pair) {
             return $pair;
         }
-        if (count($memo) >= self::PAIR_MEMO_LIMIT) {
+        if (count($memo) >= $this->pairMemoLimit) {
             $this->pairMemo[$lookup] = [];
         }
         $pair                          = $this->pairAt($lookup, $first, $second);
