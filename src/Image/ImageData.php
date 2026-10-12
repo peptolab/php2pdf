@@ -89,6 +89,7 @@ final readonly class ImageData
                 $raster->colorKeyMask,
                 null === $raster->iccProfile ? null : '',
                 $raster->smaskInData,
+                null === $raster->jbig2Globals ? null : '',
             ),
             null === $this->softMask ? null : new SoftMask('', $this->softMask->bits),
             $this->dpiX,
