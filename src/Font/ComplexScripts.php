@@ -67,14 +67,15 @@ final class ComplexScripts
         if (1 !== preg_match(self::PATTERN, $text, $m)) {
             return null;
         }
-        // The pattern matched one whole character, which always has a code point.
+        // The pattern matched one whole character, which always has a code point. It matches only
+        // characters in the ranges, which run in code point order, so the first range ending at or
+        // after the character holds it.
         $codePoint = (int) mb_ord($m[0] ?? '', encoding: 'UTF-8');
-        foreach (self::RANGES as [$first, $last, $script]) {
-            if ($codePoint >= $first && $codePoint <= $last) {
-                return [$codePoint, $script];
-            }
+        $k         = 0;
+        while ($codePoint > (self::RANGES[$k][1] ?? $codePoint)) {
+            ++$k;
         }
 
-        return null;
+        return [$codePoint, self::RANGES[$k][2] ?? ''];
     }
 }

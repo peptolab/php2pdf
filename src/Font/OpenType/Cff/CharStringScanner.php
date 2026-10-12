@@ -142,8 +142,8 @@ final class CharStringScanner
     /** Pushes the operand at $i; returns its length in bytes. */
     private function operand(string $code, int $i, int $b0): int
     {
-        $byte = static fn(int $k): int => ord($code[$i + $k] ?? "\0");
-        [$value, $length] = match (true) {
+        $byte    = static fn(int $k): int => ord($code[$i + $k] ?? "\0");
+        $operand = match (true) {
             28 === $b0 => [(($byte(1) << 8) | $byte(2)) - (($byte(1) & 0x80) << 9), 3],
             $b0 <= 246 => [$b0 - 139, 1],
             $b0 <= 250 => [(($b0 - 247) * 256) + $byte(1) + 108, 2],
@@ -154,6 +154,7 @@ final class CharStringScanner
                 5,
             ],
         };
+        [$value, $length] = $operand;
         $this->stack[] = $value;
 
         return $length;

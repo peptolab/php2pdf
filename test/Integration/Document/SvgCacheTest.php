@@ -45,6 +45,15 @@ final class SvgCacheTest extends TestCase
     }
 
     #[Test]
+    public function aFileOpenedFromItsPathFirstIsTheArtworkThePathGives(): void
+    {
+        $converter = new CountingSvgConverter($this->tally);
+        $first     = $this->doc->svg(SvgFile::open($this->path), $converter);
+
+        self::assertSame([$first, 1], [$this->doc->svg($this->path, $converter), count($this->tally)]);
+    }
+
+    #[Test]
     public function aFileWithoutAPathIsConvertedOnceWhileItLives(): void
     {
         $converter = new CountingSvgConverter($this->tally);

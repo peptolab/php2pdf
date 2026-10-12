@@ -33,6 +33,12 @@ final class TiffPageTest extends TestCase
     }
 
     #[Test]
+    public function aDepthTheDecoderDoesNotReadIsLeftToTheTranscoder(): void
+    {
+        self::assertNull(self::page(new TiffFixture(8, 1, 1, 3, 1, "\0\0\0"))->read());
+    }
+
+    #[Test]
     public function aFaxInSeveralStripsIsNotReadNatively(): void
     {
         $tiff = (new TiffFixture(8, 2, 0, 1, 1, "\xAA\x55", compression: 4))->inStrips(1);

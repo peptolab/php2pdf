@@ -62,6 +62,9 @@ final class DocumentStructureTest extends TestCase
         $doc->close();
 
         PdfTools::assertValid($path);
+        if (! PdfTools::hasPoppler()) {
+            self::markTestSkipped('poppler-utils is not installed.');
+        }
         [$code, $output] = PdfTools::run(['pdfinfo', '-dests', $path]);
         self::assertSame(0, $code, $output);
         self::assertMatchesRegularExpression('/^\s*2\s+\[ FitH\s+700\s*\]\s+"chapter-2"/m', $output);

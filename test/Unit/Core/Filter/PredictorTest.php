@@ -26,6 +26,15 @@ final class PredictorTest extends TestCase
     }
 
     #[Test]
+    public function rejectsABitDepthSamplesCannotHave(): void
+    {
+        $this->expectException(ParseException::class);
+        $this->expectExceptionMessage('Invalid predictor parameters: 3 columns, 1 colours, 3 bits per component.');
+
+        Predictor::decode("\x01\x02\x03", predictor: 12, colors: 1, bitsPerComponent: 3, columns: 3);
+    }
+
+    #[Test]
     public function rejectsAnUnknownPredictor(): void
     {
         $this->expectException(ParseException::class);

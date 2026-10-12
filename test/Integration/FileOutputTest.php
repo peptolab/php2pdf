@@ -12,6 +12,7 @@ use Php2Pdf\Document\PageSize;
 use Php2Pdf\Document\PdfX;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\PdfException;
+use Php2PdfTest\TestAsset\Output\FullDiskStream;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -70,6 +71,21 @@ final class FileOutputTest extends TestCase
     {
         $this->expectException(IoException::class);
         new FileOutput("{$this->directory}/missing/out.pdf");
+    }
+
+    #[Test]
+    public function aWriteTheDiskCannotTakeIsReported(): void
+    {
+        FullDiskStream::register();
+        $output = new FileOutput('full-disk://report.pdf');
+        $this->expectException(IoException::class);
+        $this->expectExceptionMessage('Short write to "full-disk://report.pdf".');
+
+        try {
+            $output->write('%PDF-1.7');
+        } finally {
+            FullDiskStream::unregister();
+        }
     }
 
     #[Override]

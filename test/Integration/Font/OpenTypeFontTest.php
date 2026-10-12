@@ -113,6 +113,17 @@ final class OpenTypeFontTest extends TestCase
         self::assertSame([[5, 0], [4, 1], [2, 0xFFFF]], self::parsed('PhpPdfColourTest.ttf')->colourLayers(2));
     }
 
+    /** À is taken after the A it is built from, so its A is already kept. */
+    #[Test]
+    public function aComponentAlsoUsedOnItsOwnIsKeptOnce(): void
+    {
+        $font   = self::dejaVu();
+        $a      = $font->glyphId(0x41);
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [$font->glyphId(0xC0) => true, $a => true]));
+
+        self::assertSame($font->glyphData($a), $subset->glyphData($a));
+    }
+
     #[Test]
     public function aCompositeGlyphCutShortKeepsTheComponentsBeforeTheCut(): void
     {

@@ -25,6 +25,12 @@ final class ColumnTest extends TestCase
     }
 
     #[Test]
+    public function aWidthInMillimetresIsGivenInPoints(): void
+    {
+        self::assertEqualsWithDelta(28.346, Column::mm(10.0)->points, 0.001);
+    }
+
+    #[Test]
     public function rejectsBothAFixedWidthAndAPercentage(): void
     {
         $this->expectException(InvalidArgumentException::class);

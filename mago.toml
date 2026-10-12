@@ -68,7 +68,8 @@ ambiguous-function-call = { enabled = true }
 class-name = { psr = true }
 function-name = { camel = true, exclude = ["src/functions/*"] }
 interface-name = { psr = true }
-method-name = { enabled = true, camel = true }
+# Stream wrappers implement PHP's protocol, whose method names and parameters PHP fixes.
+method-name = { enabled = true, camel = true, exclude = ["test/TestAsset/Output/FullDiskStream.php"] }
 no-fully-qualified-global-class-like = { enabled = true }
 no-fully-qualified-global-constant = { enabled = true }
 no-fully-qualified-global-function = { enabled = true }
@@ -222,6 +223,8 @@ ignore = [
     # A test lets what it calls throw: the exception fails the test, so tests declare none.
     { code = "unhandled-thrown-type", in = ["test/"] },
     { code = "mixed-assignment", in = ["src/Import/", "src/Core/Object/", "src/Core/Serializer.php", "src/Core/Filter/FilterChain.php"] },
+    # A stream wrapper takes the parameters PHP's protocol passes, whether it reads them or not.
+    { code = "unused-parameter", in = ["test/TestAsset/Output/FullDiskStream.php"] },
     # Values coming back from C through FFI are untyped to the analyser.
     { code = "mixed-assignment", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
     { code = "mixed-array-access", in = ["src/Font/HarfBuzz/HarfBuzzFfi.php"] },
