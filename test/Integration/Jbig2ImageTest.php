@@ -40,7 +40,7 @@ final class Jbig2ImageTest extends TestCase
         ];
     }
 
-    /** The page is a black bar down columns 1 to 4 of 8, from top to bottom. */
+    /** The page is a black bar down columns 1 to 4 of 8, from top to bottom: which of its pixels are dark. */
     #[Test]
     #[DataProvider('rendererProvider')]
     public function aJbig2PageRendersAsItsPicture(string $renderer): void
@@ -63,32 +63,33 @@ final class Jbig2ImageTest extends TestCase
         });
         self::assertNotFalse($png);
         $pixel = imagesx($png) / 8;
-        $grey  = static fn(int $x, int $y): int => (
-            (int) imagecolorat($png, (int) (($x + 0.5) * $pixel), (int) (($y + 0.5) * $pixel)) & 0xFF
+        // Dark or light: CoreGraphics smooths the edges of a 1-bit image it scales up.
+        $dark = static fn(int $x, int $y): bool => (
+            ((int) imagecolorat($png, (int) (($x + 0.5) * $pixel), (int) (($y + 0.5) * $pixel)) & 0xFF) < 128
         );
 
-        self::assertSame([255, 0, 0, 255, 0, 255], [
-            $grey(
+        self::assertSame([false, true, true, false, true, false], [
+            $dark(
                 x: 0,
                 y: 0,
             ),
-            $grey(
+            $dark(
                 x: 1,
                 y: 0,
             ),
-            $grey(
+            $dark(
                 x: 4,
                 y: 0,
             ),
-            $grey(
+            $dark(
                 x: 5,
                 y: 0,
             ),
-            $grey(
+            $dark(
                 x: 2,
                 y: 7,
             ),
-            $grey(
+            $dark(
                 x: 7,
                 y: 7,
             ),
