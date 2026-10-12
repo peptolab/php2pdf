@@ -126,9 +126,6 @@ final class TrueTypeSubsetter
             if ($gid < 0) {
                 continue; // not a glyph id; the font has no such glyph
             }
-            if ($gid >= $numGlyphs) {
-                break;
-            }
             // empty glyphs before this one all start (and end) where it starts
             $loca   .= str_repeat(pack('N', $offset), max(0, $gid - $next + 1));
             $next   = $gid + 1;

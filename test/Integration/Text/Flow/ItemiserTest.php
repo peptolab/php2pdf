@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Text\Flow;
 
 use Override;
+use Php2Pdf\Core\Output\MemoryOutput;
+use Php2Pdf\Document\Document;
+use Php2Pdf\Font\Font;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Text\Flow\Item;
 use Php2Pdf\Text\Flow\ItemFactory;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
+use Php2Pdf\Text\Flow\StyleResolver;
 use Php2Pdf\Text\Hyphenation\Hyphenator;
+use Php2Pdf\Text\Style\TextStyle;
+use Php2PdfTest\TestAsset\PdfTools;
 use Php2PdfTest\Trait\KerningFixtureTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,6 +30,7 @@ use function array_sum;
 use function array_values;
 use function count;
 use function implode;
+use function mb_chr;
 
 #[Group('integration')]
 final class ItemiserTest extends TestCase
@@ -44,6 +51,38 @@ final class ItemiserTest extends TestCase
             'no-break space'        => ["10\u{00A0}000", ["10\u{00A0}000"]],
             'narrow no-break space' => ["10\u{202F}000", ["10\u{202F}000"]],
         ];
+    }
+
+    /**
+     * The characters the font has among letters and symbols that are left to right or neutral and
+     * break nowhere: Latin, IPA, Greek and Cyrillic letters, symbols, arrows, box drawing and
+     * Braille.
+     *
+     * @return list<string>
+     */
+    private static function characters(Font $font): array
+    {
+        $characters = [];
+        foreach ([
+            [0x0100, 0x02AF],
+            [0x0391, 0x03C9],
+            [0x0400, 0x0481],
+            [0x048A, 0x04FF],
+            [0x1E00, 0x1EFF],
+            [0x2100, 0x23FF],
+            [0x2500, 0x27BF],
+            [0x2800, 0x28FF],
+        ] as [$first, $last]) {
+            for ($codePoint = $first; $codePoint <= $last; ++$codePoint) {
+                if (! $font->hasGlyph($codePoint)) {
+                    continue;
+                }
+
+                $characters[] = mb_chr($codePoint, encoding: 'UTF-8');
+            }
+        }
+
+        return $characters;
     }
 
     /**
@@ -139,6 +178,29 @@ final class ItemiserTest extends TestCase
             },
             $this->itemise($text),
         ));
+    }
+
+    #[Test]
+    public function glyphsLetGoOnceTooManyAreKeptAreMadeAgainAlike(): void
+    {
+        $doc      = new Document(new MemoryOutput());
+        $resolver = new StyleResolver($doc->text());
+        $itemiser = new Itemiser($this->hyphenators);
+        // Each character a word of its own in three fonts: more distinct glyphs than are kept.
+        foreach (['DejaVuSans.ttf', 'DejaVuSans-Bold.ttf', 'SourceSerif4-Regular.ttf'] as $file) {
+            $font  = $doc->fonts()->load(PdfTools::assetPath("fonts/{$file}"));
+            $style = $resolver->resolve(null, new TextStyle(
+                font: $font,
+                size: 10.0,
+            ));
+            $itemiser->itemise([[implode(' ', self::characters($font)), $style]]);
+        }
+        $text = 'w1 office affine TrueType fit, w1 office';
+
+        self::assertEquals(
+            self::withoutClusters((new Itemiser($this->hyphenators))->itemise([[$text, $this->style]])),
+            self::withoutClusters($itemiser->itemise([[$text, $this->style]])),
+        );
     }
 
     #[Test]
@@ -260,6 +322,23 @@ final class ItemiserTest extends TestCase
         self::assertSame(
             [ItemKind::Box, ItemKind::Tab, ItemKind::Box, ItemKind::LineBreak, ItemKind::Box],
             $kinds,
+        );
+    }
+
+    #[Test]
+    public function wordsLetGoOnceTooManyAreRememberedAreCutAgainAlike(): void
+    {
+        $itemiser = new Itemiser($this->hyphenators);
+        $words    = [];
+        for ($n = 0; $n < 9000; ++$n) {
+            $words[] = "w{$n}";
+        }
+        $itemiser->itemise([[implode(' ', $words), $this->style]]);
+        $text = 'office affine TrueType fit-out, w1/w2 office';
+
+        self::assertEquals(
+            self::withoutClusters((new Itemiser($this->hyphenators))->itemise([[$text, $this->style]])),
+            self::withoutClusters($itemiser->itemise([[$text, $this->style]])),
         );
     }
 

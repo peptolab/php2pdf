@@ -37,24 +37,22 @@ final class FontTest extends TestCase
     private Document $doc;
     private Font $font;
 
-    /** @return array<string, array{0: DocumentOptions, 1: string|null, 2: int}> */
+    /**
+     * The PDF/X level and glyph check to set, the error expected and the warnings expected. The
+     * options are made in the test, not here, so nothing a document starts up with is shared.
+     *
+     * @return array<string, array{0: PdfX|null, 1: GlyphCheck|null, 2: string|null, 3: int}>
+     */
     public static function glyphCheckProvider(): array
     {
         $error = 'Font "DejaVuSans" has no glyph for "中" (U+4E2D).';
 
         return [
-            'PDF/X defaults to an error' => [new DocumentOptions(pdfx: PdfX::X4), $error, 0],
-            'explicit error'             => [new DocumentOptions(glyphCheck: GlyphCheck::Error), $error, 0],
-            'explicit ignore'            => [new DocumentOptions(glyphCheck: GlyphCheck::Ignore), null, 0],
-            'ignore wins under PDF/X'    => [
-                new DocumentOptions(
-                    pdfx: PdfX::X4,
-                    glyphCheck: GlyphCheck::Ignore,
-                ),
-                null,
-                0,
-            ],
-            'warn by default'            => [new DocumentOptions(), null, 1],
+            'PDF/X defaults to an error' => [PdfX::X4, null, $error, 0],
+            'explicit error'             => [null, GlyphCheck::Error, $error, 0],
+            'explicit ignore'            => [null, GlyphCheck::Ignore, null, 0],
+            'ignore wins under PDF/X'    => [PdfX::X4, GlyphCheck::Ignore, null, 0],
+            'warn by default'            => [null, null, null, 1],
         ];
     }
 
@@ -214,11 +212,18 @@ final class FontTest extends TestCase
     #[Test]
     #[DataProvider('glyphCheckProvider')]
     public function theGlyphCheckDecidesWhatAMissingGlyphDoes(
-        DocumentOptions $options,
+        ?PdfX $pdfx,
+        ?GlyphCheck $glyphCheck,
         ?string $error,
         int $warnings,
     ): void {
-        $doc  = new Document(new MemoryOutput(), $options);
+        $doc = new Document(
+            new MemoryOutput(),
+            new DocumentOptions(
+                pdfx: $pdfx,
+                glyphCheck: $glyphCheck,
+            ),
+        );
         $font = $doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
         if (null !== $error) {
             $this->expectException(PdfException::class);

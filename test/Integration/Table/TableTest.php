@@ -165,6 +165,24 @@ final class TableTest extends TestCase
     }
 
     #[Test]
+    public function aTableOfManyRowsPlacesEachRowOnceAcrossItsBoxes(): void
+    {
+        $table = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        for ($i = 0; $i < 600; ++$i) {
+            $table->addRow(["row {$i}", "cell {$i}"]);
+        }
+        $placed = 0;
+        $boxes  = 0;
+        do {
+            $result = $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 160.0, 780.0));
+            $placed += $table->lastFit()->rowsPlaced ?? 0;
+            ++$boxes;
+        } while (FlowResult::Done !== $result && $boxes < 50);
+
+        self::assertSame([FlowResult::Done, 600], [$result, $placed]);
+    }
+
+    #[Test]
     public function autoColumnsKeepTheirWidthsInEveryBox(): void
     {
         $table = $this->doc->table([Column::auto(), Column::auto()], null, $this->body);

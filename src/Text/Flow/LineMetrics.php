@@ -24,36 +24,9 @@ final class LineMetrics
     private static ?WeakMap $extents = null;
 
     /**
-     * The line's vertical metrics from every font and artwork on it. Artwork rising above the text
-     * pushes the line down by the difference, as auto leading does.
-     *
-     * @param list<Item> $items
-     *
-     * @return array{ascent: float, descent: float, capHeight: float, xHeight: float, lineHeight: float}
-     */
-    public static function of(array $items, TextStyle $style): array
-    {
-        $styles   = [];
-        $inlines  = [];
-        $measured = null;
-        foreach ($items as $item) {
-            if (null !== $item->inline) {
-                $inlines[] = [0.0, $item->inline];
-                continue;
-            }
-            if (ItemKind::Box !== $item->kind || $item->style === $measured) {
-                continue;
-            }
-            $measured = $item->style;
-            $styles[] = $measured;
-        }
-
-        return self::ofStyles($styles, $inlines, $style);
-    }
-
-    /**
-     * As of(), from what the line assembler collected while it set the line: the distinct styles
-     * of its boxes, and its artwork.
+     * The line's vertical metrics from every font and artwork on it, from what the line assembler
+     * collected while it set the line: the distinct styles of its boxes, and its artwork. Artwork
+     * rising above the text pushes the line down by the difference, as auto leading does.
      *
      * @param list<TextStyle>                        $styles
      * @param list<array{0: float, 1: InlineObject}> $inlines

@@ -208,10 +208,8 @@ final class GposAdjustment
         }
         $r = $this->tables->reader;
         foreach ($this->tables->subtablesAt($lookup, $first) as [, $offset]) {
-            $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$first] ?? null;
-            if (null === $index) {
-                continue;
-            }
+            // subtablesAt() gives only the subtables whose coverage holds the glyph
+            $index = $this->tables->coverage($offset + $r->u16($offset + 2))[$first] ?? 0;
             // Not kept in $this->pairs as well: the lookup's memo keeps what this returns.
             $pair = $this->pairs[$offset][($first << 16) | $second]
                 ?? $this->readPair($offset, $index, $first, $second);

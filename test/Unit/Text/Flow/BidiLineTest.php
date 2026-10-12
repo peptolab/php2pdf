@@ -38,6 +38,19 @@ final class BidiLineTest extends TestCase
         ];
     }
 
+    #[Test]
+    public function leftToRightItemsInALeftToRightParagraphKeepTheirOrder(): void
+    {
+        $style = new TextStyle();
+        $items = [
+            new Item(ItemKind::Box, $style, 'a'),
+            new Item(ItemKind::Glue, $style, '_'),
+            new Item(ItemKind::Box, $style, 'b'),
+        ];
+
+        self::assertSame($items, BidiLine::visual($items, paragraphLevel: 0));
+    }
+
     /**
      * @param list<array{0: ItemKind, 1: string}> $logical
      * @param list<string> $visual

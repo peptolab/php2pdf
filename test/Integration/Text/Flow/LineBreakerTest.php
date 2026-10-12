@@ -100,6 +100,18 @@ final class LineBreakerTest extends TestCase
     }
 
     #[Test]
+    public function aStyleBrokenAtMoreWidthsThanItKeepsSetupsForBreaksAsBefore(): void
+    {
+        $text  = 'The quick brown fox jumps over the lazy dog';
+        $first = $this->firstLine($text, 100.0);
+        for ($width = 101; $width <= 170; ++$width) {
+            $this->firstLine($text, (float) $width);
+        }
+
+        self::assertEquals($first, $this->firstLine($text, 100.0));
+    }
+
+    #[Test]
     public function aWordTooWideForAnyLineRunsOnAcrossLinesAndLeavesTheParagraphAsItWas(): void
     {
         $word      = 'Donaudampfschifffahrtsgesellschaft';

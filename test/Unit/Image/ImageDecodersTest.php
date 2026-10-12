@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Image;
 
+use Php2Pdf\Core\Filter\Flate;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -20,7 +21,9 @@ use Php2Pdf\Image\JpxDecoder;
 use Php2Pdf\Image\PngDecoder;
 use Php2Pdf\Image\Raster;
 use Php2Pdf\Image\TiffDecoder;
+use Php2Pdf\Image\Transcoder;
 use Php2PdfTest\TestAsset\FakeImageDecoder;
+use Php2PdfTest\TestAsset\Image\PngChunks;
 use Php2PdfTest\TestAsset\TiffFixture;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -146,6 +149,26 @@ final class ImageDecodersTest extends TestCase
             "\x7F",
             ImageDecoders::default()->read($tiff, Limits::default(), new ImageOptions(page: 2))->raster->data,
         );
+    }
+
+    #[Test]
+    public function decodersWithoutTheBuiltInOnesConvertAFormatNoneOfThemReads(): void
+    {
+        if (! Transcoder::isAvailable()) {
+            self::markTestSkipped('Neither ext-imagick nor ext-gd is loaded.');
+        }
+        $png = PngChunks::file(PngChunks::header(
+            width: 2,
+            height: 1,
+        ), PngChunks::imageData("\0\x40\xC0"));
+
+        $image = (new ImageDecoders([new FakeImageDecoder(self::image())]))->read(
+            $png,
+            Limits::default(),
+            new ImageOptions(),
+        );
+
+        self::assertSame("\x00\x40\xC0", Flate::decode($image->raster->data));
     }
 
     #[Test]
