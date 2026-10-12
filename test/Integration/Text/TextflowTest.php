@@ -95,6 +95,53 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    public function aFitAfterAMeasureAtTheBoxWidthPlacesWhatAFitAlonePlaces(): void
+    {
+        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 6);
+        $measured = $this->doc->textflow($text, 'body');
+        $fresh    = $this->doc->textflow($text, 'body');
+        $page     = $this->doc->addPage();
+        $box      = new Box(50.0, 300.0, 200.0, 400.0);
+        $height   = $measured->measure(200.0);
+
+        self::assertSame(FlowResult::Done, $page->fitTextflow($measured, $box));
+        self::assertSame(FlowResult::Done, $page->fitTextflow($fresh, $box));
+        self::assertEquals($fresh->lastFit(), $measured->lastFit());
+        self::assertEqualsWithDelta($height, $measured->lastFit()->height ?? 0.0, 1.0e-9);
+    }
+
+    #[Test]
+    public function aFitIntoABoxShorterThanTheMeasureStopsWhereTheBoxIsFull(): void
+    {
+        $text = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 12);
+        $flow = $this->doc->textflow($text, 'body');
+        $flow->measure(200.0);
+
+        self::assertSame(FlowResult::BoxFull, $this->doc->addPage()->fitTextflow(
+            $flow,
+            new Box(50.0, 500.0, 200.0, 50.0),
+        ));
+        self::assertSame(4, $flow->lastFit()?->lineCount);
+        self::assertFalse($flow->isDone());
+    }
+
+    #[Test]
+    public function aFitIntoANarrowerBoxThanTheMeasureLaysTheTextOutAgain(): void
+    {
+        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 6);
+        $measured = $this->doc->textflow($text, 'body');
+        $fresh    = $this->doc->textflow($text, 'body');
+        $page     = $this->doc->addPage();
+        $box      = new Box(50.0, 300.0, 120.0, 400.0);
+        $measured->measure(200.0);
+        $page->fitTextflow($measured, $box);
+        $page->fitTextflow($fresh, $box);
+
+        self::assertEquals($fresh->lastFit(), $measured->lastFit());
+        self::assertGreaterThan(6, $measured->lastFit()->lineCount ?? 0);
+    }
+
+    #[Test]
     public function aLineIsAsTallAsItsTallestStyle(): void
     {
         $flow = $this->doc
@@ -107,6 +154,26 @@ final class TextflowTest extends TestCase
         $font = $this->doc->fonts()->find('DejaVuSans');
 
         self::assertEqualsWithDelta($font->ascender(20.0) - $font->descender(20.0), $flow->measure(300.0), 1.0e-9);
+    }
+
+    #[Test]
+    public function aMeasureAfterAFitIsTakenFromWhereTheFitStopped(): void
+    {
+        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 12);
+        $measured = $this->doc->textflow($text, 'body');
+        $fresh    = $this->doc->textflow($text, 'body');
+        $page     = $this->doc->addPage();
+        $first    = new Box(50.0, 500.0, 200.0, 50.0);
+        $rest     = new Box(300.0, 100.0, 200.0, 600.0);
+        $page->fitTextflow($measured, $first);
+        $page->fitTextflow($fresh, $first);
+        $height = $measured->measure(200.0);
+
+        self::assertSame(FlowResult::Done, $page->fitTextflow($measured, $rest));
+        self::assertSame(FlowResult::Done, $page->fitTextflow($fresh, $rest));
+        self::assertEquals($fresh->lastFit(), $measured->lastFit());
+        self::assertEqualsWithDelta($height, $measured->lastFit()->height ?? 0.0, 1.0e-9);
+        self::assertSame('', $measured->remainingText());
     }
 
     #[Test]
@@ -276,70 +343,6 @@ final class TextflowTest extends TestCase
         $flow = $this->doc->textflow('<p>Tom <jerry>and</jerry> friends</p>', 'body', TextFormat::Markup);
 
         self::assertSame('Tom and friends', $flow->remainingText());
-    }
-
-    #[Test]
-    public function aFitAfterAMeasureAtTheBoxWidthPlacesWhatAFitAlonePlaces(): void
-    {
-        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 6);
-        $measured = $this->doc->textflow($text, 'body');
-        $fresh    = $this->doc->textflow($text, 'body');
-        $page     = $this->doc->addPage();
-        $box      = new Box(50.0, 300.0, 200.0, 400.0);
-        $height   = $measured->measure(200.0);
-
-        self::assertSame(FlowResult::Done, $page->fitTextflow($measured, $box));
-        self::assertSame(FlowResult::Done, $page->fitTextflow($fresh, $box));
-        self::assertEquals($fresh->lastFit(), $measured->lastFit());
-        self::assertEqualsWithDelta($height, $measured->lastFit()->height ?? 0.0, 1.0e-9);
-    }
-
-    #[Test]
-    public function aFitIntoANarrowerBoxThanTheMeasureLaysTheTextOutAgain(): void
-    {
-        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 6);
-        $measured = $this->doc->textflow($text, 'body');
-        $fresh    = $this->doc->textflow($text, 'body');
-        $page     = $this->doc->addPage();
-        $box      = new Box(50.0, 300.0, 120.0, 400.0);
-        $measured->measure(200.0);
-        $page->fitTextflow($measured, $box);
-        $page->fitTextflow($fresh, $box);
-
-        self::assertEquals($fresh->lastFit(), $measured->lastFit());
-        self::assertGreaterThan(6, $measured->lastFit()->lineCount ?? 0);
-    }
-
-    #[Test]
-    public function aFitIntoABoxShorterThanTheMeasureStopsWhereTheBoxIsFull(): void
-    {
-        $text = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 12);
-        $flow = $this->doc->textflow($text, 'body');
-        $flow->measure(200.0);
-
-        self::assertSame(FlowResult::BoxFull, $this->doc->addPage()->fitTextflow($flow, new Box(50.0, 500.0, 200.0, 50.0)));
-        self::assertSame(4, $flow->lastFit()?->lineCount);
-        self::assertFalse($flow->isDone());
-    }
-
-    #[Test]
-    public function aMeasureAfterAFitIsTakenFromWhereTheFitStopped(): void
-    {
-        $text     = str_repeat('The quick brown fox jumps over the lazy dog. ', times: 12);
-        $measured = $this->doc->textflow($text, 'body');
-        $fresh    = $this->doc->textflow($text, 'body');
-        $page     = $this->doc->addPage();
-        $first    = new Box(50.0, 500.0, 200.0, 50.0);
-        $rest     = new Box(300.0, 100.0, 200.0, 600.0);
-        $page->fitTextflow($measured, $first);
-        $page->fitTextflow($fresh, $first);
-        $height = $measured->measure(200.0);
-
-        self::assertSame(FlowResult::Done, $page->fitTextflow($measured, $rest));
-        self::assertSame(FlowResult::Done, $page->fitTextflow($fresh, $rest));
-        self::assertEquals($fresh->lastFit(), $measured->lastFit());
-        self::assertEqualsWithDelta($height, $measured->lastFit()->height ?? 0.0, 1.0e-9);
-        self::assertSame('', $measured->remainingText());
     }
 
     #[Test]

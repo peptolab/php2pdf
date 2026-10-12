@@ -75,7 +75,7 @@ final class BreakPlanner
             $ends     = ParagraphComposer::breaks($paragraph, $start, $widths, $lineNumber, $obstacle, $limit);
             if (null === $ends) {
                 if (null !== $obstacle && null !== $limit) {
-                    $this->failures ??= new WeakMap();
+                    $this->failures             ??= new WeakMap();
                     $this->failures[$paragraph] = [$key, $start, $obstacle, $limit];
                 }
 
@@ -87,7 +87,7 @@ final class BreakPlanner
                 $plan[1][$from] = $end;
                 $from           = self::nextStart($paragraph->items, $end);
             }
-            $this->plans ??= new WeakMap();
+            $this->plans             ??= new WeakMap();
             $this->plans[$paragraph] = $plan;
         }
 

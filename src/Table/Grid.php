@@ -15,6 +15,7 @@ use Php2Pdf\Text\TextContext;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextFormat;
 
+use function array_key_exists;
 use function array_keys;
 use function count;
 use function is_string;
@@ -148,7 +149,12 @@ final class Grid
         return count($this->sources);
     }
 
-    /** Whether any text in the row remains to be placed. */
+    /**
+     * Whether any text in the row remains to be placed.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     public function hasTextLeft(int $row): bool
     {
         foreach ($this->cells($row) as $placed) {
@@ -177,9 +183,11 @@ final class Grid
             $this->itemiserFrom = $row;
         }
         foreach (array_keys($this->built) as $r) {
-            if ($r < $row) {
-                unset($this->built[$r]);
+            if ($r >= $row) {
+                continue;
             }
+
+            unset($this->built[$r]);
         }
     }
 
@@ -193,13 +201,15 @@ final class Grid
         }
         // A row not built holds no state of its own, but a Textflow given as a cell's content does.
         foreach ($this->sources as $r => $row) {
-            if (isset($this->built[$r])) {
+            if (array_key_exists($r, $this->built)) {
                 continue;
             }
             foreach ($row->cells as $cell) {
-                if ($cell->content instanceof Textflow) {
-                    $cell->content->reset();
+                if (! $cell->content instanceof Textflow) {
+                    continue;
                 }
+
+                $cell->content->reset();
             }
         }
     }
@@ -242,6 +252,12 @@ final class Grid
         return $cells;
     }
 
+    /** The itemiser the table's cells share until release() lets it go. */
+    private function itemiser(): Itemiser
+    {
+        return $this->itemiser ??= new Itemiser();
+    }
+
     /**
      * @throws IoException
      * @throws ParseException
@@ -270,12 +286,12 @@ final class Grid
             is_string($content) => Textflow::fromString(
                 $resolver,
                 $text,
-                $this->itemiser ??= new Itemiser(),
+                $this->itemiser(),
                 $content,
                 // Markup cells read as fromMarkup() reads them, every other format as fromText().
                 TextFormat::Markup === $cell->format ? TextFormat::Markup : TextFormat::Plain,
             ),
-            default => null,
+            default             => null,
         };
 
         return new PlacedCell($cell, $r, $c, $style, $text, $flow);

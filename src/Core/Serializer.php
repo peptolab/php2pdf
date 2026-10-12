@@ -76,20 +76,25 @@ final class Serializer
         foreach ($dict->all() as $key => $value) {
             // The commonest values first: names and references need no generic dispatch.
             if ($value instanceof Name) {
-                $out .= (self::$names[$key] ?? self::name((string) $key)) . (self::$names[$value->value] ?? self::name($value->value));
+                $out .=
+                    (self::$names[$key] ?? self::key($key))
+                    . (self::$names[$value->value] ?? self::name($value->value));
                 continue;
             }
             if ($value instanceof Reference) {
-                $out .= (self::$names[$key] ?? self::name((string) $key)) . " {$value->id} {$value->generation} R";
+                $out .= (self::$names[$key] ?? self::key($key)) . " {$value->id} {$value->generation} R";
                 continue;
             }
             if (is_int($value)) {
-                $out .= (self::$names[$key] ?? self::name((string) $key)) . " {$value}";
+                $out .= (self::$names[$key] ?? self::key($key)) . " {$value}";
                 continue;
             }
             $serialized = self::serialize($value);
             // A delimiter-initial value needs no separating space after the key name.
-            $out .= (self::$names[$key] ?? self::name((string) $key)) . (str_contains('/[<(', $serialized[0]) ? '' : ' ') . $serialized;
+            $out .=
+                (self::$names[$key] ?? self::key($key))
+                . (str_contains('/[<(', $serialized[0]) ? '' : ' ')
+                . $serialized;
         }
 
         return "{$out}>>";
@@ -102,8 +107,9 @@ final class Serializer
 
     public static function name(string $name): string
     {
-        if (isset(self::$names[$name])) {
-            return self::$names[$name];
+        $cached = self::$names[$name] ?? null;
+        if (null !== $cached) {
+            return $cached;
         }
         // A fixed byte-wise pattern with no backtracking cannot fail.
         /** @var string $escaped */
@@ -131,9 +137,9 @@ final class Serializer
             $value instanceof Reference => "{$value->id} {$value->generation} R",
             is_float($value) => Num::format($value),
             $value instanceof Dictionary => self::dictionary($value),
-            is_array($value) => self::array($value),
+            is_array($value)  => self::array($value),
             is_string($value) => self::literalString($value),
-            is_bool($value)  => $value ? 'true' : 'false',
+            is_bool($value)   => $value ? 'true' : 'false',
             null === $value => 'null',
             $value instanceof HexString => '<' . bin2hex($value->bytes) . '>',
             $value instanceof Raw => $value->syntax,
@@ -142,5 +148,14 @@ final class Serializer
             ),
             default => throw new InvalidArgumentException('Cannot serialise value of type ' . get_debug_type($value)),
         };
+    }
+
+    /**
+     * A dictionary key as a serialised name. PHP stores a numeric-string key such as "1" as an
+     * int, whatever the dictionary's declared key type.
+     */
+    private static function key(int|string $key): string
+    {
+        return self::name((string) $key);
     }
 }

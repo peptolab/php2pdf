@@ -51,6 +51,36 @@ final class TrueTypeSubsetterTest extends TestCase
         ];
     }
 
+    private static function dejaVu(): OpenTypeFont
+    {
+        return OpenTypeFont::fromData(self::dejaVuData());
+    }
+
+    private static function dejaVuData(): string
+    {
+        return (string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+    }
+
+    #[Test]
+    public function aFontWithoutAPostTableGetsAnEmptyFormat3Post(): void
+    {
+        $font   = OpenTypeFont::fromData(SfntTables::replace(self::dejaVuData(), ['post' => null]));
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [36 => true]));
+
+        self::assertSame("\0\x03\0\0" . str_repeat("\0", times: 28), $subset->table('post'));
+    }
+
+    #[Test]
+    public function negativeGlyphIdsAreIgnored(): void
+    {
+        $font = self::dejaVu();
+
+        self::assertSame(
+            TrueTypeSubsetter::subset($font, [36 => true]),
+            TrueTypeSubsetter::subset($font, [-3 => true, -1 => true, 36 => true]),
+        );
+    }
+
     #[Test]
     #[DataProvider('horizontalMetricsProvider')]
     public function theSubsetHmtxHoldsEveryKeptGlyphsAdvanceAndBearing(?int $longMetrics, ?string $hmtx): void
@@ -100,35 +130,5 @@ final class TrueTypeSubsetterTest extends TestCase
         self::assertSame($font->glyphData(68), $subset->glyphData(68));
         self::assertSame('', $subset->glyphData(1));
         self::assertSame('', $subset->glyphData(67));
-    }
-
-    #[Test]
-    public function negativeGlyphIdsAreIgnored(): void
-    {
-        $font = self::dejaVu();
-
-        self::assertSame(
-            TrueTypeSubsetter::subset($font, [36 => true]),
-            TrueTypeSubsetter::subset($font, [-3 => true, -1 => true, 36 => true]),
-        );
-    }
-
-    #[Test]
-    public function aFontWithoutAPostTableGetsAnEmptyFormat3Post(): void
-    {
-        $font   = OpenTypeFont::fromData(SfntTables::replace(self::dejaVuData(), ['post' => null]));
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [36 => true]));
-
-        self::assertSame("\0\x03\0\0" . str_repeat("\0", times: 28), $subset->table('post'));
-    }
-
-    private static function dejaVu(): OpenTypeFont
-    {
-        return OpenTypeFont::fromData(self::dejaVuData());
-    }
-
-    private static function dejaVuData(): string
-    {
-        return (string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
     }
 }

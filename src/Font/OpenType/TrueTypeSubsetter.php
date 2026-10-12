@@ -17,6 +17,7 @@ use function log;
 use function max;
 use function min;
 use function pack;
+use function str_pad;
 use function str_repeat;
 use function str_split;
 use function strlen;
@@ -88,8 +89,8 @@ final class TrueTypeSubsetter
             $length   = strlen($data);
             $padded   = $data . str_repeat("\0", (4 - ($length % 4)) % 4);
             $checksum = self::checksum($padded);
-            $sum     += $checksum;
-            $records .= $tag . pack('NNN', $checksum, $offset, $length);
+            $sum      += $checksum;
+            $records  .= $tag . pack('NNN', $checksum, $offset, $length);
             if ('head' === $tag) {
                 $headOffset = $offset;
             }
@@ -129,14 +130,14 @@ final class TrueTypeSubsetter
                 break;
             }
             // empty glyphs before this one all start (and end) where it starts
-            $loca   .= str_repeat(pack('N', $offset), $gid - $next + 1);
-            $next    = $gid + 1;
-            $data    = $font->glyphData($gid);
-            $pad     = (4 - (strlen($data) % 4)) % 4;
+            $loca   .= str_repeat(pack('N', $offset), max(0, $gid - $next + 1));
+            $next   = $gid + 1;
+            $data   = $font->glyphData($gid);
+            $pad    = (4 - (strlen($data) % 4)) % 4;
             $glyf   .= $data . str_repeat("\0", $pad);
             $offset += strlen($data) + $pad;
         }
-        $loca .= str_repeat(pack('N', $offset), $numGlyphs - $next + 1);
+        $loca .= str_repeat(pack('N', $offset), max(0, $numGlyphs - $next + 1));
 
         return [$glyf, $loca];
     }
@@ -166,11 +167,12 @@ final class TrueTypeSubsetter
         }
         $short   = $numGlyphs - $long;
         $bearing = substr($raw, offset: 4 * $long, length: 2 * $short);
-        $bearing = substr($bearing, offset: 0, length: strlen($bearing) & ~1)
-            . str_repeat("\0", (2 * $short) - (strlen($bearing) & ~1));
+        $bearing = str_pad(substr($bearing, offset: 0, length: strlen($bearing) & ~1), 2 * $short, pad_string: "\0");
         $advance = pack('n', $font->advance($long - 1));
 
-        return substr($raw, offset: 0, length: 4 * $long) . $advance . implode($advance, str_split($bearing, 2));
+        return (
+            substr($raw, offset: 0, length: 4 * $long) . $advance . implode($advance, str_split($bearing, length: 2))
+        );
     }
 
     private static function checksum(string $data): int

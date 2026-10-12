@@ -101,7 +101,7 @@ final readonly class OpenTypeShaper
     /** Whether a character at U+00AD or above (the first) is default-ignorable. */
     private static function ignorable(int $codePoint): bool
     {
-        return IntlChar::hasBinaryProperty($codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT);
+        return true === IntlChar::hasBinaryProperty($codePoint, IntlChar::PROPERTY_DEFAULT_IGNORABLE_CODE_POINT);
     }
 
     /**
@@ -155,13 +155,11 @@ final readonly class OpenTypeShaper
         $sequence = [];
         $entries  = [];
         foreach ($codePoints as $codePoint) {
-            $entry = $entries[$codePoint] ?? null;
-            if (null === $entry) {
-                $shown               = $rtl ? $this->mirrored($codePoint) : $codePoint;
-                $entry               = [$this->program->glyphId($shown), [$shown]];
-                $entries[$codePoint] = $entry;
-            }
-            $sequence[] = $entry;
+            $entry = $entries[$codePoint] ?? $this->entry(
+                $rtl ? $this->mirrored($codePoint) : $codePoint,
+            );
+            $entries[$codePoint] = $entry;
+            $sequence[]          = $entry;
         }
         unset($entries);
         $gsub     = $this->program->gsub();
@@ -177,9 +175,10 @@ final readonly class OpenTypeShaper
                 continue;
             }
             $run = array_slice($sequence, $start, $length);
-            if ($start + $length >= count($sequence)) {
+            if (($start + $length) >= count($sequence)) {
                 // The last run: the whole sequence is no longer needed while it is shaped.
-                unset($sequence, $codePoints);
+                $sequence   = [];
+                $codePoints = [];
             }
             $run = $this->joins($script)
                 ? $this->joined($run, $runCodePoints, $features, $script, $language)
@@ -217,6 +216,16 @@ final readonly class OpenTypeShaper
             $codePoints,
             fn(int $codePoint): bool => 0 !== $this->program->glyphId($codePoint),
         );
+    }
+
+    /**
+     * The entry in the sequence to substitute for a character shown: its glyph and the character.
+     *
+     * @return array{0: int, 1: list<int>}
+     */
+    private function entry(int $shown): array
+    {
+        return [$this->program->glyphId($shown), [$shown]];
     }
 
     /**
@@ -486,14 +495,17 @@ final readonly class OpenTypeShaper
         foreach ($sequence as $k => [$id, $codePoints]) {
             $natural  = $advances[$k] ?? $this->program->advance($id);
             $position = null === $positions ? null : $positions[$k] ?? null;
-            if (null === $position) {
-                $xAdvance = $natural;
-                $xOffset  = 0;
-                $yOffset  = 0;
-            } else {
+            $xAdvance = $natural;
+            $xOffset  = 0;
+            $yOffset  = 0;
+            if (null !== $position) {
                 [$xAdvance, , $xOffset, $yOffset] = $position;
             }
-            $width   = $widths[$id] ??= $advance($id);
+            $width = $widths[$id] ?? null;
+            if (null === $width) {
+                $width       = $advance($id);
+                $widths[$id] = $width;
+            }
             $kerning = (float) (0 === $xAdvance && 0 !== $natural ? -$width : ($xAdvance - $natural) * $scale);
             $next    = $legacyKern ? $sequence[$k + 1][0] ?? null : null;
             if (null !== $next) {

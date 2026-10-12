@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Table;
 
+use Php2Pdf\Exception\IoException;
+use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Flow\FlowResult;
 
 use function array_sum;
@@ -29,6 +31,10 @@ final class Planner
         private readonly ?Grid $footers = null,
     ) {}
 
+    /**
+     * @throws IoException
+     * @throws ParseException
+     */
     public function plan(float $height, int $from, bool $continuing): Plan
     {
         $plan    = new Plan();
@@ -102,7 +108,12 @@ final class Planner
         $this->add($plan, $row, $available, $available);
     }
 
-    /** @return array<int, float> */
+    /**
+     * @return array<int, float>
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function footerHeights(): array
     {
         $count = $this->footers?->count() ?? 0;
@@ -132,7 +143,12 @@ final class Planner
         return $end;
     }
 
-    /** Adds the header rows; returns the height they take, or null when they do not fit. */
+    /**
+     * Adds the header rows; returns the height they take, or null when they do not fit.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function placeHeaders(Plan $plan, float $height, int $from): ?float
     {
         $count = $this->headers->count();

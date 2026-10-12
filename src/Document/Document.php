@@ -75,8 +75,8 @@ final class Document implements SvgDocumentInterface
     private readonly DocumentColour $colour;
     private readonly Metadata $metadata;
     private readonly Assets $assets;
-    private ?TextContext $text = null;
-    private ?Navigation $navigation = null;
+    private ?TextContext $text       = null;
+    private ?Navigation  $navigation = null;
 
     /** @var list<Closure(Document): void> */
     private array $closing = [];

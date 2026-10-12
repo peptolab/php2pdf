@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Font\OpenType;
 
 use Php2Pdf\Font\OpenType\Gpos;
+use Php2Pdf\Font\OpenType\GposAdjustment;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,6 +16,7 @@ use ReflectionProperty;
 
 use function array_fill;
 use function array_filter;
+use function count;
 use function file_get_contents;
 use function implode;
 use function mb_ord;
@@ -32,19 +34,63 @@ final class GposPairMemoTest extends TestCase
 
     /** Letters, digits, punctuation, ligature starts and combining marks a lookup may pass over. */
     private const array ALPHABET = [
-        'A', 'V', 'W', 'Y', 'T', 'L', 'P', 'F', 'o', 'a', 'e', 'y', 'v', 'w', 'r', 'f', 'i', 'l', 't',
-        'k', 'x', 'j', '.', ',', '\'', '"', '-', '(', ')', '1', '7', '4', ' ', 'é', 'Å', 'ı',
-        "\u{0301}", "\u{0308}", "\u{0327}", "\u{030A}",
+        'A',
+        'V',
+        'W',
+        'Y',
+        'T',
+        'L',
+        'P',
+        'F',
+        'o',
+        'a',
+        'e',
+        'y',
+        'v',
+        'w',
+        'r',
+        'f',
+        'i',
+        'l',
+        't',
+        'k',
+        'x',
+        'j',
+        '.',
+        ',',
+        '\'',
+        '"',
+        '-',
+        '(',
+        ')',
+        '1',
+        '7',
+        '4',
+        ' ',
+        'é',
+        'Å',
+        'ı',
+        "\u{0301}",
+        "\u{0308}",
+        "\u{0327}",
+        "\u{030A}",
     ];
 
     /** @return array<string, array{0: string}> */
     public static function fontProvider(): array
     {
         return [
-            'DejaVu Sans'     => ['fonts/DejaVuSans.ttf'],
-            'Source Serif 4'  => ['fonts/SourceSerif4-Regular.ttf'],
-            'Source Sans 3'   => ['fonts/SourceSans3-Regular.otf'],
+            'DejaVu Sans'    => ['fonts/DejaVuSans.ttf'],
+            'Source Serif 4' => ['fonts/SourceSerif4-Regular.ttf'],
+            'Source Sans 3'  => ['fonts/SourceSans3-Regular.otf'],
         ];
+    }
+
+    /** The single and pair adjustment lookups of a GPOS, which hold its pair memo. */
+    private static function adjustments(Gpos $gpos): GposAdjustment
+    {
+        /** @var GposAdjustment */
+        return (new ReflectionProperty(Gpos::class, 'adjustments'))->getValue($gpos);
     }
 
     /** The font's GPOS, which it has. */
@@ -82,13 +128,64 @@ final class GposPairMemoTest extends TestCase
         $words = [];
         for ($w = 0; $w < 400; ++$w) {
             $word = '';
-            for ($k = 0, $length = mt_rand(1, 9); $k < $length; ++$k) {
-                $word .= self::ALPHABET[mt_rand(0, \count(self::ALPHABET) - 1)];
+            for (
+                $k = 0,
+                    $length = mt_rand(
+                        min: 1,
+                        max: 9,
+                    );
+                $k < $length;
+                ++$k
+            ) {
+                $word .=
+                    self::ALPHABET[mt_rand(
+                        min: 0,
+                        max: count(self::ALPHABET) - 1,
+                    )] ?? '';
             }
             $words[] = $word;
         }
 
         return $words;
+    }
+
+    #[Test]
+    public function aFullPairMemoStartsAgainAndPositionsAsBefore(): void
+    {
+        $program  = OpenTypeFont::fromData((string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf')));
+        $gpos     = self::gpos($program);
+        $sequence = [];
+        foreach (mb_str_split('AVATAR To WAVE Ty') as $char) {
+            $codePoint  = (int) mb_ord($char);
+            $sequence[] = [$program->glyphId($codePoint), [$codePoint]];
+        }
+        $advances = [];
+        foreach ($sequence as [$id]) {
+            $advances[] = $program->advance($id);
+        }
+        $expected    = $gpos->position($sequence, $advances, self::FEATURES);
+        $adjustments = self::adjustments($gpos);
+        $property    = new ReflectionProperty(GposAdjustment::class, 'pairMemo');
+        /** @var array<int, array<int, mixed>|null> $memo */
+        $memo   = $property->getValue($adjustments);
+        $filled = 0;
+        foreach ($memo as $lookup => $pairs) {
+            if (null === $pairs) {
+                continue;
+            }
+
+            // Pairs of a first glyph the font does not have, so none is looked up.
+            $memo[$lookup] = array_fill(1 << 30, count: 32_768, value: false);
+            ++$filled;
+        }
+        self::assertGreaterThan(0, $filled);
+        $property->setValue($adjustments, $memo);
+        self::assertSame($expected, $gpos->position($sequence, $advances, self::FEATURES));
+        /** @var array<int, array<int, mixed>|null> $after */
+        $after = $property->getValue($adjustments);
+        foreach ($after as $pairs) {
+            self::assertLessThan(32_768, count($pairs ?? []));
+        }
     }
 
     #[Test]
@@ -99,7 +196,10 @@ final class GposPairMemoTest extends TestCase
         $memo    = OpenTypeFont::fromData($data);
         $general = OpenTypeFont::fromData($data);
         // No lookup is taken as pairs only: every one applies glyph by glyph.
-        (new ReflectionProperty(Gpos::class, 'pairMemo'))->setValue(self::gpos($general), array_fill(0, 4096, null));
+        (new ReflectionProperty(GposAdjustment::class, 'pairMemo'))->setValue(
+            self::adjustments(self::gpos($general)),
+            array_fill(0, count: 4096, value: null),
+        );
         foreach ([1, 2, 3] as $seed) {
             $words = self::words($seed);
             foreach ([implode(' ', $words), ...$words] as $text) {
@@ -120,42 +220,12 @@ final class GposPairMemoTest extends TestCase
                 );
             }
         }
-        // The fonts kern with lookups of pairs only, so the remembered path is the one tested.
-        $remembered = (new ReflectionProperty(Gpos::class, 'pairMemo'))->getValue(self::gpos($memo));
-        self::assertNotSame([], array_filter($remembered, static fn(?array $pairs): bool => [] !== ($pairs ?? [])));
-    }
-
-    #[Test]
-    public function aFullPairMemoStartsAgainAndPositionsAsBefore(): void
-    {
-        $program  = OpenTypeFont::fromData((string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf')));
-        $gpos     = self::gpos($program);
-        $sequence = [];
-        foreach (mb_str_split('AVATAR To WAVE Ty') as $char) {
-            $codePoint  = (int) mb_ord($char);
-            $sequence[] = [$program->glyphId($codePoint), [$codePoint]];
-        }
-        $advances = [];
-        foreach ($sequence as [$id]) {
-            $advances[] = $program->advance($id);
-        }
-        $expected = $gpos->position($sequence, $advances, self::FEATURES);
-        $property = new ReflectionProperty(Gpos::class, 'pairMemo');
-        /** @var array<int, array<int, mixed>|null> $memo */
-        $memo   = $property->getValue($gpos);
-        $filled = 0;
-        foreach ($memo as $lookup => $pairs) {
-            if (null !== $pairs) {
-                // Pairs of a first glyph the font does not have, so none is looked up.
-                $memo[$lookup] = array_fill(1 << 30, 32768, false);
-                ++$filled;
-            }
-        }
-        self::assertGreaterThan(0, $filled);
-        $property->setValue($gpos, $memo);
-        self::assertSame($expected, $gpos->position($sequence, $advances, self::FEATURES));
-        foreach ($property->getValue($gpos) as $pairs) {
-            self::assertLessThan(32768, \count($pairs ?? []));
-        }
+        // The fonts kern with lookups of pairs only, so the remembered path is the one tested: some
+        // lookup has remembered pairs (array_filter() drops the null and empty memos).
+        /** @var array<int, array<int, mixed>|null> $remembered */
+        $remembered = (new ReflectionProperty(GposAdjustment::class, 'pairMemo'))->getValue(
+            self::adjustments(self::gpos($memo)),
+        );
+        self::assertNotSame([], array_filter($remembered));
     }
 }

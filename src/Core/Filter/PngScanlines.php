@@ -46,10 +46,10 @@ use const ZLIB_SYNC_FLUSH;
 final class PngScanlines
 {
     /** The low seven bits of each byte of a 32-bit word. */
-    private const int LOW = 0x7F7F7F7F;
+    private const int LOW = 0x7F7F_7F7F;
 
     /** The top bit of each byte of a 32-bit word. */
-    private const int HIGH = 0x80808080;
+    private const int HIGH = 0x8080_8080;
 
     /** Adam7 passes: x start, y start, x step, y step. */
     private const array PASSES = [
@@ -87,59 +87,10 @@ final class PngScanlines
             return self::expand($rows, $width, $height, $bitDepth, $channels, $factor);
         }
 
-        // Each pass unfiltered and expanded whole, then every image row put together from the pass
-        // rows that hold its pixels: a row of pixel strings keyed in x order, the passes' pixels
-        // replaced into it, joined.
         $pixelBytes = max(1, $channels * ($bitDepth > 8 ? 2 : 1));
-        $passes     = [];
-        $offset     = 0;
-        foreach (self::PASSES as $pass => [$x0, $y0, $dx, $dy]) {
-            if ($x0 >= $width || $y0 >= $height) {
-                continue;
-            }
-            $passWidth  = intdiv($width - $x0 + $dx - 1, $dx);
-            $passHeight = intdiv($height - $y0 + $dy - 1, $dy);
-            $rowBytes   = intdiv(($passWidth * $channels * $bitDepth) + 7, num2: 8);
-            $passLength = ($rowBytes + 1) * $passHeight;
-            $rows       = self::unfilter(
-                substr($inflated, $offset, $passLength),
-                $passWidth,
-                $passHeight,
-                $bitDepth,
-                $channels,
-            );
-            $offset += $passLength;
-            $xs     = [];
-            for ($x = $x0; $x < $width; $x += $dx) {
-                $xs[] = $x;
-            }
-            $passes[$pass] = [
-                self::expand($rows, $passWidth, $passHeight, $bitDepth, $channels, $factor),
-                $passWidth * $pixelBytes,
-                $xs,
-            ];
-        }
-        $blank = array_fill(0, $width, '');
-        $image = '';
-        for ($y = 0; $y < $height; ++$y) {
-            if (1 === ($y & 1) && isset($passes[6])) {
-                [$rows, $stride] = $passes[6];
-                $image .= substr($rows, (($y - 1) >> 1) * $stride, $stride);
-                continue;
-            }
-            $row = $blank;
-            foreach ($passes as $pass => [$rows, $stride, $xs]) {
-                [, $y0, , $dy] = self::PASSES[$pass];
-                if ($y < $y0 || 0 !== (($y - $y0) % $dy)) {
-                    continue;
-                }
-                $pixels = str_split(substr($rows, intdiv($y - $y0, $dy) * $stride, $stride), $pixelBytes);
-                $row    = array_replace($row, array_combine($xs, $pixels));
-            }
-            $image .= implode('', $row);
-        }
+        $passes     = self::passes($inflated, $width, $height, $bitDepth, $channels, $factor, $pixelBytes);
 
-        return $image;
+        return self::interlace($passes, $width, $height, $pixelBytes);
     }
 
     /**
@@ -170,7 +121,7 @@ final class PngScanlines
         $buffer   = '';
         $decoded  = 0;
         $y        = 0;
-        $prev     = str_repeat("\0", $rowBytes);
+        $prev     = str_repeat("\0", max(0, $rowBytes));
         foreach ($compressed as $piece) {
             $out = Silencer::run(static fn(): string|false => inflate_add($inflater, $piece, ZLIB_SYNC_FLUSH));
             if (false === $out) {
@@ -196,29 +147,6 @@ final class PngScanlines
     }
 
     /**
-     * Reverses the per-row filters. Rows keep their packed layout.
-     *
-     * @throws ParseException
-     */
-    public static function unfilter(string $raw, int $width, int $height, int $bitDepth, int $channels): string
-    {
-        $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
-        $bpp      = max(1, intdiv($channels * $bitDepth, num2: 8));
-        if (strlen($raw) < (($rowBytes + 1) * $height)) {
-            throw new ParseException('PNG image data is truncated.');
-        }
-        $out  = '';
-        $prev = str_repeat("\0", $rowBytes);
-        for ($y = 0; $y < $height; ++$y) {
-            $start = $y * ($rowBytes + 1);
-            $prev  = self::unfilterRow(ord($raw[$start]), substr($raw, $start + 1, $rowBytes), $prev, $bpp);
-            $out  .= $prev;
-        }
-
-        return $out;
-    }
-
-    /**
      * Each byte plus the byte $bpp before it, a channel at a time, from the second pixel on: the
      * TIFF predictor and PNG's Sub filter.
      */
@@ -235,13 +163,37 @@ final class PngScanlines
         /** @var array<int, int> $row */
         $row = unpack('C*', $line);
         for ($k = 1; $k <= $bpp; ++$k) {
-            $a = $row[$k];
+            $a = $row[$k] ?? 0;
             for ($i = $k + $bpp; $i <= $n; $i += $bpp) {
-                $a = $row[$i] = ($row[$i] + $a) & 0xFF;
+                $a       = (($row[$i] ?? 0) + $a) & 0xFF;
+                $row[$i] = $a;
             }
         }
 
         return pack('C*', ...$row);
+    }
+
+    /**
+     * Reverses the per-row filters. Rows keep their packed layout.
+     *
+     * @throws ParseException
+     */
+    public static function unfilter(string $raw, int $width, int $height, int $bitDepth, int $channels): string
+    {
+        $rowBytes = intdiv(($width * $channels * $bitDepth) + 7, num2: 8);
+        $bpp      = max(1, intdiv($channels * $bitDepth, num2: 8));
+        if (strlen($raw) < (($rowBytes + 1) * $height)) {
+            throw new ParseException('PNG image data is truncated.');
+        }
+        $out  = '';
+        $prev = str_repeat("\0", max(0, $rowBytes));
+        for ($y = 0; $y < $height; ++$y) {
+            $start = $y * ($rowBytes + 1);
+            $prev  = self::unfilterRow(ord($raw[$start]), substr($raw, $start + 1, $rowBytes), $prev, $bpp);
+            $out   .= $prev;
+        }
+
+        return $out;
     }
 
     /**
@@ -260,9 +212,11 @@ final class PngScanlines
         $up  = unpack('C*', $prev);
         $bpp = min($bpp, $n);
         for ($k = 1; $k <= $bpp; ++$k) {
-            $a = $row[$k] = ($row[$k] + ($up[$k] >> 1)) & 0xFF;
+            $a       = (($row[$k] ?? 0) + (($up[$k] ?? 0) >> 1)) & 0xFF;
+            $row[$k] = $a;
             for ($i = $k + $bpp; $i <= $n; $i += $bpp) {
-                $a = $row[$i] = ($row[$i] + (($a + $up[$i]) >> 1)) & 0xFF;
+                $a       = (($row[$i] ?? 0) + (($a + ($up[$i] ?? 0)) >> 1)) & 0xFF;
+                $row[$i] = $a;
             }
         }
 
@@ -281,14 +235,16 @@ final class PngScanlines
         $up = unpack('N*', $prev);
         $n  = strlen($line) >> 2;
         for ($k = 1; $k <= $words; ++$k) {
-            $v = $row[$k];
-            $m = ($up[$k] >> 1) & self::LOW;
-            $a = $row[$k] = (($v & self::LOW) + ($m & self::LOW)) ^ (($v ^ $m) & self::HIGH);
+            $v       = $row[$k] ?? 0;
+            $m       = (($up[$k] ?? 0) >> 1) & self::LOW;
+            $a       = (($v & self::LOW) + ($m & self::LOW)) ^ (($v ^ $m) & self::HIGH);
+            $row[$k] = $a;
             for ($i = $k + $words; $i <= $n; $i += $words) {
-                $b = $up[$i];
-                $m = ($a & $b) + ((($a ^ $b) >> 1) & self::LOW);
-                $v = $row[$i];
-                $a = $row[$i] = (($v & self::LOW) + ($m & self::LOW)) ^ (($v ^ $m) & self::HIGH);
+                $b       = $up[$i] ?? 0;
+                $m       = ($a & $b) + ((($a ^ $b) >> 1) & self::LOW);
+                $v       = $row[$i] ?? 0;
+                $a       = (($v & self::LOW) + ($m & self::LOW)) ^ (($v ^ $m) & self::HIGH);
+                $row[$i] = $a;
             }
         }
 
@@ -342,6 +298,38 @@ final class PngScanlines
     }
 
     /**
+     * The image rows put together from the pass rows that hold their pixels: a row of pixel
+     * strings keyed in x order, each pass's pixels replaced into it, joined. Odd rows come whole
+     * from the last pass.
+     *
+     * @param array<int, array{string, int, list<int>, int, int}> $passes
+     * @param positive-int                                          $pixelBytes
+     */
+    private static function interlace(array $passes, int $width, int $height, int $pixelBytes): string
+    {
+        $blank = array_fill(0, max(0, $width), value: '');
+        $odd   = $passes[6] ?? null;
+        $image = '';
+        for ($y = 0; $y < $height; ++$y) {
+            if (null !== $odd && 1 === ($y & 1)) {
+                $image .= substr($odd[0], (($y - 1) >> 1) * $odd[1], $odd[1]);
+                continue;
+            }
+            $row = $blank;
+            foreach ($passes as [$rows, $stride, $xs, $y0, $dy]) {
+                if ($y < $y0 || 0 !== (($y - $y0) % $dy)) {
+                    continue;
+                }
+                $pixels = str_split(substr($rows, intdiv($y - $y0, $dy) * $stride, $stride), $pixelBytes);
+                $row    = array_replace($row, array_combine($xs, $pixels));
+            }
+            $image .= implode('', $row);
+        }
+
+        return $image;
+    }
+
+    /**
      * The Paeth filter reversed. Of left (a), above (b) and above-left (c), the predictor is the
      * one nearest a + b - c, ties going to a, then b; the distances are |b - c|, |a - c| and
      * |a + b - 2c|, made positive with sign tests.
@@ -356,10 +344,11 @@ final class PngScanlines
         $bpp = min($bpp, $n);
         for ($k = 1; $k <= $bpp; ++$k) {
             // The first pixel has no left or above-left: its predictor is the byte above.
-            $c = $up[$k];
-            $a = $row[$k] = ($row[$k] + $c) & 0xFF;
+            $c       = $up[$k] ?? 0;
+            $a       = (($row[$k] ?? 0) + $c) & 0xFF;
+            $row[$k] = $a;
             for ($i = $k + $bpp; $i <= $n; $i += $bpp) {
-                $b  = $up[$i];
+                $b  = $up[$i] ?? 0;
                 $pa = $b - $c;
                 // With b equal to c, a is exactly a + b - c: the left byte is the predictor.
                 if (0 !== $pa) {
@@ -378,12 +367,64 @@ final class PngScanlines
                         $a = $pb <= $pc ? $b : $c;
                     }
                 }
-                $a = $row[$i] = ($row[$i] + $a) & 0xFF;
-                $c = $b;
+                $a       = (($row[$i] ?? 0) + $a) & 0xFF;
+                $row[$i] = $a;
+                $c       = $b;
             }
         }
 
         return pack('C*', ...$row);
+    }
+
+    /**
+     * Each Adam7 pass the image has, unfiltered and expanded whole, keyed by pass: its rows, its
+     * row length in bytes, the image x of each of its pixels, its first row and its row step.
+     *
+     * @return array<int, array{string, int, list<int>, int, int}>
+     *
+     * @throws ParseException
+     */
+    private static function passes(
+        string $inflated,
+        int $width,
+        int $height,
+        int $bitDepth,
+        int $channels,
+        int $factor,
+        int $pixelBytes,
+    ): array {
+        $passes = [];
+        $offset = 0;
+        foreach (self::PASSES as $pass => [$x0, $y0, $dx, $dy]) {
+            if ($x0 >= $width || $y0 >= $height) {
+                continue;
+            }
+            $passWidth  = intdiv($width - $x0 + $dx - 1, $dx);
+            $passHeight = intdiv($height - $y0 + $dy - 1, $dy);
+            $rowBytes   = intdiv(($passWidth * $channels * $bitDepth) + 7, num2: 8);
+            $passLength = ($rowBytes + 1) * $passHeight;
+            $rows       = self::unfilter(
+                substr($inflated, $offset, $passLength),
+                $passWidth,
+                $passHeight,
+                $bitDepth,
+                $channels,
+            );
+            $offset += $passLength;
+            $xs     = [];
+            for ($x = $x0; $x < $width; $x += $dx) {
+                $xs[] = $x;
+            }
+            $passes[$pass] = [
+                self::expand($rows, $passWidth, $passHeight, $bitDepth, $channels, $factor),
+                $passWidth * $pixelBytes,
+                $xs,
+                $y0,
+                $dy,
+            ];
+        }
+
+        return $passes;
     }
 
     /** Sub four bytes at a time, for pixels of $words 32-bit words. */
@@ -393,10 +434,11 @@ final class PngScanlines
         $row = unpack('N*', $line);
         $n   = strlen($line) >> 2;
         for ($k = 1; $k <= $words; ++$k) {
-            $a = $row[$k];
+            $a = $row[$k] ?? 0;
             for ($i = $k + $words; $i <= $n; $i += $words) {
-                $v = $row[$i];
-                $a = $row[$i] = (($v & self::LOW) + ($a & self::LOW)) ^ (($v ^ $a) & self::HIGH);
+                $v       = $row[$i] ?? 0;
+                $a       = (($v & self::LOW) + ($a & self::LOW)) ^ (($v ^ $a) & self::HIGH);
+                $row[$i] = $a;
             }
         }
 
@@ -434,7 +476,7 @@ final class PngScanlines
             $zeros = substr("\0\0\0\0\0\0\0\0", $n);
             $v     = (int) unpack('J', $zeros . $line)[1];
             $b     = (int) unpack('J', $zeros . $prev)[1];
-            $v     = (($v & 0x7F7F7F7F7F7F7F) + ($b & 0x7F7F7F7F7F7F7F)) ^ (($v ^ $b) & 0x80808080808080);
+            $v     = (($v & 0x7F_7F7F_7F7F_7F7F) + ($b & 0x7F_7F7F_7F7F_7F7F)) ^ (($v ^ $b) & 0x80_8080_8080_8080);
 
             return substr(pack('J', $v), 8 - $n);
         }
@@ -448,7 +490,7 @@ final class PngScanlines
         /** @var array<int, int> $up */
         $up = unpack('N*', $prev);
         foreach ($row as $i => $v) {
-            $b       = $up[$i];
+            $b       = $up[$i] ?? 0;
             $row[$i] = (($v & self::LOW) + ($b & self::LOW)) ^ (($v ^ $b) & self::HIGH);
         }
         $out = pack('N*', ...$row);

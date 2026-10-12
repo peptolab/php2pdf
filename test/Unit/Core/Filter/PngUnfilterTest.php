@@ -69,15 +69,15 @@ final class PngUnfilterTest extends TestCase
     public static function interlacedProvider(): array
     {
         return [
-            '1-bit grey'     => [1, 1],
-            '2-bit grey'     => [2, 1],
-            '4-bit grey'     => [4, 1],
-            '8-bit grey'     => [8, 1],
-            '8-bit RGB'      => [8, 3],
-            '8-bit RGBA'     => [8, 4],
-            '16-bit grey'    => [16, 1],
-            '16-bit RGBA'    => [16, 4],
-            '16-bit grey+a'  => [16, 2],
+            '1-bit grey'    => [1, 1],
+            '2-bit grey'    => [2, 1],
+            '4-bit grey'    => [4, 1],
+            '8-bit grey'    => [8, 1],
+            '8-bit RGB'     => [8, 3],
+            '8-bit RGBA'    => [8, 4],
+            '16-bit grey'   => [16, 1],
+            '16-bit RGBA'   => [16, 4],
+            '16-bit grey+a' => [16, 2],
         ];
     }
 
@@ -94,7 +94,7 @@ final class PngUnfilterTest extends TestCase
         int $factor,
     ): string {
         $pixelBytes = max(1, $channels * ($depth > 8 ? 2 : 1));
-        $slots      = array_fill(0, $height, []);
+        $slots      = array_fill(0, max(0, $height), value: []);
         $offset     = 0;
         foreach (self::PASSES as [$x0, $y0, $dx, $dy]) {
             if ($x0 >= $width || $y0 >= $height) {
@@ -102,7 +102,7 @@ final class PngUnfilterTest extends TestCase
             }
             $passWidth  = intdiv($width - $x0 + $dx - 1, $dx);
             $passHeight = intdiv($height - $y0 + $dy - 1, $dy);
-            $rowBytes   = intdiv(($passWidth * $channels * $depth) + 7, 8);
+            $rowBytes   = intdiv(($passWidth * $channels * $depth) + 7, num2: 8);
             $length     = ($rowBytes + 1) * $passHeight;
             $rows       = PngScanlines::decode(
                 substr($raw, $offset, $length),
@@ -110,8 +110,8 @@ final class PngUnfilterTest extends TestCase
                 $passHeight,
                 $depth,
                 $channels,
-                0,
-                $factor,
+                interlaced: 0,
+                factor: $factor,
             );
             $offset += $length;
             $stride = $passWidth * $pixelBytes;
@@ -130,31 +130,42 @@ final class PngUnfilterTest extends TestCase
         return $image;
     }
 
+    /** The Paeth predictor as the PNG specification writes it: of a, b and c, the nearest to a + b - c. */
+    private static function referencePaeth(int $a, int $b, int $c): int
+    {
+        $p  = $a + $b - $c;
+        $pa = abs($p - $a);
+        $pb = abs($p - $b);
+        $pc = abs($p - $c);
+        if ($pa <= $pb && $pa <= $pc) {
+            return $a;
+        }
+
+        return $pb <= $pc ? $b : $c;
+    }
+
     /** Unfiltered rows a byte at a time, as the PNG specification writes the filters. */
     private static function referenceUnfilter(string $raw, int $rowBytes, int $height, int $bpp): string
     {
         $out  = '';
-        $prev = array_fill(1, $rowBytes, 0);
+        $prev = array_fill(1, max(0, $rowBytes), value: 0);
         for ($y = 0; $y < $height; ++$y) {
             $start  = $y * ($rowBytes + 1);
             $filter = ord($raw[$start]);
             /** @var array<int, int> $row */
             $row = unpack('C*', substr($raw, $start + 1, $rowBytes));
             for ($i = 1; $i <= $rowBytes; ++$i) {
-                $a = $i > $bpp ? $row[$i - $bpp] : 0;
-                $b = $prev[$i];
-                $c = $i > $bpp ? $prev[$i - $bpp] : 0;
-                $p = $a + $b - $c;
+                $a         = $i > $bpp ? $row[$i - $bpp] ?? 0 : 0;
+                $b         = $prev[$i] ?? 0;
+                $c         = $i > $bpp ? $prev[$i - $bpp] ?? 0 : 0;
                 $predictor = match ($filter) {
                     1       => $a,
                     2       => $b,
                     3       => ($a + $b) >> 1,
-                    4       => abs($p - $a) <= abs($p - $b) && abs($p - $a) <= abs($p - $c)
-                        ? $a
-                        : (abs($p - $b) <= abs($p - $c) ? $b : $c),
+                    4       => self::referencePaeth($a, $b, $c),
                     default => 0,
                 };
-                $row[$i] = ($row[$i] + $predictor) & 0xFF;
+                $row[$i] = (($row[$i] ?? 0) + $predictor) & 0xFF;
             }
             $out  .= pack('C*', ...$row);
             $prev = $row;
@@ -168,13 +179,55 @@ final class PngUnfilterTest extends TestCase
     {
         $raw = '';
         for ($y = 0; $y < $height; ++$y) {
-            $raw .= chr($filter ?? mt_rand(0, 4));
+            $raw .= chr(
+                $filter ?? mt_rand(
+                    min: 0,
+                    max: 4,
+                ),
+            );
             for ($i = 0; $i < $rowBytes; ++$i) {
-                $raw .= chr(mt_rand(0, 2) > 0 ? mt_rand(0, 255) : mt_rand(0, 1) * 255);
+                $raw .= chr(
+                    mt_rand(
+                        min: 0,
+                        max: 2,
+                    ) > 0
+                        ? mt_rand(
+                            min: 0,
+                            max: 255,
+                        ) : mt_rand(
+                            min: 0,
+                            max: 1,
+                        ) * 255,
+                );
             }
         }
 
         return $raw;
+    }
+
+    #[Test]
+    #[DataProvider('interlacedProvider')]
+    public function anInterlacedImageIsPutTogetherPixelForPixel(int $depth, int $channels): void
+    {
+        mt_srand(($depth * 10) + $channels);
+        $factor = $depth < 8 ? intdiv(255, (1 << $depth) - 1) : 1;
+        foreach ([[1, 1], [1, 9], [3, 2], [8, 8], [13, 11], [17, 5]] as [$width, $height]) {
+            $raw = '';
+            foreach (self::PASSES as [$x0, $y0, $dx, $dy]) {
+                if ($x0 >= $width || $y0 >= $height) {
+                    continue;
+                }
+                $passWidth  = intdiv($width - $x0 + $dx - 1, $dx);
+                $passHeight = intdiv($height - $y0 + $dy - 1, $dy);
+                $raw        .= self::scanlines(intdiv(($passWidth * $channels * $depth) + 7, num2: 8), $passHeight);
+            }
+
+            self::assertSame(
+                self::referenceInterlaced($raw, $width, $height, $depth, $channels, $factor),
+                PngScanlines::decode($raw, $width, $height, $depth, $channels, 1, $factor),
+                "{$width} x {$height}",
+            );
+        }
     }
 
     #[Test]
@@ -183,7 +236,12 @@ final class PngUnfilterTest extends TestCase
         // Two rows of four 2-bit indices: 0 1 2 3, 3 2 1 0; only indices 0 and 1 have a tRNS entry.
         $image = (new PngDecoder())->decode(
             PngChunks::file(
-                PngChunks::header(width: 4, height: 2, depth: 2, type: 3),
+                PngChunks::header(
+                    width: 4,
+                    height: 2,
+                    depth: 2,
+                    type: 3,
+                ),
                 PngChunks::chunk('PLTE', "\x00\x00\x00\x40\x40\x40\x80\x80\x80\xFF\xFF\xFF"),
                 PngChunks::chunk('tRNS', "\x00\x7F"),
                 PngChunks::imageData("\0\x1B\0\xE4"),
@@ -199,48 +257,30 @@ final class PngUnfilterTest extends TestCase
     }
 
     #[Test]
-    #[DataProvider('interlacedProvider')]
-    public function anInterlacedImageIsPutTogetherPixelForPixel(int $depth, int $channels): void
-    {
-        mt_srand($depth * 10 + $channels);
-        $factor = $depth < 8 ? intdiv(255, (1 << $depth) - 1) : 1;
-        foreach ([[1, 1], [1, 9], [3, 2], [8, 8], [13, 11], [17, 5]] as [$width, $height]) {
-            $raw = '';
-            foreach (self::PASSES as [$x0, $y0, $dx, $dy]) {
-                if ($x0 >= $width || $y0 >= $height) {
-                    continue;
-                }
-                $passWidth  = intdiv($width - $x0 + $dx - 1, $dx);
-                $passHeight = intdiv($height - $y0 + $dy - 1, $dy);
-                $raw .= self::scanlines(intdiv(($passWidth * $channels * $depth) + 7, 8), $passHeight);
-            }
-
-            self::assertSame(
-                self::referenceInterlaced($raw, $width, $height, $depth, $channels, $factor),
-                PngScanlines::decode($raw, $width, $height, $depth, $channels, 1, $factor),
-                "{$width} x {$height}",
-            );
-        }
-    }
-
-    #[Test]
     #[DataProvider('formatProvider')]
     public function everyFilterGivesTheBytesOfThePerByteReading(int $depth, int $channels): void
     {
-        mt_srand($depth * 10 + $channels);
-        $bpp = max(1, intdiv($channels * $depth, 8));
+        mt_srand(($depth * 10) + $channels);
+        $bpp = max(1, intdiv($channels * $depth, num2: 8));
         foreach ([1, 2, 3, 5, 8, 31] as $width) {
-            $rowBytes = intdiv(($width * $channels * $depth) + 7, 8);
+            $rowBytes = intdiv(($width * $channels * $depth) + 7, num2: 8);
             foreach ([0, 1, 2, 3, 4, null] as $filter) {
-                $raw = self::scanlines($rowBytes, 6, $filter);
+                $raw      = self::scanlines($rowBytes, 6, $filter);
                 $expected = self::referenceUnfilter($raw, $rowBytes, 6, $bpp);
                 $message  = "{$width} wide, filter " . ($filter ?? 'mixed');
 
                 self::assertSame($expected, PngScanlines::unfilter($raw, $width, 6, $depth, $channels), $message);
                 self::assertSame(
-                    str_split($expected, $rowBytes),
+                    str_split($expected, max(1, $rowBytes)),
                     iterator_to_array(
-                        PngScanlines::rows(str_split(Flate::encode($raw), 5), $width, 6, $depth, $channels, 1 << 20),
+                        PngScanlines::rows(
+                            str_split(Flate::encode($raw), length: 5),
+                            $width,
+                            6,
+                            $depth,
+                            $channels,
+                            1 << 20,
+                        ),
                         preserve_keys: false,
                     ),
                     $message,
@@ -257,8 +297,11 @@ final class PngUnfilterTest extends TestCase
         foreach ([1, 3, 4, 8] as $colors) {
             $columns = 7;
             $data    = '';
-            for ($i = 0; $i < $columns * $colors * 6; ++$i) {
-                $data .= chr(mt_rand(0, 255));
+            for ($i = 0; $i < ($columns * $colors * 6); ++$i) {
+                $data .= chr(mt_rand(
+                    min: 0,
+                    max: 255,
+                ));
             }
             $expected = '';
             foreach (str_split($data, $columns * $colors) as $line) {
@@ -266,7 +309,7 @@ final class PngUnfilterTest extends TestCase
                 $row   = unpack('C*', $line);
                 $count = count($row);
                 for ($i = $colors + 1; $i <= $count; ++$i) {
-                    $row[$i] = ($row[$i] + $row[$i - $colors]) & 0xFF;
+                    $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFF;
                 }
                 $expected .= pack('C*', ...$row);
             }
@@ -279,7 +322,7 @@ final class PngUnfilterTest extends TestCase
                 $row   = unpack('n*', $line);
                 $count = count($row);
                 for ($i = $colors + 1; $i <= $count; ++$i) {
-                    $row[$i] = ($row[$i] + $row[$i - $colors]) & 0xFFFF;
+                    $row[$i] = (($row[$i] ?? 0) + ($row[$i - $colors] ?? 0)) & 0xFFFF;
                 }
                 $expected .= pack('n*', ...$row);
             }

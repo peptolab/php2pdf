@@ -33,14 +33,38 @@ final class TableMeasureTest extends TestCase
     private TextStyle $body;
 
     #[Test]
-    public function withoutALimitItMeasuresEveryRowAsMeasureDoes(): void
+    public function afterAFitItMeasuresOnlyTheRowsLeft(): void
     {
-        $table    = $this->table(40);
+        $table = $this->table(100);
+        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 300.0));
+        $placed = $table->lastFit()->rowsPlaced ?? 0;
+
         $measured = $table->measureUpTo(200.0, INF);
 
-        self::assertTrue($measured->complete);
+        self::assertSame(100 - $placed, $measured->rows);
+        self::assertEqualsWithDelta($table->measure(200.0), $measured->height, 1.0e-6);
+    }
+
+    #[Test]
+    public function aLimitEqualToTheHeightFitsAndOneJustBelowDoesNot(): void
+    {
+        $table  = $this->table(10);
+        $height = $table->measure(200.0);
+
+        self::assertTrue($table->measureUpTo(200.0, $height)->fits());
+        self::assertFalse($table->measureUpTo(200.0, $height - 0.5)->fits());
+    }
+
+    #[Test]
+    public function aTableWithNoRowsLeftFitsAtTheHeightOfItsHeaders(): void
+    {
+        $table = $this->doc->table([Column::pt(200.0)], null, $this->body);
+        $table->addHeaderRow(['Heading']);
+
+        $measured = $table->measureUpTo(200.0, 100.0);
+
         self::assertTrue($measured->fits());
-        self::assertSame(40, $measured->rows);
+        self::assertSame(0, $measured->rows);
         self::assertEqualsWithDelta($table->measure(200.0), $measured->height, 1.0e-6);
     }
 
@@ -54,16 +78,6 @@ final class TableMeasureTest extends TestCase
         self::assertFalse($measured->fits());
         self::assertGreaterThan(100.0, $measured->height);
         self::assertLessThan(20, $measured->rows);
-    }
-
-    #[Test]
-    public function aLimitEqualToTheHeightFitsAndOneJustBelowDoesNot(): void
-    {
-        $table  = $this->table(10);
-        $height = $table->measure(200.0);
-
-        self::assertTrue($table->measureUpTo(200.0, $height)->fits());
-        self::assertFalse($table->measureUpTo(200.0, $height - 0.5)->fits());
     }
 
     #[Test]
@@ -85,37 +99,33 @@ final class TableMeasureTest extends TestCase
     }
 
     #[Test]
-    public function afterAFitItMeasuresOnlyTheRowsLeft(): void
+    public function withoutALimitItMeasuresEveryRowAsMeasureDoes(): void
     {
-        $table = $this->table(100);
-        $this->doc->addPage(PageSize::A4)->fitTable($table, new Box(0.0, 0.0, 200.0, 300.0));
-        $placed = $table->lastFit()->rowsPlaced ?? 0;
-
+        $table    = $this->table(40);
         $measured = $table->measureUpTo(200.0, INF);
 
-        self::assertSame(100 - $placed, $measured->rows);
-        self::assertEqualsWithDelta($table->measure(200.0), $measured->height, 1.0e-6);
-    }
-
-    #[Test]
-    public function aTableWithNoRowsLeftFitsAtTheHeightOfItsHeaders(): void
-    {
-        $table = $this->doc->table([Column::pt(200.0)], null, $this->body);
-        $table->addHeaderRow(['Heading']);
-
-        $measured = $table->measureUpTo(200.0, 100.0);
-
+        self::assertTrue($measured->complete);
         self::assertTrue($measured->fits());
-        self::assertSame(0, $measured->rows);
+        self::assertSame(40, $measured->rows);
         self::assertEqualsWithDelta($table->measure(200.0), $measured->height, 1.0e-6);
     }
 
     #[Override]
     protected function setUp(): void
     {
-        $this->doc  = new Document(new MemoryOutput(), new DocumentOptions(compress: false, clock: new FixedClock('2026-01-01T00:00:00Z')));
+        $this->doc = new Document(
+            new MemoryOutput(),
+            new DocumentOptions(
+                compress: false,
+                clock: new FixedClock('2026-01-01T00:00:00Z'),
+            ),
+        );
         $font       = $this->doc->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $this->body = new TextStyle(font: $font, size: 10.0, leading: Leading::pt(12.0));
+        $this->body = new TextStyle(
+            font: $font,
+            size: 10.0,
+            leading: Leading::pt(12.0),
+        );
     }
 
     private function table(int $rows): Table
@@ -123,7 +133,7 @@ final class TableMeasureTest extends TestCase
         $table = $this->doc->table([Column::pt(60.0), Column::pt(140.0)], null, $this->body);
         $table->addHeaderRow(['Ref', 'Description']);
         for ($i = 1; $i <= $rows; ++$i) {
-            $table->addRow([sprintf('R%04d', $i), str_repeat('word ', times: 3 + $i % 9)]);
+            $table->addRow([sprintf('R%04d', $i), str_repeat('word ', times: 3 + ($i % 9))]);
         }
 
         return $table;

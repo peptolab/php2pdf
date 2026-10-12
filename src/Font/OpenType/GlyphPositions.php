@@ -52,12 +52,12 @@ final class GlyphPositions
         if ($i < 0 || $i >= $this->count) {
             return;
         }
-        $p    = &$this->positions[$i];
-        $p    ??= [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0];
-        $p[0] += $xAdvance;
-        $p[1] += $yAdvance;
-        $p[2] += $xOffset;
-        $p[3] += $yOffset;
+        $p                   = $this->positions[$i] ?? [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0];
+        $p[0]                += $xAdvance;
+        $p[1]                += $yAdvance;
+        $p[2]                += $xOffset;
+        $p[3]                += $yOffset;
+        $this->positions[$i] = $p;
     }
 
     /**
@@ -70,12 +70,12 @@ final class GlyphPositions
         if ($i < 0 || $i >= $this->count) {
             return;
         }
-        $p    = &$this->positions[$i];
-        $p    ??= [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0];
-        $p[0] += $value[2];
-        $p[1] += $value[3];
-        $p[2] += $value[0];
-        $p[3] += $value[1];
+        $p                   = $this->positions[$i] ?? [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0];
+        $p[0]                += $value[2];
+        $p[1]                += $value[3];
+        $p[2]                += $value[0];
+        $p[3]                += $value[1];
+        $this->positions[$i] = $p;
     }
 
     /** @return list<Position> every glyph's position */
@@ -97,8 +97,10 @@ final class GlyphPositions
     /** @return Position */
     public function get(int $i): array
     {
-        return $this->positions[$i]
-            ?? ($i >= 0 && $i < $this->count ? [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0]);
+        return (
+            $this->positions[$i]
+                ?? ($i >= 0 && $i < $this->count ? [$this->advances[$i] ?? 0, 0, 0, 0, 0, 0] : [0, 0, 0, 0, 0, 0])
+        );
     }
 
     /**

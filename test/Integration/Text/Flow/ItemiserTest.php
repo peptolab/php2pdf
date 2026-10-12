@@ -46,6 +46,36 @@ final class ItemiserTest extends TestCase
         ];
     }
 
+    /**
+     * The items with every glyph's cluster set to 0.
+     *
+     * @param list<Item> $items
+     *
+     * @return list<Item>
+     */
+    private static function withoutClusters(array $items): array
+    {
+        $clear = static fn(?GlyphRun $run): ?GlyphRun => null === $run
+            ? null
+            : new GlyphRun(array_map(
+                static fn(Glyph $glyph): Glyph => $glyph->withCluster(0),
+                $run->glyphs,
+            ));
+
+        return array_map(static fn(Item $item): Item => new Item(
+            $item->kind,
+            $item->style,
+            $item->text,
+            $clear($item->run),
+            $item->width,
+            $clear($item->hyphenRun),
+            $item->hyphenWidth,
+            $item->hyphenKerning,
+            $item->inline,
+            $item->level,
+        ), $items);
+    }
+
     #[Test]
     public function aFixedSpaceKeepsItsOwnWidth(): void
     {
@@ -139,6 +169,16 @@ final class ItemiserTest extends TestCase
     }
 
     #[Test]
+    public function itemsKeepTheKerningOfTheWholeText(): void
+    {
+        $text  = 'Precision placement. TrueType and OpenType Templates';
+        $items = $this->itemise($text);
+        $width = array_sum(array_map(static fn(Item $item): float => $item->width, $items));
+
+        self::assertEqualsWithDelta($this->serif->width($text, 10.0), $width, 1.0e-9);
+    }
+
+    #[Test]
     public function itemsLetGoOnceTooManyAreKeptAreMadeAgainAlike(): void
     {
         $itemiser = new Itemiser($this->hyphenators);
@@ -159,25 +199,6 @@ final class ItemiserTest extends TestCase
             'Items made again are alike in all but the clusters of their glyphs, which nothing reads.',
         );
         self::assertSame($after[0] ?? null, $after[12] ?? null, 'Items made after are shared again.');
-    }
-
-    #[Test]
-    public function wordsWithLigaturesAreShared(): void
-    {
-        $items = $this->itemise('office office office');
-
-        self::assertNotSame([], ($items[0] ?? null)?->run?->glyphs[1]->components ?? [], 'The word has a ligature.');
-        self::assertSame($items[0] ?? null, $items[2] ?? null);
-    }
-
-    #[Test]
-    public function itemsKeepTheKerningOfTheWholeText(): void
-    {
-        $text  = 'Precision placement. TrueType and OpenType Templates';
-        $items = $this->itemise($text);
-        $width = array_sum(array_map(static fn(Item $item): float => $item->width, $items));
-
-        self::assertEqualsWithDelta($this->serif->width($text, 10.0), $width, 1.0e-9);
     }
 
     #[Test]
@@ -242,32 +263,13 @@ final class ItemiserTest extends TestCase
         );
     }
 
-    /**
-     * The items with every glyph's cluster set to 0.
-     *
-     * @param list<Item> $items
-     *
-     * @return list<Item>
-     */
-    private static function withoutClusters(array $items): array
+    #[Test]
+    public function wordsWithLigaturesAreShared(): void
     {
-        $clear = static fn(?GlyphRun $run): ?GlyphRun => null === $run ? null : new GlyphRun(array_map(
-            static fn(Glyph $glyph): Glyph => $glyph->withCluster(0),
-            $run->glyphs,
-        ));
+        $items = $this->itemise('office office office');
 
-        return array_map(static fn(Item $item): Item => new Item(
-            $item->kind,
-            $item->style,
-            $item->text,
-            $clear($item->run),
-            $item->width,
-            $clear($item->hyphenRun),
-            $item->hyphenWidth,
-            $item->hyphenKerning,
-            $item->inline,
-            $item->level,
-        ), $items);
+        self::assertNotSame([], ($items[0] ?? null)?->run?->glyphs[1]->components ?? [], 'The word has a ligature.');
+        self::assertSame($items[0] ?? null, $items[2] ?? null);
     }
 
     #[Override]

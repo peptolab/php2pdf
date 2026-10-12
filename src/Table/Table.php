@@ -265,18 +265,22 @@ final class Table implements FlowableInterface
         $layout = $this->layout($headers, $body, $footers, $width);
         $height = array_sum($layout->rowHeights($headers, 0, $headers->count() - 1));
         $height += array_sum($layout->rowHeights($footers, 0, $footers->count() - 1));
-        $count = $body->count();
-        $row   = $this->nextRow;
-        while ($row < $count && $height <= $limit + self::EPSILON) {
+        $count  = $body->count();
+        $row    = $this->nextRow;
+        while ($row < $count && $height <= ($limit + self::EPSILON)) {
             $end = $row;
             for ($r = $row; $r <= $end; ++$r) {
                 $end = max($end, min($count - 1, $body->reach($r)));
             }
             $height += array_sum($layout->rowHeights($body, $row, $end));
-            $row     = $end + 1;
+            $row    = $end + 1;
         }
 
-        return new TableMeasure($height, $row >= $count && $height <= $limit + self::EPSILON, $row - min($this->nextRow, $count));
+        return new TableMeasure(
+            $height,
+            $row >= $count && $height <= ($limit + self::EPSILON),
+            $row - min($this->nextRow, $count),
+        );
     }
 
     /**
@@ -368,7 +372,12 @@ final class Table implements FlowableInterface
         return [$this->headerGrid, $this->bodyGrid, $this->footerGrid];
     }
 
-    /** The layout for a box width, sizing auto columns from the whole table's content once. */
+    /**
+     * The layout for a box width, sizing auto columns from the whole table's content once.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
     private function layout(Grid $headers, Grid $body, Grid $footers, float $width): Layout
     {
         $layout = new Layout(

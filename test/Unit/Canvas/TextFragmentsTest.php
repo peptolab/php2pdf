@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
+use Override;
 use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Canvas\TextOperators;
 use Php2Pdf\Core\Output\MemoryOutput;
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 use function array_map;
 use function count;
@@ -28,19 +30,6 @@ use function ord;
 #[Group('unit')]
 final class TextFragmentsTest extends TestCase
 {
-    /**
-     * The memo is static and remembers runs by object id, so an id left by another test's run
-     * would make a run here look shown before; every test starts with it empty.
-     */
-    protected function setUp(): void
-    {
-        $class = new \ReflectionClass(TextFragments::class);
-        $class->setStaticPropertyValue('codes', null);
-        $class->setStaticPropertyValue('fragments', null);
-        $class->setStaticPropertyValue('seen', []);
-        $class->setStaticPropertyValue('count', 0);
-    }
-
     /**
      * Runs joined from pieces, each a list of glyphs, with the kerning a stretched word space
      * gives some pieces' last glyph, by position.
@@ -197,5 +186,19 @@ final class TextFragmentsTest extends TestCase
             ['(A ) Tj', true],
             TextFragments::show([$plain], [], $font, 0.0, new TextOptions(wordSpacing: 1.0)),
         );
+    }
+
+    /**
+     * The memo is static and remembers runs by object id, so an id left by another test's run
+     * would make a run here look shown before; every test starts with it empty.
+     */
+    #[Override]
+    protected function setUp(): void
+    {
+        $class = new ReflectionClass(TextFragments::class);
+        $class->setStaticPropertyValue('codes', null);
+        $class->setStaticPropertyValue('fragments', null);
+        $class->setStaticPropertyValue('seen', []);
+        $class->setStaticPropertyValue('count', 0);
     }
 }

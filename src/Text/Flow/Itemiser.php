@@ -82,7 +82,8 @@ final class Itemiser
     private static function glyphsKey(array $glyphs): string
     {
         $count = count($glyphs);
-        $key   = "{$count}:" . pack(
+        $key   = "{$count}:"
+        . pack(
             "V{$count}V{$count}V{$count}e{$count}",
             ...array_column($glyphs, 'id'),
             ...array_column($glyphs, 'codePoint'),
@@ -201,7 +202,9 @@ final class Itemiser
                 if (! self::plain($glyph)) {
                     $glyphKey .= serialize([$glyph->components, $glyph->xOffset, $glyph->yOffset]);
                 }
-                $glyphs[$k] = $this->glyphs[$glyphKey] ??= $glyph;
+                $shared                  = $this->glyphs[$glyphKey] ?? $glyph;
+                $this->glyphs[$glyphKey] = $shared;
+                $glyphs[$k]              = $shared;
             }
         }
 

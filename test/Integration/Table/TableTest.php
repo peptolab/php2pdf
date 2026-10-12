@@ -92,6 +92,79 @@ final class TableTest extends TestCase
     }
 
     #[Test]
+    public function aResetTableFlowsAgainAsItDidTheFirstTime(): void
+    {
+        $note  = $this->doc->textflow(str_repeat('A note given as a Textflow. ', times: 3), $this->body);
+        $table = $this->doc->table(
+            [Column::pt(80.0), Column::pt(80.0)],
+            new CellStyle(padding: Padding::all(1.0)),
+            $this->body,
+        );
+        $table->addHeaderRow(['Item', 'Note']);
+        for ($i = 0; $i < 30; ++$i) {
+            $table->addRow([
+                new Cell("<b>Row</b> {$i}", format: TextFormat::Markup),
+                3 === $i ? $note : str_repeat('wrapping words ', times: ($i % 4) + 1),
+            ]);
+        }
+        $page = $this->doc->addPage(PageSize::A4);
+        $box  = new Box(0.0, 0.0, 160.0, 90.0);
+        $fits = static function () use ($page, $table, $box): array {
+            $fits = [];
+            do {
+                $result = $page->fitTable($table, $box);
+                $fits[] = $table->lastFit();
+            } while (FlowResult::Done !== $result && count($fits) < 50);
+
+            return $fits;
+        };
+        $first = $fits();
+        self::assertTrue($note->isDone());
+        $table->reset();
+        self::assertFalse($note->isDone(), 'A Textflow in a row already let go is reset too.');
+
+        self::assertGreaterThan(3, count($first));
+        self::assertEquals($first, $fits());
+        self::assertTrue($table->isDone());
+    }
+
+    #[Test]
+    public function aRowspanCutByTheBoxIsDrawnOnceAndPushesTheCellsBesideIt(): void
+    {
+        $table  = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
+        $beside = [
+            $this->doc->textflow('beside 0', $this->body),
+            $this->doc->textflow('beside 1', $this->body),
+            $this->doc->textflow('beside 2', $this->body),
+            $this->doc->textflow('beside 3', $this->body),
+        ];
+        $spanning = $this->doc->textflow('spanning', $this->body);
+        $table->addRow([(new Cell($spanning))->spanning(1, 3), $beside[0]]);
+        $table->addRow([$beside[1]]);
+        $table->addRow([$beside[2]]);
+        $table->addRow(['after', $beside[3]]);
+        $line = $table->measure(160.0) / 4.0;
+        $page = $this->doc->addPage(PageSize::A4);
+        $box  = new Box(0.0, 0.0, 160.0, $line * 2.5);
+
+        self::assertSame(FlowResult::BoxFull, $page->fitTable($table, $box));
+        self::assertSame(
+            2,
+            $table->lastFit()?->rowsPlaced,
+            'The spanned rows do not fit together, so they go one by one.',
+        );
+        $drawn = $spanning->lastFit();
+        self::assertSame(FlowResult::Done, $page->fitTable($table, $box));
+        self::assertSame($drawn, $spanning->lastFit(), 'The spanning cell is drawn in its first row only.');
+        self::assertSame(1, $drawn?->lineCount);
+        self::assertSame(2, $table->lastFit()?->rowsPlaced);
+        foreach ($beside as $flow) {
+            self::assertTrue($flow->isDone());
+            self::assertEqualsWithDelta(80.0, $flow->lastFit()->firstBaseline[0] ?? 0.0, 1.0e-6);
+        }
+    }
+
+    #[Test]
     public function autoColumnsKeepTheirWidthsInEveryBox(): void
     {
         $table = $this->doc->table([Column::auto(), Column::auto()], null, $this->body);
@@ -320,73 +393,6 @@ final class TableTest extends TestCase
         self::assertSame(FlowResult::BoxEmpty, $page->fitTable($table, new Box(0.0, 0.0, 100.0, 30.0)));
         self::assertFalse($table->isDone());
         self::assertSame(FlowResult::Done, $page->fitTable($table, new Box(0.0, 0.0, 300.0, 800.0)));
-    }
-
-    #[Test]
-    public function aResetTableFlowsAgainAsItDidTheFirstTime(): void
-    {
-        $note  = $this->doc->textflow(str_repeat('A note given as a Textflow. ', times: 3), $this->body);
-        $table = $this->doc->table(
-            [Column::pt(80.0), Column::pt(80.0)],
-            new CellStyle(padding: Padding::all(1.0)),
-            $this->body,
-        );
-        $table->addHeaderRow(['Item', 'Note']);
-        for ($i = 0; $i < 30; ++$i) {
-            $table->addRow([
-                new Cell("<b>Row</b> {$i}", format: TextFormat::Markup),
-                3 === $i ? $note : str_repeat('wrapping words ', times: $i % 4 + 1),
-            ]);
-        }
-        $page = $this->doc->addPage(PageSize::A4);
-        $box  = new Box(0.0, 0.0, 160.0, 90.0);
-        $fits = static function () use ($page, $table, $box): array {
-            $fits = [];
-            do {
-                $result = $page->fitTable($table, $box);
-                $fits[] = $table->lastFit();
-            } while (FlowResult::Done !== $result && count($fits) < 50);
-
-            return $fits;
-        };
-        $first = $fits();
-        self::assertTrue($note->isDone());
-        $table->reset();
-        self::assertFalse($note->isDone(), 'A Textflow in a row already let go is reset too.');
-
-        self::assertGreaterThan(3, count($first));
-        self::assertEquals($first, $fits());
-        self::assertTrue($table->isDone());
-    }
-
-    #[Test]
-    public function aRowspanCutByTheBoxIsDrawnOnceAndPushesTheCellsBesideIt(): void
-    {
-        $table = $this->doc->table([Column::pt(80.0), Column::pt(80.0)], null, $this->body);
-        $beside = [];
-        for ($i = 0; $i < 4; ++$i) {
-            $beside[] = $this->doc->textflow("beside {$i}", $this->body);
-        }
-        $spanning = $this->doc->textflow('spanning', $this->body);
-        $table->addRow([(new Cell($spanning))->spanning(1, 3), $beside[0]]);
-        $table->addRow([$beside[1]]);
-        $table->addRow([$beside[2]]);
-        $table->addRow(['after', $beside[3]]);
-        $line = $table->measure(160.0) / 4.0;
-        $page = $this->doc->addPage(PageSize::A4);
-        $box  = new Box(0.0, 0.0, 160.0, $line * 2.5);
-
-        self::assertSame(FlowResult::BoxFull, $page->fitTable($table, $box));
-        self::assertSame(2, $table->lastFit()?->rowsPlaced, 'The spanned rows do not fit together, so they go one by one.');
-        $drawn = $spanning->lastFit();
-        self::assertSame(FlowResult::Done, $page->fitTable($table, $box));
-        self::assertSame($drawn, $spanning->lastFit(), 'The spanning cell is drawn in its first row only.');
-        self::assertSame(1, $drawn?->lineCount);
-        self::assertSame(2, $table->lastFit()?->rowsPlaced);
-        foreach ($beside as $flow) {
-            self::assertTrue($flow->isDone());
-            self::assertEqualsWithDelta(80.0, $flow->lastFit()->firstBaseline[0] ?? 0.0, 1.0e-6);
-        }
     }
 
     #[Test]

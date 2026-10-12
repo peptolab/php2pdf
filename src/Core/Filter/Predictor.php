@@ -84,9 +84,10 @@ final class Predictor
             /** @var array<int, int> $row 1-based */
             $row = unpack("{$format}*", substr($data, $r * $rowBytes, $rowBytes));
             for ($k = 1; $k <= $colors; ++$k) {
-                $a = $row[$k];
+                $a = $row[$k] ?? 0;
                 for ($i = $k + $colors; $i <= $count; $i += $colors) {
-                    $a = $row[$i] = ($row[$i] + $a) & 0xFFFF;
+                    $a       = (($row[$i] ?? 0) + $a) & 0xFFFF;
+                    $row[$i] = $a;
                 }
             }
             $out .= pack("{$format}*", ...$row);

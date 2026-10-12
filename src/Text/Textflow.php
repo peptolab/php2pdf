@@ -203,13 +203,13 @@ final class Textflow implements FlowableInterface
         $options ??= new FlowOptions();
         $scale   = 1.0;
         $layout  = $this->measuredFor($box, $options) ?? (new Layout(
-            $this->paragraphs,
-            $this->cursor,
-            $box->width,
-            $box->height,
-            $options,
-            $this->breaker(),
-        ))->run();
+                $this->paragraphs,
+                $this->cursor,
+                $box->width,
+                $box->height,
+                $options,
+                $this->breaker(),
+            ))->run();
         $this->measured = null;
         if ($options->shrinkToFit && FlowResult::Done !== $layout->result) {
             [$layout, $scale] = CopyFitter::shrink($this->paragraphs, $this->cursor, $box, $options, $this->breaker());
@@ -294,8 +294,8 @@ final class Textflow implements FlowableInterface
      */
     public function measure(float $width, ?FlowOptions $options = null): float
     {
-        $options        ??= new FlowOptions();
-        $layout         = (new Layout(
+        $options ??= new FlowOptions();
+        $layout  = (new Layout(
             $this->paragraphs,
             $this->cursor,
             $width,

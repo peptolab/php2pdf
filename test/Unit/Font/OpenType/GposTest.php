@@ -50,24 +50,6 @@ final class GposTest extends TestCase
     }
 
     /**
-     * Every glyph's position: those position() does not list keep their advance.
-     *
-     * @param array<int, array{0: int, 1: int, 2: int, 3: int}> $positions
-     * @param list<int>                                         $advances
-     *
-     * @return list<array{0: int, 1: int, 2: int, 3: int}>
-     */
-    private static function whole(array $positions, array $advances): array
-    {
-        $whole = [];
-        foreach ($advances as $k => $advance) {
-            $whole[] = $positions[$k] ?? [$advance, 0, 0, 0];
-        }
-
-        return $whole;
-    }
-
-    /**
      * @param list<array{0: int, 1: list<string>, 2?: bool, 3?: int, 4?: int}> $lookups
      * @param list<int|array{0: int, 1: list<int>, 2?: int, 3?: int}>       $glyphs
      * @param list<int>|null                                                   $applied the lookups the feature applies,
@@ -103,6 +85,24 @@ final class GposTest extends TestCase
         }
 
         return self::whole($gpos->position($entries, $advances, ['test'], $script), $advances);
+    }
+
+    /**
+     * Every glyph's position: those position() does not list keep their advance.
+     *
+     * @param array<int, array{0: int, 1: int, 2: int, 3: int}> $positions
+     * @param list<int>                                         $advances
+     *
+     * @return list<array{0: int, 1: int, 2: int, 3: int}>
+     */
+    private static function whole(array $positions, array $advances): array
+    {
+        $whole = [];
+        foreach ($advances as $k => $advance) {
+            $whole[] = $positions[$k] ?? [$advance, 0, 0, 0];
+        }
+
+        return $whole;
     }
 
     #[Test]
@@ -198,7 +198,10 @@ final class GposTest extends TestCase
 
         self::assertSame(
             [[600, 0, 0, 0], [500, 0, 0, 0], [500, 0, 0, 0]],
-            self::whole($gpos->position([[1, [0x61]], [2, [0x62]], [1, [0x61]]], [500, 500, 500], ['test']), [500, 500, 500]),
+            self::whole(
+                $gpos->position([[1, [0x61]], [2, [0x62]], [1, [0x61]]], [500, 500, 500], ['test']),
+                [500, 500, 500],
+            ),
         );
     }
 
@@ -237,29 +240,6 @@ final class GposTest extends TestCase
     }
 
     #[Test]
-    public function pairsAdjustByClass(): void
-    {
-        $kern = [[2, [GposBuilder::pair2([1, 2], [1 => 1, 2 => 1], [3 => 1], [1 => [1 => [0, 0, -60]]])]]];
-
-        self::assertSame(
-            [[440, 0, 0, 0], [440, 0, 0, 0], [500, 0, 0, 0]],
-            [
-                self::position($kern, [1, 3])[0] ?? null,
-                self::position($kern, [2, 3])[0] ?? null,
-                self::position($kern, [1, 1])[0] ?? null,
-            ],
-        );
-    }
-
-    #[Test]
-    public function pairsAdjustByGlyph(): void
-    {
-        $kern = [[2, [GposBuilder::pair1([1 => [2 => [[0, 0, -80], [0, 0, 0]]]])]]];
-
-        self::assertSame([[420, 0, 0, 0], [500, 0, 0, 0], [500, 0, 0, 0]], self::position($kern, [1, 2, 1]));
-    }
-
-    #[Test]
     public function onlyTheGlyphsPositionedAndMarksAreListed(): void
     {
         $gpos = new Gpos(
@@ -280,6 +260,29 @@ final class GposTest extends TestCase
                 ['test'],
             ),
         );
+    }
+
+    #[Test]
+    public function pairsAdjustByClass(): void
+    {
+        $kern = [[2, [GposBuilder::pair2([1, 2], [1 => 1, 2 => 1], [3 => 1], [1 => [1 => [0, 0, -60]]])]]];
+
+        self::assertSame(
+            [[440, 0, 0, 0], [440, 0, 0, 0], [500, 0, 0, 0]],
+            [
+                self::position($kern, [1, 3])[0] ?? null,
+                self::position($kern, [2, 3])[0] ?? null,
+                self::position($kern, [1, 1])[0] ?? null,
+            ],
+        );
+    }
+
+    #[Test]
+    public function pairsAdjustByGlyph(): void
+    {
+        $kern = [[2, [GposBuilder::pair1([1 => [2 => [[0, 0, -80], [0, 0, 0]]]])]]];
+
+        self::assertSame([[420, 0, 0, 0], [500, 0, 0, 0], [500, 0, 0, 0]], self::position($kern, [1, 2, 1]));
     }
 
     #[Test]

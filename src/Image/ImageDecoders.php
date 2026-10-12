@@ -93,30 +93,6 @@ final class ImageDecoders
         return $with;
     }
 
-    /** The first decoder that accepts the data, or null when none does. */
-    private function decoderFor(string $data): ?ImageDecoderInterface
-    {
-        foreach ($this->decoders as $decoder) {
-            if ($decoder->accepts($data)) {
-                return $decoder;
-            }
-        }
-        if (! $this->builtIn) {
-            return null;
-        }
-        // The first byte tells the built-in formats apart; the decoder itself then checks the
-        // whole signature.
-        $decoder = match ($data[0] ?? '') {
-            "\xFF"   => "\xD8" === ($data[1] ?? '') ? new JpegDecoder() : new JpxDecoder(),
-            "\x00"   => new JpxDecoder(),
-            'I', 'M' => new TiffDecoder(),
-            "\x89"   => $this->png ?? new PngDecoder(),
-            default  => null,
-        };
-
-        return null !== $decoder && $decoder->accepts($data) ? $decoder : null;
-    }
-
     /**
      * The image converted to PNG and read from that.
      *
@@ -147,5 +123,29 @@ final class ImageDecoders
             },
         );
         return ($this->png ?? new PngDecoder())->decode($png, $limits, new ImageOptions());
+    }
+
+    /** The first decoder that accepts the data, or null when none does. */
+    private function decoderFor(string $data): ?ImageDecoderInterface
+    {
+        foreach ($this->decoders as $decoder) {
+            if ($decoder->accepts($data)) {
+                return $decoder;
+            }
+        }
+        if (! $this->builtIn) {
+            return null;
+        }
+        // The first byte tells the built-in formats apart; the decoder itself then checks the
+        // whole signature.
+        $decoder = match ($data[0] ?? '') {
+            "\xFF"   => "\xD8" === ($data[1] ?? '') ? new JpegDecoder() : new JpxDecoder(),
+            "\x00"   => new JpxDecoder(),
+            'I', 'M' => new TiffDecoder(),
+            "\x89"   => $this->png ?? new PngDecoder(),
+            default  => null,
+        };
+
+        return null !== $decoder && $decoder->accepts($data) ? $decoder : null;
     }
 }
