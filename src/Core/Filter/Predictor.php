@@ -6,7 +6,7 @@ namespace Php2Pdf\Core\Filter;
 
 use Php2Pdf\Exception\ParseException;
 
-use function in_array;
+use function array_key_exists;
 use function intdiv;
 use function pack;
 use function sprintf;
@@ -21,6 +21,9 @@ use function unpack;
  */
 final class Predictor
 {
+    /** The bit depths samples come in, as keys. */
+    private const array BITS = [1 => true, 2 => true, 4 => true, 8 => true, 16 => true];
+
     /** @throws ParseException */
     public static function decode(
         string $data,
@@ -32,12 +35,8 @@ final class Predictor
         if ($predictor <= 1) {
             return $data;
         }
-        if (
-            $columns < 1
-            || $colors < 1
-            || $colors > 32
-            || ! in_array($bitsPerComponent, [1, 2, 4, 8, 16], strict: true)
-        ) {
+        $depth = array_key_exists($bitsPerComponent, self::BITS);
+        if ($columns < 1 || $colors < 1 || $colors > 32 || ! $depth) {
             throw new ParseException(sprintf(
                 'Invalid predictor parameters: %d columns, %d colours, %d bits per component.',
                 $columns,

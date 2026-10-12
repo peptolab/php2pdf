@@ -30,6 +30,11 @@ content.
   embedded ICC profile, resolution and orientation. CMYK stays CMYK. Single-strip CCITT Group 3
   and 4 fax images pass through untouched (CCITTFaxDecode). Tiled, separate-plane,
   JPEG-compressed, YCbCr, premultiplied-alpha and mixed-depth TIFFs go to the transcoder below.
+- **JBIG2** (`.jb2` files, sequential or random-access): any page, chosen with
+  `ImageOptions(page: 2)`, passes through untouched (JBIG2Decode). The segments every page shares
+  become a JBIG2Globals stream, written once however many images use it. Size and resolution come
+  from the page information; a striped page of unknown height ends at its last stripe. Segments
+  whose length is only known by decoding them are refused.
 - **Other formats** (GIF, WebP, BMP...) are transcoded to PNG with `ext-imagick` when it is
   loaded, else `ext-gd`. Without either, loading them throws.
 

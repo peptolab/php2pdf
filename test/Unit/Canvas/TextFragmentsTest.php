@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Unit\Canvas;
 
-use Override;
 use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Canvas\TextOperators;
 use Php2Pdf\Core\Output\MemoryOutput;
@@ -17,7 +16,6 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 use function array_map;
 use function count;
@@ -78,6 +76,15 @@ final class TextFragmentsTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: TextOptions, 1: float}> */
+    public static function spacedProvider(): array
+    {
+        return [
+            'tracking'     => [new TextOptions(tracking: 5.0), 10.0],
+            'word spacing' => [new TextOptions(wordSpacing: 1.0), 10.0],
+        ];
+    }
+
     /**
      * The glyphs of pieces joined, as a line joins its items' glyphs.
      *
@@ -109,9 +116,10 @@ final class TextFragmentsTest extends TestCase
     #[DataProvider('piecesProvider')]
     public function piecesShowAsTheirJoinedGlyphs(array $pieces, array $lastKernings): void
     {
-        $doc  = new Document(new MemoryOutput());
-        $font = $doc->fonts()->standard(StandardFont::Helvetica);
-        $runs = array_map(
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $runs      = array_map(
             /** @param list<Glyph> $glyphs */
             static fn(array $glyphs): GlyphRun => new GlyphRun($glyphs),
             $pieces,
@@ -119,24 +127,28 @@ final class TextFragmentsTest extends TestCase
         $options  = TextOptions::default();
         $expected = TextOperators::operation(self::joined($pieces, $lastKernings), $font, 10.0, $options);
 
-        self::assertNull(TextFragments::show($runs, $lastKernings, $font, 10.0, $options));
-        for ($time = 2; $time <= 3; ++$time) {
-            self::assertSame([$expected, true], TextFragments::show($runs, $lastKernings, $font, 10.0, $options));
-        }
+        self::assertSame([null, [$expected, true], [$expected, true]], [
+            $fragments->show($runs, $lastKernings, $font, 10.0, $options),
+            $fragments->show($runs, $lastKernings, $font, 10.0, $options),
+            $fragments->show($runs, $lastKernings, $font, 10.0, $options),
+        ]);
     }
 
+    /**
+     * Many runs shown after one kept piece fill the memo, which starts over; every run is still
+     * shown as its glyphs are, once it has been shown before.
+     */
     #[Test]
     public function piecesStayRightOnceTheirMemoStartsOver(): void
     {
-        $doc     = new Document(new MemoryOutput());
-        $font    = $doc->fonts()->standard(StandardFont::Helvetica);
-        $options = TextOptions::default();
-        $kept    = new GlyphRun([(new Glyph(65, 65, 667))->withKerning(-30.0), new Glyph(86, 86, 667)]);
-        $runs    = [];
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $options   = TextOptions::default();
+        $kept      = new GlyphRun([(new Glyph(65, 65, 667))->withKerning(-30.0), new Glyph(86, 86, 667)]);
+        $wrong     = [];
         for ($i = 0; $i < 20_000; ++$i) {
-            $runs[] = new GlyphRun([(new Glyph(66, 66, 667))->withKerning(-$i / 8)]);
-        }
-        foreach ($runs as $i => $run) {
+            $run      = new GlyphRun([(new Glyph(66, 66, 667))->withKerning(-$i / 8)]);
             $expected = TextOperators::operation(
                 self::joined([$kept->glyphs, $run->glyphs], []),
                 $font,
@@ -145,60 +157,81 @@ final class TextFragmentsTest extends TestCase
             );
             // New the first time, and again the second when the memo has just started over.
             $shown =
-                TextFragments::show([$kept, $run], [], $font, 10.0, $options)
-                    ?? TextFragments::show([$kept, $run], [], $font, 10.0, $options)
-                    ?? TextFragments::show([$kept, $run], [], $font, 10.0, $options);
-            self::assertSame([$expected, true], $shown, "run {$i}");
+                $fragments->show([$kept, $run], [], $font, 10.0, $options)
+                    ?? $fragments->show([$kept, $run], [], $font, 10.0, $options)
+                    ?? $fragments->show([$kept, $run], [], $font, 10.0, $options);
+            if ([$expected, true] === $shown) {
+                continue;
+            }
+
+            $wrong[] = $i;
         }
+
+        self::assertSame([], $wrong, 'Runs shown other than as their glyphs.');
     }
 
     #[Test]
     public function piecesTellWhenTheFontsMapCannotGiveTheirTextBack(): void
     {
-        $doc     = new Document(new MemoryOutput());
-        $font    = $doc->fonts()->standard(StandardFont::Helvetica);
-        $options = TextOptions::default();
-        $first   = new GlyphRun([new Glyph(65, 65, 667)]);
-        $other   = new GlyphRun([new Glyph(65, 66, 667)]);
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $options   = TextOptions::default();
+        $first     = new GlyphRun([new Glyph(65, 65, 667)]);
+        $other     = new GlyphRun([new Glyph(65, 66, 667)]);
 
-        self::assertNull(TextFragments::show([$first], [], $font, 10.0, $options));
-        self::assertSame(['(A) Tj', true], TextFragments::show([$first], [], $font, 10.0, $options));
-        self::assertNull(TextFragments::show([$first, $other], [], $font, 10.0, $options));
-        for ($time = 2; $time <= 3; ++$time) {
-            self::assertSame(['(AA) Tj', false], TextFragments::show([$first, $other], [], $font, 10.0, $options));
-        }
+        self::assertSame([null, ['(A) Tj', true], null, ['(AA) Tj', false], ['(AA) Tj', false]], [
+            $fragments->show([$first], [], $font, 10.0, $options),
+            $fragments->show([$first], [], $font, 10.0, $options),
+            $fragments->show([$first, $other], [], $font, 10.0, $options),
+            $fragments->show([$first, $other], [], $font, 10.0, $options),
+            $fragments->show([$first, $other], [], $font, 10.0, $options),
+        ]);
     }
 
     #[Test]
-    public function piecesWithOffsetsTrackingOrWordSpacingAreLeftToTheirGlyphs(): void
+    public function piecesWithOffsetsAreLeftToTheirGlyphs(): void
     {
-        $doc   = new Document(new MemoryOutput());
-        $font  = $doc->fonts()->standard(StandardFont::Helvetica);
-        $plain = new GlyphRun([new Glyph(65, 65, 667), new Glyph(32, 32, 278)]);
-        $moved = new GlyphRun([new Glyph(66, 66, 667), (new Glyph(67, 67, 667))->withOffset(0.0, 200.0)]);
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $plain     = new GlyphRun([new Glyph(65, 65, 667), new Glyph(32, 32, 278)]);
+        $moved     = new GlyphRun([new Glyph(66, 66, 667), (new Glyph(67, 67, 667))->withOffset(0.0, 200.0)]);
 
-        for ($time = 1; $time <= 3; ++$time) {
-            self::assertNull(TextFragments::show([$plain, $moved], [], $font, 10.0, TextOptions::default()));
-        }
-        self::assertNull(TextFragments::show([$plain], [], $font, 10.0, new TextOptions(tracking: 5.0)));
-        self::assertNull(TextFragments::show([$plain], [], $font, 10.0, new TextOptions(wordSpacing: 1.0)));
-        self::assertSame(
-            ['(A ) Tj', true],
-            TextFragments::show([$plain], [], $font, 0.0, new TextOptions(wordSpacing: 1.0)),
-        );
+        self::assertSame([null, null, null], [
+            $fragments->show([$plain, $moved], [], $font, 10.0, TextOptions::default()),
+            $fragments->show([$plain, $moved], [], $font, 10.0, TextOptions::default()),
+            $fragments->show([$plain, $moved], [], $font, 10.0, TextOptions::default()),
+        ]);
     }
 
-    /**
-     * The memo is static and remembers runs by object id, so an id left by another test's run
-     * would make a run here look shown before; every test starts with it empty.
-     */
-    #[Override]
-    protected function setUp(): void
+    #[Test]
+    #[DataProvider('spacedProvider')]
+    public function piecesWithTrackingOrWordSpacingAreLeftToTheirGlyphs(TextOptions $options, float $size): void
     {
-        $class = new ReflectionClass(TextFragments::class);
-        $class->setStaticPropertyValue('codes', null);
-        $class->setStaticPropertyValue('fragments', null);
-        $class->setStaticPropertyValue('seen', []);
-        $class->setStaticPropertyValue('count', 0);
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $plain     = new GlyphRun([new Glyph(65, 65, 667), new Glyph(32, 32, 278)]);
+        $fragments->show([$plain], [], $font, $size, TextOptions::default());
+        $fragments->show([$plain], [], $font, $size, TextOptions::default());
+
+        self::assertNull($fragments->show([$plain], [], $font, $size, $options));
+    }
+
+    /** Word spacing moves nothing at a size of 0, so the pieces are shown as they are. */
+    #[Test]
+    public function wordSpacingAtNoSizeLeavesPiecesShown(): void
+    {
+        $doc       = new Document(new MemoryOutput());
+        $font      = $doc->fonts()->standard(StandardFont::Helvetica);
+        $fragments = new TextFragments();
+        $plain     = new GlyphRun([new Glyph(65, 65, 667), new Glyph(32, 32, 278)]);
+        $fragments->show([$plain], [], $font, 0.0, TextOptions::default());
+
+        self::assertSame(
+            ['(A ) Tj', true],
+            $fragments->show([$plain], [], $font, 0.0, new TextOptions(wordSpacing: 1.0)),
+        );
     }
 }

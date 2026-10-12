@@ -30,9 +30,9 @@ final class ImageDecoders
     private static ?self $default = null;
 
     /**
-     * Whether JPEG, JPEG 2000, TIFF and PNG are read after $decoders. The built-in decoders are
-     * made only for an image whose first bytes are theirs, so a document without images never
-     * loads them.
+     * Whether JPEG, JPEG 2000, TIFF, PNG and JBIG2 are read after $decoders. The built-in
+     * decoders are made only for an image whose first bytes are theirs, so a document without
+     * images never loads them.
      */
     private bool $builtIn = false;
 
@@ -42,7 +42,7 @@ final class ImageDecoders
         private readonly ?PngDecoder $png = null,
     ) {}
 
-    /** JPEG, JPEG 2000, TIFF and PNG. */
+    /** JPEG, JPEG 2000, TIFF, PNG and JBIG2. */
     public static function default(): self
     {
         if (null === self::$default) {
@@ -143,6 +143,7 @@ final class ImageDecoders
             "\x00"   => new JpxDecoder(),
             'I', 'M' => new TiffDecoder(),
             "\x89"   => $this->png ?? new PngDecoder(),
+            "\x97"   => new Jbig2Decoder(),
             default  => null,
         };
 

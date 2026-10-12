@@ -49,6 +49,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `fit_textflow($tf, $llx, $lly, $urx, $ury, '')` returning `_boxfull`, `_stop` | `$page->fitTextflow($flow, $box)` returning `FlowResult::BoxFull`, `Done`, `BoxEmpty`, `NextPage` |
 | `fitmethod=auto` / `minfontsize` | `new FlowOptions(shrinkToFit: true, shrinkLimit: 0.5)` |
 | `verticalalign=center` | `new FlowOptions(verticalAlignment: VerticalAlignment::Center)` |
+| `avoidemptybegin=true` | `new FlowOptions(avoidEmptyBegin: true)` |
 | `info_textflow($tf, 'textendx')`, `'textendy'` | `$flow->lastFit()->textEnd` |
 | `info_textflow($tf, 'firstlinedist')` etc. | `$flow->lastFit()->firstBaseline`, `lastBaseline`, `lineCount`, `height` |
 | `hyphenchar`, `hortabmethod`, `ruler` | Soft hyphens and `Hyphenator` patterns; `tabs: [TabStop::decimal(120)]`, leaders with `TabStop::right(400, leader: '.')` |

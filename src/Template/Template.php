@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Template;
 
+use Closure;
 use Override;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Canvas\Resources;
+use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Color\ColourPolicyInterface;
 use Php2Pdf\Core\DeferredInterface;
 use Php2Pdf\Core\Object\Dictionary;
@@ -38,13 +40,15 @@ final class Template implements PlaceableInterface, DeferredInterface
     /**
      * @internal
      *
-     * @param Box|null $bbox the form's bounding box when it differs from [0 0 width height]
+     * @param Closure(): TextFragments $fragments what the words of the document's text show
+     * @param Box|null                $bbox      the form's bounding box when it differs from [0 0 width height]
      */
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
         private readonly Dimensions $size,
         private readonly Origin $origin,
+        Closure $fragments,
         private readonly ?Box $bbox = null,
     ) {
         $this->reference = $objects->allocate();
@@ -55,6 +59,7 @@ final class Template implements PlaceableInterface, DeferredInterface
             $this->resources,
             $size->height,
             $origin->isTopDown(),
+            $fragments,
             inheritsState: true,
         );
         $objects->defer($this);

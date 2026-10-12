@@ -8,6 +8,7 @@ use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Canvas\Resources;
+use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Canvas\TextlinePlacement;
 use Php2Pdf\Core\Object\Dictionary;
@@ -76,6 +77,7 @@ final class Page
             $this->resources,
             $size->height,
             $topDown,
+            static fn(): TextFragments => $document->text()->fragments,
             links: static function (Box $area, Destination|string $target, ?string $tooltip) use ($page): void {
                 $owner = $page->get();
                 $owner?->link($area, $target, $tooltip);

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `FlowOptions::$avoidEmptyBegin` leaves out the empty lines and empty paragraphs a box would start
+  with, as PDFlib's `avoidemptybegin` does. It is off by default.
+- JBIG2 image files are read natively, any page, and passed through untouched (JBIG2Decode), with
+  the segments every page shares as a JBIG2Globals stream written once. `Raster::$jbig2Globals`
+  carries them for a decoder of your own.
+
+### Changed
+
+- What the words of a document's text show is remembered by the document rather than by the
+  process, so a long-running worker keeps nothing of one document's text into the next.
+
 ## [0.1.6] - 2026-10-12
 
 ### Added

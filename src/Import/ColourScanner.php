@@ -96,13 +96,13 @@ final class ColourScanner
         if (! $family instanceof Name) {
             return;
         }
-        match ($family->value) {
-            'Separation'   => $this->colourSpace($space[2] ?? null, $depth + 1),
-            'DeviceN'      => $this->colourSpace($space[2] ?? null, $depth + 1),
-            'Indexed', 'I' => $this->colourSpace($space[1] ?? null, $depth + 1),
-            'Pattern'      => $this->colourSpace($space[1] ?? null, $depth + 1),
-            default        => null,
+        // The space a family is based on, which says what device colour it ends in.
+        $base = match ($family->value) {
+            'Separation', 'DeviceN'   => $space[2] ?? null,
+            'Indexed', 'I', 'Pattern' => $space[1] ?? null,
+            default                   => null,
         };
+        $this->colourSpace($base, $depth + 1);
     }
 
     /**

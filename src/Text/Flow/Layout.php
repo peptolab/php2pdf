@@ -69,6 +69,9 @@ final class Layout
 
     public function run(): LayoutResult
     {
+        if ($this->options->avoidEmptyBegin) {
+            $this->skipEmptyBegin();
+        }
         $result = FlowResult::Done;
         while (null !== ($paragraph = $this->paragraphs[$this->paragraphIndex] ?? null)) {
             $outcome = $this->placeParagraph($paragraph);
@@ -303,6 +306,35 @@ final class Layout
         if ($this->itemIndex >= count($paragraph->items)) {
             ++$this->paragraphIndex;
             $this->itemIndex = 0;
+        }
+    }
+
+    /**
+     * Moves the cursor past the empty lines and empty paragraphs it starts at: a line with nothing
+     * to show, made by a line break alone. A column or page break stops it, as does any line with
+     * text or artwork.
+     */
+    private function skipEmptyBegin(): void
+    {
+        while (null !== ($paragraph = $this->paragraphs[$this->paragraphIndex] ?? null)) {
+            $item = $paragraph->items[$this->itemIndex] ?? null;
+            if (null === $item) {
+                ++$this->paragraphIndex;
+                $this->itemIndex = 0;
+                $this->carry     = 0;
+                continue;
+            }
+            if (ItemKind::ColumnBreak === $item->kind || ItemKind::PageBreak === $item->kind) {
+                return;
+            }
+            $lineNumber = 0 === $this->itemIndex && 0 === $this->carry ? 0 : 1;
+            /** @var Line $line nextLine() is null only past the last item, and $item is one. */
+            $line = $this->breaker->nextLine($paragraph, $this->itemIndex, $this->width, $lineNumber, $this->carry);
+            if ([] !== $line->segments || [] !== $line->inlines) {
+                return;
+            }
+            $this->itemIndex += $line->itemsConsumed;
+            $this->carry     = $line->carry;
         }
     }
 }

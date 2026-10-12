@@ -41,13 +41,15 @@ final class Gpos
 
     /** Whether the sequence being positioned runs right to left. */
 
+    /** @param int $pairMemoLimit the most glyph pairs a lookup's memo keeps; 0 keeps none */
     public function __construct(
         BinaryReader $gpos,
         private readonly Gdef $gdef,
+        int $pairMemoLimit = GposAdjustment::PAIR_MEMO_LIMIT,
     ) {
         $this->tables      = LayoutTables::gpos($gpos, $gdef);
         $this->rules       = new ChainRules($this->tables);
-        $this->adjustments = new GposAdjustment($this->tables);
+        $this->adjustments = new GposAdjustment($this->tables, $pairMemoLimit);
         $this->attachments = new GposAttachment($this->tables, $gdef);
     }
 

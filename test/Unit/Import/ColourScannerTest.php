@@ -34,6 +34,11 @@ final class ColourScannerTest extends TestCase
                 '<< /ColorSpace << /CS0 [/Separation /Gold /DeviceCMYK 5 0 R] >> >>',
                 ['DeviceCMYK'],
             ],
+            'a calibrated space'                  => [
+                '',
+                '<< /ColorSpace << /CS0 [/CalRGB << /WhitePoint [0.9505 1 1.089] >>] >> >>',
+                [],
+            ],
             'indexed base'                        => [
                 '',
                 '<< /ColorSpace << /CS0 [/Indexed /DeviceRGB 1 <000000FFFFFF>] >> >>',

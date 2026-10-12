@@ -44,6 +44,16 @@ final class TextflowTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
 
+    /** A column or page break after text on the same line still ends the box. */
+    /** @return array<string, array{0: bool, 1: int}> whether to leave blank lines out, and the lines the second box holds */
+    public static function emptyBeginProvider(): array
+    {
+        return [
+            'kept by default'     => [false, 2],
+            'left out when asked' => [true, 1],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: FlowResult}> */
     public static function midLineBreakProvider(): array
     {
@@ -76,7 +86,21 @@ final class TextflowTest extends TestCase
         return Num::format($v, 6);
     }
 
-    /** A column or page break after text on the same line still ends the box. */
+    #[Test]
+    public function aBoxLeftWithOnlyBlankLinesIsDoneEmpty(): void
+    {
+        $flow    = $this->doc->textflow("one\ntwo\n\n\n\n\n", 'body');
+        $page    = $this->doc->addPage();
+        $box     = new Box(50.0, 500.0, 200.0, 26.0);
+        $options = new FlowOptions(avoidEmptyBegin: true);
+        $page->fitTextflow($flow, $box, $options);
+
+        self::assertSame([FlowResult::Done, 0], [
+            $page->fitTextflow($flow, $box, $options),
+            $flow->lastFit()?->lineCount,
+        ]);
+    }
+
     #[Test]
     #[DataProvider('midLineBreakProvider')]
     public function aBreakInsideALineEndsTheBox(string $markup, FlowResult $result): void
@@ -92,6 +116,21 @@ final class TextflowTest extends TestCase
                 $page->fitTextflow($flow, new Box(50.0, 300.0, 200.0, 100.0)),
             ],
         );
+    }
+
+    #[Test]
+    public function aColumnBreakAtTheTopOfABoxStillEndsItWhenBlankLinesAreLeftOut(): void
+    {
+        $flow    = $this->doc->textflow('one<br>two<br><br><columnbreak>three', 'body', TextFormat::Markup);
+        $page    = $this->doc->addPage();
+        $box     = new Box(50.0, 500.0, 200.0, 26.0);
+        $options = new FlowOptions(avoidEmptyBegin: true);
+        $page->fitTextflow($flow, $box, $options);
+
+        self::assertSame([FlowResult::BoxFull, 0], [
+            $page->fitTextflow($flow, $box, $options),
+            $flow->lastFit()?->lineCount,
+        ]);
     }
 
     #[Test]
@@ -174,6 +213,22 @@ final class TextflowTest extends TestCase
         self::assertEquals($fresh->lastFit(), $measured->lastFit());
         self::assertEqualsWithDelta($height, $measured->lastFit()->height ?? 0.0, 1.0e-9);
         self::assertSame('', $measured->remainingText());
+    }
+
+    #[Test]
+    #[DataProvider('emptyBeginProvider')]
+    public function blankLinesAtTheTopOfABoxAreLeftOutOnlyWhenAsked(bool $avoid, int $lines): void
+    {
+        $flow    = $this->doc->textflow("one\ntwo\n\n\nthree", 'body');
+        $page    = $this->doc->addPage();
+        $box     = new Box(50.0, 500.0, 200.0, 26.0);
+        $options = new FlowOptions(avoidEmptyBegin: $avoid);
+        $page->fitTextflow($flow, $box, $options);
+
+        self::assertSame([FlowResult::Done, $lines], [
+            $page->fitTextflow($flow, $box, $options),
+            $flow->lastFit()?->lineCount,
+        ]);
     }
 
     #[Test]

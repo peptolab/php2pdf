@@ -12,6 +12,7 @@ use Php2Pdf\Core\Limits;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Exception\ParseException;
 
+use function array_key_exists;
 use function array_unique;
 use function chr;
 use function count;
@@ -40,6 +41,9 @@ use function substr;
  */
 final class TiffPage
 {
+    /** The sample depths read natively, as keys; any other goes to the transcoder. */
+    private const array NATIVE_BITS = [1 => true, 2 => true, 4 => true, 8 => true, 16 => true];
+
     private const int WIDTH         = 256;
     private const int HEIGHT        = 257;
     private const int BITS          = 258;
@@ -141,9 +145,10 @@ final class TiffPage
         $bitsList = array_unique([] === $bitsList ? [1] : $bitsList);
         $bits     = $bitsList[0] ?? 1;
         $samples  = $this->int(self::SAMPLES, 1);
+        $native   = array_key_exists($bits, self::NATIVE_BITS);
         if (
             1 !== count($bitsList)
-            || ! in_array($bits, [1, 2, 4, 8, 16], strict: true)
+            || ! $native
             || $this->file->has($this->ifd, self::TILE_WIDTH)
             || 1 !== $this->int(self::PLANAR, 1)
             || 1 !== $this->int(self::FILL_ORDER, 1)

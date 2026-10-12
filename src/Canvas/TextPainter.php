@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Canvas;
 
+use Closure;
 use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\InvalidArgumentException;
@@ -62,6 +63,8 @@ final class TextPainter
         private readonly ContentStream $stream,
         private readonly Resources $resources,
         private readonly Objects $objects,
+        /** @var Closure(): TextFragments the document's, asked for when text is first drawn */
+        private readonly Closure $fragments,
     ) {}
 
     /** Fits a line of text into a box, positioned, rotated, scaled or shrunk as the options say. */
@@ -224,7 +227,7 @@ final class TextPainter
         $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
             ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
             : "{$m->toPdf()} Tm";
-        $shown = [] === $pieces ? null : TextFragments::show($pieces, $lastKernings, $font, $size, $options);
+        $shown = [] === $pieces ? null : ($this->fragments)()->show($pieces, $lastKernings, $font, $size, $options);
         [$operation, $faithful] = $shown ?? [
             TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr'),
             $font->markUsed($run),

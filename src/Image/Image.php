@@ -69,6 +69,15 @@ final class Image implements PlaceableInterface
             );
         }
 
+        $decodeParms = $raster->decodeParms;
+        if (null !== $raster->jbig2Globals) {
+            $globals     = $raster->jbig2Globals;
+            $decodeParms = Dictionary::of(['JBIG2Globals' => $objects->shared(
+                'jbig2globals:' . hash('xxh128', $globals),
+                static fn(): Stream => new Stream(new Dictionary(), $globals),
+            )]);
+        }
+
         $dict = Dictionary::of([
             'Type'             => new Name('XObject'),
             'Subtype'          => new Name('Image'),
@@ -77,7 +86,7 @@ final class Image implements PlaceableInterface
             'ColorSpace'       => $raster->colorSpace->toPdf($icc),
             'BitsPerComponent' => $raster->bitsPerComponent,
             'Filter'           => null === $raster->filter ? null : new Name($raster->filter),
-            'DecodeParms'      => $raster->decodeParms,
+            'DecodeParms'      => $decodeParms,
             'Decode'           => $raster->decode,
             'Mask'             => $raster->colorKeyMask,
             'SMaskInData'      => $raster->smaskInData ? 1 : null,
