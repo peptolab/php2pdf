@@ -59,7 +59,10 @@ final class ImportTest extends TestCase
     public function placesImportedPagesAsTemplates(): void
     {
         $path = PdfTools::outputDir() . '/import.pdf';
-        $doc  = new Document($path, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc  = new Document($path, new DocumentOptions(
+            clock: new FixedClock('2026-01-01T12:00:00Z'),
+            objectStreams: false,
+        ));
         $font = $doc->fonts()->load(PdfTools::assetPath('fonts/SourceSans3-Regular.otf'));
 
         $classic   = $doc->import(PdfTools::assetPath('pdf/classic.pdf'));

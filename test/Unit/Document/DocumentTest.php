@@ -27,7 +27,10 @@ final class DocumentTest extends TestCase
     private static function build(): string
     {
         $out = new MemoryOutput();
-        $doc = new Document($out, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $doc = new Document($out, new DocumentOptions(
+            clock: new FixedClock('2026-01-01T12:00:00Z'),
+            objectStreams: false,
+        ));
         $doc->info()->setTitle('Test document')->setAuthor('Php2Pdf tests');
 
         $page = $doc->addPage(PageSize::A4);
@@ -82,6 +85,7 @@ final class DocumentTest extends TestCase
         $doc = new Document($out, new DocumentOptions(
             clock: new FixedClock('2026-01-01T12:00:00Z'),
             xmp: false,
+            objectStreams: false,
         ));
         $doc->info()->setAuthor('Zoë');
         $doc->addPage();
@@ -137,8 +141,11 @@ final class DocumentTest extends TestCase
     #[Test]
     public function topDownPagesFlipBoxes(): void
     {
-        $out  = new MemoryOutput();
-        $doc  = new Document($out, new DocumentOptions(clock: new FixedClock('2026-01-01T12:00:00Z')));
+        $out = new MemoryOutput();
+        $doc = new Document($out, new DocumentOptions(
+            clock: new FixedClock('2026-01-01T12:00:00Z'),
+            objectStreams: false,
+        ));
         $page = $doc->addPage(PageSize::A4, topDown: true);
         $page->setTrimBox(new Box(10, 20, 100, 50));
         self::assertSame([10.0, 20.0, 110.0, 70.0], $page->trimBox()->toRect());

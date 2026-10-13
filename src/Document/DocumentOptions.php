@@ -58,6 +58,12 @@ final readonly class DocumentOptions
         /** Shapes the scripts the font engine does not (Indic, South East Asian, Tibetan...); see HarfBuzz::detect(). */
         public ?ExternalShaperInterface $complexShaper = null,
         ?ImageDecoders $imageDecoders = null,
+        /**
+         * Write objects other than streams a hundred at a time in compressed object streams, and
+         * the cross-reference as a stream: smaller files. Only for compressed output of PDF 1.5
+         * and later; uncompressed output keeps every object readable on its own.
+         */
+        public bool $objectStreams = true,
     ) {
         $this->imageDecoders = $imageDecoders ?? ImageDecoders::default();
         $this->limits        = $limits ?? Limits::default();

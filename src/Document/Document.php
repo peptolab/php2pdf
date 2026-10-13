@@ -58,6 +58,7 @@ use function array_values;
 use function count;
 use function is_string;
 use function min;
+use function version_compare;
 
 /**
  * A PDF document being written. Pages are streamed to the output as soon as the next page starts,
@@ -92,6 +93,9 @@ final class Document implements SvgDocumentInterface
             is_string($output) ? new FileOutput($output) : $output,
             $this->options->compress,
             $this->options->compressionLevel,
+            $this->options->objectStreams
+                && $this->options->compress
+                && version_compare($this->options->version, version2: '1.5', operator: '>='),
         );
         $this->writer->writeHeader($this->options->version);
         $this->objects  = new Objects($this->writer);
