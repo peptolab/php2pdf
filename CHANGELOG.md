@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Text on a tagged page is shown in one text object per box again, as on an untagged page, with
+  the marked-content sequences of its paragraphs and links inside it: smaller tagged files.
+
 ## [0.1.14] - 2026-10-13
 
 ### Added

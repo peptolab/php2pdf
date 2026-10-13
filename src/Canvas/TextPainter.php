@@ -116,7 +116,7 @@ final class TextPainter
     public function end(): void
     {
         if ($this->open) {
-            $this->stream->append('ET');
+            $this->stream->endTextObject();
         }
         $this->open    = false;
         $this->grouped = false;
@@ -292,7 +292,12 @@ final class TextPainter
 
             return;
         }
-        $this->stream->append($this->open ? ltrim("{$state} {$text}") : "BT{$state} {$text}");
+        if ($this->open) {
+            $this->stream->append(ltrim("{$state} {$text}"));
+
+            return;
+        }
+        $this->stream->beginTextObject("{$state} {$text}");
         $this->open = true;
     }
 

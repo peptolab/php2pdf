@@ -101,9 +101,7 @@ final class Canvas
      */
     public function beginText(): self
     {
-        if (null === $this->tagger) {
-            $this->text->begin();
-        }
+        $this->text->begin();
 
         return $this;
     }
@@ -239,9 +237,7 @@ final class Canvas
      */
     public function endText(): self
     {
-        if (null === $this->tagger) {
-            $this->text->end();
-        }
+        $this->text->end();
 
         return $this;
     }

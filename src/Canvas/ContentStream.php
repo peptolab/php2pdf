@@ -10,6 +10,7 @@ use Php2Pdf\Geometry\Matrix;
 
 use function array_pop;
 use function count;
+use function ltrim;
 use function sprintf;
 
 /**
@@ -98,6 +99,22 @@ final class ContentStream
     }
 
     /**
+     * Appends a text object's opening operators, BT and what follows it. On a tagged page any
+     * sequence open before it closes, and the sequence of what is drawn opens inside it.
+     */
+    public function beginTextObject(string $operators): void
+    {
+        if (null === $this->tagger) {
+            $this->append("BT{$operators}");
+
+            return;
+        }
+        $this->closeMarked();
+        $this->ops .= "BT\n";
+        $this->append(ltrim($operators));
+    }
+
+    /**
      * The operations, by the piece of state each sets, that change it, each recorded and preceded
      * by a space: as changes() for each, in one call for a text object's whole state.
      *
@@ -173,6 +190,16 @@ final class ContentStream
     public function curveTo(float $x1, float $y1, float $x2, float $y2, float $x3, float $y3): void
     {
         $this->path(Num::list([$x1, $y1, $x2, $y2, $x3, $y3]) . ' c');
+    }
+
+    /**
+     * Ends a text object. On a tagged page the marked-content sequence open in it closes first,
+     * as a sequence may not straddle the end of a text object.
+     */
+    public function endTextObject(): void
+    {
+        $this->closeMarked();
+        $this->ops .= "ET\n";
     }
 
     /**
