@@ -111,8 +111,25 @@ final class TextflowTaggingTest extends TestCase
             [['Artifact', 'EMC', '/P 0', 'EMC', 'Artifact', 'EMC'], 1, 1],
             [
                 TaggedDocument::marks($pdf),
-                preg_match("#/Artifact BMC\nq\nq\nq [\\d. ]+ cm /X\\d+ Do Q\nQ\nEMC\n/P <<#", $pdf),
-                preg_match("#EMC\n/Artifact BMC\n[\\d. ]+ re\nf\nQ\nEMC\n#", $pdf),
+                preg_match("#/Artifact BMC\nq\nq\nq [\\d. ]+ cm /X\\d+ Do Q\nQ\nEMC\nBT\n/P <<#", $pdf),
+                preg_match("#EMC\nET\n/Artifact BMC\n[\\d. ]+ re\nf\nQ\nEMC\n#", $pdf),
+            ],
+        );
+    }
+
+    #[Test]
+    public function taggedTextIsGroupedInOneTextObjectWithItsSequencesInside(): void
+    {
+        $pdf = $this->fitted(
+            '<p style="heading">A heading</p><p>A paragraph with <a href="https://example.com/">a link</a>.</p>',
+            new Box(50.0, 700.0, 400.0, 100.0),
+        );
+
+        self::assertSame(
+            [1, 1],
+            [
+                preg_match_all('#\bBT\b#', $pdf),
+                preg_match("#\nBT\n/H1 <</MCID 0>> BDC\n[^\n]+\nEMC\n/P <</MCID 1>> BDC\n(?:[^\n]+\n)+?EMC\nET\n#", $pdf),
             ],
         );
     }
