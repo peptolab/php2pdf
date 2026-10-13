@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Font;
 
 use Override;
+use Php2Pdf\Canvas\RunPieces;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
@@ -12,13 +13,16 @@ use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PageSize;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Font\Font;
+use Php2Pdf\Font\GlyphRun;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
+use Php2Pdf\Geometry\Matrix;
 use Php2PdfTest\TestAsset\PdfTools;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_slice;
 use function preg_match;
 use function preg_match_all;
 use function substr_count;
@@ -57,6 +61,43 @@ final class ColourFontTest extends TestCase
         $this->expectException(ParseException::class);
         $this->expectExceptionMessage('has no outlines (glyf, CFF or CFF2): its glyphs are sbix bitmaps');
         $this->doc->fonts()->load(PdfTools::assetPath('fonts/PhpPdfBitmapOnly.ttf'));
+    }
+
+    #[Test]
+    public function aLayerAfterAWordSpaceMovesWithTheWordSpacingAsWithKerning(): void
+    {
+        $run    = $this->font->shape('B A');
+        $glyphs = $run->glyphs;
+        $space  = $glyphs[1] ?? null;
+        self::assertNotNull($space);
+        $glyphs[1] = $space->withKerning($space->kerning + ((10.0 * 1000.0) / 24.0));
+        $this->doc
+            ->addPage(PageSize::A4)
+            ->canvas()
+            ->showRunPieces(
+                $run,
+                new RunPieces([$run], [], 10.0),
+                $this->font,
+                24.0,
+                Matrix::translation(10.0, 10.0),
+                TextOptions::default(),
+            );
+        $this->doc
+            ->addPage(PageSize::A4)
+            ->canvas()
+            ->showRun(
+                new GlyphRun($glyphs),
+                $this->font,
+                24.0,
+                Matrix::translation(10.0, 10.0),
+                TextOptions::default(),
+            );
+        $this->doc->close();
+        $m = [];
+        preg_match_all('/(\S+ \S+) Td/', $this->out->contents(), $m);
+        $positions = $m[1] ?? [];
+
+        self::assertSame(array_slice($positions, offset: 4), array_slice($positions, offset: 0, length: 4));
     }
 
     #[Test]

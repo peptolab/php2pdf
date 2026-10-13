@@ -73,7 +73,6 @@ final class LinePainter
                 $canvas->showRunPieces(
                     $segment->run,
                     $segment->pieces,
-                    $segment->lastKernings,
                     $font,
                     $size,
                     $matrix,

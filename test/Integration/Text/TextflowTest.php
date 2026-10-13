@@ -30,7 +30,6 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function count;
 use function end;
 use function preg_match;
 use function preg_match_all;
@@ -391,7 +390,7 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
-    public function justifiesWithAdjustedSpacesAndAlignsLastLine(): void
+    public function justifiesWithWordSpacingAndAlignsLastLine(): void
     {
         $style = new TextStyle(
             font: 'DejaVuSans',
@@ -406,23 +405,14 @@ final class TextflowTest extends TestCase
         );
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 120.0, 200.0));
         $this->doc->close();
-        $pdf = $this->out->contents();
-
         $m = [];
-        preg_match_all('/\[([^\]]*)\] TJ/', $pdf, $m);
-        $lines = $m[1] ?? null;
-        self::assertNotNull($lines);
-        self::assertGreaterThan(1, count($lines));
-        self::assertMatchesRegularExpression(
-            '/' . preg_quote(PdfTools::code($pdf, ' '), delimiter: '/') . '\) -[0-9.]+ \(/',
-            $lines[0] ?? '',
-            'Justified lines carry negative adjustments after space glyphs.',
-        );
-        $lastLine = end($lines);
-        self::assertStringNotContainsString(
-            '> -',
-            false === $lastLine ? '' : $lastLine,
-            'The last line is not justified.',
+        preg_match_all('/(-?[0-9.]+) Tw\b/', $this->out->contents(), $m);
+        $spacing = $m[1] ?? [];
+
+        self::assertSame(
+            [true, '0'],
+            [1 === preg_match('/^(?!0$)[0-9.]+$/', $spacing[0] ?? ''), end($spacing)],
+            'Justified lines open up their word spaces with word spacing; the last line, set right, does not.',
         );
     }
 

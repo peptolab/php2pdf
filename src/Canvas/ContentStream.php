@@ -28,6 +28,7 @@ final class ContentStream
         'Tz'   => '100 Tz',
         'Ts'   => '0 Ts',
         'Tr'   => '0 Tr',
+        'Tw'   => '0 Tw',
         'fill' => '0 g',
     ];
 
@@ -38,6 +39,7 @@ final class ContentStream
         'Tz'   => null,
         'Ts'   => null,
         'Tr'   => null,
+        'Tw'   => null,
         'fill' => null,
     ];
 
@@ -51,11 +53,11 @@ final class ContentStream
      * The text state and fill colour last written, as the operations that set them. Null is
      * unknown.
      *
-     * @var array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}
+     * @var array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, Tw: string|null, fill: string|null}
      */
     private array $state;
 
-    /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, fill: string|null}> */
+    /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, Tw: string|null, fill: string|null}> */
     private array $stateStack = [];
 
     private bool $hasCurrentPoint = false;
@@ -82,9 +84,29 @@ final class ContentStream
     }
 
     /**
+     * The operations, by the piece of state each sets, that change it, each recorded and preceded
+     * by a space: as changes() for each, in one call for a text object's whole state.
+     *
+     * @param array<'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'Tw'|'fill', string> $operations
+     */
+    public function changed(array $operations): string
+    {
+        $changed = '';
+        foreach ($operations as $key => $operation) {
+            if ($operation === ($this->state[$key] ?? null)) {
+                continue;
+            }
+            $this->state[$key] = $operation;
+            $changed           .= " {$operation}";
+        }
+
+        return $changed;
+    }
+
+    /**
      * Whether setting a piece of state to the operation changes it, recording it when it does.
      *
-     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'Tw'|'fill' $key
      */
     public function changes(string $key, string $operation): bool
     {
@@ -118,7 +140,7 @@ final class ContentStream
     /**
      * The operation that last set a piece of state, or null when it is not known.
      *
-     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'Tw'|'fill' $key
      */
     public function current(string $key): ?string
     {
@@ -151,7 +173,7 @@ final class ContentStream
     /**
      * Forgets a piece of state, so it is written next time.
      *
-     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'fill' $key
+     * @param 'Tf'|'Tc'|'Tz'|'Ts'|'Tr'|'Tw'|'fill' $key
      */
     public function forget(string $key): void
     {

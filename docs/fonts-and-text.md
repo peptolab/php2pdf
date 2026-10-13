@@ -18,8 +18,9 @@ when the document closes. A CFF font is cut down to the charstrings and subrouti
 need, name-keyed and CID-keyed alike, and written as a bare CID-keyed CFF program. Every font is
 written as a Type0 font with a ToUnicode map, so text copies and searches correctly. Its glyphs are
 numbered in the order the document first uses them, and written with one byte each for the first
-192 and two bytes after, through a small encoding CMap the document's fonts share; a font with
-more than 16,576 glyphs keeps two bytes a glyph and Identity-H.
+191 and two bytes after, through a small encoding CMap the document's fonts share; a font with
+more than 16,575 glyphs keeps two bytes a glyph and Identity-H. The space is always byte 32, so
+word spacing (`Tw`) applies to it, as it does in the standard 14 fonts.
 
 Variable fonts draw their default instance. TrueType ones (glyf outlines) carry it as their
 outlines already; for CFF2 ones the default instance is worked out from the blended outlines and

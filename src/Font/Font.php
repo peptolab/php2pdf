@@ -51,8 +51,8 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     /**
      * Glyph id => the code it is written with: codes are given in the order glyphs are first
-     * written, from 0 for .notdef, so a subset holds only the glyphs used and its glyph ids are
-     * the codes.
+     * written, from 0 for .notdef and 1 for the space, so a subset holds only the glyphs used (and
+     * the space) and its glyph ids are the codes.
      *
      * @var array<int, int>
      */
@@ -106,6 +106,10 @@ final class Font implements PdfFontInterface, DeferredInterface
         $this->reference   = $objects->allocate();
         $this->scale       = 1000.0 / $program->unitsPerEm;
         $this->text        = new TextMapping();
+        $space             = $program->glyphId(0x20);
+        if (0 !== $space) {
+            $this->codes[$space] = CodeSpace::SPACE;
+        }
         $objects->defer($this);
         if ($program->hasColrVersion1Glyphs()) {
             $this->registry->warn(sprintf(
@@ -340,6 +344,15 @@ final class Font implements PdfFontInterface, DeferredInterface
         $options ??= TextOptions::default();
 
         return ($text instanceof GlyphRun ? $text : $this->shape($text, $options))->measure($size, $options);
+    }
+
+    /** @internal */
+    #[Override]
+    public function wordSpaceGlyph(): ?int
+    {
+        $space = $this->program->glyphId(0x20);
+
+        return 0 !== $space && CodeSpace::fits($this->program->numGlyphs) ? $space : null;
     }
 
     #[Override]

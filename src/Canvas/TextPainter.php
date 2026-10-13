@@ -45,8 +45,9 @@ final class TextPainter
 
     /**
      * The last text state show() wrote out as operators, kept so each run does not format them
-     * again: the Tf operator for $lastFont at $lastSize, and the Tc, Tz, Ts and Tr operators for
-     * $lastOptions. The stream still decides what is written; these are only its inputs.
+     * again: the Tf operator for $lastFont at $lastSize, and in $lastRest the Tc, Tz, Ts and Tr
+     * operators for $lastOptions and the Tw operator for $lastWordSpace, to six decimals as it adds
+     * up over a line's spaces. The stream still decides what is written; these are only its inputs.
      */
     private ?PdfFontInterface $lastFont = null;
 
@@ -56,8 +57,10 @@ final class TextPainter
 
     private ?TextOptions $lastOptions = null;
 
-    /** @var array{Tc: string, Tz: string, Ts: string, Tr: string} */
-    private array $lastRest = ['Tc' => '', 'Tz' => '', 'Ts' => '', 'Tr' => ''];
+    private float $lastWordSpace = 0.0;
+
+    /** @var array{Tc: string, Tz: string, Ts: string, Tr: string, Tw: string} */
+    private array $lastRest = ['Tc' => '', 'Tz' => '', 'Ts' => '', 'Tr' => '', 'Tw' => '0 Tw'];
 
     public function __construct(
         private readonly ContentStream $stream,
@@ -66,6 +69,26 @@ final class TextPainter
         /** @var Closure(): TextFragments the document's, asked for when text is first drawn */
         private readonly Closure $fragments,
     ) {}
+
+    /**
+     * How far word spacing moves the glyph after $glyphs: $wordSpace, scaled horizontally, after
+     * each of them the font's word spacing moves.
+     *
+     * @param list<Glyph> $glyphs
+     */
+    private static function spaced(array $glyphs, PdfFontInterface $font, float $wordSpace, TextOptions $options): float
+    {
+        $space = 0.0 === $wordSpace ? null : $font->wordSpaceGlyph();
+        if (null === $space) {
+            return 0.0;
+        }
+        $count = 0;
+        foreach ($glyphs as $glyph) {
+            $count += $space === $glyph->id ? 1 : 0;
+        }
+
+        return ($count * $wordSpace * $options->horizontalScale) / 100.0;
+    }
 
     /** Fits a line of text into a box, positioned, rotated, scaled or shrunk as the options say. */
     public function fitLine(
@@ -123,10 +146,7 @@ final class TextPainter
     /**
      * Shows a shaped run with the given text matrix, colour glyphs as their layers. The layers
      * are marked as standing for no text. A run joined from $pieces is shown from them, as
-     * Canvas::showRunPieces() describes, unless it has colour glyphs.
-     *
-     * @param list<GlyphRun>    $pieces
-     * @param array<int, float> $lastKernings
+     * Canvas::showRunPieces() describes, unless it has colour glyphs, and with their word spacing.
      *
      * @throws InvalidArgumentException for a font that is not the library's own
      */
@@ -137,8 +157,7 @@ final class TextPainter
         float $size,
         Matrix $textMatrix,
         TextOptions $options,
-        array $pieces = [],
-        array $lastKernings = [],
+        ?RunPieces $pieces = null,
     ): void {
         if ($run->isEmpty()) {
             return;
@@ -151,15 +170,18 @@ final class TextPainter
             ));
         $layers = TextRenderMode::Invisible === $options->renderMode ? [] : $font->colourLayers($run);
         if ([] === $layers) {
-            $this->show($run, $font, $size, $textMatrix, $options, [], $pieces, $lastKernings);
+            $this->show($run, $font, $size, $textMatrix, $options, [], $pieces);
 
             return;
         }
-        $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers));
+        $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers), $pieces);
+        $wordSpace = $pieces->wordSpace ?? 0.0;
         $this->stream->append(self::NO_TEXT);
         foreach ($layers as $index => $list) {
+            $before = array_slice($run->glyphs, offset: 0, length: $index);
             $origin = Matrix::translation(
-                $font->width(new GlyphRun(array_slice($run->glyphs, offset: 0, length: $index)), $size, $options),
+                $font->width(new GlyphRun($before), $size, $options)
+                    + self::spaced($before, $font, $wordSpace, $options),
                 0.0,
             )->then($textMatrix);
             foreach ($list as [$glyph, $colour, $opacity]) {
@@ -171,7 +193,7 @@ final class TextPainter
                     $canvas->setOpacity($opacity);
                 }
                 $layer = new GlyphRun([new Glyph($glyph, -1, $font->advance($glyph))]);
-                $this->show($layer, $font, $size, $origin, $options, []);
+                $this->show($layer, $font, $size, $origin, $options, [], $pieces);
                 $canvas->restore();
             }
         }
@@ -195,11 +217,10 @@ final class TextPainter
     /**
      * Shows a run in one text object. Glyphs at the $hidden positions (colour glyphs, whose layers
      * are drawn over them) are shown invisibly, so they keep their place and their text. A run
-     * joined from $pieces is shown from them where TextFragments::show() can.
+     * joined from $pieces is shown from them where TextFragments::show() can, and with their word
+     * spacing.
      *
-     * @param list<int>         $hidden
-     * @param list<GlyphRun>    $pieces
-     * @param array<int, float> $lastKernings
+     * @param list<int> $hidden
      */
     private function show(
         GlyphRun $run,
@@ -208,26 +229,22 @@ final class TextPainter
         Matrix $textMatrix,
         TextOptions $options,
         array $hidden,
-        array $pieces = [],
-        array $lastKernings = [],
+        ?RunPieces $pieces = null,
     ): void {
         // The last font shown was checked when it was first shown: textState() keeps it after.
         if ($font !== $this->lastFont) {
             $this->objects->assertOwns($font->objects(), 'A font');
         }
-        $ops   = 'BT';
-        $state = $this->textState($font, $size, $options);
-        foreach ($state as $key => $operation) {
-            if (! $this->stream->changes($key, $operation)) {
-                continue;
-            }
-            $ops .= " {$operation}";
-        }
+        $state    = $this->textState($font, $size, $options, $pieces->wordSpace ?? 0.0);
+        $ops      = "BT{$this->stream->changed($state)}";
         $m        = $textMatrix;
         $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
             ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
             : "{$m->toPdf()} Tm";
-        $shown = [] === $pieces ? null : ($this->fragments)()->show($pieces, $lastKernings, $font, $size, $options);
+        $shown =
+            [] === $hidden && null !== $pieces && [] !== $pieces->runs
+                ? ($this->fragments)()->show($pieces->runs, $pieces->lastKernings, $font, $size, $options)
+                : null;
         [$operation, $faithful] = $shown ?? [
             TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr'),
             $font->markUsed($run),
@@ -239,9 +256,9 @@ final class TextPainter
     /**
      * The text state operators for a run, by operator.
      *
-     * @return array{Tf: string, Tc: string, Tz: string, Ts: string, Tr: string}
+     * @return array{Tf: string, Tc: string, Tz: string, Ts: string, Tr: string, Tw: string}
      */
-    private function textState(PdfFontInterface $font, float $size, TextOptions $options): array
+    private function textState(PdfFontInterface $font, float $size, TextOptions $options, float $wordSpace): array
     {
         // A font keeps its reference, and the resources keep the name they gave it, so the Tf
         // operator only changes with the font or the size.
@@ -269,7 +286,12 @@ final class TextPainter
                 'Tz' => Num::format($options->horizontalScale) . ' Tz',
                 'Ts' => Num::format($options->rise) . ' Ts',
                 'Tr' => "{$options->renderMode->value} Tr",
+                'Tw' => $this->lastRest['Tw'],
             ];
+        }
+        if ($wordSpace !== $this->lastWordSpace) {
+            $this->lastWordSpace  = $wordSpace;
+            $this->lastRest['Tw'] = Num::format($wordSpace, 6) . ' Tw';
         }
 
         return ['Tf' => $this->lastTf] + $this->lastRest;

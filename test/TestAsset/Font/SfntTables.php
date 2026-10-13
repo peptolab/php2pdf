@@ -20,6 +20,39 @@ use function unpack;
 final class SfntTables
 {
     /**
+     * A cmap of one format 4 subtable (Windows, Unicode BMP) mapping each code point to its glyph,
+     * and nothing else.
+     *
+     * @param array<int, int> $glyphs code point => glyph id, in code point order
+     */
+    public static function cmap(array $glyphs): string
+    {
+        $segments = [];
+        foreach ($glyphs as $codePoint => $glyph) {
+            $segments[] = [$codePoint, ($glyph - $codePoint) & 0xFFFF];
+        }
+        $segments[] = [0xFFFF, 1];
+        $count      = count($segments);
+        $ends       = '';
+        $starts     = '';
+        $deltas     = '';
+        foreach ($segments as [$codePoint, $delta]) {
+            $ends   .= pack('n', $codePoint);
+            $starts .= pack('n', $codePoint);
+            $deltas .= pack('n', $delta);
+        }
+        $subtable = $ends . "\0\0" . $starts . $deltas . str_repeat("\0\0", $count);
+        $selector = 0;
+        while ((2 ** ($selector + 1)) <= $count) {
+            ++$selector;
+        }
+        $search = 2 * (2 ** $selector);
+        $header = pack('n7', 4, 14 + strlen($subtable), 0, 2 * $count, $search, $selector, (2 * $count) - $search);
+
+        return pack('nnnnN', 0, 1, 3, 1, 12) . $header . $subtable;
+    }
+
+    /**
      * @param array<string, string|null> $changes table tag => new bytes, or null to drop the table
      */
     public static function replace(string $font, array $changes): string
@@ -35,6 +68,16 @@ final class SfntTables
         ksort($tables);
 
         return self::assemble(substr($font, offset: 0, length: 4), $tables);
+    }
+
+    /** The font with its maxp table giving it $count glyphs, whatever it has. */
+    public static function withGlyphCount(string $font, int $count): string
+    {
+        $maxp = self::tables($font)['maxp'] ?? '';
+
+        return self::replace($font, [
+            'maxp' => substr($maxp, offset: 0, length: 4) . pack('n', $count) . substr($maxp, offset: 6),
+        ]);
     }
 
     /** @param array<string, string> $tables */

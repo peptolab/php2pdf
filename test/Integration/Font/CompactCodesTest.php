@@ -12,7 +12,6 @@ use Php2Pdf\Font\CodeSpace;
 use Php2Pdf\Font\Font;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphRun;
-use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
@@ -27,9 +26,7 @@ use function file_get_contents;
 use function file_put_contents;
 use function md5_file;
 use function min;
-use function pack;
 use function preg_match;
-use function substr_replace;
 
 /**
  * A glyph written with a two-byte code, after thousands of others, draws as it does with the
@@ -70,11 +67,8 @@ final class CompactCodesTest extends TestCase
     public function aFontWithMoreGlyphsThanTheCodesReachKeepsTwoByteCodes(): void
     {
         $data = (string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
-        $maxp = (string) OpenTypeFont::fromData($data)->table('maxp');
         $path = PdfTools::outputDir() . '/compact-codes-big.ttf';
-        file_put_contents($path, SfntTables::replace($data, [
-            'maxp' => substr_replace($maxp, pack('n', CodeSpace::CODES + 1), offset: 4, length: 2),
-        ]));
+        file_put_contents($path, SfntTables::withGlyphCount($data, CodeSpace::CODES + 1));
         $out = new MemoryOutput();
         $doc = new Document($out, new DocumentOptions(compress: false));
         $doc->addPage()->canvas()->drawText('AB', $doc->fonts()->load($path), 12.0, 10.0, 10.0);
@@ -82,8 +76,8 @@ final class CompactCodesTest extends TestCase
 
         self::assertSame([1, 1, 1], [
             preg_match('#/Encoding/Identity-H#', $out->contents()),
-            preg_match("#\\(\x00\x01\x00\x02\\) Tj#", $out->contents()),
-            preg_match("#<0001> <0041>\n<0002> <0042>#", $out->contents()),
+            preg_match("#\\(\x00\x02\x00\x03\\) Tj#", $out->contents()),
+            preg_match("#<0002> <0041>\n<0003> <0042>#", $out->contents()),
         ]);
     }
 

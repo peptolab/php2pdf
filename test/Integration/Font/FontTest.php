@@ -11,6 +11,7 @@ use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Document\PdfX;
 use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Font\CodeSpace;
 use Php2Pdf\Font\Font;
 use Php2Pdf\Font\Glyph;
 use Php2Pdf\Font\GlyphCheck;
@@ -28,6 +29,7 @@ use PHPUnit\Framework\TestCase;
 use function array_map;
 use function file_get_contents;
 use function pack;
+use function substr_count;
 use function substr_replace;
 
 #[Group('integration')]
@@ -54,6 +56,32 @@ final class FontTest extends TestCase
             'ignore wins under PDF/X'    => [PdfX::X4, GlyphCheck::Ignore, null, 0],
             'warn by default'            => [null, null, null, 1],
         ];
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function noWordSpaceGlyphProvider(): array
+    {
+        return [
+            'no space glyph, so code 32 is the first glyph shown' => ['cmap'],
+            'more glyphs than the one-byte codes reach'           => ['maxp'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('noWordSpaceGlyphProvider')]
+    public function aFontWhoseCode32IsNotItsSpaceHasNoWordSpaceGlyph(string $patched): void
+    {
+        $data = (string) file_get_contents(PdfTools::assetPath('fonts/DejaVuSans.ttf'));
+        $font = $this->doc
+            ->fonts()
+            ->embed(OpenTypeFont::fromData(match ($patched) {
+                'cmap' => SfntTables::replace($data, ['cmap' => SfntTables::cmap([
+                    0x61 => $this->font->program()->glyphId(0x61),
+                ])]),
+                default => SfntTables::withGlyphCount($data, CodeSpace::CODES + 1),
+            }));
+
+        self::assertNull($font->wordSpaceGlyph());
     }
 
     #[Test]
@@ -92,7 +120,7 @@ final class FontTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString(
-            "2 beginbfchar\n<01> <0061>\n<02> <0062>\nendbfchar",
+            "2 beginbfchar\n<02> <0061>\n<03> <0062>\nendbfchar",
             $this->out->contents(),
             'Only a and b are mapped; the missing character is not.',
         );
@@ -246,6 +274,18 @@ final class FontTest extends TestCase
     }
 
     #[Test]
+    public function theSpaceIsWrittenWithCode32ForWordSpacingToMoveIt(): void
+    {
+        $this->doc->addPage()->canvas()->drawText('a b', $this->font, 12.0, 10.0, 10.0);
+        $this->doc->close();
+
+        self::assertSame(
+            [1, $this->font->program()->glyphId(0x20)],
+            [substr_count($this->out->contents(), needle: "(\x02 \x03) Tj"), $this->font->wordSpaceGlyph()],
+        );
+    }
+
+    #[Test]
     public function writesType0FontWithSubsetWidthsAndToUnicode(): void
     {
         $canvas = $this->doc->addPage()->canvas();
@@ -262,11 +302,11 @@ final class FontTest extends TestCase
         $pdf = $this->out->contents();
 
         self::assertStringContainsString(
-            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x01) 53.96 (\x02) -10] TJ ET",
+            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x02) 53.96 (\x03) -10] TJ ET",
             $pdf,
         );
         self::assertStringContainsString(
-            "BT 0 Tc 1 Tr 10 40 Td [(\x03\x04) -500 (\x05)] TJ ET",
+            "BT 0 Tc 1 Tr 10 40 Td [(\x04 ) -500 (\x05)] TJ ET",
             $pdf,
             'Only the text state that changed is set again, including back to its default.',
         );
@@ -276,14 +316,14 @@ final class FontTest extends TestCase
         );
         self::assertStringContainsString('/Subtype/CIDFontType2', $pdf);
         self::assertStringContainsString('/CIDToGIDMap/Identity', $pdf);
-        self::assertStringContainsString('/DW 1000/W[0 [600 684 684 686 318 698]]', $pdf);
+        self::assertStringContainsString('/DW 1000/W[0 [600 318 684 684 686 698]]', $pdf);
         self::assertStringContainsString(
             '/Flags 32/FontBBox[-1021 -463 1793 1232]/ItalicAngle 0/Ascent 928/Descent -236/CapHeight 729',
             $pdf,
         );
         self::assertStringContainsString('/Length1 ', $pdf);
         self::assertStringContainsString(
-            "5 beginbfchar\n<01> <0041>\n<02> <0056>\n<03> <0042>\n<04> <0020>\n<05> <0043>\nendbfchar",
+            "5 beginbfchar\n<20> <0020>\n<02> <0041>\n<03> <0056>\n<04> <0042>\n<05> <0043>\nendbfchar",
             $pdf,
         );
     }
