@@ -108,6 +108,7 @@ A small tag set, with `style="name"` on `<p>` and `<span>` referring to named st
 | `<columnbreak>` | Stop filling this box: the fit returns `BoxFull` |
 | `<pagebreak>` | Stop and ask for a new page: the fit returns `NextPage` |
 | `<img src="name" width height raise>` | Artwork defined with `$doc->inlines()->define()`, set in the text (see below) |
+| `<ul>`, `<ol>`, `<li>` | Lists, nested as deep as wanted (see [Lists](#lists)) |
 
 `&amp;`, `&lt;`, `&gt;` and numeric entities are decoded. Soft hyphens (U+00AD) mark allowed
 breaks; non-breaking spaces (U+00A0, U+202F narrow and U+2007 figure) never break or stretch.
@@ -140,6 +141,46 @@ $flow = $doc->textflowBuilder('body')
     ->pageBreak()
     ->build();
 ```
+
+## Lists
+
+```php
+$flow = $doc->textflow(<<<'MARKUP'
+    <ul>
+      <li>First point</li>
+      <li>Second point
+        <ol type="a"><li>Nested</li><li>Nested again</li></ol>
+      </li>
+      <li><p>A point in paragraphs.</p><p>Its second paragraph.</p></li>
+    </ul>
+    MARKUP, 'body', TextFormat::Markup);
+```
+
+Each item is a paragraph indented a list indent for each level it is nested (two ems unless
+the style's `listIndent` sets it), its marker hanging in the indent, ending half an em before
+the text, in the item's style. Further paragraphs of an item (`<p>` inside `<li>`), and text
+after a nested list, are set in the item without a marker. A right-to-left item is indented
+from the right, its marker hanging on that side.
+
+`<ul>` marks items with bullets that change with depth (disc, circle, square, and round again)
+unless `type="disc|circle|square|dash"` sets one; `<ol>` numbers them, `type="1|a|A|i|I"`
+choosing digits, letters or Roman numerals and `start="n"` the first number. Both take
+`style="name"` for their items' paragraph style, and `<li style="name">` overrides it. The
+markers are `ListMarker` cases. In code:
+
+```php
+$flow = $doc->textflowBuilder('body')
+    ->startList(ListMarker::Decimal)
+    ->item()->text('First')
+    ->item()->text('Second')
+        ->startList()->item()->text('Nested')->endList()
+        ->paragraph()->text('More of the second')
+    ->endList()
+    ->build();
+```
+
+In a tagged document a list is tagged `L` (with its `ListNumbering`), each item `LI` holding
+its marker as `Lbl` and its paragraphs and nested lists in `LBody`.
 
 ## Fitting
 

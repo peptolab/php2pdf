@@ -49,6 +49,19 @@ final class TableTaggingTest extends TestCase
     }
 
     #[Test]
+    public function aListInARepeatedHeaderIsTaggedOnce(): void
+    {
+        $table = $this->doc->table([Column::pt(100.0)], new CellStyle(), 'body');
+        $table->addHeaderRow([Cell::markup('<ul><li>Head</li></ul>', 'body')]);
+        for ($row = 0; $row < 20; ++$row) {
+            $table->addRow([Cell::text("Row {$row}")]);
+        }
+        $pdf = $this->drawn($table, 100.0);
+
+        self::assertSame([1, 1], [TaggedDocument::count($pdf, 'Lbl'), TaggedDocument::count($pdf, 'L')]);
+    }
+
+    #[Test]
     public function aRepeatedHeaderIsAnArtifact(): void
     {
         $pdf = $this->drawn($this->table(20), 100.0);

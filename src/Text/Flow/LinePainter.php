@@ -9,11 +9,13 @@ use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\Tagger;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Fit\Fit;
+use Php2Pdf\Font\Bidi\BidiRuns;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Structure\StructureElement;
 use Php2Pdf\Text\Style\CharFormat;
+use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function abs;
@@ -205,8 +207,63 @@ final class LinePainter
         return false;
     }
 
-    /** Draws the lines, tagging their text when given the flow's elements. */
-    /** @param array{0: FlowTags, 1: Tagger}|null $tags the flow's elements, and the page's tagger */
+    /**
+     * Draws a list item's marker on the line that starts it, in the item's style: ending half an
+     * em before the item's text, in the space its indent leaves (after it, for a right-to-left
+     * item). Returns the fill colour left set.
+     *
+     * @param array{0: FlowTags, 1: Tagger}|null $tags
+     */
+    private static function marker(
+        Canvas $canvas,
+        Box $box,
+        PlacedLine $placed,
+        float $y,
+        ?array $tags,
+        ?ColorInterface $lastColor,
+    ): ?ColorInterface {
+        $item  = $placed->starts;
+        $list  = $item?->list;
+        $label = $list?->label;
+        if (null === $item || null === $list || null === $label) {
+            return $lastColor;
+        }
+        $element   = null === $tags ? null : $tags[0]->label($tags[1], $list);
+        $style     = $item->style;
+        $font      = StyleResolver::fontOf($style);
+        $format    = CharFormat::of($style);
+        $paragraph = ParagraphFormat::of($style);
+        $run       = BidiRuns::shape($font, $label, $format->textOptions);
+        $gap       = 0.5 * $format->size;
+        $x         = 1 === $item->level
+            ? $box->right() - $paragraph->rightIndent + $gap
+            : $box->x
+                + $paragraph->leftIndent
+                + $paragraph->firstLineIndent
+                - $gap
+            - $font->width($run, $format->size, $format->textOptions);
+        $canvas->mark($element);
+        if (null !== $style->color && $style->color !== $lastColor) {
+            $canvas->setFillColor($style->color);
+            $lastColor = $style->color;
+        }
+        $canvas->showRun(
+            $run,
+            $font,
+            $format->size,
+            new Matrix(1.0, 0.0, 0.0, $canvas->isTopDown() ? -1.0 : 1.0, $x, $y),
+            $format->textOptions,
+        );
+
+        return $lastColor;
+    }
+
+    /**
+     * Draws the lines, and the markers of the list items they start, tagging their text when
+     * given the flow's elements.
+     *
+     * @param array{0: FlowTags, 1: Tagger}|null $tags the flow's elements, and the page's tagger
+     */
     private static function paint(Canvas $canvas, Box $box, LayoutResult $layout, float $shift, ?array $tags): void
     {
         $canvas->save();
@@ -222,6 +279,7 @@ final class LinePainter
             $elements = null === $tags
                 ? []
                 : $tags[0]->line($tags[1], $placed, self::isMarked($line) ? self::runs($line, self::linkKey(...)) : []);
+            $lastColor = self::marker($canvas, $box, $placed, $y, $tags, $lastColor);
             if ([] !== $line->inlines) {
                 $canvas->endText();
                 $canvas->mark(null);

@@ -76,6 +76,24 @@ final readonly class ParagraphFactory
     }
 
     /**
+     * A list item's style indented a list indent for each level it is nested, from the left, or
+     * from the right for a right-to-left paragraph, leaving the space its marker hangs in.
+     */
+    private static function indented(TextStyle $style, ?ListPosition $list, int $level): TextStyle
+    {
+        if (null === $list) {
+            return $style;
+        }
+        $indent = $list->depth() * ($style->listIndent ?? (2.0 * $style->fontSize()));
+
+        return $style->merge(
+            1 === $level
+                ? new TextStyle(rightIndent: ($style->rightIndent ?? 0.0) + $indent)
+                : new TextStyle(leftIndent: ($style->leftIndent ?? 0.0) + $indent),
+        );
+    }
+
+    /**
      * @param list<ParagraphSource> $sources
      *
      * @return list<Paragraph>
@@ -99,6 +117,7 @@ final readonly class ParagraphFactory
                 $spans[$k] = [str_replace(["\r\n", "\r"], replace: "\n", subject: $spanText), $spanStyle];
             }
             [$levels, $level] = self::bidiLevels($spans, $style);
+            $style  = self::indented($style, $source->list, $level);
             $offset = 0;
             foreach ($spans as $i => $span) {
                 foreach ($breakAt[$i] ?? [] as $kind) {
@@ -113,7 +132,7 @@ final readonly class ParagraphFactory
             foreach ($breakAt[count($spans)] ?? [] as $kind) {
                 $items[] = self::breakItem($kind, $style, $level, $made);
             }
-            $paragraphs[] = new Paragraph($style, $items, $level);
+            $paragraphs[] = new Paragraph($style, $items, $level, $source->list);
         }
 
         return $paragraphs;

@@ -49,6 +49,9 @@ final readonly class TextStyle
      *                                                   unless an alignment is set
      * @param StructureRole|null              $role     what a paragraph is tagged as in a tagged
      *                                                  document: P unless set
+     * @param float|null                      $listIndent how far each level of a list indents its
+     *                                                  items, their markers hanging in the space:
+     *                                                  two ems unless set
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -95,6 +98,7 @@ final readonly class TextStyle
         public ?Composer $composer = null,
         public ?Justification $justification = null,
         public ?StructureRole $role = null,
+        public ?float $listIndent = null,
     ) {}
 
     public function fontSize(): float
@@ -149,6 +153,7 @@ final readonly class TextStyle
                 ? null
                 : array_map(static fn(TabStop $tab): TabStop => $tab->scaled($factor), $this->tabs),
             defaultTabWidth: null === $this->defaultTabWidth ? null : $this->defaultTabWidth * $factor,
+            listIndent: null === $this->listIndent ? null : $this->listIndent * $factor,
         ));
     }
 

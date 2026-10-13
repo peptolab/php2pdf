@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Lists in textflows: `<ul>`, `<ol type="1|a|A|i|I" start="n">` and `<li>` in markup, nested as
+  deep as wanted, and `startList()`, `item()` and `endList()` on the builder. Items are indented a
+  list indent per level (`TextStyle::$listIndent`, two ems unless set) with their marker hanging
+  in it: bullets that change with depth, or numbers, letters or Roman numerals (`ListMarker`). An
+  item may hold several paragraphs. In a tagged document lists are tagged `L`, `LI`, `Lbl` and
+  `LBody`, with their `ListNumbering`.
+
 - Imported pages of tagged PDFs bring their structure into a tagged document (#35): where a page
   is first placed on a page, the elements its content belongs to are copied into a `Sect` under
   the element being drawn, in their order and with their alternate text, language and

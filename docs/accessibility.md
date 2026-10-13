@@ -35,6 +35,7 @@ the library tags:
 | A textflow's paragraphs | `P`, or the role of their style (`TextStyle(role: StructureRole::H1)`) |
 | Linked text in a textflow | `Link`, under its paragraph, with its link annotations |
 | A table | `Table`, its rows `TR`, header cells `TH` (heading their column) and other cells `TD`, with their spans |
+| A textflow's lists | `L` (with its numbering), its items `LI`, each item's marker `Lbl` and its paragraphs and nested lists in `LBody` |
 | Artwork placed with alternate text | `Figure`: `$page->place($image, $box, alt: 'A photograph')` |
 | A link added to a page | `Link`, holding its annotation |
 | Anything else | An artifact |
@@ -83,8 +84,6 @@ left out. A page of an untagged PDF is part of the element being drawn, or an ar
 
 ## What it does not do
 
-- Lists are not tagged automatically: tag them with `StructureRole::List`, `ListItem`, `Label`
-  and `ListBody`.
 - Forms, and annotations other than links, are not written at all, so need no tagging.
 - PDF/UA asks for meaningful reading order and alternate text, which only the author can give;
   the validators check what can be checked.

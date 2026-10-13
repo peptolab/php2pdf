@@ -131,7 +131,7 @@ final class CopyFitter
             foreach ($paragraph->items as $item) {
                 $items[] = self::scaledItem($item, $scaled($item->style));
             }
-            $out[] = new Paragraph($style, $items, $paragraph->level);
+            $out[] = new Paragraph($style, $items, $paragraph->level, $paragraph->list);
         }
 
         return $out;

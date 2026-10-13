@@ -13,12 +13,14 @@ use function fclose;
 use function function_exists;
 use function getenv;
 use function hex2bin;
+use function html_entity_decode;
 use function imagecolorat;
 use function imagecreatefrompng;
 use function imagesx;
 use function imagesy;
 use function is_dir;
 use function is_executable;
+use function is_numeric;
 use function mb_convert_encoding;
 use function mkdir;
 use function pathinfo;
@@ -293,6 +295,39 @@ final class PdfTools
         }
 
         return $failed;
+    }
+
+    /**
+     * The words pdftotext finds on a page, in reading order, each with its left and right edges
+     * and its top, measured from the top of the page.
+     *
+     * @return list<array{0: string, 1: float, 2: float, 3: float}>
+     */
+    public static function words(string $path, int $page = 1): array
+    {
+        $words   = [];
+        $matches = [];
+        preg_match_all(
+            '#<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="[\d.]+">([^<]*)</word>#',
+            self::pdftotext($path, $page, '-bbox'),
+            $matches,
+            PREG_SET_ORDER,
+        );
+        foreach ($matches as $match) {
+            $words[] = [
+                html_entity_decode($match[4] ?? ''),
+                self::number($match[1] ?? ''),
+                self::number($match[3] ?? ''),
+                self::number($match[2] ?? ''),
+            ];
+        }
+
+        return $words;
+    }
+
+    private static function number(string $text): float
+    {
+        return is_numeric($text) ? (float) $text : 0.0;
     }
 
     private static function pdftotext(string $path, int $page, string $mode): string

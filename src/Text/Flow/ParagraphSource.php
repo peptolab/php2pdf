@@ -8,8 +8,8 @@ use Php2Pdf\Text\Style\TextStyle;
 
 /**
  * A paragraph as markup or a builder gives it, before it is itemised: the style it overrides,
- * its spans of styled text, and its breaks, each placed before the span at its index (one past
- * the last span for a break at the end).
+ * its spans of styled text, its breaks, each placed before the span at its index (one past the
+ * last span for a break at the end), and where it sits in lists, if it is in one.
  *
  * @internal
  */
@@ -23,5 +23,6 @@ final readonly class ParagraphSource
         public ?TextStyle $style,
         public array $spans,
         public array $breaks,
+        public ?ListPosition $list = null,
     ) {}
 }

@@ -158,8 +158,13 @@ final class Layout
     private function commit(array $lines): void
     {
         [$consumed, $carry] = self::advance($lines, $this->carry);
+        $starts =
+            0 === $this->itemIndex && 0 === $this->carry
+                ? $this->paragraphs[$this->paragraphIndex] ?? null
+                : null;
         foreach ($lines as [$line, $baseline]) {
-            $this->lines[] = new PlacedLine($line, $baseline, $this->paragraphIndex);
+            $this->lines[] = new PlacedLine($line, $baseline, $this->paragraphIndex, $starts);
+            $starts        = null;
             $this->y       = $baseline;
             $this->height  = max($this->height, $baseline + $line->descent);
         }

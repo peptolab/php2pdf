@@ -7,8 +7,9 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Text\Style\TextStyle;
 
 /**
- * A paragraph: its resolved style, the items that make up its text, and its direction as a bidi
- * level. Items may be split when a word is wider than a line.
+ * A paragraph: its resolved style, the items that make up its text, its direction as a bidi
+ * level, and where it sits in lists, if it is in one. Items may be split when a word is wider
+ * than a line.
  *
  * @internal
  */
@@ -22,6 +23,7 @@ final class Paragraph
         public readonly TextStyle $style,
         public readonly array $items,
         public readonly int $level = 0,
+        public readonly ?ListPosition $list = null,
     ) {}
 
     public function text(): string
