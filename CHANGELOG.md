@@ -12,6 +12,15 @@ All notable changes to this project are documented here. The format follows
   `cjk-10` (ten pages in a CJK font of tens of thousands of glyphs, found by `fixtures.php` or
   given in `BENCH_CJK`), to measure subsetting with several fonts and with a large one (#49).
 
+### Changed
+
+- A box of laid-out text is written as one text object, each line moved from the one before (`T*`
+  when only the leading moves it) rather than placed from the page's origin in a text object of
+  its own (#8). Pages of text are a quarter smaller (500 pages of text: 799 to 570 KiB, now below
+  PDFlib's 609 KiB), with every glyph where it was. Underlines and strikeouts are drawn after the
+  text they mark, and inline artwork and colour glyph layers between text objects, since a text
+  object may not hold them.
+
 ### Fixed
 
 - Chinese and Japanese text breaks between characters, as UAX #14 and the Japanese kinsoku rules

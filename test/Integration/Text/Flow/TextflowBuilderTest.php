@@ -15,6 +15,7 @@ use Php2Pdf\Text\Flow\TextflowBuilder;
 use Php2Pdf\Text\Style\TabStop;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\TextShows;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -61,7 +62,7 @@ final class TextflowBuilderTest extends TestCase
         $this->doc->addPage()->fitTextflow($flow, new Box(0.0, 0.0, 300.0, 100.0));
         $this->doc->close();
 
-        self::assertMatchesRegularExpression('/ 100 [0-9.]+ Td /', $this->out->contents());
+        self::assertContains(100.0, TextShows::xs($this->out->contents()));
     }
 
     #[Test]
