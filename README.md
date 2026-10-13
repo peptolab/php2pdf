@@ -17,7 +17,8 @@ page; justified text, set by the whole-paragraph composer, about 5 ms. A 2,000-r
 1 s. That is 1.7 to 2.2 times PDFlib's time for text, and with opcache and its JIT enabled
 (`opcache.jit_buffer_size`) long documents take about a third less, 1.2 to 1.4 times PDFlib's.
 Tables and images are faster than in PDFlib: the 2,000-row table takes a quarter of its time and a
-third of its memory. `tools/bench` runs the scenarios these numbers come from.
+third of its memory. Files are smaller than PDFlib's: 500 pages of text come to 570 KiB against
+its 609 KiB. `tools/bench` runs the scenarios these numbers come from.
 
 Known gaps are listed in [Limitations](docs/limitations.md).
 

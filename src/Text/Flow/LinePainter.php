@@ -6,6 +6,7 @@ namespace Php2Pdf\Text\Flow;
 
 use Closure;
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
@@ -40,20 +41,26 @@ final class LinePainter
             return;
         }
         $canvas->save();
+        $canvas->beginText();
         $topDown = $canvas->isTopDown();
         // Segments mostly share a colour: it is set again only when it changes, or when artwork
         // placed since may have changed it.
         $lastColor = null;
+        $bars      = [];
         foreach ($layout->lines as $placed) {
             [$line, $baseline] = [$placed->line, $placed->baseline];
             [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
-            foreach ($line->inlines as [$ix, $inline]) {
-                $edge = $topDown ? $y - $inline->raise - $inline->height : $y + $inline->raise;
-                $canvas->place(
-                    $inline->object,
-                    new Box($x0 + $ix, $edge, $inline->width, $inline->height),
-                    Fit::entire(),
-                );
+            if ([] !== $line->inlines) {
+                $canvas->endText();
+                foreach ($line->inlines as [$ix, $inline]) {
+                    $edge = $topDown ? $y - $inline->raise - $inline->height : $y + $inline->raise;
+                    $canvas->place(
+                        $inline->object,
+                        new Box($x0 + $ix, $edge, $inline->width, $inline->height),
+                        Fit::entire(),
+                    );
+                }
+                $canvas->beginText();
                 $lastColor = null;
             }
             foreach ($line->segments as $segment) {
@@ -70,35 +77,32 @@ final class LinePainter
                 $options = 1.0 === $segment->scale
                     ? $format->textOptions
                     : $format->textOptions->withHorizontalScale($format->horizontalScale * $segment->scale);
-                $canvas->showRunPieces(
-                    $segment->run,
-                    $segment->pieces,
-                    $font,
-                    $size,
-                    $matrix,
-                    $options,
-                );
+                $canvas->showRunPieces($segment->run, $segment->pieces, $font, $size, $matrix, $options);
                 $sign = $topDown ? -1.0 : 1.0;
                 if (true === $style->underline) {
-                    $t = $font->underlineThickness($size);
-                    $canvas->fillRect(
+                    $t      = $font->underlineThickness($size);
+                    $bars[] = [
+                        $style->color,
                         $x,
                         $y - ($sign * ($font->underlinePosition($size) - ($t / 2.0)) * -1.0),
                         $segment->width,
                         $sign * $t,
-                    );
+                    ];
                 }
                 if (true === $style->strikeout) {
-                    $t = $font->strikeoutSize($size);
-                    $canvas->fillRect(
+                    $t      = $font->strikeoutSize($size);
+                    $bars[] = [
+                        $style->color,
                         $x,
                         $y - ($sign * ($font->strikeoutPosition($size) - ($t / 2.0)) * -1.0),
                         $segment->width,
                         $sign * $t,
-                    );
+                    ];
                 }
             }
         }
+        $canvas->endText();
+        self::bars($canvas, $bars);
         $canvas->restore();
     }
 
@@ -171,6 +175,22 @@ final class LinePainter
             $right - $left,
             $ascent + $descent,
         );
+    }
+
+    /**
+     * Underlines and strikeouts, drawn after the text object they may not be drawn in, each in the
+     * colour its segment's text was drawn in.
+     *
+     * @param list<array{0: ?ColorInterface, 1: float, 2: float, 3: float, 4: float}> $bars
+     */
+    private static function bars(Canvas $canvas, array $bars): void
+    {
+        foreach ($bars as [$color, $x, $y, $width, $height]) {
+            if (null !== $color) {
+                $canvas->setFillColor($color);
+            }
+            $canvas->fillRect($x, $y, $width, $height);
+        }
     }
 
     /** Whether any of a line's text is linked or matched: most lines have neither. */

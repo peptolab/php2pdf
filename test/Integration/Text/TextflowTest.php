@@ -25,15 +25,17 @@ use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 use Php2Pdf\Text\TextFormat;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\TextShows;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function end;
+use function in_array;
 use function preg_match;
 use function preg_match_all;
-use function preg_quote;
 use function str_repeat;
 use function substr_count;
 
@@ -455,13 +457,15 @@ final class TextflowTest extends TestCase
         $font = $this->doc->fonts()->find('DejaVuSans');
         $bb   = $font->width('bb', 10.0);
         $one2 = $font->width('12', 10.0);
-        self::assertMatchesRegularExpression(
-            '/ ' . preg_quote(self::num(100.0 - $bb), delimiter: '/') . ' [0-9.]+ Td /',
-            $pdf,
-        );
-        self::assertMatchesRegularExpression(
-            '/ ' . preg_quote(self::num(180.0 - $one2), delimiter: '/') . ' [0-9.]+ Td /',
-            $pdf,
+        $xs   = array_map(self::num(...), TextShows::xs($pdf));
+
+        self::assertSame(
+            [true, true],
+            [
+                in_array(self::num(100.0 - $bb), $xs, strict: true),
+                in_array(self::num(180.0 - $one2), $xs, strict: true),
+            ],
+            'The run after the right tab ends at 100 pt; the one after the decimal tab has its point at 180 pt.',
         );
     }
 

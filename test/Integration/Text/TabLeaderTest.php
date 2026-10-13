@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Text;
 
 use Override;
+use Php2Pdf\Core\Num;
 use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -13,6 +14,7 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Text\Style\TabStop;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\TextShows;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -20,8 +22,9 @@ use PHPUnit\Framework\TestCase;
 
 use function ceil;
 use function floor;
-use function preg_match_all;
+use function str_starts_with;
 use function strlen;
+use function substr;
 
 /**
  * Tab leaders (#37). In DejaVu Sans at 10 pt, "a" is 6.13 wide, "bb" 12.7, "abc" 18.6 and the
@@ -94,7 +97,7 @@ final class TabLeaderTest extends TestCase
     }
 
     /**
-     * The x position and glyph bytes of each text object.
+     * The x position and glyph bytes of each run shown as one string.
      *
      * @return list<array{0: string, 1: string}>
      */
@@ -107,15 +110,13 @@ final class TabLeaderTest extends TestCase
         );
         $this->doc->addPage()->fitTextflow($this->doc->textflow($text, $style), new Box(0.0, 0.0, 300.0, 100.0));
         $this->doc->close();
-        $m = [];
-        preg_match_all('/BT (?:\/F1 10 Tf )?([0-9.]+) [0-9.]+ Td \((.*?)\) Tj ET/s', $this->out->contents(), $m);
-        $xs      = $m[1] ?? null;
-        $strings = $m[2] ?? null;
-        self::assertNotNull($xs);
-        self::assertNotNull($strings);
         $out = [];
-        foreach ($xs as $i => $x) {
-            $out[] = [$x, $strings[$i] ?? ''];
+        foreach (TextShows::of($this->out->contents()) as [$x, , $shown]) {
+            if (! str_starts_with($shown, '(')) {
+                continue;
+            }
+
+            $out[] = [Num::format($x, 6), substr($shown, offset: 1, length: -1)];
         }
 
         return $out;
