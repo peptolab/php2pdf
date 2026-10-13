@@ -21,15 +21,13 @@ use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Fit\Placement;
 use Php2Pdf\Geometry\Box;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\StubIccProfile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function str_pad;
-use function str_repeat;
 use function substr_count;
-use function trim;
 
 #[Group('integration')]
 final class PdfXTest extends TestCase
@@ -75,14 +73,6 @@ final class PdfXTest extends TestCase
         );
     }
 
-    private static function profile(string $space): IccProfile
-    {
-        return new IccProfile(
-            str_pad(str_repeat("\0", times: 16) . $space, length: 128, pad_string: "\0"),
-            'test-' . trim($space),
-        );
-    }
-
     /** @param Closure(Canvas, Document): mixed $use */
     #[Test]
     #[DataProvider('colourUseProvider')]
@@ -100,7 +90,7 @@ final class PdfXTest extends TestCase
     public function rejectsRgbWithoutAProfile(): void
     {
         $doc = new Document(new MemoryOutput(), self::options());
-        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39');
+        $doc->setOutputIntent(StubIccProfile::of('CMYK'), 'FOGRA39');
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('RGB profile');
         $doc->addPage(PageSize::A4)->canvas()->setFillColor(Rgb::fromHex('#ff0000'));
@@ -119,7 +109,7 @@ final class PdfXTest extends TestCase
         }
 
         $doc = new Document(new MemoryOutput(), self::options());
-        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39');
+        $doc->setOutputIntent(StubIccProfile::of('CMYK'), 'FOGRA39');
         $doc->addPage(PageSize::A4);
         $this->expectException(PdfException::class);
         $this->expectExceptionMessage('title');
@@ -131,7 +121,7 @@ final class PdfXTest extends TestCase
     {
         $doc  = new Document(new MemoryOutput(), self::options());
         $page = $doc->addPage(PageSize::A4);
-        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39');
+        $doc->setOutputIntent(StubIccProfile::of('CMYK'), 'FOGRA39');
         $page->canvas()
             ->setFillColor(Cmyk::fromPercent(0, 0, 0, 100))
             ->fillRect(0, 0, 10, 10);
@@ -143,9 +133,9 @@ final class PdfXTest extends TestCase
     public function writesTheDeclarationsAndDefaultsPdfX4Needs(): void
     {
         $out = new MemoryOutput();
-        $doc = new Document($out, self::options(self::profile('RGB ')));
+        $doc = new Document($out, self::options(StubIccProfile::of('RGB ')));
         $doc->info()->setTitle('Print job');
-        $doc->setOutputIntent(self::profile('CMYK'), 'FOGRA39', 'Coated FOGRA39 (ISO 12647-2:2004)');
+        $doc->setOutputIntent(StubIccProfile::of('CMYK'), 'FOGRA39', 'Coated FOGRA39 (ISO 12647-2:2004)');
         $page = $doc->addPage(PageSize::A4);
         $page->canvas()
             ->setFillColor(Cmyk::fromPercent(0.0, 100.0, 100.0, 0.0))

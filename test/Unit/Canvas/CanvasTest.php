@@ -14,7 +14,6 @@ use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\GradientStop;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\IccColor;
-use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Color\LinearGradient;
 use Php2Pdf\Color\RadialGradient;
 use Php2Pdf\Color\Rgb;
@@ -26,14 +25,13 @@ use Php2Pdf\Document\DocumentOptions;
 use Php2Pdf\Exception\StateException;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Path;
+use Php2PdfTest\TestAsset\StubIccProfile;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function end;
 use function preg_match_all;
-use function str_pad;
-use function str_repeat;
 use function substr_count;
 
 #[Group('unit')]
@@ -42,11 +40,6 @@ final class CanvasTest extends TestCase
     private MemoryOutput $out;
     private Document $doc;
     private Canvas $canvas;
-
-    private static function fakeProfile(string $space): string
-    {
-        return str_pad(str_repeat("\0", times: 16) . $space, length: 128, pad_string: "\0");
-    }
 
     #[Test]
     public function anArcContinuesAnOpenPathWithALine(): void
@@ -222,7 +215,7 @@ final class CanvasTest extends TestCase
     #[Test]
     public function registersIccColourSpaces(): void
     {
-        $profile = new IccProfile(self::fakeProfile('RGB '), 'test');
+        $profile = StubIccProfile::of('RGB ');
         $this->canvas->setFillColor(new IccColor($profile, 0.1, 0.2, 0.3));
 
         self::assertSame("/CS1 cs 0.1 0.2 0.3 scn\n", $this->content());

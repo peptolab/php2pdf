@@ -8,17 +8,14 @@ use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Color\Gray;
 use Php2Pdf\Color\IccColor;
-use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Color\Lab;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Color\Spot;
+use Php2PdfTest\TestAsset\StubIccProfile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function str_pad;
-use function str_repeat;
 
 #[Group('unit')]
 final class ComponentCountTest extends TestCase
@@ -26,7 +23,7 @@ final class ComponentCountTest extends TestCase
     /** @return array<string, array{0: ColorInterface, 1: int}> */
     public static function colorProvider(): array
     {
-        $profile = new IccProfile(str_pad(str_repeat("\0", times: 16) . 'GRAY', length: 128, pad_string: "\0"));
+        $profile = StubIccProfile::of('GRAY');
 
         return [
             'gray'      => [new Gray(0.5), 1],

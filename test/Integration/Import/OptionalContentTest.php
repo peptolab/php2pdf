@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Php2PdfTest\Integration\Import;
 
-use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
@@ -18,6 +17,7 @@ use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Import\PdfReader;
 use Php2PdfTest\TestAsset\LayeredPdf;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\StubIccProfile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
@@ -26,8 +26,6 @@ use PHPUnit\Framework\TestCase;
 use function array_map;
 use function array_values;
 use function is_array;
-use function str_pad;
-use function str_repeat;
 
 /** Layers of imported pages keep their default state (#21). */
 #[Group('integration')]
@@ -114,7 +112,7 @@ final class OptionalContentTest extends TestCase
     public function leavesAutomaticStatesOutOfPdfX(): void
     {
         $out     = new MemoryOutput();
-        $profile = new IccProfile(str_pad(str_repeat("\0", times: 16) . 'CMYK', length: 128, pad_string: "\0"), 'test');
+        $profile = StubIccProfile::of('CMYK');
         $doc     = new Document($out, new DocumentOptions(
             compress: false,
             pdfx: PdfX::X4,
