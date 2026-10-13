@@ -33,6 +33,7 @@ final class ImportedDocument
         private readonly ColourPolicyInterface $colour,
         public readonly PdfFile $file,
         public readonly HiddenLayers $hiddenLayers = HiddenLayers::Keep,
+        public readonly ImportedAnnotations $annotations = ImportedAnnotations::None,
     ) {
         $this->hidden = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
         $this->copier = new ObjectCopier($file->reader(), $objects, $this->hidden);
@@ -57,13 +58,23 @@ final class ImportedDocument
      */
     public function page(int $number, PageBox $box = PageBox::Crop): ImportedPage
     {
-        return $this->pages["{$number}:{$box->value}"] ??= new ImportedPage(
+        $key  = "{$number}:{$box->value}";
+        $done = $this->pages[$key] ?? null;
+        if (null !== $done) {
+            return $done;
+        }
+        $page = $this->file->page($number);
+
+        return $this->pages[$key] = new ImportedPage(
             $this->objects,
             $this->colour,
             $this->copier,
-            $this->file->page($number),
+            $page,
             $box,
             $this->hidden,
+            ImportedAnnotations::Flatten === $this->annotations
+                ? new AnnotationFlattener($this->file->reader(), $page, $this->hidden)
+                : null,
         );
     }
 

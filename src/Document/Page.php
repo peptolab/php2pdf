@@ -27,6 +27,7 @@ use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
+use Php2Pdf\Import\ImportedPage;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Table\Table;
 use Php2Pdf\Text\FlowOptions;
@@ -237,10 +238,20 @@ final class Page
         return $this->number;
     }
 
-    /** Fits an image, template or imported page into a box on this page. */
+    /**
+     * Fits an image, template or imported page into a box on this page. An imported page whose
+     * annotations are flattened brings its links to web addresses, where it was placed.
+     *
+     * @throws ParseException when an imported page cannot be read
+     */
     public function place(PlaceableInterface $object, Box $box, ?Fit $fit = null): Placement
     {
-        return $this->canvas()->place($object, $box, $fit);
+        $placement = $this->canvas()->place($object, $box, $fit);
+        if ($object instanceof ImportedPage) {
+            $this->importLinks($object, $placement);
+        }
+
+        return $placement;
     }
 
     /** @internal */
@@ -433,6 +444,27 @@ final class Page
         }
 
         return $clamped;
+    }
+
+    /**
+     * Makes links of an imported page's links to web addresses, where it was placed and within
+     * any clip of the placement. PDF/X keeps links out of the printed area, so under it they are
+     * left out.
+     *
+     * @throws ParseException
+     */
+    private function importLinks(ImportedPage $page, Placement $placement): void
+    {
+        if (null !== $this->document->options()->pdfx) {
+            return;
+        }
+        foreach ($page->links() as [$area, $uri]) {
+            $on = $placement->matrix->applyToBox($area);
+            $on = null === $placement->clip ? $on : $on->intersect($placement->clip);
+            if (! $on->isEmpty()) {
+                $this->addLink($on, $uri);
+            }
+        }
     }
 
     /**

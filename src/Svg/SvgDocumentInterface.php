@@ -11,6 +11,7 @@ use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Image\Image;
 use Php2Pdf\Image\ImageOptions;
 use Php2Pdf\Import\HiddenLayers;
+use Php2Pdf\Import\ImportedAnnotations;
 use Php2Pdf\Import\ImportedDocument;
 use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Template\Template;
@@ -27,7 +28,11 @@ interface SvgDocumentInterface
 
     public function imageFromData(string $data, ?ImageOptions $options = null): Image;
 
-    public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument;
+    public function import(
+        PdfFile|string $source,
+        HiddenLayers $hiddenLayers = HiddenLayers::Keep,
+        ImportedAnnotations $annotations = ImportedAnnotations::None,
+    ): ImportedDocument;
 
     public function template(Dimensions $size, ?Origin $origin = null, ?Box $bbox = null): Template;
 }

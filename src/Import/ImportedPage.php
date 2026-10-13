@@ -20,7 +20,9 @@ use Php2Pdf\Geometry\Matrix;
 
 /**
  * A page of an imported PDF wrapped as reusable artwork, bounded by one of its page boxes and
- * honouring its display rotation. Written to the output on first placement.
+ * honouring its display rotation. Written to the output on first placement. With an annotation
+ * flattener, the annotations that print are drawn into it, and its links to web addresses are
+ * there for a page it is placed on to make links of.
  *
  * @api
  */
@@ -43,6 +45,7 @@ final class ImportedPage implements PlaceableInterface
         public readonly PdfPage $page,
         public readonly PageBox $box,
         private readonly ?HiddenContent $hidden = null,
+        private readonly ?AnnotationFlattener $annotations = null,
     ) {
         $this->bounds = $page->box($box);
         $rotation     = Matrix::rotation(-$page->rotation());
@@ -73,6 +76,30 @@ final class ImportedPage implements PlaceableInterface
         $canvas->drawXObject($this->reference, $matrix);
     }
 
+    /**
+     * The page's links to web addresses, by their areas in its own space (as naturalSize()
+     * measures it), within its box; none unless its annotations are flattened.
+     *
+     * @return list<array{0: Box, 1: string}>
+     *
+     * @throws ParseException
+     *
+     * @internal
+     */
+    public function links(): array
+    {
+        $out    = [];
+        $bounds = new Box(0.0, 0.0, $this->size->width, $this->size->height);
+        foreach ($this->annotations?->links() ?? [] as [$rect, $uri]) {
+            $area = $this->matrix->applyToBox($rect)->intersect($bounds);
+            if (! $area->isEmpty()) {
+                $out[] = [$area, $uri];
+            }
+        }
+
+        return $out;
+    }
+
     #[Override]
     public function naturalSize(?float $dpi = null): Dimensions
     {
@@ -82,23 +109,25 @@ final class ImportedPage implements PlaceableInterface
     /** @throws ParseException */
     private function write(): Reference
     {
-        $page = $this->page;
+        $page    = $this->page;
+        $content = $page->content();
+        if (null !== $this->hidden) {
+            $content = $this->hidden->filter($content, $page->resources());
+        }
+        [$resources, $content] = null === $this->annotations
+            ? [$page->resources() ?? new Dictionary(), $content]
+            : $this->annotations->flatten($page->resources(), $content);
         $dict = Dictionary::of([
             'Type'      => new Name('XObject'),
             'Subtype'   => new Name('Form'),
             'FormType'  => 1,
             'BBox'      => $this->bounds->toRect(),
             'Matrix'    => $this->matrix->toArray(),
-            'Resources' => $this->copier->copyDictionary($page->resources() ?? new Dictionary()),
+            'Resources' => $this->copier->copyDictionary($resources),
         ]);
         $group = $page->group();
         if (null !== $group) {
             $dict->set('Group', $this->copier->copyDictionary($group));
-        }
-
-        $content = $page->content();
-        if (null !== $this->hidden) {
-            $content = $this->hidden->filter($content, $page->resources());
         }
 
         return $this->objects->add(new Stream($dict, $content));

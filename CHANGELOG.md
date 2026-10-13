@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Imported pages can bring their annotations (#38): `Document::import($file, annotations:
+  ImportedAnnotations::Flatten)` draws the annotations that print into each page as their
+  appearances, fitted to their rectangles as viewers draw them, wherever the page is placed; links
+  to web addresses come back as links where the page is placed on a page. Annotations that do not
+  print, hidden ones and those in removed layers are left out, as are links within the source.
+  Without the option nothing changes.
+
 ## [0.1.13] - 2026-10-13
 
 ### Added

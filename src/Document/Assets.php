@@ -20,6 +20,7 @@ use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageOptions;
 use Php2Pdf\Image\ImageReader;
 use Php2Pdf\Import\HiddenLayers;
+use Php2Pdf\Import\ImportedAnnotations;
 use Php2Pdf\Import\ImportedDocument;
 use Php2Pdf\Import\OptionalContent;
 use Php2Pdf\Import\PdfFile;
@@ -151,16 +152,25 @@ final class Assets implements CatalogContributorInterface
      * @throws ParseException
      * @throws PermissionException when an encrypted file needs a password or forbids importing
      */
-    public function import(PdfFile|string $source, HiddenLayers $hiddenLayers): ImportedDocument
-    {
-        $key  = self::importKey($source, $hiddenLayers);
+    public function import(
+        PdfFile|string $source,
+        HiddenLayers $hiddenLayers,
+        ImportedAnnotations $annotations,
+    ): ImportedDocument {
+        $key  = self::importKey($source, $hiddenLayers) . "#{$annotations->name}";
         $done = $this->imports[$key] ?? null;
         if (null !== $done) {
             return $done;
         }
         $file = $source instanceof PdfFile ? $source : PdfFile::open($source, $this->options->limits);
 
-        return $this->imports[$key] = new ImportedDocument($this->objects, $this->colour, $file, $hiddenLayers);
+        return $this->imports[$key] = new ImportedDocument(
+            $this->objects,
+            $this->colour,
+            $file,
+            $hiddenLayers,
+            $annotations,
+        );
     }
 
     /**

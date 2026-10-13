@@ -48,6 +48,22 @@ Content marked with a layer that is off by default (directly, or through a membe
 and its visibility policy) is cut from the page and from the forms it draws, and the layer is
 left out of the layers panel. Visible layers stay switchable.
 
+An imported page brings only its content unless its annotations are asked for. Flattening them
+draws the annotations that print (highlights, stamps, the icons of notes, signatures, filled form
+fields) into the page as their appearances, wherever and however it is placed:
+
+```php
+$scan = $doc->import('signed.pdf', annotations: ImportedAnnotations::Flatten);
+$page->place($scan->page(1), $page->trimBox(), Fit::entire());
+```
+
+Annotations that do not print, hidden ones, and those in a layer removed with
+`HiddenLayers::Remove` are left out; one in a layer that stays is drawn in it. Links to web
+addresses come back as links where the page is placed directly on a page, within the placement's
+clip; links within the source document are dropped, as its other pages are not in the output.
+Under PDF/X, which keeps links out of the printed area, imported links are left out. Notes,
+comments and form fields do not stay interactive.
+
 The reader handles classic cross-reference tables, cross-reference streams and object streams,
 chains of incremental updates, and rebuilds the cross-reference by scanning the file when
 offsets are wrong. Flate (with PNG and TIFF predictors), LZW, ASCIIHex, ASCII85 and RunLength
