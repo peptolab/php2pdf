@@ -29,6 +29,7 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `glyphCheck` | `Warn` (`Error` under PDF/X) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `scriptCheck` | `Error` | What text in a script the engine cannot shape yet does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `limits` | `Limits::default()` | Resource limits for the PDFs, images and SVG the document reads |
+| `objectStreams` | `true` | Write objects other than streams a hundred at a time in compressed object streams, with a cross-reference stream: smaller files. Only for compressed output of PDF 1.5 and later |
 
 `Limits` caps what reading a hostile or broken file can cost: `maxDecodedBytes` (256 MiB per
 decompressed stream), `maxImagePixels` (100 million), `maxPages` (100,000 per imported PDF),

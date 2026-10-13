@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Compressed documents of PDF 1.5 and later are written with object streams and a cross-reference
+  stream (#38): objects other than streams (pages, font and image dictionaries, annotations...)
+  go a hundred at a time into a compressed object stream, and the cross-reference is a compressed
+  stream. Files are 8 to 18% smaller for text and tables, and half the size for imported pages
+  (500 pages of text: 570 to 469 KiB). `DocumentOptions::$objectStreams` turns it off; uncompressed
+  output and PDF 1.4 keep the cross-reference table.
+
 ## [0.1.11] - 2026-10-13
 
 ### Added
