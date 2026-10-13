@@ -14,10 +14,15 @@ use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PermissionException;
+use Php2Pdf\Import\Security\StandardSecurity;
+use SensitiveParameter;
 
 use function array_key_exists;
 use function array_keys;
 use function count;
+use function is_array;
+use function is_string;
 use function preg_match;
 use function str_contains;
 use function substr;
@@ -25,7 +30,10 @@ use function substr;
 /**
  * Reads an existing PDF: objects are parsed on demand from the cross-reference (tables, streams,
  * object streams, chains of incremental updates) and cached. When offsets are wrong the
- * cross-reference is rebuilt by scanning the file.
+ * cross-reference is rebuilt by scanning the file. An encrypted file is opened with the standard
+ * security handler and its objects decrypted as they are parsed: the strings and streams of each,
+ * but not the /Encrypt dictionary, cross-reference streams, the objects inside object streams
+ * (their stream is decrypted whole) or metadata the file leaves in clear.
  *
  * @internal
  */
@@ -48,10 +56,20 @@ final class PdfReader
 
     private bool $repaired = false;
 
-    /** @throws ParseException */
+    private ?StandardSecurity $security = null;
+
+    /** The /Encrypt dictionary's object number, which is never encrypted. */
+    private int $encryptNumber = 0;
+
+    /**
+     * @throws ParseException
+     * @throws PermissionException when the file needs a password it was not given
+     */
     private function __construct(
         string $data,
         private readonly Limits $limits,
+        #[SensitiveParameter]
+        string $password,
     ) {
         $this->lexer      = new Lexer($data);
         $this->parser     = new ObjectParser($this->lexer, $this->resolve(...), $limits->maxObjectNesting);
@@ -71,27 +89,39 @@ final class PdfReader
             $this->repair();
         }
         if ($this->xref->trailer->has('Encrypt')) {
-            throw new ParseException('Encrypted PDF files are not supported.');
+            $this->unlock($password);
         }
     }
 
-    /** @throws ParseException */
-    public static function fromData(string $data, ?Limits $limits = null): self
-    {
+    /**
+     * @throws ParseException
+     * @throws PermissionException when the file needs a password it was not given
+     */
+    public static function fromData(
+        string $data,
+        ?Limits $limits = null,
+        #[SensitiveParameter]
+        string $password = '',
+    ): self {
         if (! str_contains(substr($data, offset: 0, length: 1024), '%PDF-')) {
             throw new ParseException('Not a PDF file.');
         }
 
-        return new self($data, $limits ?? Limits::default());
+        return new self($data, $limits ?? Limits::default(), $password);
     }
 
     /**
      * @throws IoException
      * @throws ParseException
+     * @throws PermissionException when the file needs a password it was not given
      */
-    public static function fromFile(string $path, ?Limits $limits = null): self
-    {
-        return self::fromData(FileReader::read($path, 'PDF file'), $limits);
+    public static function fromFile(
+        string $path,
+        ?Limits $limits = null,
+        #[SensitiveParameter]
+        string $password = '',
+    ): self {
+        return self::fromData(FileReader::read($path, 'PDF file'), $limits, $password);
     }
 
     /** @throws ParseException */
@@ -138,6 +168,12 @@ final class PdfReader
             $value instanceof Stream => $value->dictionary,
             default => null,
         };
+    }
+
+    /** Whether the file's permissions forbid copying its content or assembling its pages elsewhere. */
+    public function forbidsImport(): bool
+    {
+        return $this->security?->forbidsImport() ?? false;
     }
 
     /**
@@ -329,12 +365,18 @@ final class PdfReader
         }
         try {
             $this->lexer->seek($offset);
-            [$number, , $object] = $this->parser->parseIndirect();
+            [$number, $generation, $object] = $this->parser->parseIndirect();
+            if ($number !== $expected) {
+                return null;
+            }
+            $security = $this->security;
+
+            return null === $security || $number === $this->encryptNumber
+                ? $object
+                : $security->object($object, $number, $generation);
         } catch (ExceptionInterface) {
             return null;
         }
-
-        return $number === $expected ? $object : null;
     }
 
     /** Parses one object of an object stream, or null when it is broken, as a broken object in the file is. */
@@ -389,5 +431,32 @@ final class PdfReader
         }
 
         return $out;
+    }
+
+    /**
+     * Opens the file's encryption with a password; objects parsed before it, while finding the
+     * catalog in a damaged file, are parsed again decrypted.
+     *
+     * @throws ParseException
+     * @throws PermissionException when the password does not open the file
+     */
+    private function unlock(#[SensitiveParameter] string $password): void
+    {
+        $encrypt             = $this->xref->trailer->get('Encrypt');
+        $this->encryptNumber = $encrypt instanceof Reference ? $encrypt->id : 0;
+        $dictionary          = $this->resolve($encrypt);
+        if (! $dictionary instanceof Dictionary) {
+            throw new ParseException('The /Encrypt entry of this PDF is not a dictionary.');
+        }
+        $id             = $this->xref->trailer->get('ID');
+        $first          = is_array($id) ? $id[0] ?? '' : '';
+        $this->security = StandardSecurity::open(
+            $this->resolveDictionary($dictionary),
+            is_string($first) ? $first : '',
+            $password,
+        );
+        if ($this->repaired) {
+            $this->repair();
+        }
     }
 }

@@ -45,6 +45,12 @@ final class PdfReaderTest extends TestCase
     }
 
     #[Test]
+    public function anOffsetAtAnotherObjectIsRepaired(): void
+    {
+        self::assertSame(1, count(PdfReader::fromData(CrossReferencePdf::offsetsSwapped())->pages()));
+    }
+
+    #[Test]
     public function anOffsetPastTheEndOfTheFileIsRepaired(): void
     {
         self::assertSame(1, count(PdfReader::fromData(CrossReferencePdf::offsetPastTheEnd())->pages()));

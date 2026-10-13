@@ -22,7 +22,8 @@
     "suggest": {
         "ext-gd": "Lets images in formats other than JPEG and PNG (GIF, WebP, BMP) be placed by transcoding them.",
         "ext-intl": "Normalises text and finds its script before shaping, as HarfBuzz does; needed for right-to-left text.",
-        "ext-imagick": "Preferred over ext-gd for transcoding other image formats; also keeps ICC profiles."
+        "ext-imagick": "Preferred over ext-gd for transcoding other image formats; also keeps ICC profiles.",
+        "ext-openssl": "Imports PDFs encrypted with AES (AES-128 and AES-256)."
     },
     "autoload": {
         "psr-4": {

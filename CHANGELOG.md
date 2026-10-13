@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Encrypted PDFs can be imported (#38): the standard security handler, revisions 2 to 6 (RC4 40 and
+  128-bit, AES-128, and AES-256, which need the openssl extension). Files without a user password
+  open as they are; `PdfFile::open($path, password: ...)` opens the others with their user or
+  owner password. A file whose permissions forbid copying its content or assembling its pages is
+  refused unless it is opened with its owner password or `ignorePermissions: true` (as PDFlib's
+  `shrug`). Both refusals throw the new `PermissionException`.
+
 ## [0.1.12] - 2026-10-13
 
 ### Changed

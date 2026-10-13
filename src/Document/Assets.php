@@ -14,6 +14,7 @@ use Php2Pdf\Core\Objects;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\PermissionException;
 use Php2Pdf\Image\Image;
 use Php2Pdf\Image\ImageData;
 use Php2Pdf\Image\ImageOptions;
@@ -148,6 +149,7 @@ final class Assets implements CatalogContributorInterface
      *
      * @throws IoException
      * @throws ParseException
+     * @throws PermissionException when an encrypted file needs a password or forbids importing
      */
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers): ImportedDocument
     {

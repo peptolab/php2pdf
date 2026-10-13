@@ -82,6 +82,7 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `open_pdi_document`, `open_pdi_page` | `$doc->import('layout.ai')->page(1)` (`PageBox::Trim` for another box) |
 | `fit_pdi_page` | `$page->place($importedPage, $box, Fit::entire())` |
 | `pdi_info` geometry | `PdfFile::open($file)->page(1)->trimBox()` and so on |
+| `open_pdi_document` with `password=`, `shrug=true` | `PdfFile::open($file, password: '...', ignorePermissions: true)` |
 | Hidden layers in imported pages | Kept off; `$doc->import($file, HiddenLayers::Remove)` removes them |
 
 ## Graphics and colour
@@ -111,5 +112,5 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 ## Not there yet
 
 Mark positioning, right-to-left and complex scripts, tagged PDF,
-PDF/A, forms and annotations other than links, and encryption: see
+PDF/A, forms and annotations other than links, and writing encrypted files: see
 [limitations.md](limitations.md) and the issue tracker.

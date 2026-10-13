@@ -23,6 +23,7 @@ use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PermissionException;
 use Php2Pdf\Exception\StateException;
 use Php2Pdf\Flow\FlowableInterface;
 use Php2Pdf\Flow\FlowResult;
@@ -300,6 +301,7 @@ final class Document implements SvgDocumentInterface
      *
      * @throws IoException
      * @throws ParseException
+     * @throws PermissionException when an encrypted file needs a password or forbids importing
      */
     #[Override]
     public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument

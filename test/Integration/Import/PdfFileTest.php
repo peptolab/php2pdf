@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2PdfTest\Integration\Import;
 
 use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\PermissionException;
 use Php2Pdf\Import\PageBox;
 use Php2Pdf\Import\PdfFile;
 use Php2PdfTest\TestAsset\PdfTools;
@@ -24,6 +25,14 @@ final class PdfFileTest extends TestCase
         yield 'linearized' => ['linearized.pdf'];
         yield 'incremental update' => ['incremental.pdf'];
         yield 'broken startxref (repair)' => ['broken-xref.pdf'];
+    }
+
+    #[Test]
+    public function anEncryptedFileWithAUserPasswordNeedsIt(): void
+    {
+        $this->expectException(PermissionException::class);
+        $this->expectExceptionMessage('This PDF needs a password');
+        PdfFile::open(PdfTools::assetPath('pdf/encrypted.pdf'));
     }
 
     #[Test]
@@ -68,14 +77,6 @@ final class PdfFileTest extends TestCase
         self::assertStringContainsString('/X1 Do', $page->content());
         self::assertStringContainsString('BT /F1 16 Tf', $page->content());
         self::assertSame('PhpPdf', $pdf->info()['Author'] ?? null);
-    }
-
-    #[Test]
-    public function rejectsEncryptedFiles(): void
-    {
-        $this->expectException(PdfException::class);
-        $this->expectExceptionMessage('Encrypted');
-        PdfFile::open(PdfTools::assetPath('pdf/encrypted.pdf'));
     }
 
     #[Test]

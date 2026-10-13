@@ -8,6 +8,7 @@ use Override;
 use Php2Pdf\Exception\ExceptionInterface;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
+use Php2Pdf\Exception\PermissionException;
 use Php2Pdf\Import\ImportedPage;
 use Php2Pdf\Import\PdfFile;
 
@@ -34,6 +35,7 @@ final class RsvgConverter implements SvgConverterInterface
     /**
      * @throws IoException
      * @throws ParseException
+     * @throws PermissionException when an encrypted file needs a password or forbids importing
      */
     #[Override]
     public function convert(SvgFile $svg, SvgDocumentInterface $document): ImportedPage
