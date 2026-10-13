@@ -17,21 +17,20 @@ use Php2Pdf\Font\OpenType\Cff\CffTable;
 use Php2Pdf\Font\OpenType\OpenTypeFont;
 use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
 
-use function array_keys;
 use function array_map;
 use function chr;
-use function count;
 use function implode;
 use function md5;
 use function ord;
 use function round;
-use function sort;
 use function sprintf;
 use function strlen;
 
 /**
  * Writes an embedded font as a PDF Type 0 font: the font program subset to the glyphs a document
- * used, its descriptor and widths, and the ToUnicode map its text is copied with.
+ * used, its descriptor and widths, and the ToUnicode map its text is copied with. The glyphs are
+ * renumbered in the order of the codes the document wrote them with, so a code is the subset's
+ * glyph id (and CID) and the subset holds only the glyphs used.
  *
  * @internal
  */
@@ -52,19 +51,19 @@ final readonly class Type0FontWriter
     /**
      * Writes the font at its reference.
      *
-     * @param array<int, true>      $used      the glyphs the document used
-     * @param array<int, list<int>> $toUnicode the text each glyph stands for
+     * @param list<int>             $glyphs    the glyph each code stands for, by code; code 0 is .notdef
+     * @param array<int, list<int>> $toUnicode the text each code stands for
      *
      * @throws ParseException
      */
-    public function write(Reference $reference, array $used, array $toUnicode): void
+    public function write(Reference $reference, array $glyphs, array $toUnicode): void
     {
         $writer   = $this->objects;
         $program  = $this->program;
-        $baseFont = "{$this->subsetTag($used)}+{$program->postScriptName()}";
+        $baseFont = "{$this->subsetTag($glyphs)}+{$program->postScriptName()}";
         $cff      = $program->isCff;
 
-        $fontFile = $cff ? $this->cffStream($used) : $this->subsetStream($used);
+        $fontFile = $cff ? $this->cffStream($glyphs) : $this->subsetStream($glyphs);
 
         $descriptor = $writer->add(Dictionary::of([
             'Type'                           => new Name('FontDescriptor'),
@@ -90,7 +89,7 @@ final readonly class Type0FontWriter
             'CIDSystemInfo'  => Dictionary::of(['Registry' => 'Adobe', 'Ordering' => 'Identity', 'Supplement' => 0]),
             'FontDescriptor' => $descriptor,
             'DW'             => 1000,
-            'W'              => $this->widths($used),
+            'W'              => [0, array_map($this->advance, $glyphs)],
             'CIDToGIDMap'    => $cff ? null : new Name('Identity'),
         ]));
         $toUnicodeRef = $writer->add(Stream::of(ToUnicode::build($toUnicode)));
@@ -111,14 +110,14 @@ final readonly class Type0FontWriter
      * converted to CFF at their default instance first; when that fails the font cannot be used,
      * since few readers draw CFF2.
      *
-     * @param array<int, true> $used
+     * @param list<int> $glyphs by code
      *
      * @throws ParseException
      */
-    private function cffStream(array $used): Reference
+    private function cffStream(array $glyphs): Reference
     {
         try {
-            $data    = CffSubsetter::subsetTable($this->cffTable(), $used);
+            $data    = CffSubsetter::subsetTable($this->cffTable(), $glyphs);
             $subtype = 'CIDFontType0C';
         } catch (PdfException $e) {
             if (null === $this->program->table('CFF ')) {
@@ -185,66 +184,31 @@ final readonly class Type0FontWriter
     /**
      * The TrueType outlines subset to the glyphs used.
      *
-     * @param array<int, true> $used
+     * @param list<int> $glyphs by code
      *
      * @throws ParseException
      */
-    private function subsetStream(array $used): Reference
+    private function subsetStream(array $glyphs): Reference
     {
-        $data = TrueTypeSubsetter::subset($this->program, $used);
+        $data = TrueTypeSubsetter::subset($this->program, $glyphs);
 
         return $this->objects->add(new Stream(Dictionary::of(['Length1' => strlen($data)]), $data));
     }
 
     /**
-     * Six uppercase letters derived from the glyph set, so identical input yields identical tags.
+     * Six uppercase letters derived from the glyphs in code order, so identical input yields
+     * identical tags.
      *
-     * @param array<int, true> $used
+     * @param list<int> $glyphs
      */
-    private function subsetTag(array $used): string
+    private function subsetTag(array $glyphs): string
     {
-        $ids = array_keys($used);
-        sort($ids);
-        $hash = md5($this->program->postScriptName() . ':' . implode(',', $ids), binary: true);
+        $hash = md5($this->program->postScriptName() . ':' . implode(',', $glyphs), binary: true);
         $tag  = '';
         for ($i = 0; $i < 6; ++$i) {
             $tag .= chr(65 + (ord($hash[$i]) % 26));
         }
 
         return $tag;
-    }
-
-    /**
-     * The W array: runs of consecutive glyph ids with their widths.
-     *
-     * @param array<int, true> $used
-     *
-     * @return list<int|list<int>>
-     */
-    private function widths(array $used): array
-    {
-        $ids = array_keys($used);
-        sort($ids);
-
-        /** @var list<array{0: int, 1: list<int>}> $runs */
-        $runs = [];
-        $prev = null;
-        foreach ($ids as $id) {
-            $continues = null !== $prev && $id === ($prev + 1) && [] !== $runs;
-            $prev      = $id;
-            if ($continues) {
-                $runs[count($runs) - 1][1][] = ($this->advance)($id);
-                continue;
-            }
-            $runs[] = [$id, [($this->advance)($id)]];
-        }
-
-        $w = [];
-        foreach ($runs as [$start, $advances]) {
-            $w[] = $start;
-            $w[] = $advances;
-        }
-
-        return $w;
     }
 }

@@ -92,7 +92,7 @@ final class FontTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString(
-            "2 beginbfchar\n<0044> <0061>\n<0045> <0062>\nendbfchar",
+            "2 beginbfchar\n<0001> <0061>\n<0002> <0062>\nendbfchar",
             $this->out->contents(),
             'Only a and b are mapped; the missing character is not.',
         );
@@ -262,11 +262,11 @@ final class FontTest extends TestCase
         $pdf = $this->out->contents();
 
         self::assertStringContainsString(
-            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x00\x24) 53.96 (\x00\x39) -10] TJ ET",
+            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x00\x01) 53.96 (\x00\x02) -10] TJ ET",
             $pdf,
         );
         self::assertStringContainsString(
-            "BT 0 Tc 1 Tr 10 40 Td [(\x00\x25\x00\x03) -500 (\x00\x26)] TJ ET",
+            "BT 0 Tc 1 Tr 10 40 Td [(\x00\x03\x00\x04) -500 (\x00\x05)] TJ ET",
             $pdf,
             'Only the text state that changed is set again, including back to its default.',
         );
@@ -276,14 +276,14 @@ final class FontTest extends TestCase
         );
         self::assertStringContainsString('/Subtype/CIDFontType2', $pdf);
         self::assertStringContainsString('/CIDToGIDMap/Identity', $pdf);
-        self::assertStringContainsString('/DW 1000/W[0 [600] 3 [318] 36 [684 686 698] 57 [684]]', $pdf);
+        self::assertStringContainsString('/DW 1000/W[0 [600 684 684 686 318 698]]', $pdf);
         self::assertStringContainsString(
             '/Flags 32/FontBBox[-1021 -463 1793 1232]/ItalicAngle 0/Ascent 928/Descent -236/CapHeight 729',
             $pdf,
         );
         self::assertStringContainsString('/Length1 ', $pdf);
         self::assertStringContainsString(
-            "5 beginbfchar\n<0003> <0020>\n<0024> <0041>\n<0025> <0042>\n<0026> <0043>\n<0039> <0056>\nendbfchar",
+            "5 beginbfchar\n<0001> <0041>\n<0002> <0056>\n<0003> <0042>\n<0004> <0020>\n<0005> <0043>\nendbfchar",
             $pdf,
         );
     }

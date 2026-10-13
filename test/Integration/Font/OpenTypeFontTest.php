@@ -16,13 +16,11 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
-use function array_keys;
 use function chmod;
 use function copy;
 use function file_get_contents;
 use function is_file;
 use function is_readable;
-use function max;
 use function pack;
 use function realpath;
 use function str_repeat;
@@ -111,17 +109,6 @@ final class OpenTypeFontTest extends TestCase
     public function aColourGlyphHasItsLayersInTheirOrder(): void
     {
         self::assertSame([[5, 0], [4, 1], [2, 0xFFFF]], self::parsed('PhpPdfColourTest.ttf')->colourLayers(2));
-    }
-
-    /** À is taken after the A it is built from, so its A is already kept. */
-    #[Test]
-    public function aComponentAlsoUsedOnItsOwnIsKeptOnce(): void
-    {
-        $font   = self::dejaVu();
-        $a      = $font->glyphId(0x41);
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [$font->glyphId(0xC0) => true, $a => true]));
-
-        self::assertSame($font->glyphData($a), $subset->glyphData($a));
     }
 
     #[Test]
@@ -275,11 +262,11 @@ final class OpenTypeFontTest extends TestCase
     public function subsetsKeepLeftSideBearings(): void
     {
         $font   = self::dejaVu();
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [77 => true, 82 => true]));
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, 77, 82]));
 
         self::assertSame(
             [$font->leftSideBearing(77), $font->leftSideBearing(82)],
-            [$subset->leftSideBearing(77), $subset->leftSideBearing(82)],
+            [$subset->leftSideBearing(1), $subset->leftSideBearing(2)],
             'Renderers position outlines by the bearing; zeroes shift every glyph by its own bearing.',
         );
     }
@@ -288,21 +275,23 @@ final class OpenTypeFontTest extends TestCase
     public function subsetsToUsedGlyphsAndStaysParseable(): void
     {
         $font   = self::dejaVu();
-        $used   = [$font->glyphId(0x41) => true, $font->glyphId(0xC0) => true, $font->glyphId(0x20AC) => true];
-        $data   = TrueTypeSubsetter::subset($font, $used);
+        $a      = $font->glyphId(0x41);
+        $grave  = $font->componentGlyphs($font->glyphId(0xC0))[1] ?? 0;
+        $data   = TrueTypeSubsetter::subset($font, [0, $a, $font->glyphId(0xC0), $font->glyphId(0x20AC)]);
         $subset = OpenTypeFont::fromData($data);
 
-        self::assertLessThan(strlen($font->data()) / 4, strlen($data));
-        self::assertSame($font->unitsPerEm, $subset->unitsPerEm);
-        $highest = max([...array_keys($used), ...$font->componentGlyphs($font->glyphId(0xC0))]);
-        self::assertSame($highest + 1, $subset->numGlyphs);
-        self::assertSame($font->advance(36), $subset->advance(36));
-        self::assertSame($font->glyphData(36), $subset->glyphData(36));
-        // The accent component of À was pulled in; an unused glyph is empty.
-        foreach ($font->componentGlyphs($font->glyphId(0xC0)) as $component) {
-            self::assertSame($font->glyphData($component), $subset->glyphData($component));
-        }
-        self::assertSame('', $subset->glyphData($font->glyphId(0x42)));
+        self::assertLessThan(strlen($font->data()) / 20, strlen($data));
+        self::assertSame(
+            [$font->unitsPerEm, 5, $font->advance($a), $font->glyphData($a), $font->glyphData($grave)],
+            [
+                $subset->unitsPerEm,
+                $subset->numGlyphs,
+                $subset->advance(1),
+                $subset->glyphData(1),
+                $subset->glyphData(4),
+            ],
+            'The four glyphs asked for, then the grave accent À is built from, which was not.',
+        );
         self::assertSame(0, self::checksum($data), 'Whole-font checksum must come out as 0xB1B0AFBA.');
     }
 
