@@ -130,7 +130,7 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
             'BaseFont'  => new Name($this->font->value),
             'Encoding'  => null === $encoding ? null : new Name($encoding),
             'ToUnicode' => null === $encoding && [] !== $this->text->map()
-                ? $writer->add(Stream::of(ToUnicode::build($this->text->map(), 1)))
+                ? $writer->add(Stream::of(ToUnicode::build($this->text->map())))
                 : null,
         ]));
     }

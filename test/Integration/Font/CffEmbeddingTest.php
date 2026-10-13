@@ -87,7 +87,7 @@ final class CffEmbeddingTest extends TestCase
             '/Subtype/CIDFontType0/',
             '/FontFile3',
             '/Subtype/CIDFontType0C',
-            '/Encoding/Identity-H',
+            '/Type/CMap/CMapName/Php2Pdf-Compact-H',
         ] as $expected) {
             self::assertStringContainsString($expected, $pdf);
         }

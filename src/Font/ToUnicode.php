@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Font;
 
+use Closure;
+
 use function array_chunk;
 use function count;
 use function implode;
@@ -11,7 +13,7 @@ use function ksort;
 use function sprintf;
 
 /**
- * Builds a ToUnicode CMap mapping 2-byte glyph ids to UTF-16BE text, so copied text is right; a
+ * Builds a ToUnicode CMap mapping a font's codes to UTF-16BE text, so copied text is right; a
  * ligature maps to all the characters it stands for.
  *
  * @internal
@@ -19,21 +21,57 @@ use function sprintf;
 final class ToUnicode
 {
     /**
-     * @param array<int, int|list<int>> $glyphToCodePoint glyph id (or code) => code point, or the
-     *                                                  code points of a ligature
-     * @param int             $bytes            the length of the codes: 2 for glyph ids, 1 for simple fonts
+     * For a simple font: one-byte codes.
+     *
+     * @param array<int, int|list<int>> $codeToCodePoint code => code point, or the code points of a ligature
      */
-    public static function build(array $glyphToCodePoint, int $bytes = 2): string
+    public static function build(array $codeToCodePoint): string
     {
-        $format = 1 === $bytes ? '<%02X> <%s>' : '<%04X> <%s>';
-        ksort($glyphToCodePoint);
+        return self::cmap(
+            $codeToCodePoint,
+            static fn(int $code): string => sprintf('%02X', $code),
+            "1 begincodespacerange\n<00> <FF>\nendcodespacerange\n",
+        );
+    }
+
+    /**
+     * For an embedded font: codes written in its CodeSpace.
+     *
+     * @param array<int, int|list<int>> $codeToCodePoint code => code point, or the code points of a ligature
+     */
+    public static function compact(array $codeToCodePoint): string
+    {
+        return self::cmap($codeToCodePoint, CodeSpace::hex(...), CodeSpace::codeSpaceRanges());
+    }
+
+    /**
+     * For an embedded font with more glyphs than the compact codes reach: two-byte codes.
+     *
+     * @param array<int, int|list<int>> $codeToCodePoint code => code point, or the code points of a ligature
+     */
+    public static function twoByte(array $codeToCodePoint): string
+    {
+        return self::cmap(
+            $codeToCodePoint,
+            static fn(int $code): string => sprintf('%04X', $code),
+            "1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n",
+        );
+    }
+
+    /**
+     * @param array<int, int|list<int>> $codeToCodePoint
+     * @param Closure(int): string      $hex             a code as hexadecimal digits
+     */
+    private static function cmap(array $codeToCodePoint, Closure $hex, string $codeSpace): string
+    {
+        ksort($codeToCodePoint);
         $entries = [];
-        foreach ($glyphToCodePoint as $glyph => $codePoint) {
-            $hex = '';
+        foreach ($codeToCodePoint as $code => $codePoint) {
+            $text = '';
             foreach ((array) $codePoint as $point) {
-                $hex .= self::utf16Hex($point);
+                $text .= self::utf16Hex($point);
             }
-            $entries[] = sprintf($format, $glyph, $hex);
+            $entries[] = "<{$hex($code)}> <{$text}>";
         }
 
         $blocks = '';
@@ -50,9 +88,7 @@ final class ToUnicode
                 . "/CIDSystemInfo <</Registry (Adobe) /Ordering (UCS) /Supplement 0>> def\n"
                 . "/CMapName /Adobe-Identity-UCS def\n"
                 . "/CMapType 2 def\n"
-                . "1 begincodespacerange\n"
-                . (1 === $bytes ? '<00> <FF>' : '<0000> <FFFF>')
-                . "\nendcodespacerange\n"
+                . $codeSpace
                 . "{$blocks}endcmap\n"
                 . "CMapName currentdict /CMap defineresource pop\n"
                 . "end\nend\n"

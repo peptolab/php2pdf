@@ -51,7 +51,8 @@ final class TabLeaderTest extends TestCase
         $leader  = $texts[1] ?? ['', ''];
         $repeats = (int) floor((87.3 - (ceil(6.13 / $unit) * $unit)) / $unit);
 
-        self::assertSame(2 * $repeats, strlen($leader[1]) / 2);
+        // The font's first glyphs are written with one byte each.
+        self::assertSame(2 * $repeats, strlen($leader[1]));
     }
 
     /** @param list<array{0: string, 1: int}> $expected */
@@ -64,7 +65,7 @@ final class TabLeaderTest extends TestCase
             if ('0' === $x || '87.3' === $x) {
                 continue;
             }
-            $leaders[] = [$x, strlen($bytes) / 2];
+            $leaders[] = [$x, strlen($bytes)];
         }
 
         self::assertSame($expected, $leaders);

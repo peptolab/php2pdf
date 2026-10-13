@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Embedded fonts write the first 192 glyphs a document uses with one byte each and the rest with
+  two, through an encoding CMap the document's fonts share, instead of two bytes a glyph with
+  Identity-H: a document of several pages is about a tenth smaller, and a one-page one a few
+  hundred bytes larger. Fonts with more than 16,576 glyphs keep Identity-H.
+
 ## [0.1.9] - 2026-10-13
 
 ### Changed

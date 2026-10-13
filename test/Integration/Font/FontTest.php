@@ -71,9 +71,9 @@ final class FontTest extends TestCase
     #[Test]
     public function buildsSurrogatePairsInToUnicode(): void
     {
-        $cmap = ToUnicode::build([3 => 0x41, 5 => 0x1_F600]);
+        $cmap = ToUnicode::compact([3 => 0x41, 5 => 0x1_F600]);
 
-        self::assertStringContainsString("2 beginbfchar\n<0003> <0041>\n<0005> <D83DDE00>\nendbfchar", $cmap);
+        self::assertStringContainsString("2 beginbfchar\n<03> <0041>\n<05> <D83DDE00>\nendbfchar", $cmap);
     }
 
     #[Test]
@@ -92,7 +92,7 @@ final class FontTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString(
-            "2 beginbfchar\n<0001> <0061>\n<0002> <0062>\nendbfchar",
+            "2 beginbfchar\n<01> <0061>\n<02> <0062>\nendbfchar",
             $this->out->contents(),
             'Only a and b are mapped; the missing character is not.',
         );
@@ -262,16 +262,16 @@ final class FontTest extends TestCase
         $pdf = $this->out->contents();
 
         self::assertStringContainsString(
-            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x00\x01) 53.96 (\x00\x02) -10] TJ ET",
+            "BT /F1 12 Tf 1 Tc 10 20 Td [(\x01) 53.96 (\x02) -10] TJ ET",
             $pdf,
         );
         self::assertStringContainsString(
-            "BT 0 Tc 1 Tr 10 40 Td [(\x00\x03\x00\x04) -500 (\x00\x05)] TJ ET",
+            "BT 0 Tc 1 Tr 10 40 Td [(\x03\x04) -500 (\x05)] TJ ET",
             $pdf,
             'Only the text state that changed is set again, including back to its default.',
         );
         self::assertMatchesRegularExpression(
-            '/\/Subtype\/Type0\/BaseFont\/[A-Z]{6}\+DejaVuSans\/Encoding\/Identity-H/',
+            '/\/Subtype\/Type0\/BaseFont\/[A-Z]{6}\+DejaVuSans\/Encoding \d+ 0 R/',
             $pdf,
         );
         self::assertStringContainsString('/Subtype/CIDFontType2', $pdf);
@@ -283,7 +283,7 @@ final class FontTest extends TestCase
         );
         self::assertStringContainsString('/Length1 ', $pdf);
         self::assertStringContainsString(
-            "5 beginbfchar\n<0001> <0041>\n<0002> <0056>\n<0003> <0042>\n<0004> <0020>\n<0005> <0043>\nendbfchar",
+            "5 beginbfchar\n<01> <0041>\n<02> <0056>\n<03> <0042>\n<04> <0020>\n<05> <0043>\nendbfchar",
             $pdf,
         );
     }
