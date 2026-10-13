@@ -25,8 +25,9 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `xmp` | `true` | Write an XMP metadata packet |
 | `topDown` | `false` | Default coordinate origin of pages |
 | `pdfx` | `null` | Write to a PDF/X level (see [navigation-and-pdfx.md](navigation-and-pdfx.md)) |
+| `pdfa` | `null` | Write to a PDF/A level, alone or with PDF/X (see [navigation-and-pdfx.md](navigation-and-pdfx.md#pdfa)) |
 | `rgbProfile` | `null` | An ICC profile RGB colours are interpreted in |
-| `glyphCheck` | `Warn` (`Error` under PDF/X) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
+| `glyphCheck` | `Warn` (`Error` under PDF/X or PDF/A) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `scriptCheck` | `Error` | What text in a script the engine cannot shape yet does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `limits` | `Limits::default()` | Resource limits for the PDFs, images and SVG the document reads |
 | `objectStreams` | `true` | Write objects other than streams a hundred at a time in compressed object streams, with a cross-reference stream: smaller files. Only for compressed output of PDF 1.5 and later |
@@ -88,7 +89,7 @@ handle them all. Each is also one of PHP's own exceptions, so it can be caught b
 | `PdfException` | `\RuntimeException` | something fails at run time; its kinds below say what |
 | `ParseException` | `PdfException` | an input file or markup is malformed, unsupported, or over a resource limit |
 | `IoException` | `PdfException` | a file cannot be read or written, or a tool cannot be run |
-| `ConformanceException` | `PdfException` | the document would break the rules of the standard it declares (PDF/X-4) |
+| `ConformanceException` | `PdfException` | the document would break the rules of the standard it declares (PDF/X-4, PDF/A) |
 | `LayoutException` | `PdfException` | content cannot be laid out where it was asked to go |
 
 Methods that read files say so with `@throws ParseException` and `@throws IoException`, and the

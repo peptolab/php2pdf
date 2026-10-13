@@ -23,8 +23,10 @@ use function mb_convert_encoding;
 use function mkdir;
 use function pathinfo;
 use function preg_match;
+use function preg_match_all;
 use function proc_close;
 use function proc_open;
+use function str_contains;
 use function stream_get_contents;
 use function strpos;
 use function strtoupper;
@@ -34,6 +36,7 @@ use function trim;
 use const PATH_SEPARATOR;
 use const PATHINFO_FILENAME;
 use const PHP_OS_FAMILY;
+use const PREG_SET_ORDER;
 
 /**
  * Wraps the external validators (qpdf, poppler, and macOS's own PDF renderer through sips) used
@@ -254,6 +257,42 @@ final class PdfTools
     public static function textInReadingOrder(string $path, int $page = 1): string
     {
         return self::pdftotext($path, $page, '-raw');
+    }
+
+    /**
+     * The PDF/A rules veraPDF finds a file breaks, as "clause-test: description"; none for a
+     * compliant file. $flavour is the part and level, such as 2b or 3b. Skips when veraPDF is
+     * not installed.
+     *
+     * @return list<string>
+     */
+    public static function veraPdf(string $path, string $flavour): array
+    {
+        if (null === self::which('verapdf')) {
+            Assert::markTestSkipped('veraPDF is not installed.');
+        }
+        [, $output] = self::run(['verapdf', '-f', $flavour, '--format', 'mrr', $path]);
+        Assert::assertStringContainsString(
+            '<validationReport',
+            $output,
+            "veraPDF did not validate {$path}:\n{$output}",
+        );
+        $rules = [];
+        preg_match_all(
+            '#<rule [^>]*clause="([^"]+)" testNumber="(\d+)" status="failed"[^>]*>\s*<description>([^<]*)</description>#',
+            $output,
+            $rules,
+            PREG_SET_ORDER,
+        );
+        $failed = [];
+        foreach ($rules as $rule) {
+            $failed[] = ($rule[1] ?? '') . '-' . ($rule[2] ?? '') . ': ' . ($rule[3] ?? '');
+        }
+        if ([] === $failed && ! str_contains($output, 'isCompliant="true"')) {
+            $failed[] = 'not compliant';
+        }
+
+        return $failed;
     }
 
     private static function pdftotext(string $path, int $page, string $mode): string

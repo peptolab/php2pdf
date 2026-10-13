@@ -153,6 +153,18 @@ final readonly class PdfPage
         return $this->clamped('TrimBox', $this->cropBox());
     }
 
+    /**
+     * The base font names of the fonts the page uses without embedding their programs.
+     *
+     * @return list<string>
+     *
+     * @throws ParseException
+     */
+    public function unembeddedFonts(): array
+    {
+        return (new FontScanner($this->reader))->scan($this);
+    }
+
     /** @throws ParseException */
     private function clamped(string $key, Box $fallback): Box
     {

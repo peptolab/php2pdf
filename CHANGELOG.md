@@ -8,12 +8,27 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- PDF/A-2b and PDF/A-3b output (#34): `DocumentOptions(pdfa: PdfA::A2b)`, alone or with PDF/X-4.
+  The document needs an output intent before any colour and embedded fonts, declares its part
+  and level in XMP (with extension schemas for the properties PDF/A does not predefine), writes
+  a `GTS_PDFA1` output intent beside PDF/X's, and marks links to print. Its output passes veraPDF,
+  which a new CI job runs.
+- `Document::attachFile()` attaches files with their MIME type and `AttachmentRelationship`, in
+  the catalog's `/EmbeddedFiles` and `/AF`. PDF/A-2 and PDF/X refuse attachments.
+- `Document::attachFacturX($xml, FacturXProfile::En16931)` makes a PDF/A-3b document a Factur-X
+  (ZUGFeRD 2) invoice: the XML as `factur-x.xml` with the relationship its profile calls for, and
+  the invoice declared in XMP.
 - Imported pages can bring their annotations (#38): `Document::import($file, annotations:
   ImportedAnnotations::Flatten)` draws the annotations that print into each page as their
   appearances, fitted to their rectangles as viewers draw them, wherever the page is placed; links
   to web addresses come back as links where the page is placed on a page. Annotations that do not
   print, hidden ones and those in removed layers are left out, as are links within the source.
   Without the option nothing changes.
+
+### Changed
+
+- Under PDF/X, as under PDF/A, an imported page using a font that is not embedded is refused
+  when it is placed, naming the fonts: the standards require every font to be embedded.
 
 ## [0.1.13] - 2026-10-13
 

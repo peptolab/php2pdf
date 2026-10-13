@@ -11,6 +11,8 @@ use Php2Pdf\Core\FileReader;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ConformanceException;
+use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
@@ -67,6 +69,8 @@ final class Assets implements CatalogContributorInterface
     /** The converter for SVGs given none, made the first time one is. */
     private ?NativeConverter $nativeConverter = null;
 
+    private ?Attachments $attachments = null;
+
     public function __construct(
         private readonly Objects $objects,
         private readonly ColourPolicyInterface $colour,
@@ -95,6 +99,28 @@ final class Assets implements CatalogContributorInterface
     }
 
     /**
+     * Attaches a file to the document.
+     *
+     * @throws ConformanceException when the document's standard does not allow it
+     * @throws InvalidArgumentException when a file of the same name is attached
+     */
+    public function attach(
+        string $name,
+        string $contents,
+        string $mimeType,
+        AttachmentRelationship $relationship,
+        ?string $description,
+    ): void {
+        $attachments = $this->attachments ?? new Attachments(
+            $this->objects,
+            $this->options,
+            $this->options->clock->now(),
+        );
+        $attachments->attach($name, $contents, $mimeType, $relationship, $description);
+        $this->attachments = $attachments;
+    }
+
+    /**
      * Lists the layers the imported pages use, without automatic states under PDF/X.
      *
      * @throws ParseException
@@ -106,10 +132,11 @@ final class Assets implements CatalogContributorInterface
         foreach ($this->imports as $import) {
             $import->addOptionalContent($layers);
         }
-        if (null !== $this->options->pdfx) {
+        if (null !== $this->options->conformance()) {
             $layers->dropAutoStates();
         }
         $layers->write($catalog);
+        $this->attachments?->contribute($catalog, $pageRefs);
     }
 
     /**
@@ -170,6 +197,7 @@ final class Assets implements CatalogContributorInterface
             $file,
             $hiddenLayers,
             $annotations,
+            $this->options->conformance(),
         );
     }
 

@@ -39,6 +39,8 @@ final class Navigation implements CatalogContributorInterface
 
     public function __construct(
         private readonly Objects $objects,
+        /** The annotation flags links carry: Print (4) under PDF/A, which needs every annotation to print. */
+        private readonly int $linkFlags = 0,
     ) {
         $this->outline = new Outline();
     }
@@ -74,6 +76,7 @@ final class Navigation implements CatalogContributorInterface
                 'Subtype'  => new Name('Link'),
                 'Rect'     => $area->toRect(),
                 'Border'   => [0, 0, 0],
+                'F'        => 0 === $this->linkFlags ? null : $this->linkFlags,
                 'Contents' => null === $tooltip ? null : TextString::encode($tooltip),
             ]);
             if ($target instanceof Destination) {

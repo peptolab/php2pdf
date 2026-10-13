@@ -1,4 +1,4 @@
-# Links, bookmarks and PDF/X-4
+# Links, bookmarks, PDF/X-4 and PDF/A
 
 ## Links
 
@@ -64,8 +64,9 @@ the bleed box before the trim box, and shrink the trim box before the bleed box.
 before any box is set is checked when the page is finished, before anything of the page is
 written; a page that fails stays open, so it can be corrected and the document closed.
 
-Fonts are always embedded. The structure follows ISO 15930-7; check files with Acrobat Preflight
-or callas pdfToolbox (veraPDF validates PDF/A and PDF/UA, not PDF/X).
+Fonts are always embedded, and an imported page whose fonts are not is refused. The structure
+follows ISO 15930-7; check files with Acrobat Preflight or callas pdfToolbox (veraPDF validates
+PDF/A and PDF/UA, not PDF/X).
 
 ### Colour
 
@@ -86,3 +87,53 @@ Imported pages are scanned for the device colour spaces they draw with (in their
 images, shadings and patterns) and must match the output intent itself: `rgbProfile` does not
 apply to them, because their `DefaultRGB` resources are their own. Convert artwork to the
 output intent's colour space before importing it.
+
+## PDF/A
+
+```php
+$doc = new Document('archive.pdf', new DocumentOptions(pdfa: PdfA::A2b));
+$doc->setOutputIntent(IccProfile::fromFile('sRGB.icc'), 'sRGB IEC61966-2.1');
+```
+
+`PdfA::A2b` writes PDF/A-2b (ISO 19005-2) and `PdfA::A3b` PDF/A-3b (ISO 19005-3), level B: the
+document looks the same wherever and whenever it is opened. What the option does:
+
+- writes PDF 1.7 (1.6 together with PDF/X-4) and declares the part and level in the XMP packet
+  (`pdfaid:part`, `pdfaid:conformance`), with an extension schema for any property PDF/A does not
+  predefine;
+- writes the output intent a second time as `GTS_PDFA1`, sharing its profile, when PDF/X-4 is
+  set too;
+- needs the output intent before any colour is drawn, and checks colours, images and imported
+  pages against it as PDF/X does (see the table above);
+- refuses the standard 14 fonts, which are not embedded, and imported pages using fonts that are
+  not;
+- marks links to print, as PDF/A asks of every annotation, and leaves out the automatic states
+  of imported layers.
+
+No title is needed. Transparency, layers, object streams and flattened annotations are all
+allowed. Check files with [veraPDF](https://verapdf.org), which the library's own PDF/A tests
+pass.
+
+### Attachments and Factur-X invoices
+
+PDF/A-3 allows files of any kind to be attached, each with its relationship to the document;
+PDF/A-2 allows only PDF/A files, which the library cannot check, so it refuses attachments, as
+PDF/X does. Without either standard any file can be attached.
+
+```php
+$doc->attachFile('figures.csv', $csv, 'text/csv', AttachmentRelationship::Data, 'The figures');
+```
+
+A Factur-X invoice (ZUGFeRD 2 in Germany) is a PDF/A-3b document carrying its invoice as XML.
+`attachFacturX()` attaches the XML as `factur-x.xml` with the relationship its profile calls for,
+and declares the invoice in the XMP metadata with its extension schema:
+
+```php
+$doc = new Document('invoice.pdf', new DocumentOptions(pdfa: PdfA::A3b));
+$doc->setOutputIntent(IccProfile::fromFile('sRGB.icc'), 'sRGB IEC61966-2.1');
+// ... the invoice's pages ...
+$doc->attachFacturX($xml, FacturXProfile::En16931);
+```
+
+The XML itself is yours to produce and validate; the Mustang project's validator checks the
+whole invoice, PDF and XML.
