@@ -252,8 +252,8 @@ final class TextflowTest extends TestCase
         preg_match('/stream\n(.*?)\nendstream/s', $this->out->contents(), $content);
         self::assertSame(
             1,
-            substr_count($content[1] ?? '', needle: "\x00\x10"),
-            'One hyphen glyph (id 16) is shown at the break.',
+            substr_count($content[1] ?? '', PdfTools::code($this->out->contents(), '-')),
+            'One hyphen glyph is shown at the break.',
         );
     }
 
@@ -380,7 +380,7 @@ final class TextflowTest extends TestCase
         self::assertNotNull($lines);
         self::assertGreaterThan(1, count($lines));
         self::assertMatchesRegularExpression(
-            '/\x00\x03\) -[0-9.]+ \(/',
+            '/' . preg_quote(PdfTools::code($pdf, ' '), delimiter: '/') . '\) -[0-9.]+ \(/',
             $lines[0] ?? '',
             'Justified lines carry negative adjustments after space glyphs.',
         );

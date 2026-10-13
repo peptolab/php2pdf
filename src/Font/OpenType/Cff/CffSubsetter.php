@@ -8,12 +8,10 @@ use Php2Pdf\Exception\PdfException;
 
 use function array_filter;
 use function array_key_exists;
-use function array_keys;
 use function array_map;
 use function chr;
 use function count;
 use function floatval;
-use function max;
 use function pack;
 use function strlen;
 
@@ -21,10 +19,10 @@ use function strlen;
  * Builds a bare CFF font (for a FontFile3 stream of subtype CIDFontType0C) containing only the
  * requested glyphs and the subroutines they call.
  *
- * The result is always CID-keyed with an identity charset, so CIDs equal the original glyph ids
- * and text already written with those ids stays valid. A name-keyed font becomes a CID-keyed
- * one with a single Font DICT. Unused glyphs become empty charstrings and unused subroutines
- * bare returns, which keeps every number (and so the subroutine bias) unchanged.
+ * The glyphs are numbered in the order given, and the result is CID-keyed with an identity
+ * charset, so a glyph's CID is its place in that order. A name-keyed font becomes a CID-keyed one
+ * with a single Font DICT. Unused subroutines become bare returns, which keeps every subroutine
+ * number (and so the bias) unchanged.
  *
  * @internal
  */
@@ -34,8 +32,9 @@ final class CffSubsetter
     private const string EMPTY_SUBR  = "\x0B";
 
     /**
-     * @param string           $cff      the font's CFF table
-     * @param array<int, true> $glyphIds the glyphs to keep; .notdef is always kept
+     * @param string    $cff      the font's CFF table
+     * @param list<int> $glyphIds the glyphs to keep, in their new order; the first should be
+     *                            .notdef (0)
      *
      * @throws PdfException when the CFF data cannot be subset
      */
@@ -47,58 +46,56 @@ final class CffSubsetter
     /**
      * Subsets an already parsed table, such as a CFF2 font's default instance.
      *
-     * @param array<int, true> $glyphIds the glyphs to keep; .notdef is always kept
+     * @param list<int> $glyphIds the glyphs to keep, in their new order; the first should be
+     *                            .notdef (0). An id the font lacks keeps its place as an empty
+     *                            glyph.
      *
      * @throws PdfException when the CFF data cannot be subset
      */
     public static function subsetTable(CffTable $table, array $glyphIds): string
     {
-        $total = count($table->charStrings);
-        $keep  = [0 => true];
-        foreach (array_keys($glyphIds) as $gid) {
-            if ($gid < 0 || $gid >= $total) {
-                continue;
-            }
-            $keep[$gid] = true;
-        }
-        $glyphs  = max(array_keys($keep)) + 1;
-        $scanner = new CharStringScanner($table->globalSubrs);
-        $chars   = [];
-        for ($gid = 0; $gid < $glyphs; ++$gid) {
-            if (! array_key_exists($gid, $keep)) {
+        $scanner  = new CharStringScanner($table->globalSubrs);
+        $chars    = [];
+        $fdSelect = [];
+        foreach ($glyphIds as $gid) {
+            $fd         = $table->fdSelect[$gid] ?? 0;
+            $fdSelect[] = $fd;
+            $charString = $table->charStrings[$gid] ?? null;
+            if (null === $charString) {
                 $chars[] = self::EMPTY_GLYPH;
                 continue;
             }
-            $fd = $table->fdSelect[$gid] ?? 0;
-            $scanner->scan($table->charStrings[$gid] ?? '', $fd, $table->fonts[$fd]['subrs'] ?? []);
-            $chars[] = $table->charStrings[$gid] ?? self::EMPTY_GLYPH;
+            $scanner->scan($charString, $fd, $table->fonts[$fd]['subrs'] ?? []);
+            $chars[] = $charString;
         }
 
         return self::build(
             $table,
-            $glyphs,
             $chars,
+            $fdSelect,
             self::prune($table->globalSubrs, $scanner->globalSubrs()),
             $scanner,
         );
     }
 
     /**
-     * @param list<string> $chars
+     * @param list<string> $chars       each new glyph's charstring
+     * @param list<int>    $fdSelects   each new glyph's Font DICT
      * @param list<string> $globalSubrs
      */
     private static function build(
         CffTable $table,
-        int $glyphs,
         array $chars,
+        array $fdSelects,
         array $globalSubrs,
         CharStringScanner $scanner,
     ): string {
+        $glyphs      = count($chars);
         $name        = Dict::index([$table->name]);
         $strings     = Dict::index(['Adobe', 'Identity']);
         $global      = Dict::index($globalSubrs);
         $charset     = $glyphs > 1 ? "\x02" . pack('nn', 1, $glyphs - 2) : "\x00";
-        $fdSelect    = self::fdSelect($table, $glyphs);
+        $fdSelect    = self::fdSelect($fdSelects);
         $charStrings = Dict::index($chars);
 
         /** @var list<array{0: string, 1: string}> $privates Private DICT without Subrs, and the subrs INDEX */
@@ -151,14 +148,17 @@ final class CffSubsetter
         );
     }
 
-    /** FDSelect format 3: runs of glyphs sharing a Font DICT. */
-    private static function fdSelect(CffTable $table, int $glyphs): string
+    /**
+     * FDSelect format 3: runs of glyphs sharing a Font DICT.
+     *
+     * @param list<int> $fds each glyph's Font DICT
+     */
+    private static function fdSelect(array $fds): string
     {
         $ranges = '';
         $count  = 0;
         $last   = null;
-        for ($gid = 0; $gid < $glyphs; ++$gid) {
-            $fd = $table->fdSelect[$gid] ?? 0;
+        foreach ($fds as $gid => $fd) {
             if ($fd === $last) {
                 continue;
             }
@@ -167,7 +167,7 @@ final class CffSubsetter
             ++$count;
         }
 
-        return "\x03" . pack('n', $count) . $ranges . pack('n', $glyphs);
+        return "\x03" . pack('n', $count) . $ranges . pack('n', count($fds));
     }
 
     /**

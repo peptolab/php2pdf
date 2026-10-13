@@ -6,23 +6,28 @@ namespace Php2PdfTest\TestAsset;
 
 use PHPUnit\Framework\Assert;
 
+use function bin2hex;
 use function dirname;
 use function explode;
 use function fclose;
 use function function_exists;
 use function getenv;
+use function hex2bin;
 use function imagecolorat;
 use function imagecreatefrompng;
 use function imagesx;
 use function imagesy;
 use function is_dir;
 use function is_executable;
+use function mb_convert_encoding;
 use function mkdir;
 use function pathinfo;
+use function preg_match;
 use function proc_close;
 use function proc_open;
 use function stream_get_contents;
 use function strpos;
+use function strtoupper;
 use function substr;
 use function trim;
 
@@ -55,6 +60,27 @@ final class PdfTools
      * Renders page 1 with macOS's PDF renderer (CoreGraphics, as Preview uses) and counts the
      * dark, opaque pixels, sampling every other pixel. Skips off macOS or without ext-gd.
      */
+    /**
+     * The two bytes an embedded font writes a character with, from the ToUnicode map of an
+     * uncompressed PDF: codes follow the order glyphs are first used, so tests look them up.
+     */
+    public static function code(string $pdf, string $char): string
+    {
+        $unicode = strtoupper(bin2hex((string) mb_convert_encoding(
+            $char,
+            to_encoding: 'UTF-16BE',
+            from_encoding: 'UTF-8',
+        )));
+        $match = [];
+        Assert::assertSame(
+            1,
+            preg_match("/<([0-9A-F]{4})> <{$unicode}>/", $pdf, $match),
+            "No ToUnicode entry maps to \"{$char}\".",
+        );
+
+        return (string) hex2bin($match[1] ?? '');
+    }
+
     public static function coreGraphicsInk(string $path): int
     {
         return self::ink(self::coreGraphicsRender($path));

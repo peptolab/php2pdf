@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Embedded fonts number their glyphs in the order a document first uses them, so a subset holds
+  only the glyphs used rather than every glyph up to the highest one used: a page of text in three
+  fonts is about a third smaller. Text, widths and copied text are unchanged; a font's codes now
+  depend on the order its glyphs appear in.
+
 ## [0.1.7] - 2026-10-13
 
 ### Added

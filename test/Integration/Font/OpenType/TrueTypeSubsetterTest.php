@@ -62,22 +62,69 @@ final class TrueTypeSubsetterTest extends TestCase
     }
 
     #[Test]
+    public function aComponentAlsoAskedForKeepsItsOwnPlace(): void
+    {
+        $font   = self::dejaVu();
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [
+            0,
+            $font->glyphId(0x41),
+            $font->glyphId(0xC0),
+        ]));
+
+        self::assertSame([4, [1, 3]], [$subset->numGlyphs, $subset->componentGlyphs(2)]);
+    }
+
+    #[Test]
+    public function aCompositeRefersToItsComponentsByTheirNewNumbers(): void
+    {
+        $font   = self::dejaVu();
+        $aGrave = $font->glyphId(0xC0);
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, $aGrave]));
+
+        self::assertSame(
+            [4, [2, 3], $font->glyphData($font->glyphId(0x41))],
+            [$subset->numGlyphs, $subset->componentGlyphs(1), $subset->glyphData(2)],
+        );
+    }
+
+    #[Test]
     public function aFontWithoutAPostTableGetsAnEmptyFormat3Post(): void
     {
         $font   = OpenTypeFont::fromData(SfntTables::replace(self::dejaVuData(), ['post' => null]));
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [36 => true]));
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, 36]));
 
         self::assertSame("\0\x03\0\0" . str_repeat("\0", times: 28), $subset->table('post'));
     }
 
     #[Test]
-    public function negativeGlyphIdsAreIgnored(): void
+    public function aGlyphAskedForTwiceKeepsItsFirstPlace(): void
     {
         $font = self::dejaVu();
 
         self::assertSame(
-            TrueTypeSubsetter::subset($font, [36 => true]),
-            TrueTypeSubsetter::subset($font, [-3 => true, -1 => true, 36 => true]),
+            TrueTypeSubsetter::subset($font, [0, 36, 68]),
+            TrueTypeSubsetter::subset($font, [0, 36, 36, 68, 0]),
+        );
+    }
+
+    #[Test]
+    public function anIdTheFontLacksKeepsItsPlaceAsAnEmptyGlyph(): void
+    {
+        $font   = self::dejaVu();
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, -3, 36]));
+
+        self::assertSame(['', $font->glyphData(36)], [$subset->glyphData(1), $subset->glyphData(2)]);
+    }
+
+    #[Test]
+    public function glyphsAreNumberedInTheOrderGiven(): void
+    {
+        $font   = self::dejaVu();
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, 68, 36]));
+
+        self::assertSame(
+            [3, $font->glyphData(0), $font->glyphData(68), $font->glyphData(36)],
+            [$subset->numGlyphs, $subset->glyphData(0), $subset->glyphData(1), $subset->glyphData(2)],
         );
     }
 
@@ -96,19 +143,18 @@ final class TrueTypeSubsetterTest extends TestCase
         $font = OpenTypeFont::fromData(SfntTables::replace(self::dejaVuData(), $changes));
 
         $expected = '';
-        for ($gid = 0; $gid <= 3000; ++$gid) {
+        foreach ([0, 3000, 36] as $gid) {
             $expected .= pack('nn', $font->advance($gid), $font->leftSideBearing($gid) & 0xFFFF);
         }
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [36 => true, 3000 => true]));
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, 3000, 36]));
 
         self::assertSame($expected, $subset->table('hmtx'));
-        self::assertSame(3001, $subset->numGlyphs);
     }
 
     #[Test]
     public function theSubsetsChecksumAdjustmentBalancesTheWholeFont(): void
     {
-        $data = TrueTypeSubsetter::subset(self::dejaVu(), [36 => true, 68 => true, 3000 => true]);
+        $data = TrueTypeSubsetter::subset(self::dejaVu(), [0, 36, 68, 3000]);
         $data .= str_repeat("\0", (4 - (strlen($data) % 4)) % 4);
         $sum  = 0;
         foreach (unpack('N*', $data) as $word) {
@@ -116,19 +162,5 @@ final class TrueTypeSubsetterTest extends TestCase
         }
 
         self::assertSame(0xB1B0_AFBA, $sum);
-    }
-
-    #[Test]
-    public function unusedGlyphsBecomeEmptyAndKeptGlyphsKeepTheirOutlines(): void
-    {
-        $font   = self::dejaVu();
-        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [36 => true, 68 => true]));
-
-        self::assertSame(69, $subset->numGlyphs);
-        self::assertSame($font->glyphData(0), $subset->glyphData(0));
-        self::assertSame($font->glyphData(36), $subset->glyphData(36));
-        self::assertSame($font->glyphData(68), $subset->glyphData(68));
-        self::assertSame('', $subset->glyphData(1));
-        self::assertSame('', $subset->glyphData(67));
     }
 }

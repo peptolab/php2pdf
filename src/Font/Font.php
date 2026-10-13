@@ -15,6 +15,7 @@ use Php2Pdf\Font\OpenType\OpenTypeFont;
 
 use function array_filter;
 use function array_key_exists;
+use function array_keys;
 use function array_values;
 use function count;
 use function hash;
@@ -47,6 +48,15 @@ final class Font implements PdfFontInterface, DeferredInterface
 
     /** @var array<int, true> glyph ids used */
     private array $used = [0 => true];
+
+    /**
+     * Glyph id => the code it is written with: codes are given in the order glyphs are first
+     * written, from 0 for .notdef, so a subset holds only the glyphs used and its glyph ids are
+     * the codes.
+     *
+     * @var array<int, int>
+     */
+    private array $codes = [0 => 0];
 
     /** The text each glyph stands for, for ToUnicode. */
     private TextMapping $text;
@@ -165,7 +175,17 @@ final class Font implements PdfFontInterface, DeferredInterface
     #[Override]
     public function encode(array $glyphIds): string
     {
-        return pack('n*', ...$glyphIds);
+        $codes = [];
+        foreach ($glyphIds as $id) {
+            $code = $this->codes[$id] ?? null;
+            if (null === $code) {
+                $code             = count($this->codes);
+                $this->codes[$id] = $code;
+            }
+            $codes[] = $code;
+        }
+
+        return pack('n*', ...$codes);
     }
 
     /**
@@ -176,10 +196,20 @@ final class Font implements PdfFontInterface, DeferredInterface
     #[Override]
     public function finalize(): void
     {
+        // A glyph marked used without being written (a piece whose codes another run wrote) still
+        // gets a code, after the others.
+        foreach ($this->used as $id => $_) {
+            $this->codes[$id] ??= count($this->codes);
+        }
+        // Every glyph with text was marked used, so has a code.
+        $toUnicode = [];
+        foreach ($this->text->map() as $id => $text) {
+            $toUnicode[$this->codes[$id] ?? 0] = $text;
+        }
         (new Type0FontWriter($this->program, $this->objects, $this->registry, $this->advance(...)))->write(
             $this->reference,
-            $this->used,
-            $this->text->map(),
+            array_keys($this->codes),
+            $toUnicode,
         );
     }
 
