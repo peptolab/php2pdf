@@ -214,6 +214,12 @@ final class CoreFontTest extends TestCase
     }
 
     #[Test]
+    public function theSpaceIsTheGlyphWordSpacingMoves(): void
+    {
+        self::assertSame(32, $this->doc->fonts()->standard(StandardFont::Helvetica)->wordSpaceGlyph());
+    }
+
+    #[Test]
     public function unknownNamesAreStillRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);

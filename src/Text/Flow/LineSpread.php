@@ -13,6 +13,9 @@ namespace Php2Pdf\Text\Flow;
  */
 final readonly class LineSpread
 {
+    /** Whether the line is justified at all. */
+    public bool $justifies;
+
     /**
      * @param array<int, float> $words   the change to the word space at each index
      * @param array<int, float> $letters the change after each glyph of the item at each index
@@ -23,11 +26,7 @@ final readonly class LineSpread
         public array $letters = [],
         public float $scale = 1.0,
         public ?int $last = null,
-    ) {}
-
-    /** Whether the line is justified at all. */
-    public function justifies(): bool
-    {
-        return [] !== $this->words || [] !== $this->letters || 1.0 !== $this->scale;
+    ) {
+        $this->justifies = [] !== $words || [] !== $letters || 1.0 !== $scale;
     }
 }

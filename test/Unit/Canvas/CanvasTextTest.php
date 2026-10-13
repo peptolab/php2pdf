@@ -112,7 +112,7 @@ final class CanvasTextTest extends TestCase
         $this->doc->close();
 
         self::assertStringContainsString(
-            'BT /F1 10 Tf 0 Tc 100 Tz 0 Ts 0 Tr 0 0 Td (a) Tj ET',
+            'BT /F1 10 Tf 0 Tc 100 Tz 0 Ts 0 Tr 0 Tw 0 0 Td (a) Tj ET',
             $this->out->contents(),
         );
     }
@@ -174,7 +174,10 @@ final class CanvasTextTest extends TestCase
             ->raw('2 Tc')
             ->drawText('b', $this->helvetica, 10.0, 0.0, 20.0);
 
-        self::assertStringEndsWith("2 Tc\nBT /F1 10 Tf 0 Tc 100 Tz 0 Ts 0 Tr 0 20 Td (b) Tj ET\n", $this->content());
+        self::assertStringEndsWith(
+            "2 Tc\nBT /F1 10 Tf 0 Tc 100 Tz 0 Ts 0 Tr 0 Tw 0 20 Td (b) Tj ET\n",
+            $this->content(),
+        );
     }
 
     #[Test]

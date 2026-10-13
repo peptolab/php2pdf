@@ -602,25 +602,20 @@ final class Canvas
 
     /**
      * As showRun(), for a run joined from $pieces, other runs, one after another: what is shown
-     * for each piece is worked out once and reused wherever it is shown again. $lastKernings
-     * gives, by position, a piece's last glyph the kerning it has in $run instead of its own (a
-     * stretched word space); every other glyph of $run is its piece's glyph.
-     *
-     * @param list<GlyphRun>    $pieces
-     * @param array<int, float> $lastKernings
+     * for each piece is worked out once and reused wherever it is shown again. Every glyph of $run
+     * is its piece's glyph, but for the last kernings $pieces gives.
      *
      * @internal
      */
     public function showRunPieces(
         GlyphRun $run,
-        array $pieces,
-        array $lastKernings,
+        RunPieces $pieces,
         FontInterface $font,
         float $size,
         Matrix $textMatrix,
         TextOptions $options,
     ): self {
-        $this->text->run($this, $run, $font, $size, $textMatrix, $options, $pieces, $lastKernings);
+        $this->text->run($this, $run, $font, $size, $textMatrix, $options, $pieces);
 
         return $this;
     }

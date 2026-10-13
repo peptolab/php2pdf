@@ -257,6 +257,13 @@ final class CoreFont implements PdfFontInterface, DeferredInterface
         return ($text instanceof GlyphRun ? $text : $this->shape($text, $options))->measure($size, $options);
     }
 
+    /** @internal The space, code 32 in every core font's encoding. */
+    #[Override]
+    public function wordSpaceGlyph(): int
+    {
+        return 32;
+    }
+
     #[Override]
     public function xHeight(float $size): float
     {

@@ -8,10 +8,16 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
-- Embedded fonts write the first 192 glyphs a document uses with one byte each and the rest with
+- Embedded fonts write the first 191 glyphs a document uses with one byte each and the rest with
   two, through an encoding CMap the document's fonts share, instead of two bytes a glyph with
   Identity-H: a document of several pages is about a tenth smaller, and a one-page one a few
-  hundred bytes larger. Fonts with more than 16,576 glyphs keep Identity-H.
+  hundred bytes larger. Fonts with more than 16,575 glyphs keep Identity-H. The space is always
+  byte 32, so word spacing applies to it, and every subset holds it.
+- A justified line whose word spaces alone stretch or shrink, each alike, is written with one word
+  spacing (`Tw`) instead of a move after each space, so it is drawn from the same remembered words
+  as unjustified text: justified text is 4–10% faster and 12–18% smaller. Lines with letter
+  spacing, a no-break space that shares the space's glyph, or word spaces of different widths keep
+  their moves. Text state written into a template or after raw operators now sets `Tw` too.
 
 ## [0.1.9] - 2026-10-13
 

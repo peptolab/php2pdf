@@ -77,7 +77,9 @@ first, as far as they may go; then between its letters (after every glyph but th
 then in the width of its glyphs, as far as the style on the line that allows least lets them; and
 whatever is left goes to its word spaces past their limit (or, on a line without any, between its
 letters). By default letters and glyphs do not change. Images and other inline objects keep their
-width. Other
+width. A line whose word spaces alone change, each by the same amount, is written with one word
+spacing (`Tw`) for the line rather than a move after each space; others carry their moves in the
+text. Other
 alignments are set line by line. `composer: Composer::SingleLine` sets a justified paragraph line
 by line, and `Composer::Paragraph` composes ragged text too, which evens its rag. A paragraph with
 tabs, or a word wider than its lines, is set line by line.

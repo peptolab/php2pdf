@@ -42,4 +42,10 @@ interface PdfFontInterface extends FontInterface
 
     /** The font dictionary's object. */
     public function reference(): Reference;
+
+    /**
+     * The glyph word spacing (Tw) moves the glyphs after, the space, written with code 32; null
+     * when the font writes no glyph with that one-byte code.
+     */
+    public function wordSpaceGlyph(): ?int;
 }
