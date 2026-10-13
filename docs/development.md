@@ -49,7 +49,7 @@ The namespaces sit in layers, and each uses only the layers below it:
 |-------|------------|
 | 0 | `Exception` |
 | 1 | `Core`: the object model, `Objects`, the writer, filters, output |
-| 2 | `Geometry`, `Navigation` |
+| 2 | `Geometry`, `Navigation`, `Structure` |
 | 3 | `Color`, `Fit` |
 | 4 | `Font` (with `Font\Bidi`) |
 | 5 | `Canvas`, `Template` |

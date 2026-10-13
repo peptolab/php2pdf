@@ -18,6 +18,13 @@ All notable changes to this project are documented here. The format follows
 - `Document::attachFacturX($xml, FacturXProfile::En16931)` makes a PDF/A-3b document a Factur-X
   (ZUGFeRD 2) invoice: the XML as `factur-x.xml` with the relationship its profile calls for, and
   the invoice declared in XMP.
+- Tagged PDF and PDF/UA-1 (#35): `DocumentOptions(accessibility: new Accessibility('en-GB',
+  pdfUa: true))`. Textflows tag their paragraphs (as `P`, or the role a style gives with
+  `TextStyle(role: StructureRole::H1)`) and linked text, tables their rows, header and data cells,
+  pages their links, and `Page::place(..., alt: '...')` places artwork as a figure;
+  `Canvas::tag()` tags anything else. Everything else is marked as an artifact. PDF/UA-1 needs a
+  title and a language, embeds every font, describes every link and declares itself in XMP; its
+  output passes veraPDF, alone and with PDF/A-2b.
 - Imported pages can bring their annotations (#38): `Document::import($file, annotations:
   ImportedAnnotations::Flatten)` draws the annotations that print into each page as their
   appearances, fitted to their rectangles as viewers draw them, wherever the page is placed; links

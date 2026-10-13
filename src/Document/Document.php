@@ -101,8 +101,12 @@ final class Document implements SvgDocumentInterface
                 && version_compare($this->options->version, version2: '1.5', operator: '>='),
         );
         $this->writer->writeHeader($this->options->version);
-        $this->objects     = new Objects($this->writer);
-        $this->pages       = new PageTree($this->objects);
+        $this->objects = new Objects($this->writer);
+        $accessibility = $this->options->accessibility;
+        $this->pages   = new PageTree(
+            $this->objects,
+            null === $accessibility ? null : new Tagging($this->objects, $accessibility),
+        );
         $this->conformance = new ConformanceRules($this->options, $this->objects);
         $this->colour      = new DocumentColour($this->options, $this->conformance, $this->objects);
         $this->metadata    = new Metadata(new Info(), $this->options, $this->options->clock->now(), $this->objects);
@@ -150,10 +154,16 @@ final class Document implements SvgDocumentInterface
      * pages it may point at exist.
      *
      * @internal
+     *
+     * @param (Closure(Reference): int)|null $tag tags the annotation, returning its /StructParent
      */
-    public function addLinkAnnotation(Box $area, Destination|string $target, ?string $tooltip = null): Reference
-    {
-        return $this->navigation()->addLink($area, $target, $tooltip);
+    public function addLinkAnnotation(
+        Box $area,
+        Destination|string $target,
+        ?string $tooltip = null,
+        ?Closure $tag = null,
+    ): Reference {
+        return $this->navigation()->addLink($area, $target, $tooltip, $tag);
     }
 
     /**
@@ -170,6 +180,7 @@ final class Document implements SvgDocumentInterface
             $dimensions,
             $topDown ?? $this->options->topDown,
             $this->pages->nextNumber(),
+            $this->pages->tagging,
         ));
     }
 
@@ -259,7 +270,13 @@ final class Document implements SvgDocumentInterface
 
         $catalog  = Dictionary::of(['Type' => new Name('Catalog'), 'Pages' => $this->pages->write()]);
         $pageRefs = $this->pages->references();
-        foreach ([$this->navigation, $this->assets, $this->metadata, $this->conformance] as $contributor) {
+        foreach ([
+            $this->navigation,
+            $this->assets,
+            $this->metadata,
+            $this->conformance,
+            $this->pages->tagging,
+        ] as $contributor) {
             $contributor?->contribute($catalog, $pageRefs);
         }
         $catalogRef = $this->objects->add($catalog);
@@ -505,7 +522,7 @@ final class Document implements SvgDocumentInterface
                 $this->options->glyphCheck,
                 $this->options->scriptCheck,
                 $this->options->complexShaper,
-                $this->options->conformance(),
+                $this->options->standards(),
             )),
             new StyleRegistry(),
             new InlineRegistry(),

@@ -6,11 +6,13 @@ namespace Php2Pdf\Text\Flow;
 
 use Closure;
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Canvas\Tagger;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Fit\Fit;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Structure\StructureElement;
 use Php2Pdf\Text\Style\CharFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
@@ -35,75 +37,38 @@ final class LinePainter
         return [$x, $y];
     }
 
-    public static function draw(Canvas $canvas, Box $box, LayoutResult $layout, float $shift): void
-    {
+    /**
+     * Draws the lines, and on a tagged page tags their text as their paragraphs' and links'
+     * elements, and everything else as artifacts.
+     *
+     * @return list<StructureElement> on a tagged page the elements of the link areas
+     *                                markedAreas() finds, in order
+     */
+    public static function draw(
+        Canvas $canvas,
+        Box $box,
+        LayoutResult $layout,
+        float $shift,
+        ?FlowTags $tags = null,
+    ): array {
         if ([] === $layout->lines) {
-            return;
+            return [];
         }
-        $canvas->save();
-        $canvas->beginText();
-        $topDown = $canvas->isTopDown();
-        // Segments mostly share a colour: it is set again only when it changes, or when artwork
-        // placed since may have changed it.
-        $lastColor = null;
-        $bars      = [];
-        foreach ($layout->lines as $placed) {
-            [$line, $baseline] = [$placed->line, $placed->baseline];
-            [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
-            if ([] !== $line->inlines) {
-                $canvas->endText();
-                foreach ($line->inlines as [$ix, $inline]) {
-                    $edge = $topDown ? $y - $inline->raise - $inline->height : $y + $inline->raise;
-                    $canvas->place(
-                        $inline->object,
-                        new Box($x0 + $ix, $edge, $inline->width, $inline->height),
-                        Fit::entire(),
-                    );
-                }
-                $canvas->beginText();
-                $lastColor = null;
-            }
-            foreach ($line->segments as $segment) {
-                $style  = $segment->style;
-                $font   = StyleResolver::fontOf($style);
-                $format = CharFormat::of($style);
-                $size   = $format->size;
-                $x      = $x0 + $segment->x;
-                if (null !== $style->color && $style->color !== $lastColor) {
-                    $canvas->setFillColor($style->color);
-                    $lastColor = $style->color;
-                }
-                $matrix  = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
-                $options = 1.0 === $segment->scale
-                    ? $format->textOptions
-                    : $format->textOptions->withHorizontalScale($format->horizontalScale * $segment->scale);
-                $canvas->showRunPieces($segment->run, $segment->pieces, $font, $size, $matrix, $options);
-                $sign = $topDown ? -1.0 : 1.0;
-                if (true === $style->underline) {
-                    $t      = $font->underlineThickness($size);
-                    $bars[] = [
-                        $style->color,
-                        $x,
-                        $y - ($sign * ($font->underlinePosition($size) - ($t / 2.0)) * -1.0),
-                        $segment->width,
-                        $sign * $t,
-                    ];
-                }
-                if (true === $style->strikeout) {
-                    $t      = $font->strikeoutSize($size);
-                    $bars[] = [
-                        $style->color,
-                        $x,
-                        $y - ($sign * ($font->strikeoutPosition($size) - ($t / 2.0)) * -1.0),
-                        $segment->width,
-                        $sign * $t,
-                    ];
-                }
-            }
+        $tagger = $canvas->tagger();
+        if (null !== $tagger) {
+            $tags?->enter($tagger);
         }
-        $canvas->endText();
-        self::bars($canvas, $bars);
-        $canvas->restore();
+        $canvas->within(null, static function (Canvas $canvas) use ($box, $layout, $shift, $tags, $tagger): void {
+            self::paint($canvas, $box, $layout, $shift, null === $tagger || null === $tags ? null : [$tags, $tagger]);
+        });
+
+        return $tags?->drawnLinks() ?? [];
+    }
+
+    /** What a link run shares: its target and tooltip. */
+    public static function linkKey(TextStyle $style): ?string
+    {
+        return null === $style->link ? null : serialize([$style->link, $style->linkTooltip]);
     }
 
     /**
@@ -193,6 +158,41 @@ final class LinePainter
         }
     }
 
+    /**
+     * The underline and strikeout of a segment, if its style has them.
+     *
+     * @return list<array{0: ?ColorInterface, 1: float, 2: float, 3: float, 4: float}>
+     */
+    private static function decorations(Segment $segment, float $x, float $y, float $sign): array
+    {
+        $style = $segment->style;
+        $font  = StyleResolver::fontOf($style);
+        $size  = CharFormat::of($style)->size;
+        $bars  = [];
+        if (true === $style->underline) {
+            $t      = $font->underlineThickness($size);
+            $bars[] = [
+                $style->color,
+                $x,
+                $y - ($sign * ($font->underlinePosition($size) - ($t / 2.0)) * -1.0),
+                $segment->width,
+                $sign * $t,
+            ];
+        }
+        if (true === $style->strikeout) {
+            $t      = $font->strikeoutSize($size);
+            $bars[] = [
+                $style->color,
+                $x,
+                $y - ($sign * ($font->strikeoutPosition($size) - ($t / 2.0)) * -1.0),
+                $segment->width,
+                $sign * $t,
+            ];
+        }
+
+        return $bars;
+    }
+
     /** Whether any of a line's text is linked or matched: most lines have neither. */
     private static function isMarked(Line $line): bool
     {
@@ -205,9 +205,62 @@ final class LinePainter
         return false;
     }
 
-    private static function linkKey(TextStyle $style): ?string
+    /** Draws the lines, tagging their text when given the flow's elements. */
+    /** @param array{0: FlowTags, 1: Tagger}|null $tags the flow's elements, and the page's tagger */
+    private static function paint(Canvas $canvas, Box $box, LayoutResult $layout, float $shift, ?array $tags): void
     {
-        return null === $style->link ? null : serialize([$style->link, $style->linkTooltip]);
+        $canvas->save();
+        $canvas->beginText();
+        $topDown = $canvas->isTopDown();
+        // Segments mostly share a colour: it is set again only when it changes, or when artwork
+        // placed since may have changed it.
+        $lastColor = null;
+        $bars      = [];
+        foreach ($layout->lines as $placed) {
+            [$line, $baseline] = [$placed->line, $placed->baseline];
+            [$x0, $y] = self::baselinePoint($canvas, $box, $line, $baseline + $shift);
+            $elements = null === $tags
+                ? []
+                : $tags[0]->line($tags[1], $placed, self::isMarked($line) ? self::runs($line, self::linkKey(...)) : []);
+            if ([] !== $line->inlines) {
+                $canvas->endText();
+                $canvas->mark(null);
+                foreach ($line->inlines as [$ix, $inline]) {
+                    $edge = $topDown ? $y - $inline->raise - $inline->height : $y + $inline->raise;
+                    $canvas->place(
+                        $inline->object,
+                        new Box($x0 + $ix, $edge, $inline->width, $inline->height),
+                        Fit::entire(),
+                    );
+                }
+                $canvas->beginText();
+                $lastColor = null;
+            }
+            foreach ($line->segments as $index => $segment) {
+                $canvas->mark($elements[$index] ?? null);
+                $style  = $segment->style;
+                $font   = StyleResolver::fontOf($style);
+                $format = CharFormat::of($style);
+                $size   = $format->size;
+                $x      = $x0 + $segment->x;
+                if (null !== $style->color && $style->color !== $lastColor) {
+                    $canvas->setFillColor($style->color);
+                    $lastColor = $style->color;
+                }
+                $matrix  = new Matrix(1.0, 0.0, 0.0, $topDown ? -1.0 : 1.0, $x, $y);
+                $options = 1.0 === $segment->scale
+                    ? $format->textOptions
+                    : $format->textOptions->withHorizontalScale($format->horizontalScale * $segment->scale);
+                $canvas->showRunPieces($segment->run, $segment->pieces, $font, $size, $matrix, $options);
+                foreach (self::decorations($segment, $x, $y, $topDown ? -1.0 : 1.0) as $bar) {
+                    $bars[] = $bar;
+                }
+            }
+        }
+        $canvas->endText();
+        $canvas->mark(null);
+        self::bars($canvas, $bars);
+        $canvas->restore();
     }
 
     /**
@@ -216,15 +269,16 @@ final class LinePainter
      *
      * @param Closure(TextStyle): ?string $key
      *
-     * @return list<array{0: float, 1: float, 2: float, 3: float, 4: TextStyle}>
+     * @return list<array{0: float, 1: float, 2: float, 3: float, 4: TextStyle, 5: list<int>}> each
+     *         with the indices of its segments last
      */
     private static function runs(Line $line, Closure $key): array
     {
         $runs    = [];
-        $open    = [0.0, 0.0, 0.0, 0.0, $line->style];
+        $open    = [0.0, 0.0, 0.0, 0.0, $line->style, []];
         $isOpen  = false;
         $current = null;
-        foreach ($line->segments as $segment) {
+        foreach ($line->segments as $index => $segment) {
             $style = $segment->style;
             $k     = $key($style);
             if ($isOpen && ($k !== $current || abs($open[1] - $segment->x) >= 0.01)) {
@@ -243,8 +297,15 @@ final class LinePainter
             $descent = -$font->descender($size) - $rise;
             $right   = $segment->x + $segment->width;
             $open    = $isOpen
-                ? [$open[0], max($open[1], $right), max($open[2], $ascent), max($open[3], $descent), $open[4]]
-                : [$segment->x, $right, $ascent, $descent, $style];
+                ? [
+                    $open[0],
+                    max($open[1], $right),
+                    max($open[2], $ascent),
+                    max($open[3], $descent),
+                    $open[4],
+                    [...$open[5], $index],
+                ]
+                : [$segment->x, $right, $ascent, $descent, $style, [$index]];
             $isOpen = true;
         }
         if ($isOpen) {

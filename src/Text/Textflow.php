@@ -16,6 +16,7 @@ use Php2Pdf\Text\Flow\BoxSplit;
 use Php2Pdf\Text\Flow\BreakPlanner;
 use Php2Pdf\Text\Flow\CopyFitter;
 use Php2Pdf\Text\Flow\FlowCursor;
+use Php2Pdf\Text\Flow\FlowTags;
 use Php2Pdf\Text\Flow\Itemiser;
 use Php2Pdf\Text\Flow\ItemKind;
 use Php2Pdf\Text\Flow\Layout;
@@ -61,6 +62,9 @@ final class Textflow implements FlowableInterface
     private ?LineBreaker $breaker = null;
 
     private ?FitInfo $last = null;
+
+    /** The elements the flow's text is tagged as, made when it is first drawn on a tagged page. */
+    private ?FlowTags $tags = null;
 
     /**
      * The last measure(): the cursor and width it was taken from, the first baseline it used, and
@@ -225,10 +229,16 @@ final class Textflow implements FlowableInterface
                 VerticalAlignment::Bottom => max(0.0, $box->height - $layout->height),
             };
         }
-        LinePainter::draw($canvas, $box, $layout, $shift);
+        $elements = LinePainter::draw(
+            $canvas,
+            $box,
+            $layout,
+            $shift,
+            $canvas->isTagged() ? ($this->tags ??= new FlowTags($this->paragraphs)) : null,
+        );
         [$links, $matchboxes] = LinePainter::markedAreas($canvas, $box, $layout, $shift);
-        foreach ($links as [$area, $target, $tooltip]) {
-            $canvas->linkArea($area, $target, $tooltip);
+        foreach ($links as $i => [$area, $target, $tooltip]) {
+            $canvas->linkArea($area, $target, $tooltip, $elements[$i] ?? null);
         }
 
         $firstBaseline = null;
@@ -356,6 +366,7 @@ final class Textflow implements FlowableInterface
         $this->cursor   = FlowCursor::start();
         $this->last     = null;
         $this->measured = null;
+        $this->tags     = null;
     }
 
     private function breaker(): LineBreaker

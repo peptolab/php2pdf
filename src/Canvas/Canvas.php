@@ -28,6 +28,8 @@ use Php2Pdf\Geometry\Matrix;
 use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Geometry\Path;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Structure\StructureElement;
+use Php2Pdf\Structure\StructureRole;
 use Php2Pdf\Template\Template;
 
 use function max;
@@ -53,8 +55,10 @@ final class Canvas
      * @param bool $inheritsState whether the content is drawn inside other content, as a form
      *                            XObject is, so its text state starts unknown rather than at the
      *                            defaults every page starts with
-     * @param (Closure(Box, Destination|string, ?string): void)|null $links where a page's canvas
-     *                            sends link areas, in default user space; artwork cannot carry links
+     * @param (Closure(Box, Destination|string, ?string, ?StructureElement): void)|null $links where
+     *                            a page's canvas sends link areas, in default user space, with the
+     *                            elements they belong to on a tagged page; artwork cannot carry links
+     * @param Tagger|null $tagger what a tagged page's content is drawn as
      */
     public function __construct(
         private readonly Objects $objects,
@@ -65,10 +69,14 @@ final class Canvas
         Closure $fragments,
         bool $inheritsState = false,
         private readonly ?Closure $links = null,
+        private readonly ?Tagger $tagger = null,
     ) {
         $this->stream = new ContentStream($height, $topDown, $inheritsState);
-        $this->paint  = new Paint($objects, $resources, new ColourOperators($objects, $colour, $resources));
-        $this->text   = new TextPainter($this->stream, $resources, $objects, $fragments);
+        if (null !== $tagger) {
+            $this->stream->tagWith($tagger);
+        }
+        $this->paint = new Paint($objects, $resources, new ColourOperators($objects, $colour, $resources));
+        $this->text  = new TextPainter($this->stream, $resources, $objects, $fragments);
         // A document that checks colour can change its output intent, and with it which device
         // colours are allowed, so its colours are checked each time rather than remembered.
         $this->remembersFill = ! $colour->checksColour();
@@ -93,7 +101,9 @@ final class Canvas
      */
     public function beginText(): self
     {
-        $this->text->begin();
+        if (null === $this->tagger) {
+            $this->text->begin();
+        }
 
         return $this;
     }
@@ -184,6 +194,21 @@ final class Canvas
         return $this;
     }
 
+    /**
+     * A new element under the given parent or the element being drawn, on a tagged page; null
+     * otherwise.
+     *
+     * @internal
+     */
+    public function element(
+        StructureRole $role,
+        ?string $alt = null,
+        ?Dictionary $attributes = null,
+        ?StructureElement $parent = null,
+    ): ?StructureElement {
+        return $this->tagger?->element($role, $alt, $attributes, $parent);
+    }
+
     public function ellipse(float $cx, float $cy, float $rx, float $ry): self
     {
         return $this->path(Path::ellipse($cx, $cy, $rx, $ry));
@@ -214,7 +239,9 @@ final class Canvas
      */
     public function endText(): self
     {
-        $this->text->end();
+        if (null === $this->tagger) {
+            $this->text->end();
+        }
 
         return $this;
     }
@@ -267,6 +294,12 @@ final class Canvas
         return $this->height;
     }
 
+    /** @internal */
+    public function isTagged(): bool
+    {
+        return null !== $this->tagger;
+    }
+
     public function isTopDown(): bool
     {
         return $this->topDown;
@@ -290,8 +323,12 @@ final class Canvas
      *
      * @internal used by Textflow for linked text
      */
-    public function linkArea(Box $area, Destination|string $target, ?string $tooltip = null): self
-    {
+    public function linkArea(
+        Box $area,
+        Destination|string $target,
+        ?string $tooltip = null,
+        ?StructureElement $element = null,
+    ): self {
         if (null === $this->links) {
             return $this;
         }
@@ -305,7 +342,28 @@ final class Canvas
         ] as [$x, $y]) {
             [$xs[], $ys[]] = $this->stream->ctm()->apply($x, $y);
         }
-        ($this->links)(new Box(min($xs), min($ys), max($xs) - min($xs), max($ys) - min($ys)), $target, $tooltip);
+        ($this->links)(
+            new Box(min($xs), min($ys), max($xs) - min($xs), max($ys) - min($ys)),
+            $target,
+            $tooltip,
+            $element ?? $this->tagger?->element(StructureRole::Link),
+        );
+
+        return $this;
+    }
+
+    /**
+     * Draws what follows as the element, or as an artifact for null, in place of what within()
+     * draws as, on a tagged page.
+     *
+     * @internal
+     */
+    public function mark(?StructureElement $element): self
+    {
+        if (null !== $this->tagger && ! $this->tagger->isDrawing($element)) {
+            $this->stream->closeMarked();
+            $this->tagger->switchTo($element);
+        }
 
         return $this;
     }
@@ -503,6 +561,46 @@ final class Canvas
         return $this;
     }
 
+    /**
+     * Draws content as an element of the document's logical structure, under the element being
+     * drawn, if any: what assistive technology reads it as, with alternate text for artwork. On
+     * a page of an untagged document, and in templates, the content is drawn as it is.
+     *
+     * @param Closure(Canvas): void $draw
+     */
+    public function tag(StructureRole $role, Closure $draw, ?string $alt = null): self
+    {
+        return $this->within($this->element($role, $alt), $draw);
+    }
+
+    /**
+     * Draws content as an element, or as an artifact for null, on a tagged page; otherwise as it
+     * is.
+     *
+     * @internal
+     *
+     * @param Closure(Canvas): void $draw
+     */
+    public function within(?StructureElement $element, Closure $draw): self
+    {
+        $tagger = $this->tagger;
+        if (null === $tagger) {
+            $draw($this);
+
+            return $this;
+        }
+        $this->stream->closeMarked();
+        $tagger->enter($element);
+        try {
+            $draw($this);
+        } finally {
+            $this->stream->closeMarked();
+            $tagger->leave();
+        }
+
+        return $this;
+    }
+
     private function fillOperation(ColorInterface $color): string
     {
         if ($color === $this->lastFill) {
@@ -660,6 +758,12 @@ final class Canvas
     public function strokeRect(float $x, float $y, float $width, float $height): self
     {
         return $this->rect($x, $y, $width, $height)->stroke();
+    }
+
+    /** @internal */
+    public function tagger(): ?Tagger
+    {
+        return $this->tagger;
     }
 
     public function translate(float $tx, float $ty): self

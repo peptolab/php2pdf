@@ -10,6 +10,7 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Fit\Position;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Structure\StructureElement;
 use Php2Pdf\Text\Style\Alignment;
 use Php2Pdf\Text\Style\VerticalAlignment;
 
@@ -27,6 +28,7 @@ final class Painter
         private readonly Canvas $canvas,
         private readonly Layout $layout,
         private readonly Box $box,
+        private readonly ?TableTags $tags = null,
     ) {}
 
     /** The canvas box of an area $top points below the table's top edge. */
@@ -45,14 +47,22 @@ final class Painter
 
     /**
      * Draws the cells starting in a row. A spanning cell is as tall as the placed rows it covers.
+     * On a tagged page their content is tagged as cells of the row's part, or as artifacts for
+     * none, and their backgrounds and borders are artifacts.
      *
      * @param list<PlacedCell>  $cells
      * @param array<int, float> $heights heights of the rows placed in this box
      *
      * @return bool whether any text of the row was placed
      */
-    public function row(array $cells, float $top, array $heights, int $row, ?float $limit): bool
-    {
+    public function row(
+        array $cells,
+        float $top,
+        array $heights,
+        int $row,
+        ?float $limit,
+        ?Part $part = Part::Body,
+    ): bool {
         $placedText = false;
         foreach ($cells as $placed) {
             $height = 0.0;
@@ -68,11 +78,20 @@ final class Painter
                 $this->layout->spanWidth($placed),
                 $height,
             );
-            $this->background($placed, $area);
-            if ($this->content($placed, $area)) {
-                $placedText = true;
-            }
-            $this->borders($placed, $area);
+            $this->canvas->within(null, function () use ($placed, $area): void {
+                $this->background($placed, $area);
+            });
+            $this->canvas->within(
+                $this->cellElement($part, $placed),
+                function () use ($placed, $area, &$placedText): void {
+                    if ($this->content($placed, $area)) {
+                        $placedText = true;
+                    }
+                },
+            );
+            $this->canvas->within(null, function () use ($placed, $area): void {
+                $this->borders($placed, $area);
+            });
         }
 
         return $placedText;
@@ -117,6 +136,14 @@ final class Painter
                 ->stroke()
                 ->restore();
         }
+    }
+
+    /** The element a cell's content is drawn as on a tagged page; null otherwise, or for an artifact. */
+    private function cellElement(?Part $part, PlacedCell $placed): ?StructureElement
+    {
+        $tagger = $this->canvas->tagger();
+
+        return null === $tagger ? null : $this->tags?->cell($tagger, $part, $placed);
     }
 
     /** Draws the cell's content inside its padding; returns whether text was placed. */

@@ -10,6 +10,7 @@ use Php2Pdf\Font\TextDirection;
 use Php2Pdf\Font\TextOptions;
 use Php2Pdf\Font\TextRenderMode;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Structure\StructureRole;
 
 use function array_map;
 use function get_object_vars;
@@ -46,6 +47,8 @@ final readonly class TextStyle
      *                                                   from its first letter with one); a
      *                                                   right-to-left paragraph aligns right
      *                                                   unless an alignment is set
+     * @param StructureRole|null              $role     what a paragraph is tagged as in a tagged
+     *                                                  document: P unless set
      */
     public function __construct(
         public FontInterface|string|null $font = null,
@@ -91,6 +94,7 @@ final readonly class TextStyle
         public ?TextDirection $direction = null,
         public ?Composer $composer = null,
         public ?Justification $justification = null,
+        public ?StructureRole $role = null,
     ) {}
 
     public function fontSize(): float

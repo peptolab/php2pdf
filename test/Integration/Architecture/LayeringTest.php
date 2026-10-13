@@ -41,6 +41,7 @@ final class LayeringTest extends TestCase
         'Core'       => 1,
         'Geometry'   => 2,
         'Navigation' => 2,
+        'Structure'  => 2,
         'Color'      => 3,
         'Fit'        => 3,
         'Font'       => 4,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Document;
 
+use Closure;
 use Override;
 use Php2Pdf\Core\Object\Dictionary;
 use Php2Pdf\Core\Object\Name;
@@ -34,7 +35,7 @@ final class Navigation implements CatalogContributorInterface
     /** @var array<string, Destination> */
     private array $destinations = [];
 
-    /** @var list<array{0: Reference, 1: Box, 2: Destination|string, 3: string|null}> */
+    /** @var list<array{0: Reference, 1: Box, 2: Destination|string, 3: string|null, 4: int|null}> each link's /StructParent last */
     private array $links = [];
 
     public function __construct(
@@ -50,11 +51,19 @@ final class Navigation implements CatalogContributorInterface
         $this->destinations[$name] = $destination;
     }
 
-    /** Allocates a link annotation; it is written at close. */
-    public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): Reference
-    {
+    /**
+     * Allocates a link annotation; it is written at close.
+     *
+     * @param (Closure(Reference): int)|null $tag tags the annotation, returning its /StructParent
+     */
+    public function addLink(
+        Box $area,
+        Destination|string $target,
+        ?string $tooltip = null,
+        ?Closure $tag = null,
+    ): Reference {
         $ref           = $this->objects->allocate();
-        $this->links[] = [$ref, $area, $target, $tooltip];
+        $this->links[] = [$ref, $area, $target, $tooltip, null === $tag ? null : $tag($ref)];
 
         return $ref;
     }
@@ -70,14 +79,15 @@ final class Navigation implements CatalogContributorInterface
         $resolve =
             /** @return list<mixed>|string */
             fn(Destination $destination): array|string => $this->resolve($destination, $pageRefs);
-        foreach ($this->links as [$ref, $area, $target, $tooltip]) {
+        foreach ($this->links as [$ref, $area, $target, $tooltip, $parent]) {
             $annotation = Dictionary::of([
-                'Type'     => new Name('Annot'),
-                'Subtype'  => new Name('Link'),
-                'Rect'     => $area->toRect(),
-                'Border'   => [0, 0, 0],
-                'F'        => 0 === $this->linkFlags ? null : $this->linkFlags,
-                'Contents' => null === $tooltip ? null : TextString::encode($tooltip),
+                'Type'         => new Name('Annot'),
+                'Subtype'      => new Name('Link'),
+                'Rect'         => $area->toRect(),
+                'Border'       => [0, 0, 0],
+                'F'            => 0 === $this->linkFlags ? null : $this->linkFlags,
+                'Contents'     => null === $tooltip ? null : TextString::encode($tooltip),
+                'StructParent' => $parent,
             ]);
             if ($target instanceof Destination) {
                 $annotation->set('Dest', $resolve($target));
