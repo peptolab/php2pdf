@@ -85,6 +85,19 @@ final class Canvas
         return $this->path($this->stream->hasCurrentPoint() ? $arc->joined() : $arc);
     }
 
+    /**
+     * Shows the runs from here to endText() in one text object, each line moved from the one
+     * before, as a box of laid-out text is drawn. Nothing but text may be drawn until endText().
+     *
+     * @internal
+     */
+    public function beginText(): self
+    {
+        $this->text->begin();
+
+        return $this;
+    }
+
     public function box(Box $box): self
     {
         return $this->rect($box->x, $box->y, $box->width, $box->height);
@@ -190,6 +203,18 @@ final class Canvas
     public function endPath(): self
     {
         $this->stream->paint('n');
+
+        return $this;
+    }
+
+    /**
+     * Ends the text object beginText() asked for.
+     *
+     * @internal
+     */
+    public function endText(): self
+    {
+        $this->text->end();
 
         return $this;
     }

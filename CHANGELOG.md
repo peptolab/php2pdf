@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- A box of laid-out text is written as one text object, each line moved from the one before (`T*`
+  when only the leading moves it) rather than placed from the page's origin in a text object of
+  its own (#8). Pages of text are a quarter smaller (500 pages of text: 799 to 570 KiB, now below
+  PDFlib's 609 KiB), with every glyph where it was. Underlines and strikeouts are drawn after the
+  text they mark, and inline artwork and colour glyph layers between text objects, since a text
+  object may not hold them.
+
 ## [0.1.10] - 2026-10-13
 
 ### Changed

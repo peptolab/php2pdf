@@ -23,6 +23,7 @@ use Php2Pdf\Geometry\Matrix;
 
 use function array_keys;
 use function array_slice;
+use function ltrim;
 use function max;
 use function min;
 use function sprintf;
@@ -30,7 +31,8 @@ use function sprintf;
 /**
  * Shows text on a canvas: shaped runs in text objects, writing only the text state that changes;
  * colour glyphs as their layers over an invisible base; and single lines fitted into a box, with
- * underline and strikeout. It is given the canvas for each call rather than holding it, so the
+ * underline and strikeout. Runs shown between begin() and end() share one text object, each line
+ * moved from the one before. It is given the canvas for each call rather than holding it, so the
  * two do not keep each other alive.
  *
  * @internal
@@ -62,13 +64,23 @@ final class TextPainter
     /** @var array{Tc: string, Tz: string, Ts: string, Tr: string, Tw: string} */
     private array $lastRest = ['Tc' => '', 'Tz' => '', 'Ts' => '', 'Tr' => '', 'Tw' => '0 Tw'];
 
+    /** Whether runs share a text object, between begin() and end(). */
+    private bool $grouped = false;
+
+    /** Whether a text object is open, ended by end(). */
+    private bool $open = false;
+
+    private readonly TextLine $line;
+
     public function __construct(
         private readonly ContentStream $stream,
         private readonly Resources $resources,
         private readonly Objects $objects,
         /** @var Closure(): TextFragments the document's, asked for when text is first drawn */
         private readonly Closure $fragments,
-    ) {}
+    ) {
+        $this->line = new TextLine($stream);
+    }
 
     /**
      * How far word spacing moves the glyph after $glyphs: $wordSpace, scaled horizontally, after
@@ -88,6 +100,26 @@ final class TextPainter
         }
 
         return ($count * $wordSpace * $options->horizontalScale) / 100.0;
+    }
+
+    /**
+     * Shows the runs from here to end() in one text object, opened by the first of them. Nothing
+     * but text may be drawn until end(): no paths, and no saving or restoring of the graphics
+     * state.
+     */
+    public function begin(): void
+    {
+        $this->grouped = true;
+    }
+
+    /** Ends the text object begin() opened, if a run opened it. */
+    public function end(): void
+    {
+        if ($this->open) {
+            $this->stream->append('ET');
+        }
+        $this->open    = false;
+        $this->grouped = false;
     }
 
     /** Fits a line of text into a box, positioned, rotated, scaled or shrunk as the options say. */
@@ -174,6 +206,9 @@ final class TextPainter
 
             return;
         }
+        // The layers save and restore the graphics state, which a text object may not hold.
+        $grouped = $this->grouped;
+        $this->end();
         $this->show($run, $font, $size, $textMatrix, $options, array_keys($layers), $pieces);
         $wordSpace = $pieces->wordSpace ?? 0.0;
         $this->stream->append(self::NO_TEXT);
@@ -198,6 +233,9 @@ final class TextPainter
             }
         }
         $this->stream->append('EMC');
+        if ($grouped) {
+            $this->begin();
+        }
     }
 
     /** A filled bar in the object space of a fitted text line: an underline or a strikeout. */
@@ -215,7 +253,7 @@ final class TextPainter
     }
 
     /**
-     * Shows a run in one text object. Glyphs at the $hidden positions (colour glyphs, whose layers
+     * Shows a run in a text object of its own, or in the one begin() asked for. Glyphs at the $hidden positions (colour glyphs, whose layers
      * are drawn over them) are shown invisibly, so they keep their place and their text. A run
      * joined from $pieces is shown from them where TextFragments::show() can, and with their word
      * spacing.
@@ -235,22 +273,27 @@ final class TextPainter
         if ($font !== $this->lastFont) {
             $this->objects->assertOwns($font->objects(), 'A font');
         }
-        $state    = $this->textState($font, $size, $options, $pieces->wordSpace ?? 0.0);
-        $ops      = "BT{$this->stream->changed($state)}";
-        $m        = $textMatrix;
-        $position = 1.0 === $m->a && 0.0 === $m->b && 0.0 === $m->c && 1.0 === $m->d
-            ? Num::format($m->e, 6) . ' ' . Num::format($m->f, 6) . ' Td'
-            : "{$m->toPdf()} Tm";
-        $shown =
-            [] === $hidden && null !== $pieces && [] !== $pieces->runs
-                ? ($this->fragments)()->show($pieces->runs, $pieces->lastKernings, $font, $size, $options)
-                : null;
+        $state = $this->stream->changed($this->textState($font, $size, $options, $pieces->wordSpace ?? 0.0));
+        if (! $this->open) {
+            $this->line->begin();
+        }
+        $position = $this->line->to($textMatrix);
+        $shown    = [] === $hidden && null !== $pieces && [] !== $pieces->runs
+            ? ($this->fragments)()->show($pieces->runs, $pieces->lastKernings, $font, $size, $options)
+            : null;
         [$operation, $faithful] = $shown ?? [
             TextOperators::show($run, $font, $size, $options, $hidden, $this->stream->current('Tr') ?? '0 Tr'),
             $font->markUsed($run),
         ];
-        $text = "{$ops} {$position} {$operation} ET";
-        $this->stream->append($faithful ? $text : TextOperators::actualText($run, $options, $text));
+        $text = "{$position} {$operation}";
+        $text = $faithful ? $text : TextOperators::actualText($run, $options, $text);
+        if (! $this->grouped) {
+            $this->stream->append("BT{$state} {$text} ET");
+
+            return;
+        }
+        $this->stream->append($this->open ? ltrim("{$state} {$text}") : "BT{$state} {$text}");
+        $this->open = true;
     }
 
     /**
