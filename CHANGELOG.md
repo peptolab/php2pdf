@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `tools/bench` scenarios `six-fonts-10` (six TrueType and CFF fonts on each page, lightly) and
+  `cjk-10` (ten pages in a CJK font of tens of thousands of glyphs, found by `fixtures.php` or
+  given in `BENCH_CJK`), to measure subsetting with several fonts and with a large one (#49).
+
 ### Changed
 
 - A box of laid-out text is written as one text object, each line moved from the one before (`T*`
@@ -14,6 +20,13 @@ All notable changes to this project are documented here. The format follows
   PDFlib's 609 KiB), with every glyph where it was. Underlines and strikeouts are drawn after the
   text they mark, and inline artwork and colour glyph layers between text objects, since a text
   object may not hold them.
+
+### Fixed
+
+- Chinese and Japanese text breaks between characters, as UAX #14 and the Japanese kinsoku rules
+  allow, rather than only at spaces: a paragraph without spaces was set by cutting each line from
+  it, reshaping what was left until it fitted. Ten pages of Chinese take an eighth of the time
+  (3.8 to 0.5 s), and closing punctuation and small kana no longer start a line.
 
 ## [0.1.10] - 2026-10-13
 

@@ -22,8 +22,8 @@ use const PREG_SPLIT_NO_EMPTY;
 
 /**
  * Where text may break: at tabs and line breaks, at word spaces and fixed spaces, after hard
- * hyphens, dashes and slashes, and at soft hyphens or, failing those, the hyphenation points of
- * the patterns for the text's language.
+ * hyphens, dashes and slashes, on either side of a Chinese or Japanese character, and at soft
+ * hyphens or, failing those, the hyphenation points of the patterns for the text's language.
  *
  * @internal
  */
@@ -33,6 +33,24 @@ final class WordBreaks
 
     /** Spaces of fixed width that allow a break: en, em, three-, four- and six-per-em, punctuation, thin, hair. */
     public const string FIXED_SPACES = '[\x{2002}-\x{2006}\x{2008}-\x{200A}]';
+
+    /**
+     * Chinese and Japanese characters, which lines may break between: ideographs, kana, CJK
+     * punctuation and full-width forms.
+     */
+    private const string CJK = '\p{Han}\p{Hiragana}\p{Katakana}\x{3000}-\x{303F}\x{FF00}-\x{FFEF}';
+
+    /**
+     * Characters no line may start with, as UAX #14 and the Japanese kinsoku rules have it:
+     * closing brackets and punctuation, small kana, iteration and prolonged sound marks, and the
+     * marks and variation selectors that belong to the character before.
+     */
+    private const string NO_START =
+        ')\]}、。，．：；！？）］｝」』】〕〉》〙〛〞〟｡｣､・ーヽヾゝゞ々〻'
+            . 'ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ\x{31F0}-\x{31FF}゛゜〜!?,.:;%\p{M}\x{FE00}-\x{FE0F}';
+
+    /** Characters no line may end with: opening brackets and quotes. */
+    private const string NO_END = '(\[{（［｛「『【〔〈《〘〚〝｢‘“';
 
     /** A run of word spaces: glue. */
     public const string GLUE = 'glue';
@@ -167,15 +185,20 @@ final class WordBreaks
 
     /**
      * A word cut where it may break: after hard hyphens, en dashes and slashes (not before a
-     * digit), on both sides of an em dash, and at soft hyphens or, failing those, pattern
-     * hyphenation points within each part.
+     * digit), on both sides of an em dash and of a Chinese or Japanese character (but not before
+     * one no line may start with, nor after one no line may end with), and at soft hyphens or,
+     * failing those, pattern hyphenation points within each part.
      *
      * @return list<array{0: string, 1: ?string}> pieces, each with the break that follows it
      */
     private function wordPieces(string $word, TextStyle $style): array
     {
+        $cjk   = self::CJK;
+        $start = self::NO_START;
+        $end   = self::NO_END;
         $parts = preg_split(
-            '/(?<=[^\s\-\x{2010}\x{2013}\x{2014}\/])(?=\x{2014})|(?<=[\-\x{2010}\x{2013}\/])(?=[^\d\-\x{2010}\x{2013}\x{2014}\/])|(?<=\x{2014})(?=[^\x{2014}])/u',
+            '/(?<=[^\s\-\x{2010}\x{2013}\x{2014}\/])(?=\x{2014})|(?<=[\-\x{2010}\x{2013}\/])(?=[^\d\-\x{2010}\x{2013}\x{2014}\/])|(?<=\x{2014})(?=[^\x{2014}])'
+                . "|(?<=[{$cjk}])(?<![{$end}])(?=[^{$start}])|(?<=[^{$end}])(?=[{$cjk}])(?![{$start}])/u",
             $word,
             flags: PREG_SPLIT_NO_EMPTY,
         );

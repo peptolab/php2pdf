@@ -74,3 +74,40 @@ function bench_long_paragraphs(string $copy): string
 
     return implode("\n\n", array_map(static fn (array $chunk): string => implode(' ', $chunk), array_chunk($words, 400)));
 }
+
+/** The six fonts of six-fonts-10, by the names the PDFlib side registers them under, and their files. */
+const BENCH_SIX_FONTS = [
+    'DejaVuSans'           => 'DejaVuSans.ttf',
+    'DejaVuSans-Bold'      => 'DejaVuSans-Bold.ttf',
+    'SourceSans3-Regular'  => 'SourceSans3-Regular.otf',
+    'SourceSans3-Bold'     => 'SourceSans3-Bold.otf',
+    'SourceSerif4-Regular' => 'SourceSerif4-Regular.ttf',
+    'SourceSerif4-Bold'    => 'SourceSerif4-Bold.ttf',
+];
+
+/** @return list<array{float, float, float, float}> Six boxes, two across and three down. */
+function bench_six_boxes(): array
+{
+    $boxes = [];
+    for ($row = 0; $row < 3; ++$row) {
+        foreach ([42.52, 311.82] as $x) {
+            $boxes[] = [$x, 56.69 + $row * 240.0, 240.94, 225.0];
+        }
+    }
+
+    return $boxes;
+}
+
+/** @return list<string> The body copy in excerpts of 110 words, about what a box of six-fonts-10 holds. */
+function bench_excerpts(string $copy): array
+{
+    $words = preg_split('/\s+/', trim($copy)) ?: [];
+
+    return array_map(static fn (array $chunk): string => implode(' ', $chunk), array_chunk($words, 110));
+}
+
+/** The CJK font fixture, if fixtures.php found one: cjk.ttf, cjk.otf or cjk.ttc (face 0). */
+function bench_cjk_font(string $fx): ?string
+{
+    return (glob("{$fx}/cjk.{ttf,otf,ttc}", GLOB_BRACE) ?: [null])[0];
+}
