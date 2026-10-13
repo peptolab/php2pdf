@@ -241,6 +241,27 @@ final class LineAssemblerTest extends TestCase
     }
 
     #[Test]
+    public function aLineOfOneGlyphWithoutLetterSpacingIsLeftAsItIs(): void
+    {
+        $line = $this->justify('a', 50.0, new Justification());
+
+        self::assertEqualsWithDelta($this->serif->width('a', 10.0), $line->width, 1.0e-9);
+    }
+
+    #[Test]
+    public function aLineWithoutWordSpacesSpreadsItsSlackEvenlyBetweenItsLetters(): void
+    {
+        $line = $this->justify('aaaa', $this->serif->width('aaaa', 10.0) + 3.0, new Justification());
+
+        self::assertEqualsWithDelta(
+            [100.0, 100.0, 100.0, 0.0],
+            self::added($line, $this->natural('aaaa', new Justification())),
+            1.0e-9,
+            'As a line of Chinese or Japanese is justified, though the style lets no letter spacing change.',
+        );
+    }
+
+    #[Test]
     public function aLineWithoutWordSpacesTakesTheRestBetweenItsLetters(): void
     {
         $justification = new Justification(maxLetterSpacing: 10.0);
@@ -277,6 +298,15 @@ final class LineAssemblerTest extends TestCase
             1.0e-9,
             'The text is set at its widest; the object keeps its 5 pt.',
         );
+    }
+
+    #[Test]
+    public function aTightLineWithoutWordSpacesIsLeftAsItIs(): void
+    {
+        $natural = $this->serif->width('aaaa', 10.0);
+        $line    = $this->justify('aaaa', $natural - 1.0, new Justification());
+
+        self::assertEqualsWithDelta($natural, $line->width, 1.0e-9);
     }
 
     #[Test]

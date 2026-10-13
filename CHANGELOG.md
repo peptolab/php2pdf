@@ -34,6 +34,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- A justified line without word spaces, as lines of Chinese and Japanese mostly are, now takes
+  its slack evenly between its glyphs instead of staying ragged, whatever its style's letter
+  spacing limits. Lines with word spaces are justified as before.
 - Under PDF/X, as under PDF/A, an imported page using a font that is not embedded is refused
   when it is placed, naming the fonts: the standards require every font to be embedded.
 

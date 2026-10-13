@@ -15,6 +15,7 @@ use WeakMap;
 
 use function abs;
 use function array_column;
+use function array_key_last;
 use function array_merge;
 use function array_pop;
 use function array_slice;
@@ -246,6 +247,38 @@ final class LineAssembler
         }
 
         return [$glyphs, $width];
+    }
+
+    /**
+     * How a justified line without word spaces, whose styles let nothing else change, takes its
+     * slack: evenly between its glyphs, all but the last, as a line of Chinese or Japanese is
+     * justified. A line set tight, or of one glyph, does not change.
+     *
+     * @param list<Item> $items
+     */
+    private static function letterSpread(array $items, float $missing): LineSpread
+    {
+        $letters = [];
+        $glyphs  = 0;
+        foreach ($items as $k => $item) {
+            $count = null === $item->run ? 0 : count($item->run->glyphs);
+            if (0 < $count) {
+                $letters[$k] = 0.0;
+                $glyphs      += $count;
+            }
+        }
+        if ($missing <= 0.0 || $glyphs < 2) {
+            return new LineSpread();
+        }
+        $each = $missing / ($glyphs - 1);
+        foreach ($letters as $k => $_) {
+            $letters[$k] = $each;
+        }
+
+        return new LineSpread(
+            letters: $letters,
+            last: array_key_last($letters),
+        );
     }
 
     /**
@@ -560,7 +593,9 @@ final class LineAssembler
         $gapTotal   -= null === $last ? 0.0 : $gaps[$last] ?? 0.0;
         $glyphRange ??= 0.0;
         if ($gapTotal <= 0.0 && $glyphRange <= 0.0) {
-            return $wordTotal <= 0.0 ? new LineSpread() : new LineSpread(self::share($words, $missing, $wordTotal));
+            return $wordTotal <= 0.0
+                ? self::letterSpread($items, $missing)
+                : new LineSpread(self::share($words, $missing, $wordTotal));
         }
 
         return self::byPriority($missing, [$words, $wordTotal], [$gaps, $gapTotal, $last], $textWidth, $glyphRange);
@@ -677,6 +712,8 @@ final class LineAssembler
             $total     += $flex;
         }
 
-        return $total <= 0.0 ? new LineSpread() : new LineSpread(self::share($words, $missing, $total));
+        return $total <= 0.0
+            ? self::letterSpread($items, $missing)
+            : new LineSpread(self::share($words, $missing, $total));
     }
 }

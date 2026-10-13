@@ -123,7 +123,9 @@ Chinese and Japanese lines break between characters, as UAX #14 and the Japanese
 allow: not before closing punctuation (`、。」）`), small kana, the prolonged sound and iteration
 marks, or a combining mark or variation selector, and not after an opening bracket (`「（`).
 Latin words and numbers in the text break from the characters around them. Korean breaks at its
-word spaces.
+word spaces. A justified line without word spaces, as most Chinese and Japanese lines are,
+spreads its slack evenly between its characters, even where the style lets no letter spacing
+change.
 
 Plain text (`TextFormat::Plain`) treats blank lines as paragraph breaks, single line ends as
 line breaks, and tabs as tabs.
