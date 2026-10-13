@@ -24,7 +24,7 @@ final class Rc4
 
     public static function crypt(string $key, string $data): string
     {
-        $s      = range(
+        $s = range(
             start: 0,
             end: 255,
         );
