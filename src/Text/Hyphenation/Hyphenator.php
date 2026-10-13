@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Hyphenation;
 
 use Php2Pdf\Core\FileReader;
+use Php2Pdf\Core\LineEnd;
 use Php2Pdf\Exception\IoException;
 
 use function array_fill;
@@ -121,7 +122,7 @@ final class Hyphenator
             return [$patterns, $exceptions];
         }
         // hunspell form: an encoding line, optional directives, then one pattern per line.
-        $lines = preg_split('/\R/', $text, flags: PREG_SPLIT_NO_EMPTY);
+        $lines = preg_split('/' . LineEnd::PATTERN . '/', $text, flags: PREG_SPLIT_NO_EMPTY);
         foreach (false === $lines ? [] : $lines as $line) {
             $line = trim($line);
             if (

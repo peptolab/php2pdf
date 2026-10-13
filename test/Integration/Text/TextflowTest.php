@@ -54,12 +54,36 @@ final class TextflowTest extends TestCase
         ];
     }
 
+    /** @return array<string, array{0: string}> */
+    public static function lineEndProvider(): array
+    {
+        return [
+            'LF'                  => ["one\ntwo"],
+            'CRLF'                => ["one\r\ntwo"],
+            'CR'                  => ["one\rtwo"],
+            'vertical tab'        => ["one\vtwo"],
+            'form feed'           => ["one\ftwo"],
+            'next line'           => ["one\u{0085}two"],
+            'line separator'      => ["one\u{2028}two"],
+            'paragraph separator' => ["one\u{2029}two"],
+        ];
+    }
+
     /** @return array<string, array{0: string, 1: FlowResult}> */
     public static function midLineBreakProvider(): array
     {
         return [
             'column break' => ['Before<columnbreak>after', FlowResult::BoxFull],
             'page break'   => ['Before<pagebreak>after', FlowResult::NextPage],
+        ];
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function oneLineProvider(): array
+    {
+        return [
+            'Å (C3 85)'          => ['Ångström'],
+            'Cyrillic х (D1 85)' => ['очень хорошо'],
         ];
     }
 
@@ -299,6 +323,16 @@ final class TextflowTest extends TestCase
     }
 
     #[Test]
+    #[DataProvider('lineEndProvider')]
+    public function eachLineEndInPlainTextBreaksTheLine(string $text): void
+    {
+        $flow = $this->doc->textflow($text, 'body');
+        $this->doc->addPage()->fitTextflow($flow, new Box(50.0, 500.0, 300.0, 100.0));
+
+        self::assertSame(2, $flow->lastFit()?->lineCount);
+    }
+
+    #[Test]
     public function escapedDataRoundTripsThroughMarkup(): void
     {
         $data = 'Tom <Jerry> & R&amp;D Ltd';
@@ -456,6 +490,25 @@ final class TextflowTest extends TestCase
         $flow = $this->doc->textflow("First <b>not bold</b>\nstill first\n\nSecond", 'body', TextFormat::Plain);
 
         self::assertSame("First <b>not bold</b>\nstill first\n\nSecond", $flow->remainingText());
+    }
+
+    /** Characters whose UTF-8 form ends in the byte 0x85 are not taken for line ends. */
+    #[Test]
+    #[DataProvider('oneLineProvider')]
+    public function plainTextWithAnyCharactersStaysOnOneLineWhole(string $text): void
+    {
+        $flow  = $this->doc->textflow($text, 'body');
+        $width = $this->doc->fonts()->find('DejaVuSans')->width($text, 10.0);
+        $this->doc->addPage()->fitTextflow($flow, new Box(50.0, 500.0, 300.0, 100.0));
+
+        self::assertEqualsWithDelta(
+            [1, 50.0 + $width],
+            [
+                $flow->lastFit()?->lineCount,
+                $flow->lastFit()->textEnd[0] ?? 0.0,
+            ],
+            1.0e-6,
+        );
     }
 
     #[Test]

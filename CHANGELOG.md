@@ -13,6 +13,15 @@ All notable changes to this project are documented here. The format follows
   fonts is about a third smaller. Text, widths and copied text are unchanged; a font's codes now
   depend on the order its glyphs appear in.
 
+## [0.1.8] - 2026-10-13
+
+### Fixed
+
+- Plain text no longer breaks lines inside characters whose UTF-8 form ends in the byte 0x85,
+  such as Å and much of Cyrillic (х): a textflow of "очень хорошо" was split in two and lost text
+  around the break. Hyphenation patterns and CSV swatch names with such characters are read whole
+  too. Plain text now also breaks lines at the line and paragraph separators (U+2028, U+2029).
+
 ## [0.1.7] - 2026-10-13
 
 ### Added
@@ -221,7 +230,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.7...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.8...HEAD
+[0.1.8]: https://github.com/peptolab/php2pdf/compare/0.1.7...0.1.8
 [0.1.7]: https://github.com/peptolab/php2pdf/compare/0.1.6...0.1.7
 [0.1.6]: https://github.com/peptolab/php2pdf/compare/0.1.5...0.1.6
 [0.1.5]: https://github.com/peptolab/php2pdf/compare/0.1.4...0.1.5

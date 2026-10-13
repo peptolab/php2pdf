@@ -45,6 +45,13 @@ final class HyphenatorTest extends TestCase
         self::assertSame([], $h->hyphenate('hy'));
     }
 
+    /** х ends in the byte 0x85, which a byte-wise line-end pattern takes for a line end. */
+    #[Test]
+    public function hunspellPatternsWithAnyCharactersAreReadWhole(): void
+    {
+        self::assertSame(['ма', 'хаон'], Hyphenator::fromString("UTF-8\nа1х\n", 'ru')->syllables('махаон'));
+    }
+
     #[Test]
     public function ignoresAPatternWithoutLetters(): void
     {
