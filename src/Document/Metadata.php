@@ -24,6 +24,9 @@ final class Metadata implements CatalogContributorInterface
     /** @var list<string> RDF descriptions added to the XMP packet */
     private array $descriptions = [];
 
+    /** @var array<string, XmpSchema> the extension schemas PDF/A needs declared, by namespace */
+    private array $schemas = [];
+
     public function __construct(
         public readonly Info $info,
         private readonly DocumentOptions $options,
@@ -37,6 +40,15 @@ final class Metadata implements CatalogContributorInterface
         $this->descriptions[] = $rdf;
     }
 
+    /**
+     * Declares a schema the XMP uses that PDF/A does not predefine; the declarations are written
+     * under PDF/A only, where they are needed.
+     */
+    public function addSchema(XmpSchema $schema): void
+    {
+        $this->schemas[$schema->namespace] = $schema;
+    }
+
     /** Adds the XMP packet to the catalog, when the options ask for one. */
     #[Override]
     public function contribute(Dictionary $catalog, array $pageRefs): void
@@ -47,6 +59,19 @@ final class Metadata implements CatalogContributorInterface
         $xmp = new Xmp($this->info, $this->options->producer, $this->createdAt);
         foreach ($this->descriptions as $description) {
             $xmp->addDescription($description);
+        }
+        if (null !== $this->options->pdfa && [] !== $this->schemas) {
+            $declarations = '';
+            foreach ($this->schemas as $schema) {
+                $declarations .= $schema->declaration();
+            }
+            $xmp->addDescription(
+                '<rdf:Description rdf:about="" xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"'
+                    . ' xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"'
+                    . ' xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">'
+                    . "<pdfaExtension:schemas><rdf:Bag>{$declarations}</rdf:Bag></pdfaExtension:schemas>"
+                    . '</rdf:Description>',
+            );
         }
         $catalog->set('Metadata', $this->objects->add(new Stream(
             Dictionary::of(['Type' => new Name('Metadata'), 'Subtype' => new Name('XML')]),

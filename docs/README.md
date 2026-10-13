@@ -17,7 +17,7 @@ PHP 8.3 or later with `ext-zlib` and `ext-mbstring`, and nothing else at runtime
 | [SVG](svg.md) | The native converter, what it supports, the rsvg-convert adapter |
 | [Textflow](textflow.md) | Styles, markup, the builder, box chaining, results and queries, copy fitting, hyphenation |
 | [Tables](tables.md) | Columns, rows, cells, styles, spans, header rows, groups, splitting, `Document::flow()` |
-| [Links, bookmarks and PDF/X-4](navigation-and-pdfx.md) | Link annotations, destinations, the outline, print production output |
+| [Links, bookmarks, PDF/X-4 and PDF/A](navigation-and-pdfx.md) | Link annotations, destinations, the outline, print production and archival output, attachments and Factur-X invoices |
 | [Cookbook](cookbook.md) | An invoice ported from PDFlib, a two-column brochure, a report with a repeating table |
 | [Limitations](limitations.md) | What is not supported, and what to expect at the edges |
 | [Development](development.md) | Code style with Mago, running the tests, visual baselines |

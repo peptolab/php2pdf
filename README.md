@@ -92,7 +92,7 @@ $doc->flow($table, Box::fromMm(15, 48, 180, 176), function (Document $doc, int $
 });
 ```
 
-## Links, bookmarks and PDF/X-4
+## Links, bookmarks, PDF/X-4 and PDF/A
 
 `$page->addLink($box, 'https://…')` or `->addLink($box, Destination::page(3))` makes an area a
 link; `$doc->addDestination('chapter-2', Destination::top(5, 700))` names a place; and
@@ -106,6 +106,10 @@ the output intent's colour space. The document refuses device colours the output
 in them, links inside the printed area, badly nested page boxes, and closing without `setOutputIntent()` or a title. The
 structure follows ISO 15930-7; check the output with Acrobat Preflight or callas pdfToolbox for a
 formal check.
+
+`new DocumentOptions(pdfa: PdfA::A2b)` writes PDF/A-2b, and `PdfA::A3b` PDF/A-3b, alone or with
+PDF/X-4; the output passes veraPDF. PDF/A-3 documents take attachments, and `attachFacturX()`
+makes a Factur-X (ZUGFeRD 2) e-invoice of one.
 
 ## Design notes
 

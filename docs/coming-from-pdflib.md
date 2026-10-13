@@ -107,10 +107,12 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `create_annotation(..., 'Link', 'action {activate ...}')` | `$page->addLink($box, 'https://...', tooltip: '...')` or `Destination::page(3)` |
 | `add_nameddest` | `$doc->addDestination('name', Destination::top(5, 700))` |
 | `pdfx=PDF/X-4` | `new DocumentOptions(pdfx: PdfX::X4)` |
+| `pdfa=PDF/A-2b`, `pdfa=PDF/A-3b` | `new DocumentOptions(pdfa: PdfA::A2b)` |
+| `load_asset("Attachment")`, `attachments=` | `$doc->attachFile($name, $contents, $mimeType, AttachmentRelationship::Data)` |
 | `load_iccprofile(..., 'usage=outputintent')` | `$doc->setOutputIntent(IccProfile::fromFile(...), 'FOGRA39')` |
 
 ## Not there yet
 
 Mark positioning, right-to-left and complex scripts, tagged PDF,
-PDF/A, forms and annotations other than links, and writing encrypted files: see
+Forms and annotations other than links, and writing encrypted files: see
 [limitations.md](limitations.md) and the issue tracker.

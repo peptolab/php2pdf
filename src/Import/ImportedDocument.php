@@ -34,6 +34,8 @@ final class ImportedDocument
         public readonly PdfFile $file,
         public readonly HiddenLayers $hiddenLayers = HiddenLayers::Keep,
         public readonly ImportedAnnotations $annotations = ImportedAnnotations::None,
+        /** The standards that need every font embedded (PDF/X, PDF/A), or null. */
+        private readonly ?string $embeddingRequiredBy = null,
     ) {
         $this->hidden = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
         $this->copier = new ObjectCopier($file->reader(), $objects, $this->hidden);
@@ -75,6 +77,7 @@ final class ImportedDocument
             ImportedAnnotations::Flatten === $this->annotations
                 ? new AnnotationFlattener($this->file->reader(), $page, $this->hidden)
                 : null,
+            $this->embeddingRequiredBy,
         );
     }
 

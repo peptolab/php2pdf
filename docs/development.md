@@ -8,6 +8,9 @@ composer test               # unit tests
 composer test-integration   # needs qpdf and poppler-utils (pdftoppm, pdfinfo, pdftotext)
 ```
 
+The PDF/A tests (`--group pdfa`) validate their output with [veraPDF](https://verapdf.org) when
+`verapdf` is on the path, and are skipped otherwise; CI runs them in a job of their own.
+
 Code style and analysis use [Mago](https://mago.carthage.software/). `mago.toml` is a full copy
 of the `peptolab/peptolab-qa-tools` base configuration, so that tests are analysed too, with
 thresholds suited to a drawing library. CI runs that package's QA workflow on PHP 8.3 to 8.5,
@@ -36,7 +39,7 @@ between poppler versions do not fail the build.
 
 Fixtures live in `test/asset`: DejaVu, Source Serif 4 and Source Sans 3 fonts (see its README), image variants, a PDF corpus (classic, object
 streams, linearized, incremental updates, broken xref, inherited attributes, ImageMagick and
-cairo output, an encrypted file), SVG sheets and brochure copy.
+cairo output, encrypted files), an sRGB ICC profile, SVG sheets and brochure copy.
 
 ## Architecture
 
@@ -58,7 +61,7 @@ The namespaces sit in layers, and each uses only the layers below it:
 A lower layer that needs something of the document declares a narrow interface for it, and the
 document implements it: `Core\Objects` writes objects (fonts, images, templates and imported
 pages hold the one they were made with, and refuse to be drawn into another document's canvas),
-`Color\ColourPolicyInterface` checks colour against PDF/X and gives the document's colour
+`Color\ColourPolicyInterface` checks colour against PDF/X and PDF/A and gives the document's colour
 spaces, `Font\FontOptions` carries the font settings, `Text\TextContext` the fonts, styles
 and inline objects text is set with, and `Svg\SvgDocumentInterface` what an SVG conversion
 makes. The document makes textflows and tables (`textflow()`, `textflowBuilder()`, `table()`)

@@ -88,8 +88,8 @@ ligature. A small-cap or other substituted glyph copies as the character it stan
 A character the font has no glyph for is drawn as the font's `.notdef` glyph, usually a box or
 nothing. `DocumentOptions(glyphCheck: ...)` decides what else happens: `GlyphCheck::Warn` (the
 default) records a warning in `$doc->fonts()->warnings()` once per font and character,
-`GlyphCheck::Error` throws a `PdfException`, and `GlyphCheck::Ignore` does neither. Under PDF/X the
-default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
+`GlyphCheck::Error` throws a `PdfException`, and `GlyphCheck::Ignore` does neither. Under PDF/X or
+PDF/A the default is `Error`. A missing character never enters the font's ToUnicode map, so copied text
 does not pick up a wrong character for it.
 
 ### Accents and marks
@@ -180,8 +180,8 @@ and alignment exact. A font file in the search paths with the same name wins.
 
 They cover WinAnsiEncoding only (Western European Latin, plus symbols such as € — “ ”).
 Shaping any other character throws a `PdfException`; load a font file for that text instead.
-Symbol and ZapfDingbats use their own character sets. PDF/X requires embedded fonts, so these
-fonts are refused under `DocumentOptions(pdfx: ...)`.
+Symbol and ZapfDingbats use their own character sets. PDF/X and PDF/A require embedded fonts, so
+these fonts are refused under `DocumentOptions(pdfx: ...)` or `(pdfa: ...)`.
 
 ## Metrics
 

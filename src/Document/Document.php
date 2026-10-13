@@ -19,6 +19,7 @@ use Php2Pdf\Core\Objects;
 use Php2Pdf\Core\Output\FileOutput;
 use Php2Pdf\Core\Output\OutputInterface;
 use Php2Pdf\Core\Writer;
+use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\LayoutException;
@@ -75,7 +76,7 @@ final class Document implements SvgDocumentInterface
     private readonly DocumentOptions $options;
     private readonly Objects $objects;
     private readonly PageTree $pages;
-    private readonly PdfXRules $pdfx;
+    private readonly ConformanceRules $conformance;
     private readonly DocumentColour $colour;
     private readonly Metadata $metadata;
     private readonly Assets $assets;
@@ -100,12 +101,12 @@ final class Document implements SvgDocumentInterface
                 && version_compare($this->options->version, version2: '1.5', operator: '>='),
         );
         $this->writer->writeHeader($this->options->version);
-        $this->objects  = new Objects($this->writer);
-        $this->pages    = new PageTree($this->objects);
-        $this->pdfx     = new PdfXRules($this->options, $this->objects);
-        $this->colour   = new DocumentColour($this->options, $this->pdfx, $this->objects);
-        $this->metadata = new Metadata(new Info(), $this->options, $this->options->clock->now(), $this->objects);
-        $this->assets   = new Assets($this->objects, $this->colour, $this->options);
+        $this->objects     = new Objects($this->writer);
+        $this->pages       = new PageTree($this->objects);
+        $this->conformance = new ConformanceRules($this->options, $this->objects);
+        $this->colour      = new DocumentColour($this->options, $this->conformance, $this->objects);
+        $this->metadata    = new Metadata(new Info(), $this->options, $this->options->clock->now(), $this->objects);
+        $this->assets      = new Assets($this->objects, $this->colour, $this->options);
     }
 
     /**
@@ -172,6 +173,62 @@ final class Document implements SvgDocumentInterface
         ));
     }
 
+    /**
+     * Makes the document a Factur-X (ZUGFeRD 2) invoice: attaches its XML as factur-x.xml, with the
+     * relationship its profile calls for, and declares it in the XMP metadata. The document must
+     * be PDF/A-3b.
+     *
+     * @throws ConformanceException unless the document is PDF/A-3b
+     */
+    public function attachFacturX(string $xml, FacturXProfile $profile): self
+    {
+        $this->assertOpen();
+        if (PdfA::A3b !== $this->options->pdfa) {
+            throw new ConformanceException(
+                'A Factur-X invoice must be PDF/A-3b: set DocumentOptions(pdfa: PdfA::A3b).',
+            );
+        }
+        $this->assets->attach('factur-x.xml', $xml, 'text/xml', $profile->relationship(), 'Factur-X invoice');
+        $namespace = 'urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#';
+        $this->metadata->addDescription(
+            "<rdf:Description rdf:about=\"\" xmlns:fx=\"{$namespace}\">"
+                . '<fx:DocumentType>INVOICE</fx:DocumentType>'
+                . '<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>'
+                . '<fx:Version>1.0</fx:Version>'
+                . "<fx:ConformanceLevel>{$profile->value}</fx:ConformanceLevel>"
+                . '</rdf:Description>',
+        );
+        $this->metadata->addSchema(new XmpSchema('Factur-X PDFA Extension Schema', $namespace, 'fx', [
+            ['DocumentFileName', 'Text', 'The name of the embedded XML document'],
+            ['DocumentType',     'Text', 'The type of the hybrid document in capital letters, e.g. INVOICE or ORDER'],
+            ['Version',          'Text', 'The actual version of the standard applying to the embedded XML document'],
+            ['ConformanceLevel', 'Text', 'The conformance level of the embedded XML document'],
+        ]));
+
+        return $this;
+    }
+
+    /**
+     * Attaches a file to the document, with its MIME type and how it relates to the document;
+     * viewers list it with the document's attachments. Each file needs a name of its own. PDF/A-3
+     * allows files of any kind; PDF/A-2 and PDF/X do not allow them.
+     *
+     * @throws ConformanceException under PDF/X or PDF/A-2
+     * @throws InvalidArgumentException when a file of the same name is attached
+     */
+    public function attachFile(
+        string $name,
+        string $contents,
+        string $mimeType = 'application/octet-stream',
+        AttachmentRelationship $relationship = AttachmentRelationship::Unspecified,
+        ?string $description = null,
+    ): self {
+        $this->assertOpen();
+        $this->assets->attach($name, $contents, $mimeType, $relationship, $description);
+
+        return $this;
+    }
+
     public function clock(): ClockInterface
     {
         return $this->options->clock;
@@ -197,14 +254,12 @@ final class Document implements SvgDocumentInterface
         if (0 === $this->pages->count()) {
             throw new StateException('A document needs at least one page.');
         }
-        foreach ($this->pdfx->complete($this->metadata->info->title()) as $description) {
-            $this->metadata->addDescription($description);
-        }
+        $this->conformance->complete($this->metadata);
         $this->objects->finalize();
 
         $catalog  = Dictionary::of(['Type' => new Name('Catalog'), 'Pages' => $this->pages->write()]);
         $pageRefs = $this->pages->references();
-        foreach ([$this->navigation, $this->assets, $this->metadata, $this->pdfx] as $contributor) {
+        foreach ([$this->navigation, $this->assets, $this->metadata, $this->conformance] as $contributor) {
             $contributor?->contribute($catalog, $pageRefs);
         }
         $catalogRef = $this->objects->add($catalog);
@@ -379,15 +434,8 @@ final class Document implements SvgDocumentInterface
             "iccstream:{$profile->key()}",
             static fn(): Stream => new Stream(Dictionary::of(['N' => $profile->componentCount]), $profile->data),
         );
-        $this->pdfx->setIntent(
-            new OutputIntent(Dictionary::of([
-                'Type'                      => new Name('OutputIntent'),
-                'S'                         => new Name('GTS_PDFX'),
-                'OutputConditionIdentifier' => $identifier,
-                'Info'                      => $info ?? $identifier,
-                'RegistryName'              => 'http://www.color.org',
-                'DestOutputProfile'         => $profileRef,
-            ]), $profile->componentCount),
+        $this->conformance->setIntent(
+            new OutputIntent($identifier, $info ?? $identifier, $profileRef, $profile->componentCount),
         );
 
         return $this;
@@ -457,7 +505,7 @@ final class Document implements SvgDocumentInterface
                 $this->options->glyphCheck,
                 $this->options->scriptCheck,
                 $this->options->complexShaper,
-                $this->options->pdfx?->value,
+                $this->options->conformance(),
             )),
             new StyleRegistry(),
             new InlineRegistry(),
@@ -518,6 +566,6 @@ final class Document implements SvgDocumentInterface
 
     private function navigation(): Navigation
     {
-        return $this->navigation ??= new Navigation($this->objects);
+        return $this->navigation ??= new Navigation($this->objects, null === $this->options->pdfa ? 0 : 4);
     }
 }

@@ -13,10 +13,15 @@ use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Object\Stream;
 use Php2Pdf\Core\Objects;
+use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Geometry\Matrix;
+
+use function count;
+use function implode;
+use function sprintf;
 
 /**
  * A page of an imported PDF wrapped as reusable artwork, bounded by one of its page boxes and
@@ -46,6 +51,8 @@ final class ImportedPage implements PlaceableInterface
         public readonly PageBox $box,
         private readonly ?HiddenContent $hidden = null,
         private readonly ?AnnotationFlattener $annotations = null,
+        /** The standards that need every font embedded (PDF/X, PDF/A), or null. */
+        private readonly ?string $embeddingRequiredBy = null,
     ) {
         $this->bounds = $page->box($box);
         $rotation     = Matrix::rotation(-$page->rotation());
@@ -71,6 +78,9 @@ final class ImportedPage implements PlaceableInterface
             foreach ($this->page->deviceColourSpaces() as $space) {
                 $this->colour->assertImportedColour($space, $this->page->number);
             }
+        }
+        if (null === $this->reference && null !== $this->embeddingRequiredBy) {
+            $this->assertEmbedded($this->embeddingRequiredBy);
         }
         $this->reference ??= $this->write();
         $canvas->drawXObject($this->reference, $matrix);
@@ -104,6 +114,26 @@ final class ImportedPage implements PlaceableInterface
     public function naturalSize(?float $dpi = null): Dimensions
     {
         return $this->size;
+    }
+
+    /**
+     * Refuses a page whose fonts are not all embedded.
+     *
+     * @throws ConformanceException when one is not
+     * @throws ParseException
+     */
+    private function assertEmbedded(string $standards): void
+    {
+        $missing = $this->page->unembeddedFonts();
+        if ([] !== $missing) {
+            throw new ConformanceException(sprintf(
+                '%s requires every font to be embedded, and imported page %d uses %s without embedding %s.',
+                $standards,
+                $this->page->number,
+                implode(', ', $missing),
+                1 === count($missing) ? 'it' : 'them',
+            ));
+        }
     }
 
     /** @throws ParseException */

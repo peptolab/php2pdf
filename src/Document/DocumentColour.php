@@ -22,37 +22,37 @@ final readonly class DocumentColour implements ColourPolicyInterface
 {
     public function __construct(
         private DocumentOptions $options,
-        private PdfXRules $pdfx,
+        private ConformanceRules $conformance,
         private Objects $objects,
     ) {}
 
     #[Override]
     public function assertDeviceColour(string $space, string $what = 'colours'): void
     {
-        $this->pdfx->assertDeviceColour($space, $what);
+        $this->conformance->assertDeviceColour($space, $what);
     }
 
     #[Override]
     public function assertImportedColour(string $space, int $page): void
     {
-        $this->pdfx->assertImportedColour($space, $page);
+        $this->conformance->assertImportedColour($space, $page);
     }
 
     #[Override]
     public function assertOutputIntent(): void
     {
-        $this->pdfx->assertOutputIntent();
+        $this->conformance->assertOutputIntent();
     }
 
-    /** The output intent's space under PDF/X, otherwise RGB. */
+    /** The output intent's space under PDF/X or PDF/A, otherwise RGB. */
     #[Override]
     public function blendingColorSpace(): Name|Reference
     {
-        if (null === $this->options->pdfx) {
+        if (null === $this->options->conformance()) {
             return new Name('DeviceRGB');
         }
 
-        return match ($this->pdfx->intent()->components ?? 3) {
+        return match ($this->conformance->intent()->components ?? 3) {
             1       => new Name('DeviceGray'),
             4       => new Name('DeviceCMYK'),
             default => $this->defaultRgb() ?? new Name('DeviceRGB'),
@@ -62,7 +62,7 @@ final readonly class DocumentColour implements ColourPolicyInterface
     #[Override]
     public function checksColour(): bool
     {
-        return null !== $this->options->pdfx;
+        return null !== $this->options->conformance();
     }
 
     /** The ICCBased space of the RGB profile, when one was given. */
