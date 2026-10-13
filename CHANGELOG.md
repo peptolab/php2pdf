@@ -6,10 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Imported pages of tagged PDFs bring their structure into a tagged document (#35): where a page
+  is first placed on a page, the elements its content belongs to are copied into a `Sect` under
+  the element being drawn, in their order and with their alternate text, language and
+  attributes, their types mapped to the standard ones. Other placements, and those in templates,
+  are artifacts; a page placed with alternate text stays a figure. Untagged documents place
+  imported pages as before.
+
 ### Changed
 
 - Text on a tagged page is shown in one text object per box again, as on an untagged page, with
   the marked-content sequences of its paragraphs and links inside it: smaller tagged files.
+- Under PDF/UA, as under PDF/X and PDF/A, an imported page using a font that is not embedded is
+  refused when it is placed.
 
 ## [0.1.14] - 2026-10-13
 

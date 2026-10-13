@@ -37,6 +37,15 @@ final class Tagger
         return $this->tree->annotation($element, $this->marks->page, $annotation);
     }
 
+    /**
+     * A new element copied from an imported page, of a standard structure type, with the entries
+     * it brings; it joins its parent when attached or when its content is claimed.
+     */
+    public function copied(string $type, StructureElement $parent, ?Dictionary $entries): StructureElement
+    {
+        return new StructureElement($type, $parent, entries: $entries);
+    }
+
     /** The innermost element being drawn, or the document's when there is none. */
     public function current(): StructureElement
     {
@@ -64,6 +73,12 @@ final class Tagger
     public function enter(?StructureElement $element): void
     {
         $this->stack[] = $element ?? false;
+    }
+
+    /** The marks of a form drawn on the page, whose MCIDs its content already has. */
+    public function form(Reference $form): PageMarks
+    {
+        return $this->tree->form($this->marks->page, $form);
     }
 
     /** Whether what is being drawn is an artifact, which nothing drawn in it is tagged in. */
@@ -98,7 +113,7 @@ final class Tagger
             return '/Artifact BMC';
         }
 
-        return "/{$element->role->value} <</MCID {$this->marks->mark($element)}>> BDC";
+        return "/{$element->type} <</MCID {$this->marks->mark($element)}>> BDC";
     }
 
     /** Draws the element, or an artifact for null, in place of what enter() started last. */

@@ -7,6 +7,7 @@ namespace Php2PdfTest\Integration\Document;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Core\FixedClock;
+use Php2Pdf\Core\Output\MemoryOutput;
 use Php2Pdf\Document\Accessibility;
 use Php2Pdf\Document\Document;
 use Php2Pdf\Document\DocumentOptions;
@@ -16,6 +17,7 @@ use Php2Pdf\Fit\Fit;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Font\FontInterface;
 use Php2Pdf\Geometry\Box;
+use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Navigation\Destination;
 use Php2Pdf\Structure\StructureRole;
 use Php2Pdf\Table\Cell;
@@ -46,6 +48,7 @@ final class PdfUaTest extends TestCase
             'a textflow over two pages'                     => ['textflow', ['ua1']],
             'a table over two pages'                        => ['table', ['ua1']],
             'with PDF/A-2b'                                 => ['pdfa', ['ua1', '2b']],
+            'a tagged page imported and placed twice'       => ['imported', ['ua1']],
         ];
     }
 
@@ -79,6 +82,7 @@ final class PdfUaTest extends TestCase
         match ($case) {
             'textflow' => $this->textflow($doc),
             'table'    => $this->table($doc),
+            'imported' => $this->imported($doc),
             default    => $this->canvas($doc, $font),
         };
         $doc->close();
@@ -113,6 +117,35 @@ final class PdfUaTest extends TestCase
             Fit::meet(),
             'A photograph',
         );
+    }
+
+    /** A page of a tagged file, compressed with object streams, placed twice: its structure comes with the first. */
+    private function imported(Document $doc): void
+    {
+        $out    = new MemoryOutput();
+        $source = new Document($out, new DocumentOptions(accessibility: new Accessibility('en-GB', pdfUa: true)));
+        $source->info()->setTitle('Source');
+        $source->styles()->define('body', new TextStyle(
+            font: $source->fonts()->load(PdfTools::assetPath('fonts/DejaVuSans.ttf')),
+            size: 11.0,
+        ));
+        $source->styles()->define('heading', new TextStyle(
+            size: 18.0,
+            role: StructureRole::H1,
+        ));
+        $source->addPage(PageSize::A4)->fitTextflow(
+            $source->textflow(
+                '<p style="heading">Imported</p><p>An imported paragraph.</p>',
+                'body',
+                TextFormat::Markup,
+            ),
+            new Box(50.0, 600.0, 400.0, 200.0),
+        );
+        $source->close();
+        $page     = $doc->addPage(PageSize::A4);
+        $imported = $doc->import(PdfFile::fromData($out->contents()))->page(1);
+        $page->place($imported, new Box(50.0, 400.0, 250.0, 400.0), Fit::meet());
+        $page->place($imported, new Box(300.0, 400.0, 250.0, 400.0), Fit::meet());
     }
 
     /** A rowed table with a header and footer, over two pages. */

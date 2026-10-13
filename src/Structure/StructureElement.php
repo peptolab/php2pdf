@@ -9,9 +9,10 @@ use Php2Pdf\Core\Object\Reference;
 use Php2Pdf\Core\Objects;
 
 /**
- * An element of a document's structure tree: its role, its parent, and its kids in reading
- * order, each another element, a marked-content sequence on a page, or an annotation; with its
- * alternate description and attributes, if any. An element joins its parent's kids when its
+ * An element of a document's structure tree: its structure type, its parent, and its kids in
+ * reading order, each another element, a marked-content sequence on a page or in a form drawn on
+ * it, or an annotation; with its alternate description and attributes, and any other entries an
+ * element copied from an imported page brings. An element joins its parent's kids when its
  * first content is drawn, so the kids are in the order they are drawn, and an element nothing is
  * drawn in is left out.
  *
@@ -20,19 +21,26 @@ use Php2Pdf\Core\Objects;
 final class StructureElement
 {
     /**
-     * @var list<StructureElement|array{0: Reference, 1: int}|array{0: Reference, 1: Reference}> the
-     *      kids: elements, marked content as page and MCID, annotations as page and annotation
+     * @var list<StructureElement|array{0: Reference, 1: int, 2: ?Reference}|array{0: Reference, 1: Reference}> the
+     *      kids: elements, marked content as page, MCID and the form it is in (null for the page's
+     *      own content), annotations as page and annotation
      */
     private array $kids = [];
 
     private bool $attached;
     private ?Reference $reference = null;
 
+    /**
+     * @param string          $type    the structure type, as /S names it: a StructureRole's value,
+     *                                 or the standard type of a copied element
+     * @param Dictionary|null $entries further entries written as they are, as a copied element's
+     */
     public function __construct(
-        public readonly StructureRole $role,
+        public readonly string $type,
         public readonly ?self $parent,
         public readonly ?string $alt = null,
         public readonly ?Dictionary $attributes = null,
+        public readonly ?Dictionary $entries = null,
     ) {
         $this->attached = null === $parent;
     }
@@ -43,10 +51,11 @@ final class StructureElement
         $this->kids[] = [$page, $annotation];
     }
 
-    public function addContent(Reference $page, int $mcid): void
+    /** Adds marked content on a page, in the page's own content or in a form drawn on it. */
+    public function addContent(Reference $page, int $mcid, ?Reference $form = null): void
     {
         $this->attach();
-        $this->kids[] = [$page, $mcid];
+        $this->kids[] = [$page, $mcid, $form];
     }
 
     /**
@@ -63,7 +72,7 @@ final class StructureElement
         $this->parent->kids[] = $this;
     }
 
-    /** @return list<StructureElement|array{0: Reference, 1: int}|array{0: Reference, 1: Reference}> */
+    /** @return list<StructureElement|array{0: Reference, 1: int, 2: ?Reference}|array{0: Reference, 1: Reference}> */
     public function kids(): array
     {
         return $this->kids;

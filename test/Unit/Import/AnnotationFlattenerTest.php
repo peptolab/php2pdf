@@ -18,6 +18,8 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 
 use function array_keys;
+use function strlen;
+use function substr_replace;
 
 /** The annotations of AnnotatedPdf's page, drawn and linked as flattening has them. */
 #[Group('unit')]
@@ -103,6 +105,17 @@ final class AnnotationFlattenerTest extends TestCase
     }
 
     #[Test]
+    public function annotationsCanBeDrawnAsAnArtifact(): void
+    {
+        [, $content] = self::flattener(AnnotatedPdf::pdf())->flattenAsArtifacts(null, '');
+
+        self::assertSame(
+            substr_replace(self::DRAWN, replace: "/Artifact BMC\n", offset: strlen("q\n\nQ\n"), length: 0) . "EMC\n",
+            $content,
+        );
+    }
+
+    #[Test]
     public function annotationsThatPrintAreDrawnFittedToTheirRectangles(): void
     {
         [, $content] = self::flattener(AnnotatedPdf::pdf())->flatten(null, '');
@@ -161,5 +174,13 @@ final class AnnotationFlattenerTest extends TestCase
             [[new Box(140.0, 80.0, 40.0, 40.0), AnnotatedPdf::URI]],
             self::flattener(AnnotatedPdf::pdf())->links(),
         );
+    }
+
+    #[Test]
+    public function withoutAnnotationsNoArtifactIsMarked(): void
+    {
+        [, $content] = self::flattener(HostileFiles::pages(1))->flattenAsArtifacts(null, 'content');
+
+        self::assertSame('content', $content);
     }
 }

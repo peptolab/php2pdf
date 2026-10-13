@@ -164,6 +164,19 @@ final class Canvas
     }
 
     /**
+     * Draws a form as drawXObject() does, outside any marked-content sequence: a form whose own
+     * content is marked as the elements of the page's structure.
+     *
+     * @internal
+     */
+    public function drawMarkedXObject(Reference $ref, Matrix $matrix): self
+    {
+        $this->stream->appendUnmarked("q {$matrix->toPdf()} cm /{$this->resources->xObject($ref)} Do Q");
+
+        return $this;
+    }
+
+    /**
      * Shows a single line of text with its baseline origin at (x, y).
      */
     public function drawText(
@@ -485,6 +498,19 @@ final class Canvas
         return $this;
     }
 
+    private readonly ContentStream $stream;
+    private readonly Paint $paint;
+    private readonly TextPainter $text;
+    private readonly bool $remembersFill;
+
+    /** The last device colour setFillColor() was given, and its operator. */
+    private ?ColorInterface $lastFill = null;
+
+    private string $lastFillOp = '';
+
+    private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
+    private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];
+
     public function scale(float $sx, ?float $sy = null): self
     {
         return $this->concat(Matrix::scaling($sx, $sy));
@@ -556,75 +582,6 @@ final class Canvas
 
         return $this;
     }
-
-    /**
-     * Draws content as an element of the document's logical structure, under the element being
-     * drawn, if any: what assistive technology reads it as, with alternate text for artwork. On
-     * a page of an untagged document, and in templates, the content is drawn as it is.
-     *
-     * @param Closure(Canvas): void $draw
-     */
-    public function tag(StructureRole $role, Closure $draw, ?string $alt = null): self
-    {
-        return $this->within($this->element($role, $alt), $draw);
-    }
-
-    /**
-     * Draws content as an element, or as an artifact for null, on a tagged page; otherwise as it
-     * is.
-     *
-     * @internal
-     *
-     * @param Closure(Canvas): void $draw
-     */
-    public function within(?StructureElement $element, Closure $draw): self
-    {
-        $tagger = $this->tagger;
-        if (null === $tagger) {
-            $draw($this);
-
-            return $this;
-        }
-        $this->stream->closeMarked();
-        $tagger->enter($element);
-        try {
-            $draw($this);
-        } finally {
-            $this->stream->closeMarked();
-            $tagger->leave();
-        }
-
-        return $this;
-    }
-
-    private function fillOperation(ColorInterface $color): string
-    {
-        if ($color === $this->lastFill) {
-            return $this->lastFillOp;
-        }
-        $operation = $this->paint->colour($color, self::FILL_OPS);
-        // Text sets the same colour object for each segment it draws. A device colour is
-        // immutable and registers no resources, so its operator can be used again as it is.
-        if ($this->remembersFill && ($color instanceof Gray || $color instanceof Rgb || $color instanceof Cmyk)) {
-            $this->lastFill   = $color;
-            $this->lastFillOp = $operation;
-        }
-
-        return $operation;
-    }
-
-    private readonly ContentStream $stream;
-    private readonly Paint $paint;
-    private readonly TextPainter $text;
-    private readonly bool $remembersFill;
-
-    /** The last device colour setFillColor() was given, and its operator. */
-    private ?ColorInterface $lastFill = null;
-
-    private string $lastFillOp = '';
-
-    private const array FILL_OPS   = ['g', 'rg', 'k', 'cs', 'scn'];
-    private const array STROKE_OPS = ['G', 'RG', 'K', 'CS', 'SCN'];
 
     public function setLineJoin(LineJoin $join): self
     {
@@ -756,6 +713,18 @@ final class Canvas
         return $this->rect($x, $y, $width, $height)->stroke();
     }
 
+    /**
+     * Draws content as an element of the document's logical structure, under the element being
+     * drawn, if any: what assistive technology reads it as, with alternate text for artwork. On
+     * a page of an untagged document, and in templates, the content is drawn as it is.
+     *
+     * @param Closure(Canvas): void $draw
+     */
+    public function tag(StructureRole $role, Closure $draw, ?string $alt = null): self
+    {
+        return $this->within($this->element($role, $alt), $draw);
+    }
+
     /** @internal */
     public function tagger(): ?Tagger
     {
@@ -765,6 +734,50 @@ final class Canvas
     public function translate(float $tx, float $ty): self
     {
         return $this->concat(Matrix::translation($tx, $ty));
+    }
+
+    /**
+     * Draws content as an element, or as an artifact for null, on a tagged page; otherwise as it
+     * is.
+     *
+     * @internal
+     *
+     * @param Closure(Canvas): void $draw
+     */
+    public function within(?StructureElement $element, Closure $draw): self
+    {
+        $tagger = $this->tagger;
+        if (null === $tagger) {
+            $draw($this);
+
+            return $this;
+        }
+        $this->stream->closeMarked();
+        $tagger->enter($element);
+        try {
+            $draw($this);
+        } finally {
+            $this->stream->closeMarked();
+            $tagger->leave();
+        }
+
+        return $this;
+    }
+
+    private function fillOperation(ColorInterface $color): string
+    {
+        if ($color === $this->lastFill) {
+            return $this->lastFillOp;
+        }
+        $operation = $this->paint->colour($color, self::FILL_OPS);
+        // Text sets the same colour object for each segment it draws. A device colour is
+        // immutable and registers no resources, so its operator can be used again as it is.
+        if ($this->remembersFill && ($color instanceof Gray || $color instanceof Rgb || $color instanceof Cmyk)) {
+            $this->lastFill   = $color;
+            $this->lastFillOp = $operation;
+        }
+
+        return $operation;
     }
 
     /** Maps pattern coordinates into the canvas's default space, through the current transform. */

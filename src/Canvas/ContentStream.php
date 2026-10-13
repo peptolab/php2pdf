@@ -99,6 +99,16 @@ final class ContentStream
     }
 
     /**
+     * Appends operators outside any marked-content sequence: what they draw is marked itself, as
+     * a form whose own content carries the marks of its structure.
+     */
+    public function appendUnmarked(string $operators): void
+    {
+        $this->closeMarked();
+        $this->ops .= "{$operators}\n";
+    }
+
+    /**
      * Appends a text object's opening operators, BT and what follows it. On a tagged page any
      * sequence open before it closes, and the sequence of what is drawn opens inside it.
      */

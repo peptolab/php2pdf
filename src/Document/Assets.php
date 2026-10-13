@@ -197,7 +197,8 @@ final class Assets implements CatalogContributorInterface
             $file,
             $hiddenLayers,
             $annotations,
-            $this->options->conformance(),
+            $this->options->standards(),
+            null !== $this->options->accessibility,
         );
     }
 
