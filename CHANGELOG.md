@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-10-13
+
 ### Changed
 
 - Embedded fonts number their glyphs in the order a document first uses them, so a subset holds
@@ -230,7 +232,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.8...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.9...HEAD
+[0.1.9]: https://github.com/peptolab/php2pdf/compare/0.1.8...0.1.9
 [0.1.8]: https://github.com/peptolab/php2pdf/compare/0.1.7...0.1.8
 [0.1.7]: https://github.com/peptolab/php2pdf/compare/0.1.6...0.1.7
 [0.1.6]: https://github.com/peptolab/php2pdf/compare/0.1.5...0.1.6
