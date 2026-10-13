@@ -51,7 +51,24 @@ left out of the layers panel. Visible layers stay switchable.
 The reader handles classic cross-reference tables, cross-reference streams and object streams,
 chains of incremental updates, and rebuilds the cross-reference by scanning the file when
 offsets are wrong. Flate (with PNG and TIFF predictors), LZW, ASCIIHex, ASCII85 and RunLength
-streams are decoded; image codecs pass through. Encrypted files are rejected.
+streams are decoded; image codecs pass through.
+
+### Encrypted files
+
+Files encrypted with the standard security handler open as any other: RC4 (40 and 128-bit), and
+AES-128 and AES-256, which need the openssl extension. A file without a user password, as most
+are, opens without one; otherwise give its user or owner password:
+
+```php
+$file = PdfFile::open('protected.pdf', password: 'secret');
+$doc->import($file)->page(1);
+```
+
+A file can also carry permissions that forbid copying its content or assembling its pages into
+other documents, as importing it does. Such a file is refused with a `PermissionException` unless
+it is opened with its owner password, or with `ignorePermissions: true`, which says you take
+responsibility for honouring its author's permissions (PDFlib's `shrug` option works the same way).
+A file that needs a password it was not given, or a wrong one, also throws `PermissionException`.
 
 ## Reading geometry
 

@@ -7,6 +7,8 @@ namespace Php2Pdf\Import;
 use Php2Pdf\Core\Limits;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Exception\PdfException;
+use Php2Pdf\Exception\PermissionException;
+use SensitiveParameter;
 
 use function count;
 use function is_string;
@@ -19,6 +21,11 @@ use function substr;
  * An existing PDF opened for reading: page count, page geometry and document information. Pass
  * it to Document::import() to place its pages as templates.
  *
+ * An encrypted file opens without a password when it has no user password; otherwise give its
+ * user or owner password. Unless opened with the owner password, a file whose permissions forbid
+ * copying its content or assembling its pages into other documents is refused; ignorePermissions
+ * opens it anyway, leaving honouring them to you (PDFlib's "shrug" option does the same).
+ *
  * @api
  */
 final class PdfFile
@@ -26,21 +33,49 @@ final class PdfFile
     /** @var list<PdfPage>|null */
     private ?array $pages = null;
 
+    /** @throws PermissionException when the file's permissions forbid importing it */
     private function __construct(
         private readonly PdfReader $reader,
         public readonly ?string $path,
-    ) {}
-
-    /** @throws PdfException when the data is not a readable PDF or breaks a limit */
-    public static function fromData(string $data, ?Limits $limits = null): self
-    {
-        return new self(PdfReader::fromData($data, $limits), null);
+        bool $ignorePermissions,
+    ) {
+        if (! $ignorePermissions && $reader->forbidsImport()) {
+            throw new PermissionException(
+                'The permissions of this PDF forbid copying its content or assembling its pages into other '
+                    . 'documents. Open it with its owner password, or with ignorePermissions: true to take '
+                    . 'responsibility for honouring them.',
+            );
+        }
     }
 
-    /** @throws PdfException when the file is not a readable PDF or breaks a limit */
-    public static function open(string $path, ?Limits $limits = null): self
-    {
-        return new self(PdfReader::fromFile($path, $limits), $path);
+    /**
+     * @throws PermissionException when the data needs a password it was not given, or its
+     *                             permissions forbid importing it
+     * @throws PdfException when the data is not a readable PDF or breaks a limit
+     */
+    public static function fromData(
+        string $data,
+        ?Limits $limits = null,
+        #[SensitiveParameter]
+        string $password = '',
+        bool $ignorePermissions = false,
+    ): self {
+        return new self(PdfReader::fromData($data, $limits, $password), null, $ignorePermissions);
+    }
+
+    /**
+     * @throws PermissionException when the file needs a password it was not given, or its
+     *                             permissions forbid importing it
+     * @throws PdfException when the file is not a readable PDF or breaks a limit
+     */
+    public static function open(
+        string $path,
+        ?Limits $limits = null,
+        #[SensitiveParameter]
+        string $password = '',
+        bool $ignorePermissions = false,
+    ): self {
+        return new self(PdfReader::fromFile($path, $limits, $password), $path, $ignorePermissions);
     }
 
     private static function textToUtf8(string $text): string

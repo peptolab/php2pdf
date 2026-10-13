@@ -79,6 +79,16 @@ final class CrossReferencePdf
         );
     }
 
+    /** One page, the offsets of its first two objects swapped: each points at the other. */
+    public static function offsetsSwapped(): string
+    {
+        return (string) preg_replace(
+            '/xref\n0 (\d+)\n(\d{10} 65535 f \n)(\d{10})( 00000 n \n)(\d{10})( 00000 n \n)/',
+            replacement: 'xref' . "\n" . '0 $1' . "\n" . '$2$5$4$3$6',
+            subject: HostileFiles::pages(1),
+        );
+    }
+
     /** A file whose document information (object 4) has the given title bytes, which must not need escaping. */
     public static function titled(string $title): string
     {
