@@ -294,9 +294,10 @@ final class TextPainter
         }
         if ($this->open) {
             $this->stream->append(ltrim("{$state} {$text}"));
-        } else {
-            $this->stream->beginTextObject("{$state} {$text}");
+
+            return;
         }
+        $this->stream->beginTextObject("{$state} {$text}");
         $this->open = true;
     }
 

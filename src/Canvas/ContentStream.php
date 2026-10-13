@@ -10,6 +10,7 @@ use Php2Pdf\Geometry\Matrix;
 
 use function array_pop;
 use function count;
+use function ltrim;
 use function sprintf;
 
 /**
