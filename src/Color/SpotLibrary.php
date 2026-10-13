@@ -6,6 +6,7 @@ namespace Php2Pdf\Color;
 
 use Php2Pdf\Core\BinaryReader;
 use Php2Pdf\Core\FileReader;
+use Php2Pdf\Core\LineEnd;
 use Php2Pdf\Exception\InvalidArgumentException;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
@@ -107,7 +108,7 @@ final class SpotLibrary
      */
     public static function fromCsvData(string $data): self
     {
-        $lines  = preg_split('/\R/', trim($data));
+        $lines  = preg_split('/' . LineEnd::PATTERN . '/', trim($data));
         $lines  = false === $lines ? [] : $lines;
         $header = array_values(array_map(
             static fn(?string $cell): string => strtolower(trim((string) $cell)),

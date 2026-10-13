@@ -6,6 +6,7 @@ namespace Php2Pdf\Text;
 
 use Override;
 use Php2Pdf\Canvas\Canvas;
+use Php2Pdf\Core\LineEnd;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Flow\FlowableInterface;
@@ -184,10 +185,11 @@ final class Textflow implements FlowableInterface
     private static function plainMarkup(string $text): string
     {
         $escaped    = str_replace(['&', '<', '>'], ['&amp;', '&lt;', '&gt;'], $text);
-        $paragraphs = preg_split('/\R[ \t]*\R/', $escaped);
+        $paragraphs = preg_split('/' . LineEnd::PATTERN . '[ \t]*' . LineEnd::PATTERN . '/', $escaped);
         $markup     = [];
         foreach (false === $paragraphs ? [$escaped] : $paragraphs as $paragraph) {
-            $markup[] = preg_replace('/\R/', replacement: '<br>', subject: $paragraph) ?? $paragraph;
+            $markup[] =
+                preg_replace('/' . LineEnd::PATTERN . '/', replacement: '<br>', subject: $paragraph) ?? $paragraph;
         }
 
         return implode("\n\n", $markup);

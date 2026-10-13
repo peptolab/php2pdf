@@ -120,6 +120,15 @@ final class SpotLibraryTest extends TestCase
         );
     }
 
+    /** Å and х end in the byte 0x85, which a byte-wise line-end pattern takes for a line end. */
+    #[Test]
+    public function csvNamesWithAnyCharactersStayWhole(): void
+    {
+        $library = SpotLibrary::fromCsvData("name,c,m,y,k\nÅngström Blue,100,50,0,0\nхаки,0,0,50,40");
+
+        self::assertSame(['Ångström Blue', 'хаки'], $library->names());
+    }
+
     #[Test]
     public function csvTablesGiveCmykLabOrRgb(): void
     {
