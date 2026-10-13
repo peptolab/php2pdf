@@ -38,6 +38,14 @@ jobs:
       - name: Integration tests
         run: composer test-integration
 
+      - name: Upload rendered output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-output-macos
+          path: test/output
+          retention-days: 7
+
   without-intl:
     name: "Tests without ext-intl"
     runs-on: ubuntu-24.04
