@@ -46,8 +46,8 @@ final class TextPainter
     /**
      * The last text state show() wrote out as operators, kept so each run does not format them
      * again: the Tf operator for $lastFont at $lastSize, and in $lastRest the Tc, Tz, Ts and Tr
-     * operators for $lastOptions and the Tw operator for $lastWordSpace. The stream still decides
-     * what is written; these are only its inputs.
+     * operators for $lastOptions and the Tw operator for $lastWordSpace, to six decimals as it adds
+     * up over a line's spaces. The stream still decides what is written; these are only its inputs.
      */
     private ?PdfFontInterface $lastFont = null;
 
@@ -291,7 +291,7 @@ final class TextPainter
         }
         if ($wordSpace !== $this->lastWordSpace) {
             $this->lastWordSpace  = $wordSpace;
-            $this->lastRest['Tw'] = Num::format($wordSpace) . ' Tw';
+            $this->lastRest['Tw'] = Num::format($wordSpace, 6) . ' Tw';
         }
 
         return ['Tf' => $this->lastTf] + $this->lastRest;
