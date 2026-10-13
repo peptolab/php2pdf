@@ -35,6 +35,7 @@ use Php2Pdf\Geometry\Origin;
 use Php2Pdf\Image\Image;
 use Php2Pdf\Image\ImageOptions;
 use Php2Pdf\Import\HiddenLayers;
+use Php2Pdf\Import\ImportedAnnotations;
 use Php2Pdf\Import\ImportedDocument;
 use Php2Pdf\Import\PdfFile;
 use Php2Pdf\Navigation\Destination;
@@ -298,17 +299,22 @@ final class Document implements SvgDocumentInterface
      * templates. The same file is imported once; shared resources are written once. Layers the
      * file switches off stay off; HiddenLayers::Remove removes their content instead, so viewers
      * that ignore layers in placed artwork (macOS Preview) do not show them either.
+     * ImportedAnnotations::Flatten draws the annotations that print into the pages, and makes links
+     * of their links to web addresses where a page is placed on a page.
      *
      * @throws IoException
      * @throws ParseException
      * @throws PermissionException when an encrypted file needs a password or forbids importing
      */
     #[Override]
-    public function import(PdfFile|string $source, HiddenLayers $hiddenLayers = HiddenLayers::Keep): ImportedDocument
-    {
+    public function import(
+        PdfFile|string $source,
+        HiddenLayers $hiddenLayers = HiddenLayers::Keep,
+        ImportedAnnotations $annotations = ImportedAnnotations::None,
+    ): ImportedDocument {
         $this->assertOpen();
 
-        return $this->assets->import($source, $hiddenLayers);
+        return $this->assets->import($source, $hiddenLayers, $annotations);
     }
 
     public function info(): Info

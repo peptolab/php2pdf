@@ -31,7 +31,8 @@ Known gaps, in rough order of how often they matter.
   certificate or other handlers), AES ones need the openssl extension, and passwords outside
   ASCII are used as their UTF-8 bytes, without the SASLprep normalisation AES-256 calls for; JPX,
   JBIG2 and CCITT images pass through
-  untouched; pages are copied as artwork and cannot be edited. Layers (optional content) keep
+  untouched; pages are copied as artwork and cannot be edited, and their annotations come only
+  flattened (with links to web addresses kept), not as notes or form fields to use. Layers (optional content) keep
   their default visibility, but macOS Preview ignores layers inside placed artwork and shows
   hidden ones unless they are removed with `HiddenLayers::Remove`. Visibility expressions
   (`/VE`) in membership dictionaries are not evaluated; their `/P` policy is used.
