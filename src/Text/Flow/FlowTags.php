@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Php2Pdf\Text\Flow;
 
 use Php2Pdf\Canvas\Tagger;
+use Php2Pdf\Core\Object\Dictionary;
+use Php2Pdf\Core\Object\Name;
 use Php2Pdf\Structure\StructureElement;
 use Php2Pdf\Structure\StructureRole;
 use Php2Pdf\Text\Style\TextStyle;
 
 use function count;
 use function in_array;
+use function spl_object_id;
 
 /**
  * The elements a textflow's text is tagged as on a tagged page: one for each paragraph, in the
@@ -37,6 +40,15 @@ final class FlowTags
     /** Whether the flow is being drawn in an artifact, so its text is not tagged. */
     private bool $artifact = false;
 
+    /** @var array<int, StructureElement> the lists the paragraphs are in, by number */
+    private array $lists = [];
+
+    /** @var array<int, array{0: StructureElement, 1: StructureElement}> the items, by number: LI and LBody */
+    private array $items = [];
+
+    /** @var array<int, StructureElement> the labels of the items, by their LI elements' object ids */
+    private array $labels = [];
+
     /** @var list<StructureElement> the elements of the link areas drawn since drawnLinks() was last asked */
     private array $drawn = [];
 
@@ -44,6 +56,18 @@ final class FlowTags
     public function __construct(
         private readonly array $sources,
     ) {}
+
+    /**
+     * A new item of a list: its LI element, and the LBody in it its paragraphs and nested lists go in.
+     *
+     * @return array{0: StructureElement, 1: StructureElement}
+     */
+    private static function newItem(Tagger $tagger, StructureElement $list): array
+    {
+        $item = $tagger->element(StructureRole::ListItem, parent: $list);
+
+        return [$item, $tagger->element(StructureRole::ListBody, parent: $item)];
+    }
 
     /**
      * The elements of the link areas drawn since this was last asked, in the order markedAreas()
@@ -64,6 +88,20 @@ final class FlowTags
     {
         $this->parent   = $tagger->current();
         $this->artifact = $tagger->isArtifact();
+    }
+
+    /**
+     * The element a list item's marker is drawn as: its label, first in the item; none when the
+     * flow is drawn in an artifact.
+     */
+    public function label(Tagger $tagger, ListPosition $list): ?StructureElement
+    {
+        if ($this->artifact) {
+            return null;
+        }
+        [$item] = $this->item($tagger, $list);
+
+        return $this->labels[spl_object_id($item)] ??= $tagger->element(StructureRole::Label, parent: $item);
     }
 
     /**
@@ -107,6 +145,34 @@ final class FlowTags
         return $elements;
     }
 
+    /**
+     * The innermost list item a paragraph is in, as its LI and LBody elements, each list and item
+     * on the way made the first time: a list under the element being drawn when the flow was, or
+     * nested in the body of the item it is in.
+     *
+     * @return array{0: StructureElement, 1: StructureElement}
+     */
+    private function item(Tagger $tagger, ListPosition $list): array
+    {
+        $parent = $this->parent;
+        $item   = null;
+        foreach ($list->path as [$number, $itemNumber, $marker]) {
+            $this->lists[$number] ??= $tagger->element(
+                StructureRole::List,
+                attributes: Dictionary::of([
+                    'O'             => new Name('List'),
+                    'ListNumbering' => new Name($marker->numbering()),
+                ]),
+                parent: $parent,
+            );
+            $this->items[$itemNumber] ??= self::newItem($tagger, $this->lists[$number]);
+            $item                     = $this->items[$itemNumber];
+            $parent                   = $item[1];
+        }
+
+        return $item;
+    }
+
     /** A paragraph's element, made under the element being drawn the first time it is drawn. */
     private function paragraph(Tagger $tagger, int $index): ?StructureElement
     {
@@ -116,7 +182,13 @@ final class FlowTags
 
         return $this->paragraphs[$index] ??= $tagger->element(
             ($this->sources[$index] ?? null)?->style->role ?? StructureRole::Paragraph,
-            parent: $this->parent,
+            parent: $this->paragraphParent($tagger, ($this->sources[$index] ?? null)?->list),
         );
+    }
+
+    /** What a paragraph's element goes under: its list item's body, or the element the flow was drawn in. */
+    private function paragraphParent(Tagger $tagger, ?ListPosition $list): ?StructureElement
+    {
+        return null === $list ? $this->parent : $this->item($tagger, $list)[1];
     }
 }

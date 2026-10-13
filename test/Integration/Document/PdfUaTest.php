@@ -168,7 +168,8 @@ final class PdfUaTest extends TestCase
         $flow = $doc->textflow(
             '<p style="heading">A heading</p><p>A paragraph with <a href="https://example.com/">a link long enough to '
                 . 'break over lines</a>, and <u>underlined</u> text, long enough to run on to the next page.</p>'
-                . '<p>Another paragraph.</p>',
+                . '<p>Another paragraph.</p><ul><li>A point</li><li>Another, with<ol type="i"><li>a nested'
+                . ' point</li></ol></li></ul>',
             'body',
             TextFormat::Markup,
         );

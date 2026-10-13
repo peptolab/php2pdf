@@ -86,6 +86,28 @@ final class TextflowTaggingTest extends TestCase
     }
 
     #[Test]
+    public function listsAreTaggedAsListsOfItemsWithLabelsAndBodies(): void
+    {
+        $pdf = $this->fitted(
+            '<ul><li>One</li><li>Two<ol><li>Inner</li></ol></li></ul>',
+            new Box(50.0, 700.0, 400.0, 100.0),
+        );
+
+        self::assertSame(
+            [2, 3, 3, 3, 1, 1, 1],
+            [
+                TaggedDocument::count($pdf, 'L'),
+                TaggedDocument::count($pdf, 'LI'),
+                TaggedDocument::count($pdf, 'Lbl'),
+                TaggedDocument::count($pdf, 'LBody'),
+                preg_match('#/S/L/P \d+ 0 R/K\[\d+ 0 R \d+ 0 R\]/A<</O/List/ListNumbering/Disc>>#', $pdf),
+                preg_match('#/S/L/P \d+ 0 R/K\[\d+ 0 R\]/A<</O/List/ListNumbering/Decimal>>#', $pdf),
+                preg_match('#/S/Lbl/P (\d+) 0 R/Pg \d+ 0 R/K\[0\]>>.*?/S/LBody/P \1 0 R/K\[(\d+) 0 R\]>>#s', $pdf),
+            ],
+        );
+    }
+
+    #[Test]
     public function paragraphsAreTaggedAsTheirStylesSay(): void
     {
         $pdf = $this->fitted(

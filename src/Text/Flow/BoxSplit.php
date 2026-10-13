@@ -29,6 +29,7 @@ final class BoxSplit
             $paragraph->style,
             array_slice(self::resume($paragraph->items, $offset, $carry), $offset),
             $paragraph->level,
+            $paragraph->list,
         );
     }
 

@@ -7,6 +7,7 @@ namespace Php2Pdf\Text\Flow;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Text\Style\ListMarker;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\TextFormat;
 
@@ -15,6 +16,7 @@ use function count;
 use function html_entity_decode;
 use function in_array;
 use function is_numeric;
+use function ltrim;
 use function preg_match;
 use function preg_split;
 use function sprintf;
@@ -33,8 +35,11 @@ use const PREG_SPLIT_DELIM_CAPTURE;
 /**
  * A small inline markup: <p style="name">, <span style="name" match="name">, <b>, <i>, <u>, <s>,
  * <sup>, <sub>, <a href="url or #destination" title="tooltip">, <br>, <tab>, <columnbreak>,
- * <pagebreak>, <img src="name" width height raise>, and the entities &lt; &gt; &amp; &quot;
- * &nbsp; &shy; &#NNN; &#xHH;. Outside <p> elements, blank lines separate paragraphs.
+ * <pagebreak>, <img src="name" width height raise>, lists (<ul type="disc|circle|square|dash">,
+ * <ol type="1|a|A|i|I" start="n">, each with style="name", and <li style="name">, nested as deep
+ * as wanted), and the entities &lt; &gt; &amp; &quot; &nbsp; &shy; &#NNN; &#xHH;. Outside <p>
+ * elements and list items, blank lines separate paragraphs. An item's text is its first
+ * paragraph; <p> in it starts others, set as part of the item without a marker.
  *
  * @internal
  */
@@ -55,6 +60,9 @@ final class MarkupParser
         'sub',
         'img',
         'a',
+        'ul',
+        'ol',
+        'li',
     ];
 
     /** @var list<ParagraphSource> */
@@ -75,6 +83,8 @@ final class MarkupParser
 
     private bool $inParagraph = false;
 
+    private readonly ListContext $lists;
+
     /**
      * @param TextFormat $format StrictMarkup makes an unknown tag an error
      *
@@ -87,6 +97,7 @@ final class MarkupParser
         private readonly TextFormat $format = TextFormat::Markup,
     ) {
         $this->current = $resolver->resolve($base);
+        $this->lists   = new ListContext();
     }
 
     /**
@@ -177,8 +188,13 @@ final class MarkupParser
      */
     private function close(string $name): void
     {
-        if ('p' === $name) {
+        if (in_array($name, ['p', 'li', 'ul', 'ol'], strict: true)) {
             $this->flushParagraph();
+            match ($name) {
+                'li'       => $this->lists->closeItem(),
+                'ul', 'ol' => $this->lists->close(),
+                default    => null,
+            };
 
             return;
         }
@@ -201,7 +217,12 @@ final class MarkupParser
     private function flushParagraph(): void
     {
         if ([] !== $this->spans || [] !== $this->breaks) {
-            $this->paragraphs[] = new ParagraphSource($this->paragraphStyle, $this->spans, $this->breaks);
+            $this->paragraphs[] = new ParagraphSource(
+                $this->paragraphStyle,
+                $this->spans,
+                $this->breaks,
+                $this->lists->position(),
+            );
         }
         $this->spans          = [];
         $this->breaks         = [];
@@ -295,6 +316,45 @@ final class MarkupParser
     }
 
     /**
+     * Starts the next item of the open list, its text a paragraph in the item's style, the list's,
+     * or the base style; outside a list, an item is a paragraph.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    private function openItem(?string $style): void
+    {
+        $this->flushParagraph();
+        $listStyle = $this->lists->item();
+        if (! $this->lists->isInItem()) {
+            $this->openParagraph($style);
+
+            return;
+        }
+        $this->paragraphStyle = $this->resolver->named($style) ?? $listStyle;
+        $this->current        = $this->resolver->resolve($this->base, $this->paragraphStyle);
+    }
+
+    /**
+     * Opens a list: its marker from its type (bullets by depth, or numbers, unless set), the
+     * number its first item takes, and its items' style.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    private function openList(string $name, string $inner, ?string $style): void
+    {
+        $this->flushParagraph();
+        $type  = ListMarker::tryFrom(self::attribute($inner, 'type') ?? '');
+        $start = self::attribute($inner, 'start');
+        $this->lists->open(
+            $type ?? ('ol' === $name ? ListMarker::Decimal : null),
+            is_numeric($start) ? (int) $start : 1,
+            $this->resolver->named($style),
+        );
+    }
+
+    /**
      * @throws IoException
      * @throws ParseException
      */
@@ -336,6 +396,8 @@ final class MarkupParser
             'columnbreak' => $this->break(ItemKind::ColumnBreak),
             'pagebreak'   => $this->break(ItemKind::PageBreak),
             'img'         => $this->image($inner),
+            'ul', 'ol'    => $this->openList($name, $inner, $style),
+            'li'          => $this->openItem($style),
             default       => $this->open($name, $style, self::marks($name, $inner)),
         };
     }
@@ -347,6 +409,16 @@ final class MarkupParser
     private function text(string $raw): void
     {
         $text = self::decodeEntities($raw);
+        if (! $this->inParagraph && $this->lists->isInItem()) {
+            // An item's text: its first words start the paragraph, and white space alone between
+            // its parts sets nothing.
+            $text = [] === $this->spans ? ltrim($text) : $text;
+            if ('' !== $text) {
+                $this->spans[] = [str_replace("\n", replace: ' ', subject: $text), $this->current];
+            }
+
+            return;
+        }
         if (! $this->inParagraph) {
             // Plain-text mode: blank lines separate paragraphs, single newlines are spaces.
             $split  = preg_split('/\n[ \t]*\n/', $text);

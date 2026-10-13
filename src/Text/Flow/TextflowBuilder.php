@@ -8,13 +8,16 @@ use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Exception\IoException;
 use Php2Pdf\Exception\ParseException;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Text\Style\ListMarker;
 use Php2Pdf\Text\Style\TextStyle;
 use Php2Pdf\Text\Textflow;
 
 use function count;
 
 /**
- * Builds a Textflow in code, so markup is optional.
+ * Builds a Textflow in code, so markup is optional. A list is started with startList(), each
+ * item with item(), and ended with endList(); a paragraph() inside an item continues it, and a
+ * list started inside an item is nested in it.
  *
  * @api
  */
@@ -31,6 +34,7 @@ final class TextflowBuilder
 
     private ?TextStyle $paragraphStyle = null;
     private TextStyle $current;
+    private readonly ListContext $lists;
 
     /**
      * @internal
@@ -44,6 +48,7 @@ final class TextflowBuilder
         private readonly Itemiser $itemiser,
     ) {
         $this->current = $resolver->resolve($base);
+        $this->lists   = new ListContext();
     }
 
     /**
@@ -69,6 +74,16 @@ final class TextflowBuilder
     public function columnBreak(): self
     {
         $this->breaks[] = [count($this->spans), ItemKind::ColumnBreak];
+
+        return $this;
+    }
+
+    /** Ends the innermost list, and its open item. */
+    public function endList(): self
+    {
+        $this->flush();
+        $this->lists->closeItem();
+        $this->lists->close();
 
         return $this;
     }
@@ -101,6 +116,23 @@ final class TextflowBuilder
     public function italic(string $text): self
     {
         return $this->text($text, new TextStyle(font: $this->current->italic ?? $this->current->font));
+    }
+
+    /**
+     * Starts the next item of the innermost list, in the given paragraph style, the list's, or the
+     * flow's; outside a list it starts a paragraph.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    public function item(TextStyle|string|null $style = null): self
+    {
+        $this->flush();
+        $listStyle            = $this->lists->item();
+        $this->paragraphStyle = $this->resolver->named($style) ?? $listStyle;
+        $this->current        = $this->resolver->resolve($this->base, $this->paragraphStyle);
+
+        return $this;
     }
 
     public function lineBreak(): self
@@ -157,6 +189,21 @@ final class TextflowBuilder
         return $this;
     }
 
+    /**
+     * Starts a list, inside the open item if there is one: its items marked as given (bullets
+     * by depth unless set), the first numbered $start, in a paragraph style of its own if given.
+     *
+     * @throws IoException
+     * @throws ParseException
+     */
+    public function startList(?ListMarker $marker = null, int $start = 1, TextStyle|string|null $style = null): self
+    {
+        $this->flush();
+        $this->lists->open($marker, $start, $this->resolver->named($style));
+
+        return $this;
+    }
+
     public function tab(): self
     {
         $this->breaks[] = [count($this->spans), ItemKind::Tab];
@@ -180,7 +227,12 @@ final class TextflowBuilder
     private function flush(): void
     {
         if ([] !== $this->spans || [] !== $this->breaks) {
-            $this->paragraphs[] = new ParagraphSource($this->paragraphStyle, $this->spans, $this->breaks);
+            $this->paragraphs[] = new ParagraphSource(
+                $this->paragraphStyle,
+                $this->spans,
+                $this->breaks,
+                $this->lists->position(),
+            );
         }
         $this->spans  = [];
         $this->breaks = [];

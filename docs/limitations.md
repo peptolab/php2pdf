@@ -41,7 +41,7 @@ Known gaps, in rough order of how often they matter.
   colour spaces but not converted.
 - **Images** in formats other than JPEG, JPEG 2000, PNG and baseline TIFF (GIF, WebP, BMP, and
   TIFF layouts such as tiles or YCbCr) need `ext-imagick` or `ext-gd`.
-- **Tagged PDF** tags textflows, tables, links and figures, and imported pages bring their
-  structure where first placed; lists are tagged by hand (see [accessibility.md](accessibility.md)).
+- **Tagged PDF** tags textflows (lists included), tables, links and figures, and imported pages
+  bring their structure where first placed (see [accessibility.md](accessibility.md)).
 - **Not in scope**: forms and annotations other than links, JavaScript, multimedia, writing
   encrypted files, HTML or CSS rendering, editing PDFs in place.
