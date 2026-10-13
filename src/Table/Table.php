@@ -67,6 +67,9 @@ final class Table implements FlowableInterface
     private bool          $continuing = false;
     private ?TableFitInfo $last       = null;
 
+    /** The elements the table is tagged as, made when it is first drawn on a tagged page. */
+    private ?TableTags $tags = null;
+
     /** @var array{0: array<int, float>, 1: array<int, float>}|null auto column content widths, from the whole table */
     private ?array $contentWidths = null;
 
@@ -157,7 +160,7 @@ final class Table implements FlowableInterface
         $headers->reset();
         $footers->reset();
         $layout   = $this->layout($headers, $body, $footers, $box->width);
-        $painter  = new Painter($canvas, $layout, $box);
+        $painter  = new Painter($canvas, $layout, $box, $this->tagsFor($canvas));
         $planner  = new Planner($layout, $headers, $body, $this->options, $footers);
         $firstRow = $this->nextRow;
         $plan     = $planner->plan(
@@ -183,7 +186,19 @@ final class Table implements FlowableInterface
                 default  => $plan->headerHeights,
             };
             $drawn = $grid === $footers ? $boxFooters : $grid;
-            $painter->row($drawn->cells($row), $top, $heights, $row, $grid === $footers ? $height : $limit);
+            $part  = match ($grid) {
+                $body    => Part::Body,
+                $footers => Part::Footer,
+                default  => Part::Header,
+            };
+            $painter->row(
+                $drawn->cells($row),
+                $top,
+                $heights,
+                $row,
+                $grid === $footers ? $height : $limit,
+                Part::Footer !== $part || $this->finishes($plan, $textLeft) ? $part : null,
+            );
             $top     += $height;
             $edges[] = $painter->edgeY($top);
             if (! $isBody) {
@@ -308,6 +323,7 @@ final class Table implements FlowableInterface
         $this->continuing    = false;
         $this->last          = null;
         $this->contentWidths = null;
+        $this->tags          = null;
     }
 
     /** @return list<Row> */
@@ -358,6 +374,15 @@ final class Table implements FlowableInterface
     }
 
     /**
+     * Whether a fit's plan ends the table, the text of its last body row all placed: its footer
+     * rows are tagged then, after the body, and are artifacts in the boxes before.
+     */
+    private function finishes(Plan $plan, bool $textLeft): bool
+    {
+        return $plan->lastBodyRow === (count($this->rows) - 1) && ! $textLeft;
+    }
+
+    /**
      * @return array{0: Grid, 1: Grid, 2: Grid}
      *
      * @throws IoException
@@ -390,5 +415,18 @@ final class Table implements FlowableInterface
         $this->contentWidths ??= $layout->contentWidths;
 
         return $layout;
+    }
+
+    /** The elements the table is tagged as on a tagged page, starting a box of it there; null elsewhere. */
+    private function tagsFor(Canvas $canvas): ?TableTags
+    {
+        $tagger = $canvas->tagger();
+        if (null === $tagger) {
+            return null;
+        }
+        $this->tags ??= new TableTags();
+        $this->tags->enter($tagger);
+
+        return $this->tags;
     }
 }

@@ -16,7 +16,8 @@ use function sprintf;
  * What PDF/X and PDF/A ask of a document: an output intent before any colour, device colours its
  * colour space can reproduce, imported artwork in that space, XMP metadata declaring the
  * standards, and for PDF/X a title. The output intent is written once for each standard, sharing
- * its profile. Every check passes when the document conforms to neither.
+ * its profile. Every check passes when the document conforms to neither. PDF/UA asks for a title
+ * and the document's language, and XMP declaring it.
  *
  * @internal
  */
@@ -110,6 +111,7 @@ final class ConformanceRules implements CatalogContributorInterface
      */
     public function complete(Metadata $metadata): void
     {
+        $this->completeAccessibility($metadata);
         $standards = $this->options->conformance();
         if (null === $standards) {
             return;
@@ -180,6 +182,38 @@ final class ConformanceRules implements CatalogContributorInterface
             'DeviceCMYK' => 4 === $this->intent?->components,
             default      => true,
         };
+    }
+
+    /**
+     * Checks what PDF/UA needs when the document closes, and declares it in the XMP metadata,
+     * with its schema under PDF/A.
+     *
+     * @throws ConformanceException when the title, language or XMP is missing
+     */
+    private function completeAccessibility(Metadata $metadata): void
+    {
+        $accessibility = $this->options->accessibility;
+        if (null === $accessibility || ! $accessibility->pdfUa) {
+            return;
+        }
+        $missing = match (true) {
+            null === $metadata->info->title() => 'a document title',
+            null === $accessibility->language => 'the document\'s language: set Accessibility::$language',
+            ! $this->options->xmp => 'XMP metadata; leave DocumentOptions::$xmp enabled',
+            default => null,
+        };
+        if (null !== $missing) {
+            throw new ConformanceException("PDF/UA-1 needs {$missing}.");
+        }
+        $namespace = 'http://www.aiim.org/pdfua/ns/id/';
+        $metadata->addDescription(
+            "<rdf:Description rdf:about=\"\" xmlns:pdfuaid=\"{$namespace}\"><pdfuaid:part>1</pdfuaid:part></rdf:Description>",
+        );
+        if (null !== $this->options->pdfa) {
+            $metadata->addSchema(new XmpSchema('PDF/UA Universal Accessibility Schema', $namespace, 'pdfuaid', [
+                ['part', 'Integer', 'The part of ISO 14289 the document conforms to'],
+            ]));
+        }
     }
 
     private function intentName(): string

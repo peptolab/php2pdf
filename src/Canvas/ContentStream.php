@@ -17,6 +17,10 @@ use function sprintf;
  * transformation, saved and restored with q and Q, whether a path is open, and the text state and
  * fill colour last set, so they are written again only when they change.
  *
+ * On a tagged page every operator is in a marked-content sequence: of the element being drawn
+ * or, outside one, an artifact's. A sequence opens before the first operator drawn in it, and
+ * closes when an element begins or ends, or the stream is finished.
+ *
  * @internal
  */
 final class ContentStream
@@ -62,8 +66,12 @@ final class ContentStream
     /** @var list<array{Tf: string|null, Tc: string|null, Tz: string|null, Ts: string|null, Tr: string|null, Tw: string|null, TL: string|null, fill: string|null}> */
     private array $stateStack = [];
 
-    private bool $hasCurrentPoint = false;
-    private bool $finished        = false;
+    private bool    $hasCurrentPoint = false;
+    private bool    $finished        = false;
+    private ?Tagger $tagger          = null;
+
+    /** Whether a marked-content sequence is open. */
+    private bool $marked = false;
 
     /**
      * @param bool $inheritsState whether the content is drawn inside other content, as a form
@@ -82,6 +90,10 @@ final class ContentStream
     /** Appends operators and a newline. */
     public function append(string $operators): void
     {
+        if (null !== $this->tagger && ! $this->marked) {
+            $this->ops    .= "{$this->tagger->opening()}\n";
+            $this->marked = true;
+        }
         $this->ops .= "{$operators}\n";
     }
 
@@ -118,6 +130,15 @@ final class ContentStream
         $this->state[$key] = $operation;
 
         return true;
+    }
+
+    /** Closes the open marked-content sequence, if there is one. */
+    public function closeMarked(): void
+    {
+        if ($this->marked) {
+            $this->ops    .= "EMC\n";
+            $this->marked = false;
+        }
     }
 
     public function closePath(): void
@@ -167,6 +188,7 @@ final class ContentStream
         if ([] !== $this->ctmStack) {
             throw new StateException(sprintf('Unbalanced save(): %d state(s) not restored.', count($this->ctmStack)));
         }
+        $this->closeMarked();
         $this->finished = true;
 
         return $this->ops;
@@ -240,5 +262,11 @@ final class ContentStream
         $this->ctmStack[]   = $this->ctm;
         $this->stateStack[] = $this->state;
         $this->append('q');
+    }
+
+    /** Puts what is drawn from now on in the tagger's marked-content sequences. */
+    public function tagWith(Tagger $tagger): void
+    {
+        $this->tagger = $tagger;
     }
 }

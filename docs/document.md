@@ -26,8 +26,9 @@ $doc = new Document($memory = new MemoryOutput());    // in memory; $memory->con
 | `topDown` | `false` | Default coordinate origin of pages |
 | `pdfx` | `null` | Write to a PDF/X level (see [navigation-and-pdfx.md](navigation-and-pdfx.md)) |
 | `pdfa` | `null` | Write to a PDF/A level, alone or with PDF/X (see [navigation-and-pdfx.md](navigation-and-pdfx.md#pdfa)) |
+| `accessibility` | `null` | Write a tagged PDF, and PDF/UA-1 if asked (see [accessibility.md](accessibility.md)) |
 | `rgbProfile` | `null` | An ICC profile RGB colours are interpreted in |
-| `glyphCheck` | `Warn` (`Error` under PDF/X or PDF/A) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
+| `glyphCheck` | `Warn` (`Error` under PDF/X, PDF/A or PDF/UA) | What a character missing from its font does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `scriptCheck` | `Error` | What text in a script the engine cannot shape yet does (see [fonts-and-text.md](fonts-and-text.md)) |
 | `limits` | `Limits::default()` | Resource limits for the PDFs, images and SVG the document reads |
 | `objectStreams` | `true` | Write objects other than streams a hundred at a time in compressed object streams, with a cross-reference stream: smaller files. Only for compressed output of PDF 1.5 and later |

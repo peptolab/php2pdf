@@ -108,11 +108,15 @@ a `Document` makes pages, fonts, images and flows, and each takes typed options.
 | `add_nameddest` | `$doc->addDestination('name', Destination::top(5, 700))` |
 | `pdfx=PDF/X-4` | `new DocumentOptions(pdfx: PdfX::X4)` |
 | `pdfa=PDF/A-2b`, `pdfa=PDF/A-3b` | `new DocumentOptions(pdfa: PdfA::A2b)` |
+| `tagged=true`, `lang=en` | `new DocumentOptions(accessibility: new Accessibility('en'))` |
+| `pdfua=PDF/UA-1` | `new Accessibility('en', pdfUa: true)` |
+| `tag={tagname=H1}` | `$canvas->tag(StructureRole::H1, fn ($canvas) => ...)`, or `TextStyle(role: StructureRole::H1)` in a textflow |
+| `fit_image(..., 'tag={tagname=Figure Alt=...}')` | `$page->place($image, $box, alt: '...')` |
 | `load_asset("Attachment")`, `attachments=` | `$doc->attachFile($name, $contents, $mimeType, AttachmentRelationship::Data)` |
 | `load_iccprofile(..., 'usage=outputintent')` | `$doc->setOutputIntent(IccProfile::fromFile(...), 'FOGRA39')` |
 
 ## Not there yet
 
-Mark positioning, right-to-left and complex scripts, tagged PDF,
+Mark positioning, right-to-left and complex scripts,
 Forms and annotations other than links, and writing encrypted files: see
 [limitations.md](limitations.md) and the issue tracker.

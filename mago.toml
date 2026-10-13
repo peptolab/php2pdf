@@ -148,6 +148,7 @@ cyclomatic-complexity = { threshold = 80, method-threshold = 15, exclude = [
 ] }
 excessive-parameter-list = { threshold = 8, constructor-threshold = 16, exclude = [
     # Honest: sheets of named, optional settings, and the same sheets resolved.
+    "src/Document/DocumentOptions.php",
     "src/Font/OpenType/Metrics.php",
     "src/Text/Style/ParagraphFormat.php",
     "src/Text/Style/TextStyle.php",

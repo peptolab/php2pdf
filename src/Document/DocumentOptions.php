@@ -68,22 +68,24 @@ final readonly class DocumentOptions
          */
         public bool $objectStreams = true,
         public ?PdfA $pdfa = null,
+        /** Write a tagged PDF, and to PDF/UA-1 if asked. */
+        public ?Accessibility $accessibility = null,
     ) {
         $this->imageDecoders = $imageDecoders ?? ImageDecoders::default();
         $this->limits        = $limits ?? Limits::default();
         $this->clock         = $clock ?? new SystemClock();
         $this->version       = match (true) {
             null !== $pdfx => $pdfx->version(),
-            null !== $pdfa => '1.7',
+            null !== $pdfa, true === $accessibility?->pdfUa => '1.7',
             default => $version,
         };
-        $this->glyphCheck  = $glyphCheck ?? (null === $pdfx && null === $pdfa ? GlyphCheck::Warn : GlyphCheck::Error);
+        $this->glyphCheck  = $glyphCheck ?? (null === $this->standards() ? GlyphCheck::Warn : GlyphCheck::Error);
         $this->scriptCheck = $scriptCheck ?? ScriptCheck::Error;
     }
 
     /**
-     * The standards the document conforms to, as error messages name them: "PDF/X-4", "PDF/A-2b",
-     * both joined, or null for neither.
+     * The print and archival standards the document conforms to, whose colour rules apply, as
+     * error messages name them: "PDF/X-4", "PDF/A-2b", both joined, or null for neither.
      */
     public function conformance(): ?string
     {
@@ -93,5 +95,19 @@ final readonly class DocumentOptions
             null !== $this->pdfa => $this->pdfa->value,
             default => null,
         };
+    }
+
+    /**
+     * Every standard the document conforms to, PDF/UA included, as error messages name them; or
+     * null for none.
+     */
+    public function standards(): ?string
+    {
+        $colour = $this->conformance();
+        if (true !== $this->accessibility?->pdfUa) {
+            return $colour;
+        }
+
+        return null === $colour ? 'PDF/UA-1' : "{$colour} and PDF/UA-1";
     }
 }

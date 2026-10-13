@@ -26,8 +26,10 @@ final class PageTree
 
     private ?Page $current = null;
 
+    /** @param Tagging|null $tagging the structure tree of a tagged document */
     public function __construct(
         private readonly Objects $objects,
+        public readonly ?Tagging $tagging = null,
     ) {
         $this->reference = $objects->allocate();
     }

@@ -8,6 +8,7 @@ use Closure;
 use Php2Pdf\Canvas\Canvas;
 use Php2Pdf\Canvas\PlaceableInterface;
 use Php2Pdf\Canvas\Resources;
+use Php2Pdf\Canvas\Tagger;
 use Php2Pdf\Canvas\TextFragments;
 use Php2Pdf\Canvas\TextlineOptions;
 use Php2Pdf\Canvas\TextlinePlacement;
@@ -29,12 +30,15 @@ use Php2Pdf\Geometry\Box;
 use Php2Pdf\Geometry\Dimensions;
 use Php2Pdf\Import\ImportedPage;
 use Php2Pdf\Navigation\Destination;
+use Php2Pdf\Structure\StructureElement;
+use Php2Pdf\Structure\StructureRole;
 use Php2Pdf\Table\Table;
 use Php2Pdf\Text\FlowOptions;
 use Php2Pdf\Text\Textflow;
 use WeakReference;
 
 use function implode;
+use function is_string;
 use function sprintf;
 
 /**
@@ -59,7 +63,10 @@ final class Page
     private int  $rotation = 0;
     private bool $finished = false;
 
-    /** @var list<array{0: Box, 1: Destination|string, 2: string|null}> link areas in PDF coordinates, targets and tooltips */
+    /**
+     * @var list<array{0: Box, 1: Destination|string, 2: string|null, 3: StructureElement|null}> link
+     *      areas in PDF coordinates, targets, tooltips, and their elements on a tagged page
+     */
     private array $links = [];
 
     /** @internal */
@@ -68,6 +75,7 @@ final class Page
         Dimensions $size,
         private readonly bool $topDown,
         private readonly int $number,
+        ?Tagging $tagging = null,
     ) {
         $this->mediaBox  = new Box(0.0, 0.0, $size->width, $size->height);
         $this->resources = new Resources($document->colour()->defaultRgb());
@@ -79,10 +87,18 @@ final class Page
             $size->height,
             $topDown,
             static fn(): TextFragments => $document->text()->fragments,
-            links: static function (Box $area, Destination|string $target, ?string $tooltip) use ($page): void {
+            links: static function (
+                Box $area,
+                Destination|string $target,
+                ?string $tooltip,
+                ?StructureElement $element,
+            ) use ($page): void {
                 $owner = $page->get();
-                $owner?->link($area, $target, $tooltip);
+                $owner?->link($area, $target, $tooltip, $element);
             },
+            tagger: null === $tagging
+                ? null
+                : new Tagger($tagging->tree, $tagging->tree->page($document->objects()->allocate())),
         );
     }
 
@@ -96,7 +112,7 @@ final class Page
      */
     public function addLink(Box $area, Destination|string $target, ?string $tooltip = null): self
     {
-        $this->link($this->toPdfBox($area), $target, $tooltip);
+        $this->link($this->toPdfBox($area), $target, $tooltip, $this->canvas->element(StructureRole::Link));
 
         return $this;
     }
@@ -155,23 +171,23 @@ final class Page
 
         $writer   = $this->document->objects();
         $contents = $writer->add(Stream::of($this->canvas->finish()));
-        $annots   = [];
-        foreach ($this->links as [$area, $target, $tooltip]) {
-            $annots[] = $this->document->addLinkAnnotation($area, $target, $tooltip);
-        }
-        $dict = Dictionary::of([
-            'Type'      => new Name('Page'),
-            'Parent'    => $parent,
-            'Annots'    => [] === $annots ? null : $annots,
-            'MediaBox'  => $this->mediaBox->toRect(),
-            'CropBox'   => $this->pdfRect($this->cropBox),
-            'BleedBox'  => $this->pdfRect($this->bleedBox),
-            'TrimBox'   => $this->pdfRect($this->trimBox),
-            'ArtBox'    => $this->pdfRect($this->artBox),
-            'Rotate'    => 0 === $this->rotation ? null : $this->rotation,
-            'Resources' => $this->resources->toDictionary(),
-            'Contents'  => $contents,
-            'Group'     => null === $pdfx
+        $tagger   = $this->canvas->tagger();
+        $annots   = $this->annotations($tagger);
+        $dict     = Dictionary::of([
+            'Type'          => new Name('Page'),
+            'Parent'        => $parent,
+            'Annots'        => [] === $annots ? null : $annots,
+            'MediaBox'      => $this->mediaBox->toRect(),
+            'CropBox'       => $this->pdfRect($this->cropBox),
+            'BleedBox'      => $this->pdfRect($this->bleedBox),
+            'TrimBox'       => $this->pdfRect($this->trimBox),
+            'ArtBox'        => $this->pdfRect($this->artBox),
+            'Rotate'        => 0 === $this->rotation ? null : $this->rotation,
+            'Resources'     => $this->resources->toDictionary(),
+            'Contents'      => $contents,
+            'StructParents' => $tagger?->marks()->key,
+            'Tabs'          => null === $tagger ? null : new Name('S'),
+            'Group'         => null === $pdfx
                 ? null
                 : Dictionary::of([
                     'S'  => new Name('Transparency'),
@@ -180,7 +196,12 @@ final class Page
                 ]),
         ]);
 
-        return $writer->add($dict);
+        if (null === $tagger) {
+            return $writer->add($dict);
+        }
+        $writer->write($tagger->marks()->page, $dict);
+
+        return $tagger->marks()->page;
     }
 
     /**
@@ -240,13 +261,26 @@ final class Page
 
     /**
      * Fits an image, template or imported page into a box on this page. An imported page whose
-     * annotations are flattened brings its links to web addresses, where it was placed.
+     * annotations are flattened brings its links to web addresses, where it was placed. In a
+     * tagged document artwork with alternate text is a figure, read as the text; without, it is
+     * part of what is being tagged, or an artifact, which assistive technology skips.
      *
      * @throws ParseException when an imported page cannot be read
      */
-    public function place(PlaceableInterface $object, Box $box, ?Fit $fit = null): Placement
+    public function place(PlaceableInterface $object, Box $box, ?Fit $fit = null, ?string $alt = null): Placement
     {
-        $placement = $this->canvas()->place($object, $box, $fit);
+        $canvas    = $this->canvas();
+        $placement = null;
+        if (null !== $alt && $canvas->isTagged()) {
+            $canvas->tag(
+                StructureRole::Figure,
+                static function (Canvas $canvas) use ($object, $box, $fit, &$placement): void {
+                    $placement = $canvas->place($object, $box, $fit);
+                },
+                $alt,
+            );
+        }
+        $placement ??= $canvas->place($object, $box, $fit);
         if ($object instanceof ImportedPage) {
             $this->importLinks($object, $placement);
         }
@@ -345,6 +379,30 @@ final class Page
         return $this->mediaBox->width;
     }
 
+    /**
+     * Allocates the page's link annotations, each tagged as its element on a tagged page, with a
+     * description of the link when it has no tooltip, as PDF/UA asks.
+     *
+     * @return list<Reference>
+     */
+    private function annotations(?Tagger $tagger): array
+    {
+        $annots = [];
+        foreach ($this->links as [$area, $target, $tooltip, $element]) {
+            $annots[] =
+                null === $tagger || null === $element
+                    ? $this->document->addLinkAnnotation($area, $target, $tooltip)
+                    : $this->document->addLinkAnnotation(
+                        $area,
+                        $target,
+                        $tooltip ?? (is_string($target) ? $target : 'A link to a place in this document'),
+                        static fn(Reference $annotation): int => $tagger->annotation($element, $annotation),
+                    );
+        }
+
+        return $annots;
+    }
+
     private function assertOpen(): void
     {
         if ($this->finished) {
@@ -385,7 +443,7 @@ final class Page
      * PDF/X allows annotations only outside the printed area. Link areas are in PDF space; the
      * boxes are in the page's coordinate mode.
      *
-     * @param list<array{0: Box, 1: Destination|string, 2: string|null}> $links
+     * @param list<array{0: Box, 1: Destination|string, 2: string|null, 3: StructureElement|null}> $links
      *
      * @throws ConformanceException when a link overlaps the printed area
      */
@@ -473,10 +531,14 @@ final class Page
      *
      * @throws ConformanceException when the link overlaps the printed area
      */
-    private function link(Box $area, Destination|string $target, ?string $tooltip): void
-    {
+    private function link(
+        Box $area,
+        Destination|string $target,
+        ?string $tooltip,
+        ?StructureElement $element = null,
+    ): void {
         $this->assertOpen();
-        $link = [$area, $target, $tooltip];
+        $link = [$area, $target, $tooltip, $element];
         $pdfx = $this->document->options()->pdfx;
         if (null !== $pdfx && (null !== $this->bleedBox || null !== $this->trimBox || null !== $this->artBox)) {
             $this->assertPdfXLinks($pdfx, [$link], $this->trimBox);
