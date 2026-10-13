@@ -18,6 +18,8 @@ process; the runner reports the median of the timed runs after one discarded war
 | `images-distinct-40` | 40 pages, each with a different image (20 JPEGs at 1600×1200, 20 PNGs at 1200×900) |
 | `import-500` | Page 1 of a third-party (cairo) PDF placed as a background on 500 pages, with a footer line |
 | `svg-100` | One SVG (gradients, clips, `<use>`) placed 100 times, 10 per page |
+| `six-fonts-10` | Ten pages, each with six boxes of body copy in a different font: DejaVu Sans, Source Sans 3 (CFF) and Source Serif 4, regular and bold. Subsetting several fonts used lightly |
+| `cjk-10` | Ten pages of two columns of Chinese, 3,500 different ideographs, in a CJK font of tens of thousands of glyphs (skipped without one; see below) |
 
 ## Running
 
@@ -25,7 +27,9 @@ Each run is a child process with `XDEBUG_MODE=off`: Xdebug's coverage mode, if l
 make php2pdf about four times slower. The header says whether Xdebug is loaded.
 
 `fixtures.php` copies English hunspell hyphenation patterns (`hyph_en_US.dic`) from the usual
-places, or from `BENCH_HYPHEN`. Without them `hyphenate-100` is skipped.
+places, or from `BENCH_HYPHEN`. Without them `hyphenate-100` is skipped. It also copies a large CJK font for
+`cjk-10` (face 0 of a collection), from `BENCH_CJK` or Noto Sans CJK on Linux
+(`fonts-noto-cjk`) or Arial Unicode on macOS; without one `cjk-10` is skipped.
 
 ```sh
 php tools/bench/fixtures.php                       # once; needs ext-gd

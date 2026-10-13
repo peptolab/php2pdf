@@ -165,6 +165,46 @@ return [
         return 500;
     },
 
+    'six-fonts-10' => static function (string $out, string $fx) use ($newDoc): int {
+        $doc   = $newDoc($out);
+        $fonts = array_map(static fn (string $file): mixed => $doc->fonts()->load("{$fx}/{$file}"), array_values(BENCH_SIX_FONTS));
+        $copy  = bench_excerpts((string) file_get_contents("{$fx}/body.txt"));
+        for ($n = 0; $n < 10; ++$n) {
+            $page = $doc->addPage(PageSize::A4);
+            foreach (bench_six_boxes() as $i => $box) {
+                $text = $copy[($n * 6 + $i) % count($copy)];
+                $flow = $doc->textflow($text, new TextStyle(font: $fonts[$i], size: 9.5, leading: Leading::pt(13.0)), TextFormat::Plain);
+                $page->fitTextflow($flow, new Box(...$box));
+            }
+        }
+        $doc->close();
+
+        return 10;
+    },
+
+    'cjk-10' => static function (string $out, string $fx) use ($newDoc): int {
+        $font = bench_cjk_font($fx);
+        if (null === $font) {
+            return 0;
+        }
+        $doc  = $newDoc($out);
+        $cjk  = $doc->fonts()->load($font);
+        $bold = $doc->fonts()->load("{$fx}/DejaVuSans-Bold.ttf");
+        $flow = $doc->textflow((string) file_get_contents("{$fx}/cjk.txt"), new TextStyle(font: $cjk, size: 10.0, leading: Leading::pt(15.0)), TextFormat::Plain);
+        for ($n = 1; $n <= 10; ++$n) {
+            if ($flow->isDone()) {
+                $flow->reset();
+            }
+            $page = $doc->addPage(PageSize::A4);
+            $page->fitTextline("Page {$n}", $bold, 14.0, new Box(...BENCH_HEADLINE), TextlineOptions::at(Position::centerLeft()));
+            $page->fitTextflow($flow, new Box(...BENCH_COLUMN_1));
+            $page->fitTextflow($flow, new Box(...BENCH_COLUMN_2));
+        }
+        $doc->close();
+
+        return 10;
+    },
+
     'svg-100' => static function (string $out, string $fx) use ($newDoc): int {
         $doc = $newDoc($out);
         $art = $doc->svg("{$fx}/art.svg", new NativeConverter());

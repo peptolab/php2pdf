@@ -32,6 +32,10 @@ if (! is_dir($dir) && ! mkdir($dir, 0o777, true)) {
 $copies = [
     'DejaVuSans.ttf'      => 'test/asset/fonts/DejaVuSans.ttf',
     'DejaVuSans-Bold.ttf' => 'test/asset/fonts/DejaVuSans-Bold.ttf',
+    'SourceSans3-Regular.otf'  => 'test/asset/fonts/SourceSans3-Regular.otf',
+    'SourceSans3-Bold.otf'     => 'test/asset/fonts/SourceSans3-Bold.otf',
+    'SourceSerif4-Regular.ttf' => 'test/asset/fonts/SourceSerif4-Regular.ttf',
+    'SourceSerif4-Bold.ttf'    => 'test/asset/fonts/SourceSerif4-Bold.ttf',
     'template.pdf'        => 'test/asset/pdf/cairo.pdf',
     'art.svg'             => 'test/asset/svg/shapes.svg',
 ];
@@ -57,6 +61,43 @@ if ([] === $hyphen) {
     fwrite(STDERR, "Cannot copy {$hyphen[0]}.\n");
     exit(1);
 }
+
+// A large CJK font for cjk-10: tens of thousands of glyphs, too big to bundle. Set BENCH_CJK to
+// a font file (face 0 of a collection is used), or one is looked for in common places.
+$cjk = array_values(array_filter([
+    getenv('BENCH_CJK') ?: null,
+    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+    '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',
+    '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
+    '/System/Library/Fonts/PingFang.ttc',
+], static fn (?string $path): bool => null !== $path && is_file($path)));
+foreach (glob("{$dir}/cjk.*") ?: [] as $old) {
+    unlink($old);
+}
+if ([] === $cjk) {
+    echo "  No CJK font found: cjk-10 will be skipped (set BENCH_CJK).\n";
+} elseif (! copy($cjk[0], "{$dir}/cjk." . strtolower(pathinfo($cjk[0], PATHINFO_EXTENSION)))) {
+    fwrite(STDERR, "Cannot copy {$cjk[0]}.\n");
+    exit(1);
+} else {
+    echo '  CJK font: ' . basename($cjk[0]) . "\n";
+}
+
+// CJK copy for cjk-10: sentences of ideographs drawn from 3,500 of them, about as many different
+// characters as a long document uses, so the subset holds thousands of glyphs, not a handful.
+mt_srand(49);
+$sentences = [];
+for ($i = 0; $i < 1200; ++$i) {
+    $sentence = '';
+    for ($n = mt_rand(8, 24); $n > 0; --$n) {
+        $sentence .= mb_chr(0x4E00 + mt_rand(0, 3499), 'UTF-8');
+    }
+    $sentences[] = $sentence . (0 === $i % 3 ? '。' : '，');
+}
+file_put_contents("{$dir}/cjk.txt", implode('', array_map(
+    static fn (array $paragraph): string => implode('', $paragraph) . "\n",
+    array_chunk($sentences, 12),
+)));
 
 // Body copy: the brochure text with its markup removed, so both libraries set plain text.
 $brochure = (string) file_get_contents("{$root}/test/asset/text/brochure.txt");

@@ -28,8 +28,13 @@ function bench_pdflib(string $out, string $fx): PDFlib
         $p->set_option("license={$licence}");
     }
     $p->set_option("SearchPath={{{$fx}}}");
-    $p->set_option('FontOutline={DejaVuSans=DejaVuSans.ttf}');
-    $p->set_option('FontOutline={DejaVuSans-Bold=DejaVuSans-Bold.ttf}');
+    foreach (BENCH_SIX_FONTS as $name => $file) {
+        $p->set_option("FontOutline={{$name}={$file}}");
+    }
+    $cjk = bench_cjk_font($fx);
+    if (null !== $cjk) {
+        $p->set_option('FontOutline={CJK=' . basename($cjk) . '}');
+    }
     $p->begin_document($out, '');
     $p->set_info('Creator', 'php2pdf benchmark');
 
@@ -213,6 +218,59 @@ return [
         $p->end_document('');
 
         return 500;
+    },
+
+    'six-fonts-10' => static function (string $out, string $fx): int {
+        $p     = bench_pdflib($out, $fx);
+        $fonts = array_map(static fn (string $name): int => $p->load_font($name, 'unicode', 'embedding'), array_keys(BENCH_SIX_FONTS));
+        $copy  = bench_excerpts((string) file_get_contents("{$fx}/body.txt"));
+        for ($n = 0; $n < 10; ++$n) {
+            bench_begin_page($p);
+            foreach (bench_six_boxes() as $i => $box) {
+                $flow = $p->create_textflow($copy[($n * 6 + $i) % count($copy)], "font={$fonts[$i]} fontsize=9.5 leading=13 begoptlistchar=none");
+                [$llx, $lly, $urx, $ury] = bench_corners($box);
+                $p->fit_textflow($flow, $llx, $lly, $urx, $ury, '');
+                $p->delete_textflow($flow);
+            }
+            $p->end_page_ext('');
+        }
+        $p->end_document('');
+
+        return 10;
+    },
+
+    'cjk-10' => static function (string $out, string $fx): int {
+        $file = bench_cjk_font($fx);
+        if (null === $file) {
+            return 0;
+        }
+        $p    = bench_pdflib($out, $fx);
+        $cjk  = $p->load_font(str_ends_with($file, '.ttc') ? 'CJK:0' : 'CJK', 'unicode', 'embedding');
+        $bold = $p->load_font('DejaVuSans-Bold', 'unicode', 'embedding');
+        $body = (string) file_get_contents("{$fx}/cjk.txt");
+        $opts = "font={$cjk} fontsize=10 leading=15 begoptlistchar=none";
+        $flow = $p->create_textflow($body, $opts);
+        $done = false;
+        for ($n = 1; $n <= 10; ++$n) {
+            if ($done) {
+                $p->delete_textflow($flow);
+                $flow = $p->create_textflow($body, $opts);
+                $done = false;
+            }
+            bench_begin_page($p);
+            bench_textline($p, "Page {$n}", $bold, 14.0, BENCH_HEADLINE);
+            foreach ([BENCH_COLUMN_1, BENCH_COLUMN_2] as $column) {
+                if (! $done) {
+                    [$llx, $lly, $urx, $ury] = bench_corners($column);
+                    $done = '_stop' === $p->fit_textflow($flow, $llx, $lly, $urx, $ury, '');
+                }
+            }
+            $p->end_page_ext('');
+        }
+        $p->delete_textflow($flow);
+        $p->end_document('');
+
+        return 10;
     },
 
     'svg-100' => static function (string $out, string $fx): int {
