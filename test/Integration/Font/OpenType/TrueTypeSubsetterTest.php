@@ -74,6 +74,30 @@ final class TrueTypeSubsetterTest extends TestCase
         self::assertSame([4, [1, 3]], [$subset->numGlyphs, $subset->componentGlyphs(2)]);
     }
 
+    /**
+     * A composite whose data ends inside its second component record: the first component is
+     * renumbered, and the bytes after the cut are left as they were.
+     */
+    #[Test]
+    public function aCompositeCutShortHasTheComponentsBeforeTheCutRenumbered(): void
+    {
+        $composite = pack('nnnnn', 0xFFFF, 0, 0, 100, 100) . pack('nnCC', 0x0020, 3, 0, 0) . pack('n', 0x0001);
+        $font      = OpenTypeFont::fromData(SfntTables::replace(self::dejaVuData(), [
+            'glyf' => $composite,
+            'loca' => pack('NNN', 0, 0, 18),
+        ]));
+        $subset = OpenTypeFont::fromData(TrueTypeSubsetter::subset($font, [0, 1]));
+
+        self::assertSame(
+            substr_replace($composite, pack('n', 2), offset: 12, length: 2),
+            substr(
+                $subset->glyphData(1),
+                offset: 0,
+                length: 18,
+            ),
+        );
+    }
+
     #[Test]
     public function aCompositeRefersToItsComponentsByTheirNewNumbers(): void
     {
