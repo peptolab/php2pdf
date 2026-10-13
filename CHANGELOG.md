@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Plain text no longer breaks lines inside characters whose UTF-8 form ends in the byte 0x85,
+  such as Å and much of Cyrillic (х): a textflow of "очень хорошо" was split in two and lost text
+  around the break. Hyphenation patterns and CSV swatch names with such characters are read whole
+  too. Plain text now also breaks lines at the line and paragraph separators (U+2028, U+2029).
+
 ## [0.1.7] - 2026-10-13
 
 ### Added
