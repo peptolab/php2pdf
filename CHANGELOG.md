@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-10-13
+
 ### Added
 
 - `tools/bench` scenarios `six-fonts-10` (six TrueType and CFF fonts on each page, lightly) and
@@ -269,7 +271,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.10...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.11...HEAD
+[0.1.11]: https://github.com/peptolab/php2pdf/compare/0.1.10...0.1.11
 [0.1.10]: https://github.com/peptolab/php2pdf/compare/0.1.9...0.1.10
 [0.1.9]: https://github.com/peptolab/php2pdf/compare/0.1.8...0.1.9
 [0.1.8]: https://github.com/peptolab/php2pdf/compare/0.1.7...0.1.8
