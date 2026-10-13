@@ -94,30 +94,24 @@ final readonly class AnnotationFlattener
      */
     public function flatten(?Dictionary $resources, string $content): array
     {
-        $resources   ??= new Dictionary();
-        $appearances = $this->appearances();
-        if ([] === $appearances) {
-            return [$resources, $content];
-        }
-        $xobjects   = new Dictionary(($this->reader->dict($resources, 'XObject') ?? new Dictionary())->all());
-        $properties = new Dictionary(($this->reader->dict($resources, 'Properties') ?? new Dictionary())->all());
-        $draws      = '';
-        foreach ($appearances as $i => [$appearance, $matrix, $oc]) {
-            $name = self::unused($xobjects, "Annot{$i}");
-            $xobjects->set($name, $appearance);
-            $draw = "q {$matrix->toPdf()} cm /{$name} Do Q";
-            if (null !== $oc) {
-                $property = self::unused($properties, "AnnotOC{$i}");
-                $properties->set($property, $oc);
-                $draw = "/OC /{$property} BDC {$draw} EMC";
-            }
-            $draws .= "{$draw}\n";
-        }
-        $out = new Dictionary($resources->all());
-        $out->set('XObject', $xobjects);
-        $out->set('Properties', [] === $properties->all() ? null : $properties);
+        [$resources, $draws] = $this->appearancesIn($resources);
 
-        return [$out, "q\n{$content}\nQ\n{$draws}"];
+        return [$resources, '' === $draws ? $content : "q\n{$content}\nQ\n{$draws}"];
+    }
+
+    /**
+     * As flatten(), with the appearances marked as an artifact: for content whose own marks are
+     * the elements of a structure, which the appearances are not part of.
+     *
+     * @return array{0: Dictionary, 1: string}
+     *
+     * @throws ParseException
+     */
+    public function flattenAsArtifacts(?Dictionary $resources, string $content): array
+    {
+        [$resources, $draws] = $this->appearancesIn($resources);
+
+        return [$resources, '' === $draws ? $content : "q\n{$content}\nQ\n/Artifact BMC\n{$draws}EMC\n"];
     }
 
     /**
@@ -195,6 +189,41 @@ final readonly class AnnotationFlattener
         $state = $annotation->get('AS');
 
         return $state instanceof Name ? $states->get($state->value) : null;
+    }
+
+    /**
+     * The resources with the annotations' appearances added, and the operators that draw them.
+     *
+     * @return array{0: Dictionary, 1: string}
+     *
+     * @throws ParseException
+     */
+    private function appearancesIn(?Dictionary $resources): array
+    {
+        $resources   ??= new Dictionary();
+        $appearances = $this->appearances();
+        if ([] === $appearances) {
+            return [$resources, ''];
+        }
+        $xobjects   = new Dictionary(($this->reader->dict($resources, 'XObject') ?? new Dictionary())->all());
+        $properties = new Dictionary(($this->reader->dict($resources, 'Properties') ?? new Dictionary())->all());
+        $draws      = '';
+        foreach ($appearances as $i => [$appearance, $matrix, $oc]) {
+            $name = self::unused($xobjects, "Annot{$i}");
+            $xobjects->set($name, $appearance);
+            $draw = "q {$matrix->toPdf()} cm /{$name} Do Q";
+            if (null !== $oc) {
+                $property = self::unused($properties, "AnnotOC{$i}");
+                $properties->set($property, $oc);
+                $draw = "/OC /{$property} BDC {$draw} EMC";
+            }
+            $draws .= "{$draw}\n";
+        }
+        $out = new Dictionary($resources->all());
+        $out->set('XObject', $xobjects);
+        $out->set('Properties', [] === $properties->all() ? null : $properties);
+
+        return [$out, $draws];
     }
 
     /**

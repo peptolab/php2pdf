@@ -71,12 +71,20 @@ holds the flow's paragraphs. Elements are read in the order their content is dra
 On an untagged document, and on a template's canvas, `tag()` simply draws: templates are artwork,
 tagged where they are placed.
 
+## Imported pages
+
+A page imported from a tagged PDF brings its structure where it is first placed on a page: the
+elements its content belongs to are copied, in their order, into a `Sect` under the element
+being drawn, with their alternate text, language and attributes, and types mapped through the
+source's role map to the standard ones. Its flattened annotations are artifacts. A page can
+carry its structure only once, so its other placements, and any in a template, are artifacts.
+Placed with alternate text, or inside a figure, the page is a figure and its own structure is
+left out. A page of an untagged PDF is part of the element being drawn, or an artifact.
+
 ## What it does not do
 
 - Lists are not tagged automatically: tag them with `StructureRole::List`, `ListItem`, `Label`
   and `ListBody`.
-- Imported pages keep none of their own structure: placed with alternate text they are a figure,
-  without it part of the element being drawn or an artifact.
 - Forms, and annotations other than links, are not written at all, so need no tagging.
 - PDF/UA asks for meaningful reading order and alternate text, which only the author can give;
   the validators check what can be checked.

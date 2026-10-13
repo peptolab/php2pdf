@@ -64,6 +64,9 @@ clip; links within the source document are dropped, as its other pages are not i
 Under PDF/X, which keeps links out of the printed area, imported links are left out. Notes,
 comments and form fields do not stay interactive.
 
+In a tagged document, a page of a tagged PDF brings its structure where it is first placed; see
+[accessibility.md](accessibility.md#imported-pages).
+
 The reader handles classic cross-reference tables, cross-reference streams and object streams,
 chains of incremental updates, and rebuilds the cross-reference by scanning the file when
 offsets are wrong. Flate (with PNG and TIFF predictors), LZW, ASCIIHex, ASCII85 and RunLength

@@ -20,6 +20,8 @@ final class ImportedDocument
 
     private readonly ?HiddenContent $hidden;
 
+    private readonly ?StructureReader $structure;
+
     /** @var array<string, ImportedPage> */
     private array $pages = [];
 
@@ -36,9 +38,12 @@ final class ImportedDocument
         public readonly ImportedAnnotations $annotations = ImportedAnnotations::None,
         /** The standards that need every font embedded (PDF/X, PDF/A), or null. */
         private readonly ?string $embeddingRequiredBy = null,
+        /** Whether the document is tagged, so the pages bring their structure. */
+        bool $tagged = false,
     ) {
-        $this->hidden = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
-        $this->copier = new ObjectCopier($file->reader(), $objects, $this->hidden);
+        $this->structure = $tagged ? new StructureReader($file->reader()) : null;
+        $this->hidden    = HiddenLayers::Remove === $hiddenLayers ? HiddenContent::of($file->reader()) : null;
+        $this->copier    = new ObjectCopier($file->reader(), $objects, $this->hidden);
     }
 
     /**
@@ -78,6 +83,7 @@ final class ImportedDocument
                 ? new AnnotationFlattener($this->file->reader(), $page, $this->hidden)
                 : null,
             $this->embeddingRequiredBy,
+            $this->structure,
         );
     }
 

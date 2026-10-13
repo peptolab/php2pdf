@@ -32,7 +32,7 @@ final class StructureTree
     public function __construct(
         private readonly Objects $objects,
     ) {
-        $this->root = new StructureElement(StructureRole::Document, null);
+        $this->root = new StructureElement(StructureRole::Document->value, null);
     }
 
     /** Tags an annotation on a page as part of an element; its /StructParent key. */
@@ -52,7 +52,16 @@ final class StructureTree
         ?string $alt = null,
         ?Dictionary $attributes = null,
     ): StructureElement {
-        return new StructureElement($role, $parent, $alt, $attributes);
+        return new StructureElement($role->value, $parent, $alt, $attributes);
+    }
+
+    /** The marks of a form drawn on a page, whose /StructParents is their key. */
+    public function form(Reference $page, Reference $form): PageMarks
+    {
+        $marks                      = new PageMarks($page, count($this->entries), $form);
+        $this->entries[$marks->key] = $marks;
+
+        return $marks;
     }
 
     /** The marks of a page, whose /StructParents is their key. */
@@ -75,7 +84,7 @@ final class StructureTree
             $nums[] = $key;
             $nums[] = $entry instanceof PageMarks
                 ? array_map(
-                    fn(StructureElement $element): Reference => $element->reference($this->objects),
+                    fn(?StructureElement $element): ?Reference => $element?->reference($this->objects),
                     $entry->elements(),
                 )
                 : $entry->reference($this->objects);
@@ -105,10 +114,16 @@ final class StructureTree
                 continue;
             }
             [$on, $what] = $kid;
+            $form   = $kid[2] ?? null;
             $page   ??= $on;
             $kids[] = match (true) {
-                is_int($what) && $on === $page => $what,
-                is_int($what) => Dictionary::of(['Type' => new Name('MCR'), 'Pg' => $on, 'MCID' => $what]),
+                is_int($what) && null === $form && $on === $page => $what,
+                is_int($what) => Dictionary::of([
+                    'Type' => new Name('MCR'),
+                    'Pg'   => $on,
+                    'Stm'  => $form,
+                    'MCID' => $what,
+                ]),
                 default       => Dictionary::of(['Type' => new Name('OBJR'), 'Obj' => $what, 'Pg' => $on]),
             };
         }
@@ -116,12 +131,13 @@ final class StructureTree
             $element->reference($this->objects),
             Dictionary::of([
                 'Type' => new Name('StructElem'),
-                'S'    => new Name($element->role->value),
+                'S'    => new Name($element->type),
                 'P'    => $parent,
                 'Pg'   => $page,
                 'K'    => $kids,
                 'Alt'  => null === $element->alt ? null : TextString::encode($element->alt),
                 'A'    => $element->attributes,
+                ...($element->entries?->all() ?? []),
             ]),
         );
     }
