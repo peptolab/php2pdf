@@ -9,7 +9,6 @@ use Php2Pdf\Color\Cmyk;
 use Php2Pdf\Color\ColorInterface;
 use Php2Pdf\Color\GradientStop;
 use Php2Pdf\Color\Gray;
-use Php2Pdf\Color\IccProfile;
 use Php2Pdf\Color\LinearGradient;
 use Php2Pdf\Color\Rgb;
 use Php2Pdf\Color\Spot;
@@ -23,14 +22,11 @@ use Php2Pdf\Exception\ConformanceException;
 use Php2Pdf\Exception\PdfException;
 use Php2Pdf\Geometry\Box;
 use Php2PdfTest\TestAsset\PdfTools;
+use Php2PdfTest\TestAsset\StubIccProfile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-
-use function str_pad;
-use function str_repeat;
-use function trim;
 
 /** PDF/X-4 checks colour spaces against the output intent, imported pages, page boxes and XMP (#18). */
 #[Group('integration')]
@@ -61,14 +57,6 @@ final class PdfXConformanceTest extends TestCase
             'spot with an RGB alternate'    => ['CMYK', null, new Spot('Brand', $rgb), 'needs an RGB profile'],
             'spot with a CMYK alternate'    => ['RGB ', null, new Spot('Brand', $cmyk), 'cannot use DeviceCMYK'],
         ];
-    }
-
-    private static function profile(string $space): IccProfile
-    {
-        return new IccProfile(
-            str_pad(str_repeat("\0", times: 16) . $space, length: 128, pad_string: "\0"),
-            'test-' . trim($space),
-        );
     }
 
     #[Test]
@@ -285,9 +273,9 @@ final class PdfXConformanceTest extends TestCase
             compress: false,
             clock: new FixedClock('2026-01-01T00:00:00Z'),
             pdfx: PdfX::X4,
-            rgbProfile: null === $rgbProfile ? null : self::profile($rgbProfile),
+            rgbProfile: null === $rgbProfile ? null : StubIccProfile::of($rgbProfile),
         ));
-        $doc->setOutputIntent(self::profile($intent), 'Test condition');
+        $doc->setOutputIntent(StubIccProfile::of($intent), 'Test condition');
         $doc->info()->setTitle('PDF/X test');
 
         return $doc;
