@@ -175,17 +175,19 @@ final class Font implements PdfFontInterface, DeferredInterface
     #[Override]
     public function encode(array $glyphIds): string
     {
-        $codes = [];
+        // A font with more glyphs than the compact codes reach keeps two-byte codes.
+        $compact = CodeSpace::fits($this->program->numGlyphs);
+        $bytes   = '';
         foreach ($glyphIds as $id) {
             $code = $this->codes[$id] ?? null;
             if (null === $code) {
                 $code             = count($this->codes);
                 $this->codes[$id] = $code;
             }
-            $codes[] = $code;
+            $bytes .= $compact ? CodeSpace::bytes($code) : pack('n', $code);
         }
 
-        return pack('n*', ...$codes);
+        return $bytes;
     }
 
     /**

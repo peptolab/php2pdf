@@ -95,7 +95,7 @@ final class LigatureTest extends TestCase
         $this->doc->close();
         $match = [];
 
-        self::assertSame(1, preg_match('/<[0-9A-F]{4}> <006600660069>/', $this->out->contents(), $match));
+        self::assertSame(1, preg_match('/<[0-9A-F]{2,6}> <006600660069>/', $this->out->contents(), $match));
     }
 
     #[Test]

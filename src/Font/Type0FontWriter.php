@@ -19,6 +19,7 @@ use Php2Pdf\Font\OpenType\TrueTypeSubsetter;
 
 use function array_map;
 use function chr;
+use function count;
 use function implode;
 use function md5;
 use function ord;
@@ -92,13 +93,33 @@ final readonly class Type0FontWriter
             'W'              => [0, array_map($this->advance, $glyphs)],
             'CIDToGIDMap'    => $cff ? null : new Name('Identity'),
         ]));
-        $toUnicodeRef = $writer->add(Stream::of(ToUnicode::build($toUnicode)));
+        // The compact codes, mapped by a CMap shared by the fonts that need as many, or two-byte
+        // codes for a font with more glyphs than they reach.
+        $compact      = CodeSpace::fits($program->numGlyphs);
+        $leads        = CodeSpace::leads(count($glyphs));
+        $toUnicodeRef = $writer->add(Stream::of(
+            $compact ? ToUnicode::compact($toUnicode) : ToUnicode::twoByte($toUnicode),
+        ));
+        $encoding = $compact
+            ? $writer->shared(
+                "cmap:compact:{$leads}",
+                static fn(): Stream => new Stream(Dictionary::of([
+                    'Type'          => new Name('CMap'),
+                    'CMapName'      => new Name(CodeSpace::NAME),
+                    'CIDSystemInfo' => Dictionary::of([
+                        'Registry'   => 'Adobe',
+                        'Ordering'   => 'Identity',
+                        'Supplement' => 0,
+                    ]),
+                ]), CodeSpace::cmap($leads)),
+            )
+            : new Name('Identity-H');
 
         $writer->write($reference, Dictionary::of([
             'Type'            => new Name('Font'),
             'Subtype'         => new Name('Type0'),
             'BaseFont'        => new Name($baseFont),
-            'Encoding'        => new Name('Identity-H'),
+            'Encoding'        => $encoding,
             'DescendantFonts' => [$descendant],
             'ToUnicode'       => $toUnicodeRef,
         ]));

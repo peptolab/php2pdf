@@ -61,7 +61,7 @@ final class PdfTools
      * dark, opaque pixels, sampling every other pixel. Skips off macOS or without ext-gd.
      */
     /**
-     * The two bytes an embedded font writes a character with, from the ToUnicode map of an
+     * The bytes an embedded font writes a character with, from the ToUnicode map of an
      * uncompressed PDF: codes follow the order glyphs are first used, so tests look them up.
      */
     public static function code(string $pdf, string $char): string
@@ -74,7 +74,7 @@ final class PdfTools
         $match = [];
         Assert::assertSame(
             1,
-            preg_match("/<([0-9A-F]{4})> <{$unicode}>/", $pdf, $match),
+            preg_match("/<([0-9A-F]{2,6})> <{$unicode}>/", $pdf, $match),
             "No ToUnicode entry maps to \"{$char}\".",
         );
 

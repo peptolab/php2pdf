@@ -16,8 +16,10 @@ $fonts->faces();                                         // FontInfo for every f
 TrueType and CFF-flavoured OpenType fonts are supported. Both are subset to the glyphs used
 when the document closes. A CFF font is cut down to the charstrings and subroutines those glyphs
 need, name-keyed and CID-keyed alike, and written as a bare CID-keyed CFF program. Every font is
-written as a Type0 font with Identity-H encoding and a ToUnicode map, so text copies and searches
-correctly.
+written as a Type0 font with a ToUnicode map, so text copies and searches correctly. Its glyphs are
+numbered in the order the document first uses them, and written with one byte each for the first
+192 and two bytes after, through a small encoding CMap the document's fonts share; a font with
+more than 16,576 glyphs keeps two bytes a glyph and Identity-H.
 
 Variable fonts draw their default instance. TrueType ones (glyf outlines) carry it as their
 outlines already; for CFF2 ones the default instance is worked out from the blended outlines and

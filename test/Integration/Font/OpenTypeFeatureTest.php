@@ -79,7 +79,7 @@ final class OpenTypeFeatureTest extends TestCase
 
         self::assertSame(
             1,
-            preg_match('/<[0-9A-F]{4}> <006D>/', $this->out->contents()),
+            preg_match('/<[0-9A-F]{2,6}> <006D>/', $this->out->contents()),
             'The small-cap m copies as m.',
         );
     }
