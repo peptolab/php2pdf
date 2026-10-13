@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-10-13
+
 ### Added
 
 - Encrypted PDFs can be imported (#38): the standard security handler, revisions 2 to 6 (RC4 40 and
@@ -291,7 +293,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.12...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.13...HEAD
+[0.1.13]: https://github.com/peptolab/php2pdf/compare/0.1.12...0.1.13
 [0.1.12]: https://github.com/peptolab/php2pdf/compare/0.1.11...0.1.12
 [0.1.11]: https://github.com/peptolab/php2pdf/compare/0.1.10...0.1.11
 [0.1.10]: https://github.com/peptolab/php2pdf/compare/0.1.9...0.1.10
