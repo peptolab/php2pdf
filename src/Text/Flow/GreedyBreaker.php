@@ -18,7 +18,8 @@ final class GreedyBreaker
 {
     /**
      * Finds where the line ends. A box too wide for any line is split between characters, its
-     * head ending the line.
+     * head ending the line. A break the line starts at, where the line before it ended, is not
+     * one to end it at too: a line ending where it starts would take nothing.
      *
      * @param list<Item> $items
      */
@@ -49,7 +50,7 @@ final class GreedyBreaker
                 continue;
             }
             if (ItemKind::Penalty === $kind) {
-                if (($x + $item->hyphenWidth) <= $available) {
+                if ($i > $start && ($x + $item->hyphenWidth) <= $available) {
                     $lastBreak = $i;
                 }
                 continue;

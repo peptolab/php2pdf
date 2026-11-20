@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Php2Pdf\Text\Flow;
 
+use Php2Pdf\Exception\LayoutException;
 use Php2Pdf\Flow\FlowResult;
 use Php2Pdf\Text\FirstBaseline;
 use Php2Pdf\Text\FlowOptions;
@@ -12,6 +13,7 @@ use Php2Pdf\Text\Style\ParagraphFormat;
 use function array_slice;
 use function count;
 use function max;
+use function sprintf;
 
 /**
  * Fills a box of a given size with lines from a cursor position, applying paragraph spacing,
@@ -65,6 +67,23 @@ final class Layout
         }
 
         return [$consumed, $end];
+    }
+
+    /**
+     * Stops a line that takes nothing from the paragraph, neither an item nor a character of the
+     * box at $offset, from being set again and again from the same place without end.
+     *
+     * @throws LayoutException
+     */
+    private static function assertProgress(Line $line, int $offset, int $carry): void
+    {
+        if (0 === $line->itemsConsumed && $line->carry === $carry) {
+            throw new LayoutException(sprintf(
+                'A line breaking from item %d (%d characters in) took nothing from the paragraph.',
+                $offset,
+                $carry,
+            ));
+        }
     }
 
     public function run(): LayoutResult
@@ -137,7 +156,8 @@ final class Layout
             }
             // nextLine() is null only past the last item, and the loop stops before that.
             /** @var Line $line */
-            $line       = $this->breaker->nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
+            $line = $this->breaker->nextLine($paragraph, $offset, $this->width, $lineNumber, $carry);
+            self::assertProgress($line, $offset, $carry);
             $firstInBox = [] === $this->lines && [] === $lines;
             $baseline   = $y + ($firstInBox ? $this->firstBaseline($line) : $line->lineHeight);
             if (($baseline + $line->descent) > ($this->boxHeight + 1.0e-6)) {
@@ -335,6 +355,7 @@ final class Layout
             $lineNumber = 0 === $this->itemIndex && 0 === $this->carry ? 0 : 1;
             /** @var Line $line nextLine() is null only past the last item, and $item is one. */
             $line = $this->breaker->nextLine($paragraph, $this->itemIndex, $this->width, $lineNumber, $this->carry);
+            self::assertProgress($line, $this->itemIndex, $this->carry);
             if ([] !== $line->segments || [] !== $line->inlines) {
                 return;
             }

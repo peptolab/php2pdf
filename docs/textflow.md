@@ -111,7 +111,9 @@ A small tag set, with `style="name"` on `<p>` and `<span>` referring to named st
 | `<ul>`, `<ol>`, `<li>` | Lists, nested as deep as wanted (see [Lists](#lists)) |
 
 `&amp;`, `&lt;`, `&gt;` and numeric entities are decoded. Soft hyphens (U+00AD) mark allowed
-breaks; non-breaking spaces (U+00A0, U+202F narrow and U+2007 figure) never break or stretch.
+breaks; zero-width spaces (U+200B) mark allowed breaks that add no hyphen and draw nothing, and
+are left out of the copied text; non-breaking spaces (U+00A0, U+202F narrow and U+2007 figure)
+never break or stretch.
 
 Lines also break after a hard hyphen, U+2010 hyphen, en dash or slash (unless a digit follows,
 so "10-12" stays whole) and on either side of an em dash, adding no hyphen. En, em, thin, hair

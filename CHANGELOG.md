@@ -21,6 +21,9 @@ All notable changes to this project are documented here. The format follows
   attributes, their types mapped to the standard ones. Other placements, and those in templates,
   are artifacts; a page placed with alternate text stays a figure. Untagged documents place
   imported pages as before.
+- Zero-width spaces (U+200B) in textflows mark where a line may break, as in a long web address.
+  They take no width and draw nothing, not even a missing-glyph box, and are left out of the
+  page's text, so text copied from the PDF does not carry them.
 
 ### Changed
 
@@ -28,6 +31,14 @@ All notable changes to this project are documented here. The format follows
   the marked-content sequences of its paragraphs and links inside it: smaller tagged files.
 - Under PDF/UA, as under PDF/X and PDF/A, an imported page using a font that is not embedded is
   refused when it is placed.
+
+### Fixed
+
+- A textflow no longer runs until PHP is out of memory when a line starts just after a break
+  (after a slash or hyphen, say) and the word that follows is wider than the line, as long web
+  addresses in narrow table cells are: the word is split between characters across lines, as
+  other words too wide for a line are. Should a line ever take nothing from its paragraph, the
+  layout now stops with a `LayoutException` rather than setting it again without end.
 
 ## [0.1.14] - 2026-10-13
 

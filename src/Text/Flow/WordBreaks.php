@@ -8,6 +8,7 @@ use Php2Pdf\Text\Hyphenation\Hyphenator;
 use Php2Pdf\Text\Style\ParagraphFormat;
 use Php2Pdf\Text\Style\TextStyle;
 
+use function array_pop;
 use function array_values;
 use function count;
 use function explode;
@@ -17,19 +18,28 @@ use function preg_match;
 use function preg_match_all;
 use function preg_split;
 use function spl_object_id;
+use function str_starts_with;
 
 use const PREG_SPLIT_NO_EMPTY;
 
 /**
- * Where text may break: at tabs and line breaks, at word spaces and fixed spaces, after hard
- * hyphens, dashes and slashes, on either side of a Chinese or Japanese character, and at soft
- * hyphens or, failing those, the hyphenation points of the patterns for the text's language.
+ * Where text may break: at tabs and line breaks, at word spaces, fixed spaces and zero-width
+ * spaces, after hard hyphens, dashes and slashes, on either side of a Chinese or Japanese
+ * character, and at soft hyphens or, failing those, the hyphenation points of the patterns for
+ * the text's language.
  *
  * @internal
  */
 final class WordBreaks
 {
     public const string SOFT_HYPHEN = "\u{00AD}";
+
+    /**
+     * A break that shows nothing and takes no width, put in text to let it break where it has no
+     * other break, such as within a web address. It is taken out of the text, so it is neither
+     * drawn nor in the text a reader copies.
+     */
+    public const string ZERO_WIDTH_SPACE = "\u{200B}";
 
     /** Spaces of fixed width that allow a break: en, em, three-, four- and six-per-em, punctuation, thin, hair. */
     public const string FIXED_SPACES = '[\x{2002}-\x{2006}\x{2008}-\x{200A}]';
@@ -91,7 +101,8 @@ final class WordBreaks
     /**
      * The pieces of a stretch, each with the break after it (glue, a break showing nothing, a
      * hyphen, or none), and the text to shape for them: fixed spaces the font lacks become word
-     * spaces. Right-to-left words are not hyphenated. Each word is cut once per style; its pieces
+     * spaces, and zero-width spaces are taken out, leaving a break that shows nothing in their
+     * place. Right-to-left words are not hyphenated. Each word is cut once per style; its pieces
      * are remembered for when it comes back.
      *
      * @return array{0: list<array{0: string, 1: ?string}>, 1: string}
@@ -101,10 +112,11 @@ final class WordBreaks
         $font    = StyleResolver::fontOf($style);
         $matches = [];
         preg_match_all(
-            '/[ ]+|' . WordBreaks::FIXED_SPACES . '|(?:(?!' . WordBreaks::FIXED_SPACES . ')[^ ])+/u',
+            '/[ ]+|\x{200B}+|' . WordBreaks::FIXED_SPACES . '|(?:(?!' . WordBreaks::FIXED_SPACES . ')[^ \x{200B}])+/u',
             $text,
             $matches,
         );
+        /** @var list<array{0: string, 1: ?string}> $pieces */
         $pieces = [];
         $shaped = '';
         $id     = spl_object_id($style);
@@ -112,6 +124,13 @@ final class WordBreaks
             if (' ' === $chunk[0]) {
                 $pieces[] = [$chunk, WordBreaks::GLUE];
                 $shaped   .= $chunk;
+                continue;
+            }
+            if (str_starts_with($chunk, WordBreaks::ZERO_WIDTH_SPACE)) {
+                $before = array_pop($pieces);
+                if (null !== $before) {
+                    $pieces[] = [$before[0], $before[1] ?? WordBreaks::BREAK];
+                }
                 continue;
             }
             if (preg_match('/^' . WordBreaks::FIXED_SPACES . '$/u', $chunk) === 1) {
