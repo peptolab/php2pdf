@@ -10,6 +10,9 @@ jobs:
     secrets: inherit
     with:
       php-versions: '["8.3", "8.4", "8.5"]'
+      # The code is formatted and checked with this Mago; a newer release reformats and flags
+      # code that has not changed. Move up deliberately, with the code brought into line.
+      mago-version: "1.56.3"
       run-integration: true
       apt-packages: "qpdf poppler-utils ghostscript librsvg2-bin fonts-dejavu-core"
       enable-codecov: false
