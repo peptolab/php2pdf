@@ -55,6 +55,17 @@ final class LineBreakerTest extends TestCase
     }
 
     #[Test]
+    public function aLineBreaksAtAZeroWidthSpace(): void
+    {
+        $line = $this->firstLine("search?\u{200B}q=type", $this->serif->width('search?q=t', 10.0));
+
+        self::assertSame(
+            ['search?', $this->serif->width('search?', 10.0)],
+            [self::text($line), $line->width],
+        );
+    }
+
+    #[Test]
     public function aLineEndingAtAFixedSpaceDropsIt(): void
     {
         $line = $this->firstLine("Total\u{2003}due", $this->serif->width("Total\u{2003}d", 10.0));
@@ -85,6 +96,19 @@ final class LineBreakerTest extends TestCase
             [0.0, $this->serif->width('AT', 10.0)],
             [$this->lastGlyph($line)->kerning, $line->width],
             'T→space is −19, but the space is not drawn.',
+        );
+    }
+
+    #[Test]
+    public function aLineStartingAtABreakBeforeAWordTooWideForItTakesPartOfTheWord(): void
+    {
+        $text  = 'r/availability';
+        $lines = $this->lines($text, $this->serif->width('availab', 10.0));
+
+        self::assertSame(
+            [$text, 'r/'],
+            [implode('', $lines), $lines[0] ?? null],
+            'Each line takes at least a character, so breaking ends.',
         );
     }
 
@@ -141,6 +165,19 @@ final class LineBreakerTest extends TestCase
         self::assertSame(
             [$word, true, true],
             [implode('', $lines), count($lines) > 2, $items === $paragraph->items],
+        );
+    }
+
+    #[Test]
+    public function aZeroWidthSpaceShowsNothingAndTakesNoWidth(): void
+    {
+        $line = $this->firstLine("search?\u{200B}q=type", 500.0);
+
+        self::assertEqualsWithDelta(
+            ['search?q=type', $this->serif->width('search?q=type', 10.0)],
+            [self::text($line), $line->width],
+            1.0e-9,
+            'No glyph is drawn for the space, so none is in the copied text either.',
         );
     }
 
@@ -207,5 +244,31 @@ final class LineBreakerTest extends TestCase
         self::assertNotNull($glyph);
 
         return $glyph;
+    }
+
+    /**
+     * The text of each line the paragraph of $text breaks into at $width, up to twenty lines, so
+     * a breaker that stops making progress fails rather than running on.
+     *
+     * @return list<string>
+     */
+    private function lines(string $text, float $width): array
+    {
+        $items     = (new Itemiser($this->hyphenators))->itemise([[$text, $this->style]]);
+        $paragraph = new Paragraph($this->style, $items);
+        $breaker   = new LineBreaker(new BreakPlanner());
+        $lines     = [];
+        $offset    = 0;
+        $carry     = 0;
+        while (
+            count($lines) < 20
+            && null !== ($line = $breaker->nextLine($paragraph, $offset, $width, count($lines), $carry))
+        ) {
+            $lines[] = self::text($line);
+            $offset  += $line->itemsConsumed;
+            $carry   = $line->carry;
+        }
+
+        return $lines;
     }
 }

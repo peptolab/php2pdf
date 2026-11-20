@@ -41,6 +41,24 @@ final class WordBreaksTest extends TestCase
         ];
     }
 
+    #[Test]
+    public function aZeroWidthSpaceIsABreakThatLeavesNothingBehind(): void
+    {
+        [$cut, $shaped] = (new WordBreaks())->pieces("search?\u{200B}q=type&\u{200B}page=2", $this->style, 0);
+
+        self::assertSame(
+            [
+                [
+                    ['search?', WordBreaks::BREAK],
+                    ['q=type&', WordBreaks::BREAK],
+                    ['page=2',  null],
+                ],
+                'search?q=type&page=2',
+            ],
+            [$cut, $shaped],
+        );
+    }
+
     /** @param list<string> $pieces */
     #[Test]
     #[DataProvider('cjkProvider')]
