@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-11-20
+
 ### Added
 
 - Lists in textflows: `<ul>`, `<ol type="1|a|A|i|I" start="n">` and `<li>` in markup, nested as
@@ -363,7 +365,8 @@ The first release.
   placed; an image placed at several resolutions, orientations or clips shares its pixels, and an
   image file is read again only when it changes.
 
-[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.14...HEAD
+[Unreleased]: https://github.com/peptolab/php2pdf/compare/0.1.15...HEAD
+[0.1.15]: https://github.com/peptolab/php2pdf/compare/0.1.14...0.1.15
 [0.1.14]: https://github.com/peptolab/php2pdf/compare/0.1.13...0.1.14
 [0.1.13]: https://github.com/peptolab/php2pdf/compare/0.1.12...0.1.13
 [0.1.12]: https://github.com/peptolab/php2pdf/compare/0.1.11...0.1.12
